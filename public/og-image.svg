@@ -1,0 +1,9 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="630" fill="#FFFFFF"/>
+  <style>@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500&amp;display=swap');</style>
+  <text x="80" y="295" font-family="'Plus Jakarta Sans', sans-serif" font-weight="500" font-size="44" fill="#111111" letter-spacing="-1">wyjdź na pole</text>
+  <path d="M432 282H452M447 274L453 282L447 290" stroke="#111111" stroke-opacity="0.2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="80" y="340" font-family="'Plus Jakarta Sans', sans-serif" font-weight="400" font-size="20" fill="#737373">Odkryj Kraków z dzieckiem</text>
+  <line x1="80" y1="556" x2="1120" y2="556" stroke="#E5E5E5"/>
+  <text x="80" y="580" font-family="'Plus Jakarta Sans', sans-serif" font-weight="400" font-size="14" fill="#A1A1A1">wydarzenia · kolonie · miejsca</text>
+</svg>

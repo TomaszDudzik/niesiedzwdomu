@@ -1,0 +1,88 @@
+import type { DiscoveryItem, ContentType } from "@/types/database";
+import { CONTENT_TYPE_LABELS, CONTENT_TYPE_ICONS, CONTENT_TYPE_COLORS, CATEGORY_LABELS, CATEGORY_ICONS, CAMP_TYPE_LABELS, CAMP_TYPE_ICONS, PLACE_TYPE_LABELS, PLACE_TYPE_ICONS } from "./mock-data";
+import { formatDateShort, formatPrice, formatAgeRange } from "./utils";
+
+/** Get the URL path for a discovery item */
+export function getItemHref(item: DiscoveryItem): string {
+  switch (item.content_type) {
+    case "event": return `/wydarzenia/${item.slug}`;
+    case "camp": return `/kolonie/${item.slug}`;
+    case "place": return `/miejsca/${item.slug}`;
+  }
+}
+
+/** Get the type badge label (e.g., "Wydarzenie", "Kolonie") */
+export function getTypeBadgeLabel(item: DiscoveryItem): string {
+  return CONTENT_TYPE_LABELS[item.content_type];
+}
+
+/** Get the type badge icon */
+export function getTypeBadgeIcon(item: DiscoveryItem): string {
+  return CONTENT_TYPE_ICONS[item.content_type];
+}
+
+/** Get the type badge colors */
+export function getTypeBadgeColors(type: ContentType) {
+  return CONTENT_TYPE_COLORS[type];
+}
+
+/** Get the sub-category label (event category, camp type, place type) */
+export function getSubcategoryLabel(item: DiscoveryItem): string {
+  switch (item.content_type) {
+    case "event": return CATEGORY_LABELS[item.category];
+    case "camp": return CAMP_TYPE_LABELS[item.camp_type];
+    case "place": return PLACE_TYPE_LABELS[item.place_type];
+  }
+}
+
+/** Get the sub-category icon */
+export function getSubcategoryIcon(item: DiscoveryItem): string {
+  switch (item.content_type) {
+    case "event": return CATEGORY_ICONS[item.category];
+    case "camp": return CAMP_TYPE_ICONS[item.camp_type];
+    case "place": return PLACE_TYPE_ICONS[item.place_type];
+  }
+}
+
+/** Get the primary location text */
+export function getLocationText(item: DiscoveryItem): string {
+  switch (item.content_type) {
+    case "event": return item.venue_name;
+    case "camp": return item.venue_name;
+    case "place": return item.address;
+  }
+}
+
+/** Get the primary date/time text */
+export function getDateText(item: DiscoveryItem): string {
+  switch (item.content_type) {
+    case "event": {
+      let s = formatDateShort(item.date_start);
+      if (item.time_start) s += ` · ${item.time_start}`;
+      return s;
+    }
+    case "camp": {
+      return `${formatDateShort(item.date_start)} – ${formatDateShort(item.date_end)}`;
+    }
+    case "place": {
+      return item.opening_hours || "Sprawdź godziny";
+    }
+  }
+}
+
+/** Get the secondary info line for cards */
+export function getSecondaryInfo(item: DiscoveryItem): string | null {
+  switch (item.content_type) {
+    case "camp":
+      return `${item.duration_days} dni` + (item.meals_included ? " · wyżywienie" : "");
+    case "place":
+      return item.is_indoor ? "Wewnątrz" : "Na zewnątrz";
+    default:
+      return null;
+  }
+}
+
+/** Fallback placeholder icon for items without images */
+export function getPlaceholderIcon(item: DiscoveryItem): string {
+  return getSubcategoryIcon(item);
+}

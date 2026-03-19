@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #FFFFFF;
+  --color-foreground: #111111;
+  --color-muted: #737373;
+  --color-muted-foreground: #A1A1A1;
+  --color-border: #E5E5E5;
+  --color-card: #FFFFFF;
+  --color-card-foreground: #111111;
+
+  --color-primary: #111111;
+  --color-primary-foreground: #FFFFFF;
+
+  --color-accent: #F5F5F5;
+  --color-accent-foreground: #111111;
+
+  --color-success: #22C55E;
+  --color-danger: #EF4444;
+
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  ::selection {
+    background-color: #111111;
+    color: #FFFFFF;
+  }
+}
+
+@layer components {
+  .container-page {
+    @apply mx-auto max-w-6xl px-5 sm:px-6 lg:px-8;
+  }
+}

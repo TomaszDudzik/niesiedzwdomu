@@ -1,0 +1,57 @@
+import { notFound } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft, Clock, MapPin, Users, ExternalLink } from "lucide-react";
+import { mockPlaces, PLACE_TYPE_LABELS } from "@/lib/mock-data";
+import { formatPrice, formatAgeRange } from "@/lib/utils";
+import { FeedbackButtons } from "@/components/ui/feedback-buttons";
+import { ContentCard } from "@/components/ui/content-card";
+
+interface PageProps { params: Promise<{ slug: string }>; }
+export function generateStaticParams() { return mockPlaces.map((p) => ({ slug: p.slug })); }
+
+export default async function PlaceDetailPage({ params }: PageProps) {
+  const { slug } = await params;
+  const place = mockPlaces.find((p) => p.slug === slug);
+  if (!place) notFound();
+  const related = mockPlaces.filter((p) => p.id !== place.id && p.status === "published").slice(0, 3);
+
+  return (
+    <div className="container-page py-8">
+      <Link href="/miejsca" className="inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-foreground transition-colors mb-8">
+        <ArrowLeft size={13} /> Miejsca
+      </Link>
+      <div className="grid lg:grid-cols-3 gap-10">
+        <div className="lg:col-span-2">
+          {place.image_url && (<div className="rounded-lg overflow-hidden mb-8 aspect-[16/9] bg-[#FAFAFA]"><img src={place.image_url} alt={place.title} className="w-full h-full object-cover" /></div>)}
+          <div className="flex items-center gap-1.5 mb-3 text-[11px] text-muted-foreground uppercase tracking-wider font-medium">
+            <span>{PLACE_TYPE_LABELS[place.place_type]}</span><span className="opacity-40">·</span><span>{place.is_indoor ? "Wewnątrz" : "Na zewnątrz"}</span><span className="opacity-40">·</span><span>{place.district}</span>
+          </div>
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground leading-tight tracking-[-0.02em] mb-3">{place.title}</h1>
+          <p className="text-[15px] text-muted leading-relaxed mb-8">{place.description_short}</p>
+          <div className="space-y-4">{place.description_long.split("\n").map((p, i) => (<p key={i} className="text-[15px] text-foreground/80 leading-relaxed">{p}</p>))}</div>
+          {place.amenities.length > 0 && (
+            <div className="mt-8 pt-8 border-t border-border">
+              <h3 className="text-[13px] font-semibold text-foreground mb-3">Udogodnienia</h3>
+              <div className="flex flex-wrap gap-1.5">{place.amenities.map((a) => (<span key={a} className="px-2 py-0.5 rounded text-[12px] font-medium bg-[#F5F5F5] text-[#555]">{a}</span>))}</div>
+            </div>
+          )}
+          <div className="mt-10 pt-8 border-t border-border"><FeedbackButtons eventId={place.id} initialLikes={place.likes} initialDislikes={place.dislikes} /></div>
+        </div>
+        <div className="lg:col-span-1">
+          <div className="sticky top-20 space-y-5">
+            <div className="rounded-lg border border-border p-5 space-y-4">
+              <span className="text-xl font-semibold text-foreground">{formatPrice(place.price)}</span>
+              <div className="space-y-3 text-[13px]">
+                <div className="flex items-start gap-2.5"><MapPin size={15} className="text-muted-foreground/50 shrink-0 mt-0.5" /><div><p className="font-medium text-foreground">{place.address}</p><p className="text-muted">{place.district}</p></div></div>
+                {place.opening_hours && (<div className="flex items-start gap-2.5"><Clock size={15} className="text-muted-foreground/50 shrink-0 mt-0.5" /><p className="font-medium text-foreground">{place.opening_hours}</p></div>)}
+                <div className="flex items-start gap-2.5"><Users size={15} className="text-muted-foreground/50 shrink-0 mt-0.5" /><p className="font-medium text-foreground">{formatAgeRange(place.age_min, place.age_max)}</p></div>
+              </div>
+              {place.source_url && (<a href={place.source_url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-foreground text-white rounded-md text-[13px] font-medium hover:bg-[#333] transition-colors"><ExternalLink size={13} /> Strona</a>)}
+            </div>
+          </div>
+        </div>
+      </div>
+      {related.length > 0 && (<section className="mt-16 pt-10 border-t border-border"><h2 className="text-[15px] font-semibold text-foreground mb-5">Inne miejsca</h2><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">{related.map((p) => <ContentCard key={p.id} item={p} />)}</div></section>)}
+    </div>
+  );
+}
