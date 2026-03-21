@@ -1,18 +1,15 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
-import { mockEvents, mockCamps, mockPlaces, getDiscoveryFeed } from "@/lib/mock-data";
+import { ArrowRight, Calendar, MapPin, Sun, Tent, Users } from "lucide-react";
+import { getPublishedEvents, getFeaturedEvent, getFreeEvents } from "@/lib/data";
 import { FeaturedCard } from "@/components/ui/featured-card";
 import { ContentCard } from "@/components/ui/content-card";
 
-const feed = getDiscoveryFeed();
-const featuredItem = feed.find((i) => i.is_featured) || feed[0];
-const upcomingEvents = mockEvents
-  .filter((e) => e.status === "published")
-  .sort((a, b) => a.date_start.localeCompare(b.date_start))
-  .slice(0, 6);
-const featuredPlaces = mockPlaces.filter((p) => p.status === "published").slice(0, 3);
-const featuredCamps = mockCamps.filter((c) => c.status === "published" && c.is_featured).slice(0, 2);
-const freeItems = feed.filter((i) => i.is_free).slice(0, 3);
+const QUICK_LINKS = [
+  { href: "/wydarzenia", label: "Dziś", icon: Calendar },
+  { href: "/wydarzenia?weekend=true", label: "Weekend", icon: Sun },
+  { href: "/kolonie", label: "Półkolonie", icon: Tent },
+  { href: "/miejsca", label: "Miejsca", icon: MapPin },
+];
 
 function SectionLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
@@ -23,100 +20,108 @@ function SectionLink({ href, children }: { href: string; children: React.ReactNo
   );
 }
 
-export default function HomePage() {
+export const revalidate = 60; // Revalidate every 60 seconds
+
+export default async function HomePage() {
+  const [upcomingEvents, featuredItem, freeItems] = await Promise.all([
+    getPublishedEvents(6),
+    getFeaturedEvent(),
+    getFreeEvents(3),
+  ]);
+
+  // Fallback: use first event as featured if none is marked
+  const featured = featuredItem || upcomingEvents[0] || null;
+
   return (
     <div>
-      {/* Hero */}
-      <section className="container-page pt-16 pb-12 md:pt-24 md:pb-16">
-        <h1 className="text-3xl md:text-[44px] font-bold text-foreground tracking-[-0.03em] leading-[1.15] mb-4">
-          Odkryj Kraków<br />z dzieckiem
-        </h1>
-        <p className="text-[16px] text-muted leading-relaxed mb-8 max-w-md">
-          Wydarzenia, kolonie i miejsca dla rodzin. Wszystko w jednym miejscu.
-        </p>
-        <div className="flex flex-wrap gap-2">
+      {/* Hero — compact, action-oriented */}
+      <section className="container-page pt-8 pb-6 md:pt-10 md:pb-8">
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-5">
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold text-foreground tracking-[-0.02em] leading-tight">
+              Odkryj Kraków z dzieckiem
+            </h1>
+            <p className="text-[13px] text-muted mt-1">
+              Wydarzenia, kolonie i miejsca dla rodzin w jednym miejscu.
+            </p>
+          </div>
           <Link
-            href="/wydarzenia"
-            className="group inline-flex items-center gap-2 px-4 py-2 bg-foreground text-white rounded-md text-[13px] font-medium hover:bg-[#333] transition-colors"
+            href="/kalendarz"
+            className="group inline-flex items-center gap-1.5 text-[13px] font-medium text-muted hover:text-foreground transition-colors shrink-0"
           >
-            Przeglądaj wydarzenia
+            Kalendarz
             <ArrowRight size={13} className="group-hover:translate-x-0.5 transition-transform duration-150" />
           </Link>
-          <Link
-            href="/miejsca"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-white text-foreground rounded-md text-[13px] font-medium border border-border hover:border-[#CCC] transition-colors"
-          >
-            Miejsca
-          </Link>
-          <Link
-            href="/kolonie"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-white text-foreground rounded-md text-[13px] font-medium border border-border hover:border-[#CCC] transition-colors"
-          >
-            Kolonie
-          </Link>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {QUICK_LINKS.map((link) => (
+            <Link
+              key={link.label}
+              href={link.href}
+              className="group inline-flex items-center gap-2 px-3.5 py-2 rounded-md text-[13px] font-medium border border-border bg-white text-foreground hover:border-[#CCC] hover:bg-accent/50 transition-colors"
+            >
+              <link.icon size={14} className="text-muted" />
+              {link.label}
+            </Link>
+          ))}
         </div>
       </section>
 
       <div className="border-t border-border" />
 
       {/* Featured */}
-      {featuredItem && (
+      {featured && (
         <section className="container-page pt-12">
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-[15px] font-semibold text-foreground">Polecane</h2>
           </div>
-          <FeaturedCard item={featuredItem} />
+          <FeaturedCard item={featured} />
         </section>
       )}
 
       {/* Upcoming events */}
+      {upcomingEvents.length > 0 && (
+        <section className="container-page mt-14">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-[15px] font-semibold text-foreground">Nadchodzące wydarzenia</h2>
+            <SectionLink href="/wydarzenia">Wszystkie</SectionLink>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {upcomingEvents.slice(0, 6).map((event) => (
+              <ContentCard key={event.id} item={event} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Coming soon sections */}
       <section className="container-page mt-14">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-[15px] font-semibold text-foreground">Nadchodzące wydarzenia</h2>
-          <SectionLink href="/wydarzenia">Wszystkie</SectionLink>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {upcomingEvents.slice(0, 6).map((event) => (
-            <ContentCard key={event.id} item={event} />
+        <h2 className="text-[15px] font-semibold text-foreground mb-5">Już wkrótce</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {[
+            { href: "/miejsca", icon: MapPin, label: "Miejsca", description: "Place zabaw, sale zabaw, kawiarnie rodzinne" },
+            { href: "/kolonie", icon: Tent, label: "Kolonie i półkolonie", description: "Obozy, półkolonie i warsztaty wakacyjne" },
+            { href: "/zajecia", icon: Users, label: "Zajęcia dla dzieci", description: "Regularne zajęcia sportowe, artystyczne i edukacyjne" },
+          ].map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="group flex items-start gap-3 rounded-lg border border-border p-4 hover:border-[#CCC] transition-colors"
+            >
+              <item.icon size={18} className="text-muted-foreground/40 mt-0.5 shrink-0" />
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className="text-[13px] font-medium text-foreground">{item.label}</span>
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-amber-600 bg-amber-50 border border-amber-100 leading-none">
+                    Wkrótce
+                  </span>
+                </div>
+                <p className="text-[12px] text-muted">{item.description}</p>
+              </div>
+            </Link>
           ))}
         </div>
       </section>
-
-      {/* Places */}
-      {featuredPlaces.length > 0 && (
-        <section className="container-page mt-14">
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <h2 className="text-[15px] font-semibold text-foreground">Miejsca</h2>
-              <p className="text-[13px] text-muted mt-0.5">Place zabaw, sale zabaw, kawiarnie rodzinne</p>
-            </div>
-            <SectionLink href="/miejsca">Wszystkie</SectionLink>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {featuredPlaces.map((place) => (
-              <ContentCard key={place.id} item={place} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Camps */}
-      {featuredCamps.length > 0 && (
-        <section className="container-page mt-14">
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <h2 className="text-[15px] font-semibold text-foreground">Kolonie i półkolonie</h2>
-              <p className="text-[13px] text-muted mt-0.5">Znajdź obóz dla swojego dziecka</p>
-            </div>
-            <SectionLink href="/kolonie">Więcej</SectionLink>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            {featuredCamps.map((camp) => (
-              <ContentCard key={camp.id} item={camp} />
-            ))}
-          </div>
-        </section>
-      )}
 
       {/* Free */}
       {freeItems.length > 0 && (

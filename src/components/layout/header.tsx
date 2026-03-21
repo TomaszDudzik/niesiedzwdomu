@@ -6,11 +6,13 @@ import { useState } from "react";
 import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand/logo";
+import { ComingSoonBadge } from "@/components/ui/coming-soon";
 
 const NAV_LINKS = [
   { href: "/wydarzenia", label: "Wydarzenia" },
-  { href: "/kolonie", label: "Kolonie" },
-  { href: "/miejsca", label: "Miejsca" },
+  { href: "/kolonie", label: "Kolonie", comingSoon: true },
+  { href: "/miejsca", label: "Miejsca", comingSoon: true },
+  { href: "/zajecia", label: "Zajęcia", comingSoon: true },
   { href: "/kalendarz", label: "Kalendarz" },
 ];
 
@@ -33,13 +35,14 @@ export function Header() {
               key={link.href}
               href={link.href}
               className={cn(
-                "px-3 py-1.5 rounded-md text-[13px] font-medium transition-colors",
+                "px-3 py-1.5 rounded-md text-[13px] font-medium transition-colors inline-flex items-center gap-1.5",
                 isActive(link.href)
                   ? "bg-accent text-foreground"
                   : "text-muted hover:text-foreground"
               )}
             >
               {link.label}
+              {"comingSoon" in link && link.comingSoon && <ComingSoonBadge />}
             </Link>
           ))}
         </nav>
@@ -61,11 +64,12 @@ export function Header() {
               href={link.href}
               onClick={() => setMobileOpen(false)}
               className={cn(
-                "block px-5 py-2.5 text-[13px] font-medium transition-colors",
+                "flex items-center gap-2 px-5 py-2.5 text-[13px] font-medium transition-colors",
                 isActive(link.href) ? "text-foreground" : "text-muted"
               )}
             >
               {link.label}
+              {"comingSoon" in link && link.comingSoon && <ComingSoonBadge />}
             </Link>
           ))}
         </nav>

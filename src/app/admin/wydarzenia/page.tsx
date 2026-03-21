@@ -1,52 +1,149 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, Pencil, Trash2, Eye, EyeOff, Star } from "lucide-react";
-import { mockEvents, CATEGORY_LABELS, CATEGORY_ICONS } from "@/lib/mock-data";
+import { useState, useEffect, useCallback } from "react";
+import { Plus, Pencil, Trash2, Eye, EyeOff, Star, RefreshCw, ImagePlus, Loader2 } from "lucide-react";
+import { CATEGORY_LABELS, CATEGORY_ICONS } from "@/lib/mock-data";
 import { formatDateShort, formatPrice } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { Event } from "@/types/database";
 import { AdminEventForm } from "@/components/admin/event-form";
 
 export default function AdminEventsPage() {
-  const [events, setEvents] = useState<Event[]>(mockEvents);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [generatingImage, setGeneratingImage] = useState<string | null>(null);
 
-  const handleSave = (event: Event) => {
+  const fetchEvents = useCallback(async () => {
+    setLoading(true);
+    const res = await fetch("/api/admin/events");
+    const data = await res.json();
+    setEvents(Array.isArray(data) ? data : []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchEvents(); }, [fetchEvents]);
+
+  const handleSave = async (event: Event) => {
+    // Strip client-only fields before sending to API
+    const { content_type, ...dbFields } = event as Event & { content_type?: string };
+
     if (editingEvent) {
+      // Update existing event
+      const { id, created_at, updated_at, likes, dislikes, ...updates } = dbFields;
+      const res = await fetch("/api/admin/events", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, ...updates }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(`Błąd: ${data.error}`);
+        return;
+      }
       setEvents((prev) =>
         prev.map((e) => (e.id === event.id ? event : e))
       );
     } else {
-      setEvents((prev) => [event, ...prev]);
+      // Create new event — remove id so Supabase generates one
+      const { id, created_at, updated_at, likes, dislikes, ...insertData } = dbFields;
+      const res = await fetch("/api/admin/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(insertData),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(`Błąd: ${data.error}`);
+        return;
+      }
+      // Refresh the full list to get the server-generated id
+      await fetchEvents();
     }
     setEditingEvent(null);
     setShowForm(false);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm("Na pewno chcesz usunąć to wydarzenie?")) {
+      await fetch("/api/admin/events", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
       setEvents((prev) => prev.filter((e) => e.id !== id));
     }
   };
 
-  const toggleStatus = (id: string) => {
+  const toggleStatus = async (id: string) => {
+    const event = events.find((e) => e.id === id);
+    if (!event) return;
+    const newStatus = event.status === "published" ? "draft" : "published";
+    const res = await fetch("/api/admin/events", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, status: newStatus }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(`Błąd: ${data.error}`);
+      return;
+    }
     setEvents((prev) =>
       prev.map((e) =>
-        e.id === id
-          ? { ...e, status: e.status === "published" ? "draft" : "published" }
-          : e
+        e.id === id ? { ...e, status: newStatus } : e
       )
     );
   };
 
-  const toggleFeatured = (id: string) => {
+  const toggleFeatured = async (id: string) => {
+    const event = events.find((e) => e.id === id);
+    if (!event) return;
+    const res = await fetch("/api/admin/events", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, is_featured: !event.is_featured }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(`Błąd: ${data.error}`);
+      return;
+    }
     setEvents((prev) =>
       prev.map((e) =>
         e.id === id ? { ...e, is_featured: !e.is_featured } : e
       )
     );
+  };
+
+  const generateImage = async (event: Event) => {
+    setGeneratingImage(event.id);
+    try {
+      const res = await fetch("/api/admin/generate-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: event.id,
+          title: event.title,
+          description: event.description_short,
+          category: event.category,
+        }),
+      });
+      const data = await res.json();
+      if (data.image_url) {
+        setEvents((prev) =>
+          prev.map((e) =>
+            e.id === event.id ? { ...e, image_url: data.image_url } : e
+          )
+        );
+      } else {
+        alert(`Błąd: ${data.error || "Nie udało się wygenerować obrazka"}`);
+      }
+    } catch {
+      alert("Błąd połączenia z serwerem");
+    }
+    setGeneratingImage(null);
   };
 
   return (
@@ -55,19 +152,27 @@ export default function AdminEventsPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Wydarzenia</h1>
           <p className="text-sm text-muted mt-1">
-            {events.length} wydarzeń łącznie
+            {loading ? "Ładowanie..." : `${events.length} wydarzeń w bazie`}
           </p>
         </div>
-        <button
-          onClick={() => {
-            setEditingEvent(null);
-            setShowForm(true);
-          }}
-          className="flex items-center gap-2 px-4 py-2.5 bg-foreground text-white rounded-xl text-sm font-medium hover:bg-stone-700 transition-colors"
-        >
-          <Plus size={16} />
-          Dodaj wydarzenie
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={fetchEvents}
+            className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-muted border border-border rounded-xl hover:border-[#CCC] transition-colors"
+          >
+            <RefreshCw size={14} /> Odśwież
+          </button>
+          <button
+            onClick={() => {
+              setEditingEvent(null);
+              setShowForm(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2.5 bg-foreground text-white rounded-xl text-sm font-medium hover:bg-stone-700 transition-colors"
+          >
+            <Plus size={16} />
+            Dodaj wydarzenie
+          </button>
+        </div>
       </div>
 
       {/* Form modal */}
@@ -115,9 +220,18 @@ export default function AdminEventsPage() {
                 >
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-3">
-                      <span className="text-lg">
-                        {CATEGORY_ICONS[event.category]}
-                      </span>
+                      {/* Thumbnail or placeholder */}
+                      {event.image_url ? (
+                        <img
+                          src={event.image_url}
+                          alt=""
+                          className="w-10 h-10 rounded-lg object-cover shrink-0"
+                        />
+                      ) : (
+                        <span className="w-10 h-10 rounded-lg bg-stone-100 flex items-center justify-center text-lg shrink-0">
+                          {CATEGORY_ICONS[event.category]}
+                        </span>
+                      )}
                       <div>
                         <p className="font-medium text-foreground line-clamp-1">
                           {event.title}
@@ -154,6 +268,24 @@ export default function AdminEventsPage() {
                   </td>
                   <td className="px-5 py-4">
                     <div className="flex items-center justify-end gap-1">
+                      {/* Generate image button */}
+                      <button
+                        onClick={() => generateImage(event)}
+                        disabled={generatingImage === event.id}
+                        className={cn(
+                          "p-1.5 rounded-lg transition-colors",
+                          event.image_url
+                            ? "text-muted-foreground hover:bg-stone-100"
+                            : "text-blue-500 hover:bg-blue-50"
+                        )}
+                        title={event.image_url ? "Wygeneruj nowy obrazek" : "Wygeneruj obrazek"}
+                      >
+                        {generatingImage === event.id ? (
+                          <Loader2 size={15} className="animate-spin" />
+                        ) : (
+                          <ImagePlus size={15} />
+                        )}
+                      </button>
                       <button
                         onClick={() => toggleFeatured(event.id)}
                         className={cn(

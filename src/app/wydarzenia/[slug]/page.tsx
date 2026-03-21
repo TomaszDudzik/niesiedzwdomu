@@ -1,23 +1,22 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Calendar, Clock, MapPin, Users, ExternalLink } from "lucide-react";
-import { mockEvents, CATEGORY_LABELS } from "@/lib/mock-data";
+import { CATEGORY_LABELS } from "@/lib/mock-data";
 import { formatDate, formatPrice, formatAgeRange } from "@/lib/utils";
 import { FeedbackButtons } from "@/components/ui/feedback-buttons";
 import { ContentCard } from "@/components/ui/content-card";
+import { getEventBySlug, getRelatedEvents } from "@/lib/data";
+
+export const revalidate = 60;
 
 interface PageProps { params: Promise<{ slug: string }>; }
 
-export function generateStaticParams() { return mockEvents.map((e) => ({ slug: e.slug })); }
-
 export default async function EventDetailPage({ params }: PageProps) {
   const { slug } = await params;
-  const event = mockEvents.find((e) => e.slug === slug);
+  const event = await getEventBySlug(slug);
   if (!event) notFound();
 
-  const related = mockEvents
-    .filter((e) => e.id !== event.id && e.status === "published" && (e.category === event.category || e.district === event.district))
-    .slice(0, 3);
+  const related = await getRelatedEvents(event, 3);
 
   return (
     <div className="container-page py-8">
@@ -44,11 +43,13 @@ export default async function EventDetailPage({ params }: PageProps) {
           <h1 className="text-2xl md:text-3xl font-bold text-foreground leading-tight tracking-[-0.02em] mb-3">{event.title}</h1>
           <p className="text-[15px] text-muted leading-relaxed mb-8">{event.description_short}</p>
 
-          <div className="space-y-4">
-            {event.description_long.split("\n").map((p, i) => (
-              <p key={i} className="text-[15px] text-foreground/80 leading-relaxed">{p}</p>
-            ))}
-          </div>
+          {event.description_long && (
+            <div className="space-y-4">
+              {event.description_long.split("\n").map((p, i) => (
+                <p key={i} className="text-[15px] text-foreground/80 leading-relaxed">{p}</p>
+              ))}
+            </div>
+          )}
 
           <div className="mt-10 pt-8 border-t border-border">
             <FeedbackButtons eventId={event.id} initialLikes={event.likes} initialDislikes={event.dislikes} />
@@ -73,10 +74,12 @@ export default async function EventDetailPage({ params }: PageProps) {
                     <p className="font-medium text-foreground">{event.time_start}{event.time_end && ` – ${event.time_end}`}</p>
                   </div>
                 )}
-                <div className="flex items-start gap-2.5">
-                  <MapPin size={15} className="text-muted-foreground/50 shrink-0 mt-0.5" />
-                  <div><p className="font-medium text-foreground">{event.venue_name}</p><p className="text-muted">{event.venue_address}</p></div>
-                </div>
+                {event.venue_name && (
+                  <div className="flex items-start gap-2.5">
+                    <MapPin size={15} className="text-muted-foreground/50 shrink-0 mt-0.5" />
+                    <div><p className="font-medium text-foreground">{event.venue_name}</p><p className="text-muted">{event.venue_address}</p></div>
+                  </div>
+                )}
                 <div className="flex items-start gap-2.5">
                   <Users size={15} className="text-muted-foreground/50 shrink-0 mt-0.5" />
                   <p className="font-medium text-foreground">{formatAgeRange(event.age_min, event.age_max)}</p>
