@@ -2,7 +2,7 @@
 Main scraping pipeline job.
 Run via: python -m backend.jobs.run_pipeline
 
-Reads sources from sources.yaml, processes all active sources.
+Reads sources from the database (scrape_sources table).
 Sequential execution — no Celery needed for MVP.
 """
 
@@ -25,7 +25,7 @@ from backend.processing.scorer import compute_score
 from backend.processing.dedup import compute_fingerprint, find_duplicates
 from backend.services.publish import route_event
 from backend.sources.loader import (
-    get_active_sources,
+    get_active_sources_from_db,
     get_all_listing_urls,
     is_inline_source,
     is_pre_filtered,
@@ -42,12 +42,12 @@ logger = logging.getLogger(__name__)
 
 
 def run() -> None:
-    """Main entry point: process all active sources from sources.yaml."""
+    """Main entry point: process all active sources from database."""
     db = database.get_client()
-    sources = get_active_sources()
+    sources = get_active_sources_from_db(db)
 
     if not sources:
-        logger.info("No active sources in sources.yaml")
+        logger.info("No active sources in database")
         return
 
     logger.info(f"Processing {len(sources)} source(s)")
@@ -57,13 +57,13 @@ def run() -> None:
 
 
 def process_source(db, source: dict) -> None:
-    """Process a single YAML source: fetch all listing pages → extract events."""
+    """Process a single source: fetch all listing pages → extract events."""
     source_name = source["name"]
     logger.info(f"[{source_name}] Starting scrape")
 
-    # Ensure source exists in DB (upsert by name)
-    db_source = _ensure_db_source(db, source)
-    source_id = db_source["id"]
+    # Source already comes from DB with id and _db_row
+    db_source = source.get("_db_row", {})
+    source_id = source["id"]
 
     run = database.create_source_run(db, source_id)
     run_id = run["id"]
@@ -200,26 +200,6 @@ def process_page(
 
             logger.info(f"[{source_name}] New: '{normalized['title']}' → {status} (score={score})")
 
-
-def _ensure_db_source(db, yaml_source: dict) -> dict:
-    """Ensure the YAML source exists in scrape_sources table. Upsert by name."""
-    name = yaml_source["name"]
-    result = db.table("scrape_sources").select("*").eq("name", name).limit(1).execute()
-
-    if result.data:
-        return result.data[0]
-
-    # Create new
-    new = db.table("scrape_sources").insert({
-        "name": name,
-        "base_url": yaml_source.get("base_url", ""),
-        "fetch_method": yaml_source.get("fetch_method", "requests"),
-        "extractor_type": "llm",
-        "scrape_config": yaml_source,
-        "is_active": True,
-    }).execute()
-    logger.info(f"Created DB source for '{name}'")
-    return new.data[0]
 
 
 if __name__ == "__main__":

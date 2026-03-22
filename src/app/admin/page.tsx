@@ -29,7 +29,7 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      <div className="grid sm:grid-cols-3 gap-4">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Link href="/admin/wydarzenia" className="bg-card rounded-xl border border-border p-6 hover:shadow-sm hover:border-stone-300 transition-all">
           <h3 className="font-semibold text-foreground mb-1">Wydarzenia</h3>
           <p className="text-sm text-muted">Zarządzaj wydarzeniami</p>
@@ -41,6 +41,10 @@ export default function AdminDashboard() {
         <Link href="/admin/miejsca" className="bg-card rounded-xl border border-border p-6 hover:shadow-sm hover:border-stone-300 transition-all">
           <h3 className="font-semibold text-foreground mb-1">Miejsca</h3>
           <p className="text-sm text-muted">Zarządzaj miejscami</p>
+        </Link>
+        <Link href="/admin/zrodla" className="bg-card rounded-xl border border-border p-6 hover:shadow-sm hover:border-stone-300 transition-all">
+          <h3 className="font-semibold text-foreground mb-1">Źródła</h3>
+          <p className="text-sm text-muted">Zarządzaj źródłami scrapera</p>
         </Link>
       </div>
     </div>

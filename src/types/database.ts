@@ -121,6 +121,41 @@ export interface Place extends ContentBase {
 export type DiscoveryItem = Event | Camp | Place;
 
 // ============================================
+// Scrape source (pipeline config)
+// ============================================
+
+export type FetchMethod = "requests" | "playwright";
+export type PaginationType = "none" | "path" | "query";
+export type EventsMode = "inline" | "links";
+
+export interface ScrapeSource {
+  id: string;
+  name: string;
+  base_url: string;
+  fetch_method: FetchMethod;
+  extractor_type: string;
+  is_active: boolean;
+  pre_filtered: boolean;
+  listing_urls: string[];
+  pagination: PaginationType;
+  max_pages: number;
+  page_pattern: string | null;
+  events_mode: EventsMode;
+  link_selector: string | null;
+  default_venue_name: string | null;
+  default_venue_address: string | null;
+  default_district: string | null;
+  default_organizer: string | null;
+  default_is_free: boolean | null;
+  scrape_interval_hours: number;
+  last_scraped_at: string | null;
+  total_events_pushed: number;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ============================================
 // Supporting models
 // ============================================
 
@@ -205,6 +240,11 @@ export interface Database {
         Row: Feedback;
         Insert: Omit<Feedback, "id" | "created_at">;
         Update: Partial<Omit<Feedback, "id" | "created_at">>;
+      };
+      scrape_sources: {
+        Row: ScrapeSource;
+        Insert: Omit<ScrapeSource, "id" | "created_at" | "updated_at" | "last_scraped_at" | "total_events_pushed">;
+        Update: Partial<Omit<ScrapeSource, "id" | "created_at" | "updated_at">>;
       };
     };
   };
