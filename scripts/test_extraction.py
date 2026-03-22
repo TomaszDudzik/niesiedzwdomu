@@ -43,7 +43,7 @@ def main() -> None:
     print(f"   HTTP {result.status_code}, {len(result.html)} chars")
 
     print("\n2. Cleaning HTML...")
-    cleaned = clean_html(result.html)
+    cleaned = clean_html(result.html, base_url=url)
     print(f"   Cleaned text: {len(cleaned)} chars")
     print(f"   Preview: {cleaned[:300]}...")
 

@@ -19,6 +19,7 @@ from backend import db as database
 from backend.scraping.fetcher import fetch_page
 from backend.scraping.cleaner import clean_html
 from backend.extraction.llm import extract_events
+from backend.extraction.enrich import enrich_event
 from backend.processing.normalizer import normalize
 from backend.processing.validator import validate
 from backend.processing.scorer import compute_score
@@ -56,7 +57,7 @@ def run() -> None:
         process_source(db, source)
 
 
-def process_source(db, source: dict) -> None:
+def process_source(db, source: dict, force: bool = False) -> None:
     """Process a single source: fetch all listing pages → extract events."""
     source_name = source["name"]
     logger.info(f"[{source_name}] Starting scrape")
@@ -88,7 +89,7 @@ def process_source(db, source: dict) -> None:
                     # Events are on the listing page itself
                     process_page(db, source_id, source_name, run_id,
                                  listing_url, result.html, pre_filtered, counters,
-                                 db_source=db_source, defaults=defaults)
+                                 db_source=db_source, defaults=defaults, force=force)
                 else:
                     # Follow links to individual event pages
                     selector = get_link_selector(source)
@@ -110,7 +111,7 @@ def process_source(db, source: dict) -> None:
                             counters["pages_fetched"] += 1
                             process_page(db, source_id, source_name, run_id,
                                          event_url, ev_result.html, pre_filtered, counters,
-                                         db_source=db_source)
+                                         db_source=db_source, defaults=defaults, force=force)
                         except Exception as e:
                             logger.error(f"[{source_name}] Failed event {event_url}: {e}")
 
@@ -129,16 +130,16 @@ def process_source(db, source: dict) -> None:
 def process_page(
     db, source_id: str, source_name: str, run_id: str,
     url: str, raw_html: str, pre_filtered: bool, counters: dict,
-    db_source: dict, defaults: dict | None = None,
+    db_source: dict, defaults: dict | None = None, force: bool = False,
 ) -> None:
     """Process a single page: clean → cache check → extract → normalize → score → route."""
-    cleaned = clean_html(raw_html)
+    cleaned = clean_html(raw_html, base_url=url)
     c_hash = database.content_hash(cleaned)
 
-    # Skip if content unchanged since last scrape
+    # Skip if content unchanged since last scrape (unless force=True)
     u_hash = database.url_hash(url)
     prev_hash = database.find_latest_page_hash(db, u_hash)
-    if prev_hash == c_hash:
+    if not force and prev_hash == c_hash:
         existing = database.find_scraped_event_by_url(db, url)
         if existing:
             database.update_scraped_event(db, existing["id"], {
@@ -158,8 +159,16 @@ def process_page(
     counters["events_extracted"] += len(extracted)
     logger.info(f"[{source_name}] Extracted {len(extracted)} event(s) from {url}")
 
+    # Enrich events that have detail URLs
+    fetch_method = db_source.get("fetch_method", "requests")
+    enriched = []
     for event in extracted:
-        normalized = normalize(event, source_url=url, defaults=defaults)
+        if event.detail_url:
+            event = enrich_event(event, fetch_method=fetch_method)
+        enriched.append(event)
+
+    for event in enriched:
+        normalized = normalize(event, source_url=event.detail_url or url, defaults=defaults)
         normalized["source_id"] = source_id
         normalized["raw_page_id"] = page["id"]
 
@@ -174,16 +183,37 @@ def process_page(
         # Check for existing record by fingerprint (handles inline pages with multiple events)
         fp_matches = database.find_events_by_fingerprint(db, fp)
         existing = fp_matches[0] if fp_matches else None
+        now_iso = datetime.now(timezone.utc).isoformat()
+
         if existing:
-            normalized["previous_data"] = {
-                k: existing[k] for k in ["title", "start_at", "end_at", "venue_name", "price_from"]
-                if k in existing
-            }
-            normalized["source_last_seen"] = datetime.now(timezone.utc).isoformat()
-            database.update_scraped_event(db, existing["id"], normalized)
-            counters["events_updated"] += 1
-            logger.info(f"[{source_name}] Updated: {normalized['title']}")
+            # Check if anything actually changed
+            changed_fields = []
+            for key in ["title", "start_at", "end_at", "venue_name", "price_from", "description_short"]:
+                old_val = existing.get(key)
+                new_val = normalized.get(key)
+                if str(old_val) != str(new_val) and not (old_val is None and new_val is None):
+                    changed_fields.append(key)
+
+            if changed_fields:
+                # Content changed — update and mark
+                normalized["previous_data"] = {
+                    k: existing[k] for k in ["title", "start_at", "end_at", "venue_name", "price_from"]
+                    if k in existing
+                }
+                normalized["source_last_seen"] = now_iso
+                normalized["last_change_at"] = now_iso
+                normalized["is_new"] = False
+                database.update_scraped_event(db, existing["id"], normalized)
+                counters["events_updated"] += 1
+                logger.info(f"[{source_name}] Updated ({', '.join(changed_fields)}): {normalized['title']}")
+            else:
+                # No changes — just bump last_seen timestamp
+                database.update_scraped_event(db, existing["id"], {
+                    "source_last_seen": now_iso,
+                })
+                logger.info(f"[{source_name}] Unchanged: {normalized['title']}")
         else:
+            # New event — check for fuzzy duplicates
             duplicates = find_duplicates(db, normalized)
             has_dupes = len(duplicates) > 0
             status = route_event(
@@ -192,6 +222,8 @@ def process_page(
                 source_total_pushed=db_source.get("total_events_pushed", 0),
             )
             normalized["status"] = status
+            normalized["is_new"] = True
+            normalized["last_change_at"] = now_iso
             new_event = database.create_scraped_event(db, normalized)
             counters["events_new"] += 1
 

@@ -14,15 +14,39 @@ function getDb() {
 export async function GET(request: NextRequest) {
   const db = getDb();
   const status = request.nextUrl.searchParams.get("status") || "review";
+  const sourceId = request.nextUrl.searchParams.get("source_id");
 
-  const { data, error } = await db
+  const showPast = request.nextUrl.searchParams.get("show_past") === "true";
+  const today = new Date().toISOString().slice(0, 10);  // YYYY-MM-DD
+
+  let query = db
     .from("scraped_events")
-    .select("id, title, description_short, description_long, start_at, end_at, venue_name, venue_address, district, categories, tags, age_min, age_max, price_from, price_to, is_free, confidence_score, status, source_url, organizer_name, image_url, registration_url, created_at, scrape_sources(name)")
+    .select("id, canonical_event_id, title, description_short, description_long, start_at, end_at, venue_name, venue_address, district, categories, tags, age_min, age_max, price_from, price_to, is_free, confidence_score, status, source_url, source_id, organizer_name, image_url, registration_url, is_new, source_first_seen, source_last_seen, last_change_at, created_at, scrape_sources(name)")
     .eq("status", status)
-    .order("confidence_score", { ascending: true })
-    .limit(100);
+    .order("start_at", { ascending: true })
+    .limit(200);
+
+  if (sourceId) {
+    query = query.eq("source_id", sourceId);
+  }
+
+  const { data, error } = await query;
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Filter out past events unless show_past=true
+  if (!showPast && data) {
+    const filtered = data.filter((e: Record<string, unknown>) => {
+      const endDate = e.end_at as string | null;
+      const startDate = e.start_at as string | null;
+      // Use end_at if available, otherwise start_at
+      const relevantDate = (endDate || startDate || "").slice(0, 10);
+      if (!relevantDate) return true; // no date = keep
+      return relevantDate >= today;
+    });
+    return NextResponse.json(filtered);
+  }
+
   return NextResponse.json(data);
 }
 
@@ -30,10 +54,19 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const db = getDb();
   const body = await request.json();
-  const { id, action } = body as { id: string; action: "approve" | "reject" | "restore" };
+  const { id, action } = body as { id: string; action: "approve" | "reject" | "restore" | "delete" };
 
   if (!id || !action) {
     return NextResponse.json({ error: "id and action required" }, { status: 400 });
+  }
+
+  if (action === "delete") {
+    const { error } = await db
+      .from("scraped_events")
+      .delete()
+      .eq("id", id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
   }
 
   if (action === "restore") {
@@ -48,7 +81,7 @@ export async function POST(request: NextRequest) {
   if (action === "reject") {
     const { error } = await db
       .from("scraped_events")
-      .update({ status: "rejected", reviewed_at: new Date().toISOString() })
+      .update({ status: "rejected", reviewed_at: new Date().toISOString(), is_new: false })
       .eq("id", id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true });
@@ -110,6 +143,7 @@ export async function POST(request: NextRequest) {
         canonical_event_id: published.id,
         reviewed_at: new Date().toISOString(),
         published_at: new Date().toISOString(),
+        is_new: false,
       })
       .eq("id", id);
 

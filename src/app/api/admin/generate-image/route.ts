@@ -34,7 +34,7 @@ const DALLE_STYLE =
 // Body: { id, title, description, category }
 export async function POST(request: NextRequest) {
   const db = getDb();
-  const { id, title, description, category } = await request.json();
+  const { id, title, description, category, target } = await request.json();
 
   if (!id || !title) {
     return NextResponse.json({ error: "id and title required" }, { status: 400 });
@@ -99,8 +99,10 @@ export async function POST(request: NextRequest) {
     const { data: urlData } = db.storage.from("event-images").getPublicUrl(filePath);
     const publicUrl = urlData.publicUrl;
 
+    // Update the right table based on target
+    const tableName = target === "scraped" ? "scraped_events" : "events";
     const { error: updateErr } = await db
-      .from("events")
+      .from(tableName)
       .update({ image_url: publicUrl })
       .eq("id", id);
 

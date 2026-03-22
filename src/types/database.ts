@@ -136,6 +136,7 @@ export interface ScrapeSource {
   extractor_type: string;
   is_active: boolean;
   pre_filtered: boolean;
+  content_type: string;
   listing_urls: string[];
   pagination: PaginationType;
   max_pages: number;

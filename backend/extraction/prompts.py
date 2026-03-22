@@ -20,17 +20,18 @@ RULES:
 8. overall_confidence: weighted average of field_confidence where title and start_at have 2x weight.
 9. extraction_notes: briefly note anything ambiguous.
 10. description_short: max 200 characters, plain text summary.
-11. Return {"events": [...]} with an array of event objects.\
+11. detail_url: if the text contains a link/URL to the full event page, include it. This is important for getting more info later.
+12. Return {"events": [...]} with an array of event objects.\
 """
 
 # Appended when source is NOT pre-filtered (general culture sites etc.)
 AUDIENCE_FILTER_RULE = """
-12. Extract ALL events from the page. Do NOT filter by audience — we filter later. Only skip items that are not events (e.g. menu items, footer links, navigation).\
+13. Extract ALL events from the page. Do NOT filter by audience — we filter later. Only skip items that are not events (e.g. menu items, footer links, navigation).\
 """
 
 # Appended when source IS pre-filtered (already kids/family only)
 PRE_FILTERED_RULE = """
-12. This source is pre-filtered for kids/family content. Extract every single event on the page without exception.\
+13. This source is pre-filtered for kids/family content. Extract every single event on the page without exception.\
 """
 
 

@@ -34,6 +34,7 @@ class ExtractedEvent(BaseModel):
     city: str = "Kraków"
     organizer_name: str | None = None
     image_url: str | None = None
+    detail_url: str | None = None          # link to full event page
     categories: list[str] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
     registration_url: str | None = None
