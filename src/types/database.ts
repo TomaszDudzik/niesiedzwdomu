@@ -151,6 +151,7 @@ export interface ScrapeSource {
   scrape_interval_hours: number;
   last_scraped_at: string | null;
   total_events_pushed: number;
+  extraction_instructions: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;

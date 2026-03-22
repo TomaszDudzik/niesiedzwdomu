@@ -25,15 +25,19 @@ def extract_events(
     cleaned_text: str,
     source_url: str,
     pre_filtered: bool = False,
+    extraction_instructions: str | None = None,
 ) -> list[ExtractedEvent]:
     """Extract structured events from cleaned page text using OpenAI.
 
     Args:
-        pre_filtered: If True, source is already kids/family-only —
-                      prompt tells LLM to extract everything without filtering.
+        pre_filtered: If True, source is already kids/family-only.
+        extraction_instructions: Custom per-source instructions appended to prompt.
     """
     client = OpenAI(api_key=config.openai_api_key)
-    system_prompt = get_system_prompt(pre_filtered=pre_filtered)
+    system_prompt = get_system_prompt(
+        pre_filtered=pre_filtered,
+        extraction_instructions=extraction_instructions,
+    )
     user_prompt = make_user_prompt(cleaned_text, source_url)
 
     # Try primary model first, fallback on failure

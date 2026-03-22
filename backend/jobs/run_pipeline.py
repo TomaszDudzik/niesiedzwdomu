@@ -20,6 +20,7 @@ from backend.scraping.fetcher import fetch_page
 from backend.scraping.cleaner import clean_html
 from backend.extraction.llm import extract_events
 from backend.extraction.enrich import enrich_event
+from backend.scrapers.registry import get_scraper
 from backend.processing.normalizer import normalize
 from backend.processing.validator import validate
 from backend.processing.scorer import compute_score
@@ -32,6 +33,7 @@ from backend.sources.loader import (
     is_pre_filtered,
     get_link_selector,
     get_defaults,
+    get_extraction_instructions,
 )
 
 logging.basicConfig(
@@ -76,6 +78,7 @@ def process_source(db, source: dict, force: bool = False) -> None:
         pre_filtered = is_pre_filtered(source)
         inline = is_inline_source(source)
         defaults = get_defaults(source)
+        instructions = get_extraction_instructions(source)
 
         logger.info(f"[{source_name}] {len(listing_urls)} listing URL(s), "
                      f"inline={inline}, pre_filtered={pre_filtered}")
@@ -89,7 +92,7 @@ def process_source(db, source: dict, force: bool = False) -> None:
                     # Events are on the listing page itself
                     process_page(db, source_id, source_name, run_id,
                                  listing_url, result.html, pre_filtered, counters,
-                                 db_source=db_source, defaults=defaults, force=force)
+                                 db_source=db_source, defaults=defaults, force=force, extraction_instructions=instructions)
                 else:
                     # Follow links to individual event pages
                     selector = get_link_selector(source)
@@ -111,7 +114,7 @@ def process_source(db, source: dict, force: bool = False) -> None:
                             counters["pages_fetched"] += 1
                             process_page(db, source_id, source_name, run_id,
                                          event_url, ev_result.html, pre_filtered, counters,
-                                         db_source=db_source, defaults=defaults, force=force)
+                                         db_source=db_source, defaults=defaults, force=force, extraction_instructions=instructions)
                         except Exception as e:
                             logger.error(f"[{source_name}] Failed event {event_url}: {e}")
 
@@ -131,6 +134,7 @@ def process_page(
     db, source_id: str, source_name: str, run_id: str,
     url: str, raw_html: str, pre_filtered: bool, counters: dict,
     db_source: dict, defaults: dict | None = None, force: bool = False,
+    extraction_instructions: str | None = None,
 ) -> None:
     """Process a single page: clean → cache check → extract → normalize → score → route."""
     cleaned = clean_html(raw_html, base_url=url)
@@ -154,18 +158,41 @@ def process_page(
         url=url, raw_html=raw_html, cleaned_text=cleaned, http_status=200,
     )
 
-    # Extract via LLM
-    extracted = extract_events(cleaned, url, pre_filtered=pre_filtered)
-    counters["events_extracted"] += len(extracted)
-    logger.info(f"[{source_name}] Extracted {len(extracted)} event(s) from {url}")
-
-    # Enrich events that have detail URLs
+    # Try custom scraper first, fall back to LLM
+    scraper = get_scraper(source_name, base_url=db_source.get("base_url", ""))
     fetch_method = db_source.get("fetch_method", "requests")
-    enriched = []
-    for event in extracted:
-        if event.detail_url:
-            event = enrich_event(event, fetch_method=fetch_method)
-        enriched.append(event)
+
+    if scraper:
+        # Custom Python scraper — fast, reliable, no LLM cost
+        logger.info(f"[{source_name}] Using custom scraper: {scraper.__class__.__name__}")
+        extracted = scraper.scrape_listing(raw_html)
+        counters["events_extracted"] += len(extracted)
+        logger.info(f"[{source_name}] Scraped {len(extracted)} event(s) from {url}")
+
+        # Enrich from detail pages using the scraper's own detail parser
+        enriched = []
+        for event in extracted:
+            if event.detail_url:
+                try:
+                    detail_result = fetch_page(event.detail_url, fetch_method)
+                    counters["pages_fetched"] = counters.get("pages_fetched", 0) + 1
+                    event = scraper.scrape_detail(detail_result.html, event)
+                except Exception as e:
+                    logger.warning(f"[{source_name}] Detail fetch failed: {event.detail_url}: {e}")
+            enriched.append(event)
+    else:
+        # LLM extraction — fallback for sources without custom scrapers
+        logger.info(f"[{source_name}] Using LLM extraction")
+        extracted = extract_events(cleaned, url, pre_filtered=pre_filtered, extraction_instructions=extraction_instructions)
+        counters["events_extracted"] += len(extracted)
+        logger.info(f"[{source_name}] Extracted {len(extracted)} event(s) via LLM from {url}")
+
+        # Enrich via LLM
+        enriched = []
+        for event in extracted:
+            if event.detail_url:
+                event = enrich_event(event, fetch_method=fetch_method)
+            enriched.append(event)
 
     for event in enriched:
         normalized = normalize(event, source_url=event.detail_url or url, defaults=defaults)

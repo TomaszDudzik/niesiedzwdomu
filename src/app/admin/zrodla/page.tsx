@@ -772,8 +772,16 @@ function SourceEventsPanel({ sourceId, sourceName, onCountsChange }: { sourceId:
 
                   {/* Expanded: view */}
                   {isExpanded && !isEditing && (
-                    <div className="px-3 pb-3 pt-1 border-t border-border/50 text-[12px] text-muted space-y-0.5">
-                      {event.description_short && <p><span className="font-medium text-foreground">Opis:</span> {event.description_short}</p>}
+                    <div className="px-3 pb-3 pt-1 border-t border-border/50 text-[12px] text-muted space-y-1.5">
+                      {event.description_short && (
+                        <p><span className="font-medium text-foreground">Krótki opis:</span> {event.description_short}</p>
+                      )}
+                      {event.description_long && (
+                        <div>
+                          <span className="font-medium text-foreground">Pełny opis:</span>
+                          <p className="mt-0.5 text-muted whitespace-pre-line leading-relaxed">{event.description_long.slice(0, 500)}{event.description_long.length > 500 ? "..." : ""}</p>
+                        </div>
+                      )}
                       <p><span className="font-medium text-foreground">Organizator:</span> {event.organizer_name || "—"}</p>
                       <p><span className="font-medium text-foreground">Adres:</span> {event.venue_address || "—"} {event.district && `(${event.district})`}</p>
                       <p><span className="font-medium text-foreground">Wiek:</span> {event.age_min ?? "—"} – {event.age_max ?? "—"}</p>
@@ -790,8 +798,25 @@ function SourceEventsPanel({ sourceId, sourceName, onCountsChange }: { sourceId:
                           <input className={inputClass} value={editForm.title || ""} onChange={(e) => updateField("title", e.target.value)} />
                         </div>
                         <div className="md:col-span-2">
-                          <label className={labelClass}>Krótki opis</label>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className={labelClass + " mb-0"}>Krótki opis</label>
+                            {editForm.description_long && (
+                              <button type="button" onClick={() => {
+                                const long = editForm.description_long || "";
+                                // Take first sentence or first 200 chars
+                                const firstSentence = long.split(/[.!?]\s/)[0];
+                                const short = firstSentence.length > 200 ? firstSentence.slice(0, 197) + "..." : firstSentence + (firstSentence.endsWith(".") ? "" : ".");
+                                updateField("description_short", short);
+                              }} className="text-[10px] font-medium text-blue-500 hover:text-blue-700 transition-colors">
+                                Generuj z opisu ↓
+                              </button>
+                            )}
+                          </div>
                           <textarea className={inputClass} rows={2} value={editForm.description_short || ""} onChange={(e) => updateField("description_short", e.target.value)} />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className={labelClass}>Pełny opis</label>
+                          <textarea className={inputClass} rows={5} value={editForm.description_long || ""} onChange={(e) => updateField("description_long", e.target.value)} />
                         </div>
                         <div>
                           <label className={labelClass}>Data od</label>
@@ -887,7 +912,8 @@ function SourceForm({
     events_mode: "inline" as EventsMode, link_selector: "a",
     default_venue_name: null as string | null, default_venue_address: null as string | null,
     default_district: null as string | null, default_organizer: null as string | null,
-    default_is_free: null as boolean | null, scrape_interval_hours: 24, notes: null as string | null,
+    default_is_free: null as boolean | null, scrape_interval_hours: 24,
+    extraction_instructions: null as string | null, notes: null as string | null,
   };
 
   const [contentType, setContentType] = useState<ContentTypeTab>((source?.content_type as ContentTypeTab) || defaultContentType);
@@ -903,6 +929,7 @@ function SourceForm({
   const [linkSelector, setLinkSelector] = useState(initial.link_selector || "a");
   const [scrapeInterval, setScrapeInterval] = useState(initial.scrape_interval_hours);
   const [notes, setNotes] = useState(initial.notes || "");
+  const [extractionInstructions, setExtractionInstructions] = useState(initial.extraction_instructions || "");
   const [showDefaults, setShowDefaults] = useState(false);
   const [defaultVenueName, setDefaultVenueName] = useState(initial.default_venue_name || "");
   const [defaultVenueAddress, setDefaultVenueAddress] = useState(initial.default_venue_address || "");
@@ -924,7 +951,8 @@ function SourceForm({
       link_selector: eventsMode === "links" ? linkSelector : null,
       default_venue_name: defaultVenueName || null, default_venue_address: defaultVenueAddress || null,
       default_district: defaultDistrict || null, default_organizer: defaultOrganizer || null,
-      default_is_free: defaultIsFree, scrape_interval_hours: scrapeInterval, notes: notes || null,
+      default_is_free: defaultIsFree, scrape_interval_hours: scrapeInterval,
+      extraction_instructions: extractionInstructions || null, notes: notes || null,
     });
   };
 
@@ -989,6 +1017,17 @@ function SourceForm({
               </>
             )}
           </div>
+        </FormSection>
+
+        <FormSection title="Instrukcje ekstrakcji" subtitle="Dodatkowe wskazówki dla AI — jak rozpoznawać i interpretować dane na tej stronie">
+          <Field label="Instrukcje (opcjonalne)" hint="Napisz po polsku lub angielsku. Opisz strukturę strony, co jest ważne, czego unikać. Te instrukcje są dołączane do prompta LLM przy każdym scrapowaniu tego źródła.">
+            <textarea
+              value={extractionInstructions}
+              onChange={(e) => setExtractionInstructions(e.target.value)}
+              className={cn(inputClass, "min-h-[120px] text-xs")}
+              placeholder={`Przykłady:\n\n• Na tej stronie każdy event jest w osobnym bloku z datą i linkiem\n• Ignoruj eventy z etykietą "wyprzedane"\n• Ceny są w formacie "od XX zł" w prawym rogu\n• Venue jest wspólne dla wszystkich — Centrum Kultury Podgórza\n• Data jest w formacie DD.MM.YYYY\n• Niektóre eventy mają godzinę w opisie, np. "godz. 17:00"`}
+            />
+          </Field>
         </FormSection>
 
         <FormSection title="Harmonogram" subtitle="Jak często scrapować">

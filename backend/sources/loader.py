@@ -61,6 +61,7 @@ def _db_row_to_source_dict(row: dict) -> dict:
             "link_selector": row.get("link_selector", "a"),
         },
         "defaults": {},
+        "extraction_instructions": row.get("extraction_instructions"),
         # Keep DB metadata for pipeline use
         "_db_row": row,
     }
@@ -187,3 +188,8 @@ def is_pre_filtered(source: dict) -> bool:
 def get_defaults(source: dict) -> dict:
     """Return source-level default field values (venue_name, district, etc.)."""
     return source.get("defaults", {})
+
+
+def get_extraction_instructions(source: dict) -> str | None:
+    """Return custom extraction instructions for this source, if any."""
+    return source.get("extraction_instructions")

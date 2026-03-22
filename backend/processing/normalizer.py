@@ -19,10 +19,20 @@ def normalize(event: ExtractedEvent, source_url: str, defaults: dict | None = No
     """
     d = defaults or {}
 
+    short = _clean_text(event.description_short or "")
+    long = _clean_text(event.description_long or "")
+
+    # Auto-generate short description from long if short is too generic
+    if long and (not short or len(short) < 30):
+        first_sentence = long.split(". ")[0].split("! ")[0].split("? ")[0]
+        short = _truncate(first_sentence.strip(), 200)
+        if not short.endswith((".", "!", "?")):
+            short += "."
+
     return {
         "title": _clean_text(event.title),
-        "description_short": _truncate(_clean_text(event.description_short or ""), 200),
-        "description_long": _clean_text(event.description_long or ""),
+        "description_short": _truncate(short, 200),
+        "description_long": long,
         "start_at": _normalize_datetime(event.start_at),
         "end_at": _normalize_datetime(event.end_at),
         "date_text_raw": event.date_text_raw,

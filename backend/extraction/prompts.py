@@ -35,12 +35,25 @@ PRE_FILTERED_RULE = """
 """
 
 
-def get_system_prompt(pre_filtered: bool = False) -> str:
+def get_system_prompt(
+    pre_filtered: bool = False,
+    extraction_instructions: str | None = None,
+) -> str:
     """Build the full system prompt based on source config."""
     base = SYSTEM_PROMPT_BASE
     if pre_filtered:
-        return base + PRE_FILTERED_RULE
-    return base + AUDIENCE_FILTER_RULE
+        base += PRE_FILTERED_RULE
+    else:
+        base += AUDIENCE_FILTER_RULE
+
+    if extraction_instructions:
+        base += f"""
+
+SOURCE-SPECIFIC INSTRUCTIONS (follow these carefully for this particular website):
+{extraction_instructions}\
+"""
+
+    return base
 
 
 def make_user_prompt(cleaned_text: str, source_url: str) -> str:
