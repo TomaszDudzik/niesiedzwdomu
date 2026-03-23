@@ -10,10 +10,9 @@ import { ComingSoonBadge } from "@/components/ui/coming-soon";
 
 const NAV_LINKS = [
   { href: "/wydarzenia", label: "Wydarzenia" },
-  { href: "/kolonie", label: "Kolonie", comingSoon: true },
   { href: "/miejsca", label: "Miejsca", comingSoon: true },
+  { href: "/kolonie", label: "Kolonie", comingSoon: true },
   { href: "/zajecia", label: "Zajęcia", comingSoon: true },
-  { href: "/kalendarz", label: "Kalendarz" },
 ];
 
 export function Header() {

@@ -8,7 +8,7 @@ import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 
 export const metadata: Metadata = {
-  title: "wyjdź na pole — Odkryj Kraków z dzieckiem",
+  title: "obczajka dla rodziców — Odkryj Kraków z dzieckiem",
   description:
     "Wydarzenia, kolonie i najlepsze miejsca dla rodzin w Krakowie. Wszystko w jednym miejscu.",
   keywords: ["Kraków", "dzieci", "wydarzenia", "kolonie", "miejsca", "rodzina", "weekend"],
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     apple: "/icon.svg",
   },
   openGraph: {
-    title: "wyjdź na pole →",
+    title: "obczajka dla rodziców",
     description: "Odkryj Kraków z dzieckiem. Wydarzenia, kolonie i miejsca dla rodzin.",
     locale: "pl_PL",
     type: "website",

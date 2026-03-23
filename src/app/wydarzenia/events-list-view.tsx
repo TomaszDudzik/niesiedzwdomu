@@ -1,16 +1,20 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Search } from "lucide-react";
+import { Search, LayoutGrid, CalendarDays } from "lucide-react";
 import { CATEGORY_LABELS } from "@/lib/mock-data";
 import { filterEvents } from "@/lib/filter-events";
 import { ContentFilters } from "@/components/ui/event-filters";
 import { ContentList } from "@/components/ui/content-list";
+import { CalendarMapView } from "./calendar-map-view";
+import { cn } from "@/lib/utils";
 import type { Event, EventFilters, EventCategory } from "@/types/database";
 
 const categoryOptions = (Object.entries(CATEGORY_LABELS) as [EventCategory, string][]).map(
   ([key, label]) => ({ value: key, label })
 );
+
+type ViewMode = "list" | "calendar-map";
 
 interface EventsListViewProps {
   events: Event[];
@@ -19,6 +23,7 @@ interface EventsListViewProps {
 export function EventsListView({ events }: EventsListViewProps) {
   const [filters, setFilters] = useState<EventFilters>({});
   const [search, setSearch] = useState("");
+  const [view, setView] = useState<ViewMode>("list");
 
   const filtered = useMemo(
     () => filterEvents(events, { ...filters, search: search || undefined }),
@@ -27,8 +32,38 @@ export function EventsListView({ events }: EventsListViewProps) {
 
   return (
     <div className="container-page py-10">
-      <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em] mb-1">Wydarzenia</h1>
+      <div className="flex items-center justify-between mb-1">
+        <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">Wydarzenia</h1>
+        <div className="flex items-center gap-1 rounded-lg border border-border p-1 bg-accent/30">
+          <button
+            onClick={() => setView("list")}
+            className={cn(
+              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-medium transition-all",
+              view === "list"
+                ? "bg-foreground text-white shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-white/60"
+            )}
+          >
+            <LayoutGrid size={15} />
+            Lista
+          </button>
+          <button
+            onClick={() => setView("calendar-map")}
+            className={cn(
+              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-medium transition-all",
+              view === "calendar-map"
+                ? "bg-foreground text-white shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-white/60"
+            )}
+          >
+            <CalendarDays size={15} />
+            Kalendarz
+          </button>
+        </div>
+      </div>
       <p className="text-[14px] text-muted mb-6">Warsztaty, spektakle, festyny i więcej</p>
+
+      {/* Search + filters — shared across both views */}
       <div className="relative mb-5">
         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
         <input
@@ -48,6 +83,7 @@ export function EventsListView({ events }: EventsListViewProps) {
           ]}
         />
       </div>
+
       <div className="flex items-center justify-between mb-4">
         <p className="text-[12px] text-muted-foreground">{filtered.length} wyników</p>
         {filtered.length === 0 && (filters.isFree || filters.category || filters.district || search) && (
@@ -59,7 +95,10 @@ export function EventsListView({ events }: EventsListViewProps) {
           </button>
         )}
       </div>
-      {filtered.length === 0 ? (
+
+      {view === "calendar-map" ? (
+        <CalendarMapView events={filtered} />
+      ) : filtered.length === 0 ? (
         <div className="text-center py-16">
           <Search size={32} className="mx-auto text-muted-foreground/30 mb-3" />
           <p className="text-[14px] text-muted">Brak wydarzeń pasujących do filtrów.</p>

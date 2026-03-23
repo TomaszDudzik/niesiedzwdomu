@@ -37,7 +37,7 @@ export function Logo({ variant = "default", size = "md", className }: LogoProps)
         className={cn("font-medium tracking-[-0.02em] leading-none", c.fontSize)}
         style={{ color }}
       >
-        wyjdź na pole
+        obczajka dla rodziców
       </span>
       <span className={c.gap}>
         <Arrow w={c.arrowW} h={c.arrowH} stroke={arrowColor} strokeWidth={c.strokeWidth} />

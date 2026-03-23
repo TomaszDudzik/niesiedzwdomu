@@ -5,10 +5,10 @@ import { FeaturedCard } from "@/components/ui/featured-card";
 import { ContentCard } from "@/components/ui/content-card";
 
 const QUICK_LINKS = [
-  { href: "/wydarzenia", label: "Dziś", icon: Calendar },
-  { href: "/wydarzenia?weekend=true", label: "Weekend", icon: Sun },
-  { href: "/kolonie", label: "Półkolonie", icon: Tent },
+  { href: "/wydarzenia", label: "Wydarzenia", icon: Calendar },
   { href: "/miejsca", label: "Miejsca", icon: MapPin },
+  { href: "/kolonie", label: "Kolonie", icon: Tent },
+  { href: "/zajecia", label: "Zajęcia", icon: Users },
 ];
 
 function SectionLink({ href, children }: { href: string; children: React.ReactNode }) {
@@ -39,19 +39,12 @@ export default async function HomePage() {
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-5">
           <div>
             <h1 className="text-xl md:text-2xl font-bold text-foreground tracking-[-0.02em] leading-tight">
-              Odkryj Kraków z dzieckiem
+              Co robić z dzieckiem?
             </h1>
             <p className="text-[13px] text-muted mt-1">
-              Wydarzenia, kolonie i miejsca dla rodzin w jednym miejscu.
+              Wydarzenia, zajęcia, kolonie i miejsca dla rodzin — wszystko w jednym miejscu.
             </p>
           </div>
-          <Link
-            href="/kalendarz"
-            className="group inline-flex items-center gap-1.5 text-[13px] font-medium text-muted hover:text-foreground transition-colors shrink-0"
-          >
-            Kalendarz
-            <ArrowRight size={13} className="group-hover:translate-x-0.5 transition-transform duration-150" />
-          </Link>
         </div>
         <div className="flex flex-wrap gap-2">
           {QUICK_LINKS.map((link) => (
@@ -166,16 +159,16 @@ export default async function HomePage() {
       <section className="container-page mt-14 mb-8">
         <div className="border border-border rounded-lg p-8 md:p-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h2 className="text-[17px] font-semibold text-foreground mb-1">Kalendarz wydarzeń</h2>
+            <h2 className="text-[17px] font-semibold text-foreground mb-1">Wszystkie wydarzenia</h2>
             <p className="text-[13px] text-muted">
               Sprawdź co się dzieje w Krakowie każdego dnia.
             </p>
           </div>
           <Link
-            href="/kalendarz"
+            href="/wydarzenia"
             className="group inline-flex items-center gap-2 px-4 py-2 bg-foreground text-white rounded-md text-[13px] font-medium hover:bg-[#333] transition-colors shrink-0"
           >
-            Otwórz kalendarz
+            Przeglądaj wydarzenia
             <ArrowRight size={13} className="group-hover:translate-x-0.5 transition-transform duration-150" />
           </Link>
         </div>

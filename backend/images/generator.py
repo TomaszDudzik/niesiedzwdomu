@@ -36,11 +36,13 @@ Rules:
 """
 
 DALLE_STYLE = (
-    "Modern editorial illustration style, slightly textured, warm color palette. "
     "No text or letters anywhere in the image. "
     "Clean composition suitable for a website card thumbnail. "
     "16:9 aspect ratio. Soft natural lighting."
-)
+    "Hand-painted illustration"
+    "Slightly cartoonish but detailed" 
+    "Storybook style, soft shading, warm tones, high detail, inviting and cheerful."
+    )
 
 
 def generate_event_image(

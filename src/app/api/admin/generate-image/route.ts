@@ -20,9 +20,11 @@ Rules:
 - Be SPECIFIC to this particular event — no generic scenes
 - Focus on the unique aspect that makes this event different from others
 - Include Kraków elements if relevant (architecture, parks, landmarks)
-- Describe people doing the activity, not standing around
+- NEVER mention or depict children, kids, minors, or any specific real people
+- Instead of people, describe abstract human silhouettes or focus on objects, scenery, and atmosphere
 - No text, logos, or branding in the scene
-- Suitable for families — warm, inviting, not childish`;
+- Suitable for families — warm, inviting, not childish
+- The description must be safe for AI image generation — avoid anything that could be flagged by content filters`;
 
 const DALLE_STYLE =
   "Modern editorial illustration style, slightly textured, warm color palette. " +
@@ -58,16 +60,34 @@ export async function POST(request: NextRequest) {
 
     const scene = sceneResponse.choices[0].message.content || `A family event: ${title}`;
 
-    // Step 2: DALL-E generates from the specific scene
+    // Step 2: DALL-E generates from the specific scene (with fallback on content rejection)
     const dallePrompt = `${scene}\n\nStyle: ${DALLE_STYLE}`;
+    const fallbackPrompt = `A warm, inviting illustration of a cultural event space in Kraków, Poland. Colorful decorations, cozy atmosphere, artistic props arranged on a table. No people. ${DALLE_STYLE}`;
 
-    const generation = await openai.images.generate({
-      model: "dall-e-3",
-      prompt: dallePrompt,
-      n: 1,
-      size: "1792x1024",
-      quality: "standard",
-    });
+    let generation;
+    try {
+      generation = await openai.images.generate({
+        model: "dall-e-3",
+        prompt: dallePrompt,
+        n: 1,
+        size: "1792x1024",
+        quality: "standard",
+      });
+    } catch (dalleErr: unknown) {
+      const code = dalleErr instanceof Error && "code" in dalleErr ? (dalleErr as { code: string }).code : "";
+      if (code === "content_policy_violation") {
+        console.warn("[generate-image] Scene prompt rejected by DALL-E, retrying with fallback");
+        generation = await openai.images.generate({
+          model: "dall-e-3",
+          prompt: fallbackPrompt,
+          n: 1,
+          size: "1792x1024",
+          quality: "standard",
+        });
+      } else {
+        throw dalleErr;
+      }
+    }
 
     const tempUrl = generation.data?.[0]?.url;
     if (!tempUrl) {
@@ -112,6 +132,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true, image_url: publicUrl });
   } catch (err: unknown) {
+    console.error("[generate-image] Error:", err);
     const message = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }

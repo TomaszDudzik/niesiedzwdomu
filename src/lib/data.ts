@@ -21,10 +21,12 @@ function toEvent(row: Record<string, unknown>): Event {
 
 export async function getPublishedEvents(limit = 50): Promise<Event[]> {
   const db = getDb();
+  const today = new Date().toISOString().slice(0, 10);
   const { data } = await db
     .from("events")
     .select("*")
     .eq("status", "published")
+    .gte("date_start", today)
     .order("date_start", { ascending: true })
     .limit(limit);
   return (data || []).map(toEvent);
@@ -32,11 +34,14 @@ export async function getPublishedEvents(limit = 50): Promise<Event[]> {
 
 export async function getFeaturedEvent(): Promise<Event | null> {
   const db = getDb();
+  const today = new Date().toISOString().slice(0, 10);
   const { data } = await db
     .from("events")
     .select("*")
     .eq("status", "published")
     .eq("is_featured", true)
+    .gte("date_start", today)
+    .order("date_start", { ascending: true })
     .limit(1)
     .single();
   return data ? toEvent(data) : null;
@@ -44,11 +49,13 @@ export async function getFeaturedEvent(): Promise<Event | null> {
 
 export async function getFreeEvents(limit = 3): Promise<Event[]> {
   const db = getDb();
+  const today = new Date().toISOString().slice(0, 10);
   const { data } = await db
     .from("events")
     .select("*")
     .eq("status", "published")
     .eq("is_free", true)
+    .gte("date_start", today)
     .order("date_start", { ascending: true })
     .limit(limit);
   return (data || []).map(toEvent);
@@ -67,11 +74,13 @@ export async function getEventBySlug(slug: string): Promise<Event | null> {
 
 export async function getRelatedEvents(event: Event, limit = 3): Promise<Event[]> {
   const db = getDb();
+  const today = new Date().toISOString().slice(0, 10);
   const { data } = await db
     .from("events")
     .select("*")
     .eq("status", "published")
     .neq("id", event.id)
+    .gte("date_start", today)
     .or(`category.eq.${event.category},district.eq.${event.district}`)
     .order("date_start", { ascending: true })
     .limit(limit);
