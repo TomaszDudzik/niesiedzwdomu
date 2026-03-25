@@ -1,5 +1,5 @@
 """
-Central configuration for the scraping pipeline.
+Central configuration.
 Reads from environment variables with sensible defaults.
 Loads .env file from project root automatically.
 """
@@ -22,20 +22,8 @@ class Config:
     supabase_service_key: str = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
     database_url: str = os.environ.get("DATABASE_URL", "")
 
-    # OpenAI
+    # OpenAI (used for image generation only)
     openai_api_key: str = os.environ.get("OPENAI_API_KEY", "")
-    openai_model: str = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
-    openai_model_fallback: str = os.environ.get("OPENAI_MODEL_FALLBACK", "gpt-4o")
-    max_input_tokens: int = 4000
-
-    # Scoring thresholds
-    auto_publish_threshold: float = 0.85
-    review_threshold: float = 0.50
-    # Below review_threshold → rejected
-
-    # Source trust: sources with fewer than this many approved events
-    # always go through review regardless of score
-    new_source_trust_min: int = 10
 
     # Fetch settings
     fetch_timeout: int = 30
