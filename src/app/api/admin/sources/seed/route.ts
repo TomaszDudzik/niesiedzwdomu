@@ -19,51 +19,30 @@ const YAML_SOURCES = [
   {
     name: "Nowohuckie Centrum Kultury",
     base_url: "https://nck.krakow.pl/wydarzenia/filtruj/wydarzenia-0-0-0-62-0-0/",
-    fetch_method: "requests",
+    extractor_type: "generic",
     is_active: true,
-    pre_filtered: true,
     listing_urls: [
       "https://nck.krakow.pl/wydarzenia/filtruj/wydarzenia-0-0-0-62-0-0/",
     ],
-    pagination: "path",
-    max_pages: 5,
-    page_pattern:
-      "https://nck.krakow.pl/wydarzenia/filtruj/wydarzenia-0-0-0-62-0-0/page/{page}/",
-    events_mode: "inline",
-    link_selector: "a",
     default_venue_name: "Nowohuckie Centrum Kultury",
     default_venue_address: "al. Jana Pawła II 232, 31-913 Kraków",
     default_district: "Nowa Huta",
     default_organizer: "Nowohuckie Centrum Kultury",
     default_is_free: true,
-    notes:
-      "Events listed inline on listing pages. Pagination via /page/2/, /page/3/ etc.",
   },
   {
-    name: "Kraków dla dzieci",
-    base_url: "https://krakowdladzieci.pl",
-    fetch_method: "requests",
-    is_active: false,
-    pre_filtered: true,
-    listing_urls: ["https://krakowdladzieci.pl/wydarzenia"],
-    pagination: "query",
-    max_pages: 5,
-    page_pattern: "https://krakowdladzieci.pl/wydarzenia?page={page}",
-    events_mode: "links",
-    link_selector: "a.event-card",
-    notes: "All events are kids-focused. Follow links for full detail.",
+    name: "biletyna",
+    base_url: "https://biletyna.pl",
+    extractor_type: "biletyna",
+    is_active: true,
+    listing_urls: ["https://biletyna.pl/dla-dzieci/Krakow?city_id=16#list"],
   },
   {
-    name: "Karnet Kraków Culture",
-    base_url: "https://karnet.krakowculture.pl",
-    fetch_method: "requests",
-    is_active: false,
-    pre_filtered: false,
-    listing_urls: ["https://karnet.krakowculture.pl/"],
-    pagination: "none",
-    max_pages: 5,
-    events_mode: "inline",
-    notes: "Main page has event summaries inline.",
+    name: "ck_podgorza",
+    base_url: "https://www.ckpodgorza.pl",
+    extractor_type: "ck_podgorza",
+    is_active: true,
+    listing_urls: ["https://www.ckpodgorza.pl/oferta/wydarzenia"],
   },
 ];
 
@@ -85,11 +64,7 @@ export async function POST() {
       continue;
     }
 
-    const { error } = await db.from("scrape_sources").insert({
-      ...src,
-      extractor_type: "llm",
-      scrape_config: {},
-    });
+    const { error } = await db.from("scrape_sources").insert(src);
 
     if (error) {
       return NextResponse.json(

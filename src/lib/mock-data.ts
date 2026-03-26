@@ -1,5 +1,5 @@
 import type {
-  Event, Camp, Place, Venue, DiscoveryItem,
+  Event, Camp, Place, DiscoveryItem,
   EventCategory, CampType, CampSeason, PlaceType, ContentType,
 } from "@/types/database";
 
@@ -14,18 +14,6 @@ function futureDate(daysFromNow: number): string {
 }
 
 // ============================================
-// Venues
-// ============================================
-
-export const mockVenues: Venue[] = [
-  { id: "v1", name: "Teatr Groteska", address: "ul. Skarbowa 2, 31-121 Kraków", district: "Stare Miasto", lat: 50.0647, lng: 19.9450, website: "https://groteska.pl", created_at: "2024-01-01T00:00:00Z" },
-  { id: "v2", name: "Muzeum Inżynierii Miejskiej", address: "ul. Św. Wawrzyńca 15, 31-060 Kraków", district: "Kazimierz", lat: 50.0480, lng: 19.9470, website: null, created_at: "2024-01-01T00:00:00Z" },
-  { id: "v3", name: "Park Jordana", address: "al. 3 Maja, 30-062 Kraków", district: "Krowodrza", lat: 50.0590, lng: 19.9200, website: null, created_at: "2024-01-01T00:00:00Z" },
-  { id: "v4", name: "ICE Kraków", address: "ul. Marii Konopnickiej 17, 30-302 Kraków", district: "Dębniki", lat: 50.0480, lng: 19.9310, website: "https://icekrakow.pl", created_at: "2024-01-01T00:00:00Z" },
-  { id: "v5", name: "Ogród Doświadczeń im. S. Lema", address: "al. Pokoju 68, 31-580 Kraków", district: "Nowa Huta", lat: 50.0720, lng: 20.0130, website: null, created_at: "2024-01-01T00:00:00Z" },
-];
-
-// ============================================
 // Events (12 items)
 // ============================================
 
@@ -37,7 +25,7 @@ export const mockEvents: Event[] = [
     image_url: "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=800&h=500&fit=crop",
     date_start: futureDate(2), date_end: null, time_start: "11:00", time_end: "11:45",
     age_min: 3, age_max: 7, price: 25, is_free: false, category: "spektakl", district: "Stare Miasto",
-    venue_id: "v1", venue_name: "Teatr Groteska", venue_address: "ul. Skarbowa 2, Kraków",
+venue_name: "Teatr Groteska", venue_address: "ul. Skarbowa 2, Kraków",
     source_url: "https://groteska.pl", organizer: "Teatr Groteska",
     is_featured: true, status: "published", likes: 34, dislikes: 2,
     created_at: "2024-01-15T10:00:00Z", updated_at: "2024-01-15T10:00:00Z",
@@ -49,7 +37,7 @@ export const mockEvents: Event[] = [
     image_url: "https://images.unsplash.com/photo-1596464716127-f2a82984de30?w=800&h=500&fit=crop",
     date_start: futureDate(3), date_end: null, time_start: "10:00", time_end: "12:00",
     age_min: 5, age_max: 10, price: 35, is_free: false, category: "warsztaty", district: "Kazimierz",
-    venue_id: "v2", venue_name: "Muzeum Inżynierii Miejskiej", venue_address: "ul. Św. Wawrzyńca 15, Kraków",
+venue_name: "Muzeum Inżynierii Miejskiej", venue_address: "ul. Św. Wawrzyńca 15, Kraków",
     source_url: null, organizer: "Muzeum Inżynierii Miejskiej",
     is_featured: true, status: "published", likes: 28, dislikes: 1,
     created_at: "2024-01-14T10:00:00Z", updated_at: "2024-01-14T10:00:00Z",
@@ -61,7 +49,7 @@ export const mockEvents: Event[] = [
     image_url: "https://images.unsplash.com/photo-1540479859555-17af45c78602?w=800&h=500&fit=crop",
     date_start: futureDate(5), date_end: null, time_start: "10:00", time_end: "16:00",
     age_min: 0, age_max: 12, price: null, is_free: true, category: "festyn", district: "Krowodrza",
-    venue_id: "v3", venue_name: "Park Jordana", venue_address: "al. 3 Maja, Kraków",
+venue_name: "Park Jordana", venue_address: "al. 3 Maja, Kraków",
     source_url: null, organizer: "Urząd Miasta Krakowa",
     is_featured: true, status: "published", likes: 67, dislikes: 3,
     created_at: "2024-01-13T10:00:00Z", updated_at: "2024-01-13T10:00:00Z",
@@ -73,7 +61,7 @@ export const mockEvents: Event[] = [
     image_url: "https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?w=800&h=500&fit=crop",
     date_start: futureDate(1), date_end: null, time_start: "10:30", time_end: "11:05",
     age_min: 0, age_max: 3, price: 40, is_free: false, category: "muzyka", district: "Dębniki",
-    venue_id: "v4", venue_name: "ICE Kraków — Sala Kameralna", venue_address: "ul. Marii Konopnickiej 17, Kraków",
+venue_name: "ICE Kraków — Sala Kameralna", venue_address: "ul. Marii Konopnickiej 17, Kraków",
     source_url: "https://icekrakow.pl", organizer: "Filharmonia dla Dzieci",
     is_featured: false, status: "published", likes: 45, dislikes: 0,
     created_at: "2024-01-12T10:00:00Z", updated_at: "2024-01-12T10:00:00Z",
@@ -85,7 +73,7 @@ export const mockEvents: Event[] = [
     image_url: "https://images.unsplash.com/photo-1567306226416-28f0efdc88ce?w=800&h=500&fit=crop",
     date_start: futureDate(4), date_end: null, time_start: "11:00", time_end: "13:00",
     age_min: 6, age_max: 12, price: 20, is_free: false, category: "edukacja", district: "Nowa Huta",
-    venue_id: "v5", venue_name: "Ogród Doświadczeń im. S. Lema", venue_address: "al. Pokoju 68, Kraków",
+venue_name: "Ogród Doświadczeń im. S. Lema", venue_address: "al. Pokoju 68, Kraków",
     source_url: null, organizer: "Ogród Doświadczeń",
     is_featured: false, status: "published", likes: 19, dislikes: 1,
     created_at: "2024-01-11T10:00:00Z", updated_at: "2024-01-11T10:00:00Z",
@@ -97,7 +85,7 @@ export const mockEvents: Event[] = [
     image_url: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&h=500&fit=crop",
     date_start: futureDate(6), date_end: null, time_start: "09:00", time_end: "10:00",
     age_min: 3, age_max: 10, price: null, is_free: true, category: "sport", district: "Podgórze",
-    venue_id: null, venue_name: "Park Bednarskiego", venue_address: "ul. Parkowa, Kraków",
+venue_name: "Park Bednarskiego", venue_address: "ul. Parkowa, Kraków",
     source_url: null, organizer: "Joga Kraków Kids",
     is_featured: false, status: "published", likes: 22, dislikes: 0,
     created_at: "2024-01-10T10:00:00Z", updated_at: "2024-01-10T10:00:00Z",
@@ -109,7 +97,7 @@ export const mockEvents: Event[] = [
     image_url: "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=800&h=500&fit=crop",
     date_start: futureDate(7), date_end: null, time_start: "10:00", time_end: "11:45",
     age_min: 4, age_max: 10, price: 15, is_free: false, category: "kino", district: "Stare Miasto",
-    venue_id: null, venue_name: "Kino Pod Baranami", venue_address: "Rynek Główny 27, Kraków",
+venue_name: "Kino Pod Baranami", venue_address: "Rynek Główny 27, Kraków",
     source_url: null, organizer: "Kino Pod Baranami",
     is_featured: true, status: "published", likes: 51, dislikes: 2,
     created_at: "2024-01-09T10:00:00Z", updated_at: "2024-01-09T10:00:00Z",
@@ -121,7 +109,7 @@ export const mockEvents: Event[] = [
     image_url: "https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=800&h=500&fit=crop",
     date_start: futureDate(3), date_end: null, time_start: "14:00", time_end: "16:00",
     age_min: 5, age_max: 12, price: 55, is_free: false, category: "warsztaty", district: "Kazimierz",
-    venue_id: null, venue_name: "Pracownia Glinianka", venue_address: "ul. Józefa 18, Kraków",
+venue_name: "Pracownia Glinianka", venue_address: "ul. Józefa 18, Kraków",
     source_url: null, organizer: "Pracownia Glinianka",
     is_featured: false, status: "published", likes: 38, dislikes: 1,
     created_at: "2024-01-08T10:00:00Z", updated_at: "2024-01-08T10:00:00Z",
@@ -133,7 +121,7 @@ export const mockEvents: Event[] = [
     image_url: "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=800&h=500&fit=crop",
     date_start: futureDate(8), date_end: futureDate(9), time_start: "09:00", time_end: "15:00",
     age_min: 4, age_max: 14, price: 30, is_free: false, category: "edukacja", district: "Inne",
-    venue_id: null, venue_name: "Kopalnia Soli Wieliczka", venue_address: "ul. Daniłowicza 10, Wieliczka",
+venue_name: "Kopalnia Soli Wieliczka", venue_address: "ul. Daniłowicza 10, Wieliczka",
     source_url: null, organizer: "Kopalnia Soli Wieliczka",
     is_featured: false, status: "published", likes: 73, dislikes: 5,
     created_at: "2024-01-07T10:00:00Z", updated_at: "2024-01-07T10:00:00Z",
@@ -145,7 +133,7 @@ export const mockEvents: Event[] = [
     image_url: "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=800&h=500&fit=crop",
     date_start: futureDate(1), date_end: null, time_start: "16:00", time_end: "16:40",
     age_min: 2, age_max: 5, price: null, is_free: true, category: "edukacja", district: "Stare Miasto",
-    venue_id: null, venue_name: "Wojewódzka Biblioteka Publiczna", venue_address: "ul. Rajska 1, Kraków",
+venue_name: "Wojewódzka Biblioteka Publiczna", venue_address: "ul. Rajska 1, Kraków",
     source_url: null, organizer: "WBP Kraków",
     is_featured: false, status: "published", likes: 15, dislikes: 0,
     created_at: "2024-01-06T10:00:00Z", updated_at: "2024-01-06T10:00:00Z",
@@ -157,7 +145,7 @@ export const mockEvents: Event[] = [
     image_url: "https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=800&h=500&fit=crop",
     date_start: futureDate(6), date_end: null, time_start: "09:30", time_end: "11:00",
     age_min: 5, age_max: 12, price: 15, is_free: false, category: "natura", district: "Krowodrza",
-    venue_id: null, venue_name: "Błonia Krakowskie", venue_address: "Błonia, Kraków",
+venue_name: "Błonia Krakowskie", venue_address: "Błonia, Kraków",
     source_url: null, organizer: "EkoKraków",
     is_featured: false, status: "published", likes: 29, dislikes: 0,
     created_at: "2024-01-05T10:00:00Z", updated_at: "2024-01-05T10:00:00Z",
@@ -169,7 +157,7 @@ export const mockEvents: Event[] = [
     image_url: "https://images.unsplash.com/photo-1474511320723-9a56873571b7?w=800&h=500&fit=crop",
     date_start: futureDate(10), date_end: futureDate(11), time_start: "10:00", time_end: "21:00",
     age_min: 0, age_max: 99, price: null, is_free: true, category: "festyn", district: "Stare Miasto",
-    venue_id: null, venue_name: "Rynek Główny", venue_address: "Rynek Główny, Kraków",
+venue_name: "Rynek Główny", venue_address: "Rynek Główny, Kraków",
     source_url: null, organizer: "Kraków dla Dzieci",
     is_featured: true, status: "published", likes: 112, dislikes: 4,
     created_at: "2024-01-04T10:00:00Z", updated_at: "2024-01-04T10:00:00Z",

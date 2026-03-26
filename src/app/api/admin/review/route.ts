@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
   if (action === "restore") {
     const { error } = await db
       .from("scraped_events")
-      .update({ status: "review", reviewed_at: null })
+      .update({ status: "review" })
       .eq("id", id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true });
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
   if (action === "reject") {
     const { error } = await db
       .from("scraped_events")
-      .update({ status: "rejected", reviewed_at: new Date().toISOString(), is_new: false })
+      .update({ status: "rejected", is_new: false })
       .eq("id", id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true });
@@ -141,8 +141,6 @@ export async function POST(request: NextRequest) {
       .update({
         status: "published",
         canonical_event_id: published.id,
-        reviewed_at: new Date().toISOString(),
-        published_at: new Date().toISOString(),
         is_new: false,
       })
       .eq("id", id);

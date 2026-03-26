@@ -29,7 +29,6 @@ const EMPTY_EVENT: Omit<Event, "id" | "created_at" | "updated_at"> = {
   is_free: false,
   category: "inne",
   district: "Stare Miasto",
-  venue_id: null,
   venue_name: "",
   venue_address: "",
   source_url: null,

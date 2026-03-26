@@ -42,14 +42,18 @@ def process_source(source: dict, *, force: bool = False) -> dict:
 
     logger.info("Processing source: %s (%d listing URLs)", source_name, len(listing_urls))
 
-    # Try to match a custom adapter by source name
+    # Check explicit adapter in extractor_type, then fall back to name matching
     load_adapters()
-    adapter_cls = get_adapter(source_name)
+    adapter_name = source.get("extractor_type", "generic")
+    if adapter_name == "generic":
+        adapter_name = None
+
+    adapter_cls = get_adapter(adapter_name) if adapter_name else get_adapter(source_name)
 
     if adapter_cls:
-        logger.info("Using custom adapter: %s", source_name)
+        logger.info("Using custom adapter: %s", adapter_name or source_name)
         adapter = adapter_cls()
-        raw_events = adapter.run()
+        raw_events = adapter.run(listing_urls[0] if listing_urls else "")
     else:
         logger.info("Using generic pipeline for: %s", source_name)
         raw_events = run_pipeline(

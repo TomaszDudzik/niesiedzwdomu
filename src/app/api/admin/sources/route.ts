@@ -73,9 +73,7 @@ export async function POST(request: NextRequest) {
   const db = getDb();
   const body = await request.json();
 
-  // Set scrape_config JSONB as well for backward compat
-  body.scrape_config = body.scrape_config || {};
-  body.extractor_type = body.extractor_type || "llm";
+  body.extractor_type = body.extractor_type || "generic";
 
   const { data, error } = await db.from("scrape_sources").insert(body).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

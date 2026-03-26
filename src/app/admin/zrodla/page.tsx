@@ -8,7 +8,7 @@ import {
   ImagePlus, Star, Eye, EyeOff, LayoutList, Layers,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { ScrapeSource, FetchMethod, PaginationType, EventsMode } from "@/types/database";
+import type { ScrapeSource } from "@/types/database";
 
 type ContentTypeTab = "wydarzenia" | "kolonie" | "miejsca";
 type SourceWithCounts = ScrapeSource & { _counts?: { review: number; published_active: number; published_past: number; rejected: number } };
@@ -217,7 +217,7 @@ export default function AdminSourcesPage() {
       {/* Form */}
       {showForm && (
         <div className="mb-8">
-          <SourceForm source={editingSource} defaultContentType={activeTab} onSave={handleSave}
+          <SourceForm source={editingSource} defaultContentType={activeTab} adapterNames={adapterNames} onSave={handleSave}
             onCancel={() => { setShowForm(false); setEditingSource(null); }} />
         </div>
       )}
@@ -252,10 +252,10 @@ export default function AdminSourcesPage() {
                       {source.is_active ? "Aktywne" : "Nieaktywne"}
                     </span>
                     <span className={cn("inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium shrink-0",
-                      adapterNames.includes(source.name)
+                      source.extractor_type && source.extractor_type !== "generic"
                         ? "bg-blue-50 text-blue-600 border border-blue-100"
                         : "bg-stone-50 text-stone-400 border border-stone-100")}>
-                      {adapterNames.includes(source.name) ? "adapter" : "generic"}
+                      {source.extractor_type || "generic"}
                     </span>
                   </div>
                   <p className="text-[12px] text-muted mt-0.5 truncate">{source.base_url}</p>
@@ -916,44 +916,36 @@ function SourceEventsPanel({ sourceId, sourceName, onCountsChange }: { sourceId:
 // ═══════════════════════════════════════════════════════════════════
 
 function SourceForm({
-  source, defaultContentType = "wydarzenia", onSave, onCancel,
+  source, defaultContentType = "wydarzenia", adapterNames = [], onSave, onCancel,
 }: {
-  source: ScrapeSource | null; defaultContentType?: ContentTypeTab;
+  source: ScrapeSource | null; defaultContentType?: ContentTypeTab; adapterNames?: string[];
   onSave: (data: Record<string, unknown>) => void; onCancel: () => void;
 }) {
   const initial = source || {
-    name: "", base_url: "", fetch_method: "requests" as FetchMethod,
-    is_active: true, pre_filtered: true, content_type: defaultContentType,
-    listing_urls: [] as string[], pagination: "none" as PaginationType,
-    max_pages: 5, page_pattern: null as string | null,
-    events_mode: "inline" as EventsMode, link_selector: "a",
+    name: "", base_url: "", extractor_type: "generic",
+    is_active: true, content_type: defaultContentType,
+    listing_urls: [] as string[],
     default_venue_name: null as string | null, default_venue_address: null as string | null,
     default_district: null as string | null, default_organizer: null as string | null,
     default_is_free: null as boolean | null, scrape_interval_hours: 24,
-    extraction_instructions: null as string | null, notes: null as string | null,
+    notes: null as string | null,
   };
 
-  const [contentType, setContentType] = useState<ContentTypeTab>((source?.content_type as ContentTypeTab) || defaultContentType);
+  const currentAdapter = source?.extractor_type && source.extractor_type !== "llm" ? source.extractor_type : "generic";
   const [name, setName] = useState(initial.name);
   const [baseUrl, setBaseUrl] = useState(initial.base_url);
-  const [fetchMethod, setFetchMethod] = useState<FetchMethod>(initial.fetch_method);
+  const [adapter, setAdapter] = useState(currentAdapter);
+  const [contentType, setContentType] = useState<ContentTypeTab>((source?.content_type as ContentTypeTab) || defaultContentType);
   const [isActive, setIsActive] = useState(initial.is_active);
   const [listingUrls, setListingUrls] = useState(initial.listing_urls?.join("\n") || "");
-  const [pagination, setPagination] = useState<PaginationType>(initial.pagination);
-  const [maxPages, setMaxPages] = useState(initial.max_pages);
-  const [pagePattern, setPagePattern] = useState(initial.page_pattern || "");
-  const [eventsMode, setEventsMode] = useState<EventsMode>(initial.events_mode);
-  const [linkSelector, setLinkSelector] = useState(initial.link_selector || "a");
   const [scrapeInterval, setScrapeInterval] = useState(initial.scrape_interval_hours);
   const [notes, setNotes] = useState(initial.notes || "");
-  const [extractionInstructions, setExtractionInstructions] = useState(initial.extraction_instructions || "");
   const [showDefaults, setShowDefaults] = useState(false);
   const [defaultVenueName, setDefaultVenueName] = useState(initial.default_venue_name || "");
   const [defaultVenueAddress, setDefaultVenueAddress] = useState(initial.default_venue_address || "");
   const [defaultDistrict, setDefaultDistrict] = useState(initial.default_district || "");
   const [defaultOrganizer, setDefaultOrganizer] = useState(initial.default_organizer || "");
   const [defaultIsFree, setDefaultIsFree] = useState(initial.default_is_free);
-  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const DISTRICTS = ["", "Stare Miasto", "Kazimierz", "Podgórze", "Nowa Huta", "Krowodrza", "Bronowice", "Zwierzyniec", "Dębniki", "Prądnik Czerwony", "Prądnik Biały", "Czyżyny", "Bieżanów", "Inne"];
 
@@ -962,14 +954,11 @@ function SourceForm({
     const urls = listingUrls.split("\n").map((u) => u.trim()).filter(Boolean);
     onSave({
       name, base_url: baseUrl, content_type: contentType,
-      fetch_method: fetchMethod, is_active: isActive, pre_filtered: true,
-      listing_urls: urls, pagination, max_pages: maxPages,
-      page_pattern: pagePattern || null, events_mode: eventsMode,
-      link_selector: eventsMode === "links" ? linkSelector : null,
+      extractor_type: adapter, is_active: isActive,
+      listing_urls: urls, scrape_interval_hours: scrapeInterval,
       default_venue_name: defaultVenueName || null, default_venue_address: defaultVenueAddress || null,
       default_district: defaultDistrict || null, default_organizer: defaultOrganizer || null,
-      default_is_free: defaultIsFree, scrape_interval_hours: scrapeInterval,
-      extraction_instructions: extractionInstructions || null, notes: notes || null,
+      default_is_free: defaultIsFree, notes: notes || null,
     });
   };
 
@@ -980,83 +969,57 @@ function SourceForm({
       <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-stone-50/50">
         <div>
           <h2 className="text-[15px] font-semibold text-foreground">{source ? "Edytuj źródło" : "Nowe źródło"}</h2>
-          <p className="text-[12px] text-muted mt-0.5">{source ? "Zmień konfigurację źródła" : "Dodaj nową stronę do scrapowania"}</p>
+          <p className="text-[12px] text-muted mt-0.5">{source ? "Zmień konfigurację źródła" : "Podaj stronę i wybierz adapter"}</p>
         </div>
         <button type="button" onClick={onCancel} className="p-1.5 rounded-lg hover:bg-stone-100 text-muted"><X size={18} /></button>
       </div>
 
-      <div className="p-6 space-y-8">
-        <FormSection title="Podstawowe informacje" subtitle="Nazwa, adres strony i typ treści">
-          <div className="grid sm:grid-cols-2 gap-4">
-            <Field label="Nazwa źródła" required hint="Przyjazna nazwa do wyświetlania w panelu">
-              <input value={name} onChange={(e) => setName(e.target.value)} className={inputClass} placeholder="np. Nowohuckie Centrum Kultury" required />
-            </Field>
-            <Field label="Strona główna" required hint="Adres główny strony źródłowej">
-              <input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} className={inputClass} placeholder="https://nck.krakow.pl" type="url" required />
-            </Field>
-            <Field label="Typ treści">
-              <select value={contentType} onChange={(e) => setContentType(e.target.value as ContentTypeTab)} className={inputClass}>
-                <option value="wydarzenia">Wydarzenia</option>
-                <option value="kolonie">Kolonie</option>
-                <option value="miejsca">Miejsca</option>
-              </select>
-            </Field>
-            <Field label="Status">
-              <label className="flex items-center gap-2 h-[42px]">
-                <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="rounded" />
-                <span className="text-sm">Aktywne — scraper będzie pobierał dane</span>
-              </label>
-            </Field>
-          </div>
-        </FormSection>
-
-        <FormSection title="Strony do scrapowania" subtitle="Adresy URL z listami wydarzeń">
-          <Field label="Adresy URL" required hint="Jedna linia = jeden adres. Scraper odwiedzi każdy po kolei.">
-            <textarea value={listingUrls} onChange={(e) => setListingUrls(e.target.value)} className={cn(inputClass, "min-h-[80px] font-mono text-xs")}
-              placeholder={"https://nck.krakow.pl/wydarzenia/\nhttps://nck.krakow.pl/wydarzenia/page/2/"} />
+      <div className="p-6 space-y-6">
+        <div className="grid sm:grid-cols-2 gap-4">
+          <Field label="Nazwa źródła" required>
+            <input value={name} onChange={(e) => setName(e.target.value)} className={inputClass} placeholder="np. Biletyna" required />
           </Field>
-          <div className="grid sm:grid-cols-3 gap-4 mt-4">
-            <Field label="Automatyczna paginacja" hint="Scraper sam doda kolejne strony">
-              <select value={pagination} onChange={(e) => setPagination(e.target.value as PaginationType)} className={inputClass}>
-                <option value="none">Wyłączona</option>
-                <option value="path">Włączona — /page/2/...</option>
-                <option value="query">Włączona — ?page=2...</option>
-              </select>
-            </Field>
-            {pagination !== "none" && (
-              <>
-                <Field label="Ile stron?" hint="Np. 5 = strona 1 do 5">
-                  <input type="number" value={maxPages} onChange={(e) => setMaxPages(Number(e.target.value))} className={inputClass} min={1} max={50} />
-                </Field>
-                <Field label="Wzorzec URL" hint="{page} = numer strony">
-                  <input value={pagePattern} onChange={(e) => setPagePattern(e.target.value)} className={cn(inputClass, "font-mono text-xs")} placeholder=".../page/{page}/" />
-                </Field>
-              </>
-            )}
-          </div>
-        </FormSection>
-
-        <FormSection title="Instrukcje ekstrakcji" subtitle="Dodatkowe wskazówki dla AI — jak rozpoznawać i interpretować dane na tej stronie">
-          <Field label="Instrukcje (opcjonalne)" hint="Napisz po polsku lub angielsku. Opisz strukturę strony, co jest ważne, czego unikać. Te instrukcje są dołączane do prompta LLM przy każdym scrapowaniu tego źródła.">
-            <textarea
-              value={extractionInstructions}
-              onChange={(e) => setExtractionInstructions(e.target.value)}
-              className={cn(inputClass, "min-h-[120px] text-xs")}
-              placeholder={`Przykłady:\n\n• Na tej stronie każdy event jest w osobnym bloku z datą i linkiem\n• Ignoruj eventy z etykietą "wyprzedane"\n• Ceny są w formacie "od XX zł" w prawym rogu\n• Venue jest wspólne dla wszystkich — Centrum Kultury Podgórza\n• Data jest w formacie DD.MM.YYYY\n• Niektóre eventy mają godzinę w opisie, np. "godz. 17:00"`}
-            />
+          <Field label="Adapter" hint="Dedykowany adapter lub generyczny scraper">
+            <select value={adapter} onChange={(e) => setAdapter(e.target.value)} className={inputClass}>
+              <option value="generic">Generyczny (base scraper)</option>
+              {adapterNames.map((a) => (
+                <option key={a} value={a}>{a}</option>
+              ))}
+            </select>
           </Field>
-        </FormSection>
+        </div>
 
-        <FormSection title="Harmonogram" subtitle="Jak często scrapować">
-          <div className="grid sm:grid-cols-2 gap-4">
-            <Field label="Interwał (godziny)" hint="Co ile godzin sprawdzać źródło">
-              <input type="number" value={scrapeInterval} onChange={(e) => setScrapeInterval(Number(e.target.value))} className={inputClass} min={1} />
-            </Field>
-            <Field label="Notatki" hint="Wewnętrzne uwagi">
-              <input value={notes} onChange={(e) => setNotes(e.target.value)} className={inputClass} placeholder="Opcjonalne..." />
-            </Field>
-          </div>
-        </FormSection>
+        <Field label="Strona główna" required hint="Adres główny strony źródłowej">
+          <input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} className={inputClass} placeholder="https://biletyna.pl" type="url" required />
+        </Field>
+
+        <Field label="Strony do scrapowania" hint="Jedna linia = jeden URL listingu. Adapter użyje pierwszego URL-a.">
+          <textarea value={listingUrls} onChange={(e) => setListingUrls(e.target.value)} className={cn(inputClass, "min-h-[70px] font-mono text-xs")}
+            placeholder="https://biletyna.pl/dla-dzieci/Krakow?city_id=16#list" />
+        </Field>
+
+        <div className="grid sm:grid-cols-3 gap-4">
+          <Field label="Typ treści">
+            <select value={contentType} onChange={(e) => setContentType(e.target.value as ContentTypeTab)} className={inputClass}>
+              <option value="wydarzenia">Wydarzenia</option>
+              <option value="kolonie">Kolonie</option>
+              <option value="miejsca">Miejsca</option>
+            </select>
+          </Field>
+          <Field label="Interwał (h)" hint="Co ile godzin scrapować">
+            <input type="number" value={scrapeInterval} onChange={(e) => setScrapeInterval(Number(e.target.value))} className={inputClass} min={1} />
+          </Field>
+          <Field label="Status">
+            <label className="flex items-center gap-2 h-[42px]">
+              <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="rounded" />
+              <span className="text-sm">Aktywne</span>
+            </label>
+          </Field>
+        </div>
+
+        <Field label="Notatki" hint="Wewnętrzne uwagi">
+          <input value={notes} onChange={(e) => setNotes(e.target.value)} className={inputClass} placeholder="Opcjonalne..." />
+        </Field>
 
         <div>
           <button type="button" onClick={() => setShowDefaults(!showDefaults)}
@@ -1074,21 +1037,6 @@ function SourceForm({
             </div>
           )}
         </div>
-
-        <div>
-          <button type="button" onClick={() => setShowAdvanced(!showAdvanced)}
-            className="flex items-center gap-1.5 text-sm font-medium text-foreground hover:text-foreground/80 transition-colors">
-            {showAdvanced ? <ChevronUp size={14} /> : <ChevronDown size={14} />} Zaawansowane
-          </button>
-          <p className="text-[12px] text-muted-foreground mt-0.5 ml-5">Metoda pobierania i tryb ekstrakcji</p>
-          {showAdvanced && (
-            <div className="grid sm:grid-cols-3 gap-4 mt-4 pl-5 border-l-2 border-stone-200">
-              <Field label="Metoda" hint="requests = szybki, playwright = z JS"><select value={fetchMethod} onChange={(e) => setFetchMethod(e.target.value as FetchMethod)} className={inputClass}><option value="requests">requests</option><option value="playwright">playwright</option></select></Field>
-              <Field label="Tryb" hint="Inline = dane na listingu, Links = wchodzi w linki"><select value={eventsMode} onChange={(e) => setEventsMode(e.target.value as EventsMode)} className={inputClass}><option value="inline">Inline</option><option value="links">Links</option></select></Field>
-              {eventsMode === "links" && <Field label="Selektor CSS"><input value={linkSelector} onChange={(e) => setLinkSelector(e.target.value)} className={cn(inputClass, "font-mono text-xs")} placeholder="a.event-card" /></Field>}
-            </div>
-          )}
-        </div>
       </div>
 
       <div className="flex justify-end gap-3 px-6 py-4 border-t border-border bg-stone-50/50">
@@ -1097,10 +1045,6 @@ function SourceForm({
       </div>
     </form>
   );
-}
-
-function FormSection({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
-  return <div><h3 className="text-[14px] font-semibold text-foreground">{title}</h3><p className="text-[12px] text-muted-foreground mt-0.5 mb-4">{subtitle}</p>{children}</div>;
 }
 
 function Field({ label, hint, required, children }: { label: string; hint?: string; required?: boolean; children: React.ReactNode }) {
