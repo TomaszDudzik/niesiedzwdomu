@@ -56,16 +56,16 @@ export function ContentFilters<T extends SharedFilters>({
         <button
           onClick={() => setExpanded(!expanded)}
           className={cn(
-            "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-medium border transition-colors",
+            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium border transition-all duration-200",
             expanded
-              ? "bg-foreground text-white border-foreground"
-              : "bg-white text-muted border-border hover:border-[#CCC] hover:text-foreground"
+              ? "bg-primary text-primary-foreground border-primary"
+              : "bg-card text-muted border-border hover:border-primary/30 hover:text-foreground"
           )}
         >
           <SlidersHorizontal size={13} />
           Filtry
           {activeCount > 0 && (
-            <span className="bg-foreground text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center ml-0.5">
+            <span className="bg-primary-foreground text-primary text-[10px] w-4 h-4 rounded-full flex items-center justify-center ml-0.5">
               {activeCount}
             </span>
           )}
@@ -76,10 +76,10 @@ export function ContentFilters<T extends SharedFilters>({
             key={opt.value}
             onClick={() => update("dateRange", (filters as Record<string, unknown>).dateRange === opt.value ? undefined : opt.value)}
             className={cn(
-              "px-3 py-1.5 rounded-md text-[13px] font-medium border transition-colors",
+              "px-3 py-1.5 rounded-lg text-[13px] font-medium border transition-all duration-200",
               (filters as Record<string, unknown>).dateRange === opt.value
-                ? "bg-foreground text-white border-foreground"
-                : "bg-white text-muted border-border hover:border-[#CCC] hover:text-foreground"
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-card text-muted border-border hover:border-primary/30 hover:text-foreground"
             )}
           >
             {opt.label}
@@ -89,29 +89,27 @@ export function ContentFilters<T extends SharedFilters>({
         <button
           onClick={() => update("isFree", filters.isFree ? undefined : true)}
           className={cn(
-            "px-3 py-1.5 rounded-md text-[13px] font-medium border transition-colors",
+            "px-3 py-1.5 rounded-lg text-[13px] font-medium border transition-all duration-200",
             filters.isFree
-              ? "bg-foreground text-white border-foreground"
-              : "bg-white text-muted border-border hover:border-[#CCC] hover:text-foreground"
+              ? "bg-primary text-primary-foreground border-primary"
+              : "bg-card text-muted border-border hover:border-primary/30 hover:text-foreground"
           )}
         >
           Bezpłatne
         </button>
 
         {activeCount > 0 && (
-          <button onClick={clear} className="flex items-center gap-1 px-2 py-1.5 text-[12px] text-muted hover:text-foreground transition-colors">
+          <button onClick={clear} className="flex items-center gap-1 px-2 py-1.5 text-[12px] text-muted hover:text-primary transition-colors duration-200">
             <X size={12} /> Wyczyść
           </button>
         )}
       </div>
 
       {expanded && (
-        <div className="rounded-lg border border-border p-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="rounded-xl border border-border bg-card p-4 grid grid-cols-1 sm:grid-cols-3 gap-4 shadow-[var(--shadow-soft)]">
           {specificFilters.map((config) => (
             <div key={config.key}>
-              <label className="block text-[11px] font-medium text-muted-foreground mb-1.5 uppercase tracking-wider">
-                {config.label}
-              </label>
+              <label className="block text-[11px] font-medium text-muted-foreground mb-1.5 uppercase tracking-wider">{config.label}</label>
               {config.type === "pills" ? (
                 <div className="flex flex-wrap gap-1">
                   {config.options.map((opt) => (
@@ -119,10 +117,10 @@ export function ContentFilters<T extends SharedFilters>({
                       key={opt.value}
                       onClick={() => update(config.key, (filters as Record<string, unknown>)[config.key] === opt.value ? undefined : opt.value)}
                       className={cn(
-                        "px-2 py-1 rounded text-[12px] font-medium transition-colors",
+                        "px-2.5 py-1 rounded-lg text-[12px] font-medium transition-all duration-200",
                         (filters as Record<string, unknown>)[config.key] === opt.value
-                          ? "bg-foreground text-white"
-                          : "bg-[#F5F5F5] text-muted hover:text-foreground"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-accent text-muted hover:text-foreground"
                       )}
                     >
                       {opt.label}
@@ -133,7 +131,7 @@ export function ContentFilters<T extends SharedFilters>({
                 <select
                   value={((filters as Record<string, unknown>)[config.key] as string) || ""}
                   onChange={(e) => update(config.key, e.target.value || undefined)}
-                  className="w-full px-2.5 py-1.5 rounded-md border border-border text-[13px] bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-foreground/20"
+                  className="w-full px-2.5 py-1.5 rounded-lg border border-border text-[13px] bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-200"
                 >
                   <option value="">Wszystkie</option>
                   {config.options.map((opt) => (
@@ -149,7 +147,7 @@ export function ContentFilters<T extends SharedFilters>({
             <select
               value={filters.district || ""}
               onChange={(e) => update("district", e.target.value || undefined)}
-              className="w-full px-2.5 py-1.5 rounded-md border border-border text-[13px] bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-foreground/20"
+              className="w-full px-2.5 py-1.5 rounded-lg border border-border text-[13px] bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-200"
             >
               <option value="">Wszystkie</option>
               {DISTRICT_LIST.map((d) => (
@@ -166,10 +164,10 @@ export function ContentFilters<T extends SharedFilters>({
                   key={group.value}
                   onClick={() => update("ageGroup", filters.ageGroup === group.value ? undefined : group.value)}
                   className={cn(
-                    "px-2 py-1 rounded text-[12px] font-medium transition-colors",
+                    "px-2.5 py-1 rounded-lg text-[12px] font-medium transition-all duration-200",
                     filters.ageGroup === group.value
-                      ? "bg-foreground text-white"
-                      : "bg-[#F5F5F5] text-muted hover:text-foreground"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-accent text-muted hover:text-foreground"
                   )}
                 >
                   {group.label}

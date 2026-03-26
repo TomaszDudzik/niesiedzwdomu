@@ -73,6 +73,7 @@ export default function AdminSourcesPage() {
   const [scraping, setScraping] = useState<string | null>(null);
   const [expandedSource, setExpandedSource] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"sources" | "events">("sources");
+  const [adapterNames, setAdapterNames] = useState<string[]>([]);
 
   const filteredSources = sources.filter(
     (s) => (s.content_type || "wydarzenia") === activeTab
@@ -87,6 +88,14 @@ export default function AdminSourcesPage() {
   }, []);
 
   useEffect(() => { fetchSources(); }, [fetchSources]);
+
+  // Fetch available adapter names
+  useEffect(() => {
+    fetch("/api/admin/sources/adapters")
+      .then((r) => r.json())
+      .then((d) => setAdapterNames(d.adapters || []))
+      .catch(() => {});
+  }, []);
 
   const handleDelete = async (id: string) => {
     if (!confirm("Na pewno chcesz usunąć to źródło?")) return;
@@ -241,6 +250,12 @@ export default function AdminSourcesPage() {
                     <span className={cn("inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium shrink-0",
                       source.is_active ? "bg-emerald-50 text-emerald-700" : "bg-stone-100 text-stone-500")}>
                       {source.is_active ? "Aktywne" : "Nieaktywne"}
+                    </span>
+                    <span className={cn("inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium shrink-0",
+                      adapterNames.includes(source.name)
+                        ? "bg-blue-50 text-blue-600 border border-blue-100"
+                        : "bg-stone-50 text-stone-400 border border-stone-100")}>
+                      {adapterNames.includes(source.name) ? "adapter" : "generic"}
                     </span>
                   </div>
                   <p className="text-[12px] text-muted mt-0.5 truncate">{source.base_url}</p>
@@ -427,7 +442,8 @@ function SourceEventsPanel({ sourceId, sourceName, onCountsChange }: { sourceId:
       });
       const data = await res.json();
       if (data.image_url) {
-        setEvents((prev) => prev.map((e) => e.id === event.id ? { ...e, image_url: data.image_url } : e));
+        const bustUrl = `${data.image_url.split("?")[0]}?t=${Date.now()}`;
+        setEvents((prev) => prev.map((e) => e.id === event.id ? { ...e, image_url: bustUrl } : e));
       } else {
         alert(`Błąd: ${data.error || "Nie udało się"}`);
       }
@@ -458,7 +474,8 @@ function SourceEventsPanel({ sourceId, sourceName, onCountsChange }: { sourceId:
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id: event.id, image_url: data.image_url }),
         });
-        setEvents((prev) => prev.map((e) => e.id === event.id ? { ...e, image_url: data.image_url } : e));
+        const bustUrl2 = `${data.image_url.split("?")[0]}?t=${Date.now()}`;
+        setEvents((prev) => prev.map((e) => e.id === event.id ? { ...e, image_url: bustUrl2 } : e));
       } else {
         alert(`Błąd: ${data.error || "Nie udało się"}`);
       }
@@ -683,7 +700,7 @@ function SourceEventsPanel({ sourceId, sourceName, onCountsChange }: { sourceId:
                     </button>
 
                     {/* Source link */}
-                    <a href={event.source_url} target="_blank" rel="noopener noreferrer"
+                    <a href={event.source_url} target="_blank" rel="noopener"
                       className="p-1 rounded hover:bg-accent text-muted transition-colors">
                       <ExternalLink size={13} />
                     </a>

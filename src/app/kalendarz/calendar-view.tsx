@@ -45,15 +45,15 @@ export function CalendarView({ events }: CalendarViewProps) {
 
   return (
     <>
-      <button onClick={goToToday} className="px-3 py-1.5 rounded-md text-[13px] font-medium bg-foreground text-white hover:bg-[#333] transition-colors mb-6">Dziś</button>
+      <button onClick={goToToday} className="px-3.5 py-1.5 rounded-xl text-[13px] font-medium bg-primary text-primary-foreground hover:bg-primary-hover transition-colors duration-200 mb-6">Dziś</button>
 
       <div className="grid lg:grid-cols-5 gap-8">
         <div className="lg:col-span-3">
-          <div className="rounded-lg border border-border p-5">
+          <div className="rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
             <div className="flex items-center justify-between mb-5">
-              <button onClick={prevMonth} className="p-1.5 rounded-md hover:bg-accent transition-colors"><ChevronLeft size={16} /></button>
+              <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-accent transition-colors duration-200"><ChevronLeft size={16} /></button>
               <h2 className="text-[14px] font-semibold text-foreground">{MONTHS_PL[currentMonth]} {currentYear}</h2>
-              <button onClick={nextMonth} className="p-1.5 rounded-md hover:bg-accent transition-colors"><ChevronRight size={16} /></button>
+              <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-accent transition-colors duration-200"><ChevronRight size={16} /></button>
             </div>
             <div className="grid grid-cols-7 mb-1">
               {DAYS_PL.map((day) => (<div key={day} className="text-center text-[11px] font-medium text-muted-foreground py-1.5">{day}</div>))}
@@ -69,11 +69,11 @@ export function CalendarView({ events }: CalendarViewProps) {
                 const isPast = date < new Date(today.getFullYear(), today.getMonth(), today.getDate());
                 return (
                   <button key={day} onClick={() => setSelectedDate(date)}
-                    className={cn("aspect-square rounded-md flex flex-col items-center justify-center relative transition-all text-[13px]",
-                      selected ? "bg-foreground text-white font-medium" : todayFlag ? "bg-accent text-foreground font-medium" : isPast ? "text-muted-foreground/40" : "text-foreground hover:bg-accent",
+                    className={cn("aspect-square rounded-lg flex flex-col items-center justify-center relative transition-all duration-200 text-[13px]",
+                      selected ? "bg-primary text-primary-foreground font-medium shadow-sm" : todayFlag ? "bg-primary/10 text-primary font-medium" : isPast ? "text-muted-foreground/40" : "text-foreground hover:bg-accent",
                       count > 0 && !selected && "font-medium")}>
                     <span>{day}</span>
-                    {count > 0 && (<div className="flex gap-px mt-0.5">{Array.from({ length: Math.min(count, 3) }).map((_, di) => (<div key={di} className={cn("w-0.5 h-0.5 rounded-full", selected ? "bg-white/60" : "bg-foreground/40")} />))}</div>)}
+                    {count > 0 && (<div className="flex gap-px mt-0.5">{Array.from({ length: Math.min(count, 3) }).map((_, di) => (<div key={di} className={cn("w-1 h-1 rounded-full", selected ? "bg-primary-foreground/60" : "bg-primary/50")} />))}</div>)}
                   </button>
                 );
               })}
@@ -95,11 +95,11 @@ export function CalendarView({ events }: CalendarViewProps) {
               <div className="space-y-2">
                 {selectedEvents.map((event) => (
                   <Link key={event.id} href={`/wydarzenia/${event.slug}`}
-                    className="block rounded-lg border border-border p-3 hover:border-[#CCC] transition-all group">
-                    <h4 className="font-medium text-[13px] text-foreground group-hover:text-muted transition-colors line-clamp-2 mb-1.5">{event.title}</h4>
+                    className="block rounded-xl border border-border bg-card p-3 hover:border-primary/25 hover:shadow-[var(--shadow-soft)] transition-all duration-200 group">
+                    <h4 className="font-medium text-[13px] text-foreground group-hover:text-primary transition-colors duration-200 line-clamp-2 mb-1.5">{event.title}</h4>
                     <div className="flex items-center gap-3 text-[11px] text-muted">
-                      {event.time_start && (<span className="flex items-center gap-1"><Clock size={10} />{event.time_start}{event.time_end && ` – ${event.time_end}`}</span>)}
-                      {event.venue_name && (<span className="flex items-center gap-1"><MapPin size={10} />{event.venue_name}</span>)}
+                      {event.time_start && (<span className="flex items-center gap-1"><Clock size={10} className="text-secondary/60" />{event.time_start}{event.time_end && ` – ${event.time_end}`}</span>)}
+                      {event.venue_name && (<span className="flex items-center gap-1"><MapPin size={10} className="text-secondary/60" />{event.venue_name}</span>)}
                     </div>
                     <div className="flex items-center justify-between mt-1.5">
                       <span className="text-[11px] text-muted">{formatAgeRange(event.age_min, event.age_max)}</span>

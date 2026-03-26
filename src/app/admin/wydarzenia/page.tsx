@@ -132,9 +132,10 @@ export default function AdminEventsPage() {
       });
       const data = await res.json();
       if (data.image_url) {
+        const bustUrl = `${data.image_url.split("?")[0]}?t=${Date.now()}`;
         setEvents((prev) =>
           prev.map((e) =>
-            e.id === event.id ? { ...e, image_url: data.image_url } : e
+            e.id === event.id ? { ...e, image_url: bustUrl } : e
           )
         );
       } else {

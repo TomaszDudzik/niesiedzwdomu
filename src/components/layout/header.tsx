@@ -22,7 +22,7 @@ export function Header() {
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
 
   return (
-    <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-border">
+    <header className="sticky top-0 z-50 bg-card/90 backdrop-blur-md border-b border-border">
       <div className="container-page flex items-center justify-between h-14">
         <Link href="/">
           <Logo size="sm" />
@@ -34,10 +34,10 @@ export function Header() {
               key={link.href}
               href={link.href}
               className={cn(
-                "px-3 py-1.5 rounded-md text-[13px] font-medium transition-colors inline-flex items-center gap-1.5",
+                "px-3 py-1.5 rounded-lg text-[13px] font-medium transition-colors duration-200 inline-flex items-center gap-1.5",
                 isActive(link.href)
-                  ? "bg-accent text-foreground"
-                  : "text-muted hover:text-foreground"
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted hover:text-foreground hover:bg-accent"
               )}
             >
               {link.label}
@@ -48,7 +48,7 @@ export function Header() {
 
         <button
           onClick={() => setMobileOpen(!mobileOpen)}
-          className="md:hidden p-1.5 -mr-1.5 rounded-md hover:bg-accent transition-colors"
+          className="md:hidden p-1.5 -mr-1.5 rounded-lg hover:bg-accent transition-colors duration-200"
           aria-label="Menu"
         >
           {mobileOpen ? <X size={18} /> : <Menu size={18} />}
@@ -56,15 +56,15 @@ export function Header() {
       </div>
 
       {mobileOpen && (
-        <nav className="md:hidden border-t border-border bg-white">
+        <nav className="md:hidden border-t border-border bg-card">
           {NAV_LINKS.map((link) => (
             <Link
               key={link.href}
               href={link.href}
               onClick={() => setMobileOpen(false)}
               className={cn(
-                "flex items-center gap-2 px-5 py-2.5 text-[13px] font-medium transition-colors",
-                isActive(link.href) ? "text-foreground" : "text-muted"
+                "flex items-center gap-2 px-5 py-2.5 text-[13px] font-medium transition-colors duration-200",
+                isActive(link.href) ? "text-primary" : "text-muted"
               )}
             >
               {link.label}

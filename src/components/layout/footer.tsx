@@ -34,10 +34,9 @@ const FOOTER_SECTIONS = [
 
 export function Footer() {
   return (
-    <footer className="border-t border-border mt-24">
+    <footer className="border-t border-border mt-24 bg-accent/50">
       <div className="container-page py-10">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-          {/* Brand column */}
           <div className="col-span-2 md:col-span-1">
             <Logo size="sm" />
             <p className="text-[13px] text-muted mt-2 leading-relaxed max-w-[220px]">
@@ -45,22 +44,16 @@ export function Footer() {
             </p>
           </div>
 
-          {/* Link columns */}
           {FOOTER_SECTIONS.map((section) => (
             <div key={section.title}>
-              <h3 className="text-[12px] font-semibold text-foreground uppercase tracking-wide mb-3">
-                {section.title}
-              </h3>
+              <h3 className="text-[12px] font-semibold text-foreground uppercase tracking-wide mb-3">{section.title}</h3>
               <ul className="flex flex-col gap-2">
                 {section.links.map((link) => (
                   <li key={link.label}>
-                    <Link
-                      href={link.href}
-                      className="inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-foreground transition-colors"
-                    >
+                    <Link href={link.href} className="inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-primary transition-colors duration-200">
                       {link.label}
                       {"comingSoon" in link && link.comingSoon && (
-                        <span className="text-[10px] text-muted-foreground/60">·&nbsp;wkrótce</span>
+                        <span className="text-[10px] text-muted-foreground/50">·&nbsp;wkrótce</span>
                       )}
                     </Link>
                   </li>
@@ -75,8 +68,8 @@ export function Footer() {
             © {new Date().getFullYear()} wyjdź na pole. Wszystkie prawa zastrzeżone.
           </p>
           <div className="flex items-center gap-4 text-[12px] text-muted-foreground">
-            <Link href="/regulamin" className="hover:text-foreground transition-colors">Regulamin</Link>
-            <Link href="/prywatnosc" className="hover:text-foreground transition-colors">Prywatność</Link>
+            <Link href="/regulamin" className="hover:text-primary transition-colors duration-200">Regulamin</Link>
+            <Link href="/prywatnosc" className="hover:text-primary transition-colors duration-200">Prywatność</Link>
           </div>
         </div>
       </div>

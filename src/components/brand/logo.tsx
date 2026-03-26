@@ -28,15 +28,12 @@ function Arrow({ w, h, stroke, strokeWidth }: { w: number; h: number; stroke: st
 
 export function Logo({ variant = "default", size = "md", className }: LogoProps) {
   const c = config[size];
-  const color = variant === "light" ? "#FFFFFF" : "#111111";
-  const arrowColor = variant === "light" ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.2)";
+  const color = variant === "light" ? "#FFFFFF" : "#2D2926";
+  const arrowColor = variant === "light" ? "rgba(255,255,255,0.3)" : "#D4623C";
 
   return (
     <span className={cn("inline-flex items-center", className)}>
-      <span
-        className={cn("font-medium tracking-[-0.02em] leading-none", c.fontSize)}
-        style={{ color }}
-      >
+      <span className={cn("font-medium tracking-[-0.02em] leading-none", c.fontSize)} style={{ color }}>
         obczajka dla rodziców
       </span>
       <span className={c.gap}>
@@ -55,35 +52,18 @@ export function LogoIcon({
   size?: number;
   className?: string;
 }) {
-  const fg = variant === "light" ? "#FFFFFF" : "#111111";
-  const bg = variant === "light" ? "#111111" : "#FFFFFF";
+  const fg = variant === "light" ? "#FFFFFF" : "#D4623C";
+  const bg = variant === "light" ? "#2D2926" : "#FFFFFF";
   const hasBorder = variant !== "light";
 
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 32 32"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={className}
-    >
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
       <rect
-        x={hasBorder ? 0.5 : 0}
-        y={hasBorder ? 0.5 : 0}
-        width={hasBorder ? 31 : 32}
-        height={hasBorder ? 31 : 32}
-        rx={hasBorder ? 7.5 : 8}
-        fill={bg}
-        stroke={hasBorder ? "#E5E5E5" : "none"}
+        x={hasBorder ? 0.5 : 0} y={hasBorder ? 0.5 : 0}
+        width={hasBorder ? 31 : 32} height={hasBorder ? 31 : 32}
+        rx={hasBorder ? 7.5 : 8} fill={bg} stroke={hasBorder ? "#E8E4DF" : "none"}
       />
-      <path
-        d="M11 16H21M18 12.5L21.5 16L18 19.5"
-        stroke={fg}
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <path d="M11 16H21M18 12.5L21.5 16L18 19.5" stroke={fg} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

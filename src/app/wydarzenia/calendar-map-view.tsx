@@ -199,7 +199,7 @@ export function CalendarMapView({ events }: CalendarMapViewProps) {
               className={cn(
                 "px-2.5 py-1 rounded-md text-[11px] font-medium transition-all",
                 isToday(selectedDate)
-                  ? "bg-foreground text-white"
+                  ? "bg-primary text-primary-foreground"
                   : "bg-accent text-foreground hover:bg-accent/80"
               )}
             >
@@ -240,9 +240,9 @@ export function CalendarMapView({ events }: CalendarMapViewProps) {
                 className={cn(
                   "flex flex-col items-center min-w-[52px] px-2 py-2 rounded-lg transition-all shrink-0 relative",
                   selected
-                    ? "bg-foreground text-white shadow-md scale-105"
+                    ? "bg-primary text-primary-foreground shadow-md scale-105"
                     : todayFlag
-                      ? "bg-accent/80 text-foreground ring-1 ring-foreground/20"
+                      ? "bg-accent/80 text-foreground ring-1 ring-primary/30"
                       : isPast
                         ? "text-muted-foreground/40 hover:bg-accent/40"
                         : weekend
@@ -261,10 +261,10 @@ export function CalendarMapView({ events }: CalendarMapViewProps) {
                   <div className={cn(
                     "mt-1 flex items-center justify-center min-w-[18px] h-[14px] rounded-full text-[9px] font-bold leading-none px-1",
                     selected
-                      ? "bg-white/25 text-white"
+                      ? "bg-white/25 text-primary-foreground"
                       : count >= 5
-                        ? "bg-foreground/15 text-foreground"
-                        : "bg-foreground/10 text-foreground/70"
+                        ? "bg-primary/15 text-foreground"
+                        : "bg-primary/10 text-foreground/70"
                   )}>
                     {count}
                   </div>
@@ -283,7 +283,7 @@ export function CalendarMapView({ events }: CalendarMapViewProps) {
             onClick={() => setMobileView("list")}
             className={cn(
               "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium transition-all",
-              mobileView === "list" ? "bg-foreground text-white shadow-sm" : "text-muted-foreground hover:text-foreground"
+              mobileView === "list" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
             )}
           >
             <List size={13} /> Lista
@@ -292,7 +292,7 @@ export function CalendarMapView({ events }: CalendarMapViewProps) {
             onClick={() => setMobileView("map")}
             className={cn(
               "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium transition-all",
-              mobileView === "map" ? "bg-foreground text-white shadow-sm" : "text-muted-foreground hover:text-foreground"
+              mobileView === "map" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
             )}
           >
             <MapIcon size={13} /> Mapa
@@ -319,8 +319,8 @@ export function CalendarMapView({ events }: CalendarMapViewProps) {
                   className={cn(
                     "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border transition-all",
                     highlightedDistrict === g.label
-                      ? "bg-foreground text-white border-foreground"
-                      : "bg-accent/50 text-muted-foreground border-border hover:border-foreground/30"
+                      ? "bg-primary text-primary-foreground border-foreground"
+                      : "bg-accent/50 text-muted-foreground border-border hover:border-primary/30"
                   )}
                 >
                   <MapPin size={9} />
@@ -399,7 +399,7 @@ function EventCard({ event }: { event: Event }) {
   return (
     <Link
       href={`/wydarzenia/${event.slug}`}
-      className="block rounded-xl border border-border bg-white p-3.5 hover:border-foreground/20 hover:shadow-sm transition-all group"
+      className="block rounded-xl border border-border bg-white p-3.5 hover:border-primary/25 hover:shadow-sm transition-all group"
     >
       {/* Top row: category + price */}
       <div className="flex items-start justify-between gap-2 mb-2">

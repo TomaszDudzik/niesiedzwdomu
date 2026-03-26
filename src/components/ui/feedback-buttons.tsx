@@ -40,10 +40,10 @@ export function FeedbackButtons({
       <button
         onClick={() => handleVote("up")}
         className={cn(
-          "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[13px] font-medium border transition-colors",
+          "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[13px] font-medium border transition-all duration-200",
           vote === "up"
-            ? "bg-foreground text-white border-foreground"
-            : "bg-white text-muted border-border hover:border-[#CCC] hover:text-foreground"
+            ? "bg-primary text-primary-foreground border-primary"
+            : "bg-card text-muted border-border hover:border-primary/30 hover:text-foreground"
         )}
       >
         <ThumbsUp size={13} />
@@ -52,10 +52,10 @@ export function FeedbackButtons({
       <button
         onClick={() => handleVote("down")}
         className={cn(
-          "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[13px] font-medium border transition-colors",
+          "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[13px] font-medium border transition-all duration-200",
           vote === "down"
-            ? "bg-foreground text-white border-foreground"
-            : "bg-white text-muted border-border hover:border-[#CCC] hover:text-foreground"
+            ? "bg-danger text-white border-danger"
+            : "bg-card text-muted border-border hover:border-border hover:text-foreground"
         )}
       >
         <ThumbsDown size={13} />

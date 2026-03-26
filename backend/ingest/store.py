@@ -195,9 +195,27 @@ def _to_db_row(ev: EventData, status: str) -> dict | None:
         "category": category,
         "price": price_num,
         "is_free": is_free,
-        "source_url": ev.detail_url or None,
+        "source_url": _sanitize_external_url(ev.detail_url),
         "status": status,
     }
+
+
+def _sanitize_external_url(raw_url: str) -> str | None:
+    """Trim and strip hidden/control chars from external URLs before storing."""
+    if not raw_url:
+        return None
+
+    # Remove leading/trailing whitespace and hidden/control chars (e.g. zero-width space).
+    cleaned = "".join(ch for ch in raw_url.strip() if unicodedata.category(ch)[0] != "C")
+    # Remove accidental whitespace inserted into copied URLs.
+    cleaned = re.sub(r"\s+", "", cleaned)
+
+    if not cleaned:
+        return None
+    if not re.match(r"^https?://", cleaned, flags=re.IGNORECASE):
+        return None
+
+    return cleaned
 
 
 def _parse_date_time(raw: str) -> tuple[str | None, str | None]:

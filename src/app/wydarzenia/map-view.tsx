@@ -97,9 +97,9 @@ export function MapView({ events }: MapViewProps) {
               <Link
                 key={event.id}
                 href={`/wydarzenia/${event.slug}`}
-                className="block rounded-lg border border-border p-3 hover:border-[#CCC] transition-all group"
+                className="block rounded-xl border border-border bg-card p-3 hover:border-primary/25 hover:shadow-[var(--shadow-soft)] transition-all duration-200 group"
               >
-                <h4 className="font-medium text-[13px] text-foreground group-hover:text-muted transition-colors line-clamp-2 mb-1.5">
+                <h4 className="font-medium text-[13px] text-foreground group-hover:text-primary transition-colors duration-200 line-clamp-2 mb-1.5">
                   {event.title}
                 </h4>
                 <div className="flex items-center gap-3 text-[11px] text-muted">
