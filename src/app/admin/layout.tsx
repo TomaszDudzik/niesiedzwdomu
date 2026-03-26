@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Admin — obczajka dla rodziców",
+  title: "Admin — wyjdź z domu",
   robots: "noindex, nofollow",
 };
 

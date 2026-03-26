@@ -3,10 +3,10 @@ import type { SeoPageConfig } from "@/types/seo";
 export const seoPages: SeoPageConfig[] = [
   {
     slug: "co-robic-z-dzieckiem-w-krakowie",
-    metaTitle: "Co robić z dzieckiem w Krakowie? | wyjdź na pole",
+    metaTitle: "Odkryj Kraków z dzieckiem | wyjdź z domu",
     metaDescription:
-      "Sprawdź co robić z dzieckiem w Krakowie. Wydarzenia, miejsca, półkolonie i pomysły na czas z dzieckiem w jednym miejscu.",
-    h1: "Co robić z dzieckiem w Krakowie?",
+      "Odkryj Kraków z dzieckiem. Wydarzenia, miejsca, półkolonie i pomysły na czas z dzieckiem w jednym miejscu.",
+    h1: "Odkryj Kraków z dzieckiem",
     lead: "Szukasz pomysłu na czas z dzieckiem w Krakowie? Niezależnie od pogody i wieku dziecka, znajdziesz tu wydarzenia, miejsca i aktywności, które naprawdę warto sprawdzić.",
     ctaLabel: "Przeglądaj wydarzenia",
     ctaHref: "/wydarzenia",
@@ -14,7 +14,7 @@ export const seoPages: SeoPageConfig[] = [
     secondaryCtaHref: "/miejsca",
     intro: [
       "Kraków oferuje mnóstwo możliwości dla rodzin z dziećmi — od warsztatów i spektakli, przez place zabaw, aż po zajęcia dodatkowe i półkolonie. Problem w tym, że informacje są rozproszone i trudno szybko znaleźć coś sensownego.",
-      "Dlatego zbieramy wszystko w jednym miejscu. Sprawdź, co robić z dzieckiem w Krakowie dziś, w weekend albo w najbliższym czasie — bez przekopywania dziesiątek stron i grup na Facebooku.",
+      "Dlatego zbieramy wszystko w jednym miejscu. Sprawdź, odkryć Kraków z dzieckiem dziś, w weekend albo w najbliższym czasie — bez przekopywania dziesiątek stron i grup na Facebooku.",
       "Niezależnie od tego, czy masz godzinę po pracy, czy planujesz cały dzień z dzieckiem, znajdziesz tu sprawdzone pomysły dopasowane do wieku i sytuacji.",
     ],
     quickFilters: [
@@ -73,7 +73,7 @@ export const seoPages: SeoPageConfig[] = [
 
   {
     slug: "wydarzenia-dla-dzieci-krakow",
-    metaTitle: "Wydarzenia dla dzieci Kraków | wyjdź na pole",
+    metaTitle: "Wydarzenia dla dzieci Kraków | wyjdź z domu",
     metaDescription:
       "Sprawdź aktualne wydarzenia dla dzieci w Krakowie. Warsztaty, spektakle i atrakcje dla dzieci na dziś i weekend.",
     h1: "Wydarzenia dla dzieci w Krakowie",
@@ -116,14 +116,14 @@ export const seoPages: SeoPageConfig[] = [
       },
     ],
     relatedLinks: [
-      { href: "/co-robic-z-dzieckiem-w-krakowie", label: "Co robić z dzieckiem", description: "Pełny przegląd atrakcji" },
+      { href: "/co-robic-z-dzieckiem-w-krakowie", label: "Odkryj Kraków z dzieckiem", description: "Pełny przegląd atrakcji" },
       { href: "/polkolonie-krakow", label: "Półkolonie", description: "Oferty na wakacje i ferie" },
     ],
   },
 
   {
     slug: "polkolonie-krakow",
-    metaTitle: "Półkolonie Kraków dla dzieci | wyjdź na pole",
+    metaTitle: "Półkolonie Kraków dla dzieci | wyjdź z domu",
     metaDescription:
       "Znajdź półkolonie dla dzieci w Krakowie. Sprawdź oferty, terminy i zapisz dziecko na zajęcia.",
     h1: "Półkolonie w Krakowie",
@@ -163,13 +163,13 @@ export const seoPages: SeoPageConfig[] = [
     ],
     relatedLinks: [
       { href: "/wydarzenia-dla-dzieci-krakow", label: "Wydarzenia", description: "Warsztaty i zajęcia jednorazowe" },
-      { href: "/co-robic-z-dzieckiem-w-krakowie", label: "Co robić z dzieckiem", description: "Pełny przegląd atrakcji" },
+      { href: "/co-robic-z-dzieckiem-w-krakowie", label: "Odkryj Kraków z dzieckiem", description: "Pełny przegląd atrakcji" },
     ],
   },
 
   {
     slug: "place-zabaw-krakow",
-    metaTitle: "Najlepsze place zabaw Kraków | wyjdź na pole",
+    metaTitle: "Najlepsze place zabaw Kraków | wyjdź z domu",
     metaDescription:
       "Sprawdź najlepsze place zabaw w Krakowie dla dzieci. Znajdź miejsca do zabawy w swojej okolicy.",
     h1: "Place zabaw w Krakowie",
@@ -204,7 +204,7 @@ export const seoPages: SeoPageConfig[] = [
       },
     ],
     relatedLinks: [
-      { href: "/co-robic-z-dzieckiem-w-krakowie", label: "Co robić z dzieckiem", description: "Pełny przegląd atrakcji" },
+      { href: "/co-robic-z-dzieckiem-w-krakowie", label: "Odkryj Kraków z dzieckiem", description: "Pełny przegląd atrakcji" },
       { href: "/wydarzenia-dla-dzieci-krakow", label: "Wydarzenia", description: "Warsztaty, spektakle i atrakcje" },
     ],
   },

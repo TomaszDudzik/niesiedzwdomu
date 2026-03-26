@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import type { SeoPageConfig } from "@/types/seo";
 
-const SITE_NAME = "wyjdź na pole";
+const SITE_NAME = "wyjdź z domu";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://wyjdznapole.pl";
 
 /**

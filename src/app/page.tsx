@@ -38,7 +38,7 @@ export default async function HomePage() {
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-[-0.02em] leading-tight">
-              Co robić z dzieckiem?
+              Odkryj Kraków z dzieckiem
             </h1>
             <p className="text-[14px] text-muted mt-1.5 max-w-md">
               Wydarzenia, zajęcia, kolonie i miejsca dla rodzin — wszystko w jednym miejscu.
@@ -131,7 +131,7 @@ export default async function HomePage() {
         <h2 className="text-[15px] font-semibold text-foreground mb-5">Przewodniki</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {[
-            { href: "/co-robic-z-dzieckiem-w-krakowie", label: "Co robić z dzieckiem", description: "Wydarzenia, miejsca i pomysły" },
+            { href: "/co-robic-z-dzieckiem-w-krakowie", label: "Odkryj Kraków z dzieckiem", description: "Wydarzenia, miejsca i pomysły" },
             { href: "/wydarzenia-dla-dzieci-krakow", label: "Wydarzenia dla dzieci", description: "Warsztaty, spektakle, atrakcje" },
             { href: "/polkolonie-krakow", label: "Półkolonie", description: "Oferty na wakacje i ferie" },
             { href: "/place-zabaw-krakow", label: "Place zabaw", description: "Najlepsze place zabaw w mieście" },
