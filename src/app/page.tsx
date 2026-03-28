@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { ArrowRight, Calendar, MapPin, Sun, Tent, Users } from "lucide-react";
-import { getPublishedEvents, getFeaturedEvent, getFreeEvents } from "@/lib/data";
-import { FeaturedCard } from "@/components/ui/featured-card";
+import { ArrowRight, Calendar, MapPin, Tent, Users } from "lucide-react";
+import { getPublishedEvents } from "@/lib/data";
 import { ContentCard } from "@/components/ui/content-card";
 
 const QUICK_LINKS = [
@@ -23,13 +22,7 @@ function SectionLink({ href, children }: { href: string; children: React.ReactNo
 export const revalidate = 60;
 
 export default async function HomePage() {
-  const [upcomingEvents, featuredItem, freeItems] = await Promise.all([
-    getPublishedEvents(6),
-    getFeaturedEvent(),
-    getFreeEvents(3),
-  ]);
-
-  const featured = featuredItem || upcomingEvents[0] || null;
+  const upcomingEvents = await getPublishedEvents(8);
 
   return (
     <div>
@@ -63,23 +56,14 @@ export default async function HomePage() {
 
       <div className="border-t border-border" />
 
-      {featured && (
-        <section className="container-page pt-12">
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="text-[15px] font-semibold text-foreground">Polecane</h2>
-          </div>
-          <FeaturedCard item={featured} />
-        </section>
-      )}
-
       {upcomingEvents.length > 0 && (
-        <section className="container-page mt-14">
+        <section className="container-page pt-12">
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-[15px] font-semibold text-foreground">Nadchodzące wydarzenia</h2>
             <SectionLink href="/wydarzenia">Wszystkie</SectionLink>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {upcomingEvents.slice(0, 6).map((event) => (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            {upcomingEvents.slice(0, 8).map((event) => (
               <ContentCard key={event.id} item={event} />
             ))}
           </div>
@@ -87,47 +71,39 @@ export default async function HomePage() {
       )}
 
       <section className="container-page mt-14">
-        <h2 className="text-[15px] font-semibold text-foreground mb-5">Już wkrótce</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {[
-            { href: "/miejsca", icon: MapPin, label: "Miejsca", description: "Place zabaw, sale zabaw, kawiarnie rodzinne", accent: "text-secondary" },
-            { href: "/kolonie", icon: Tent, label: "Kolonie i półkolonie", description: "Obozy, półkolonie i warsztaty wakacyjne", accent: "text-amber-600" },
-            { href: "/zajecia", icon: Users, label: "Zajęcia dla dzieci", description: "Regularne zajęcia sportowe, artystyczne i edukacyjne", accent: "text-primary" },
-          ].map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="group flex items-start gap-3 rounded-xl border border-border bg-card p-4 hover:border-primary/25 hover:shadow-[var(--shadow-soft)] transition-all duration-200"
-            >
-              <item.icon size={18} className={`${item.accent} opacity-60 mt-0.5 shrink-0`} />
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span className="text-[13px] font-medium text-foreground">{item.label}</span>
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-amber-600 bg-amber-50 border border-amber-100 leading-none">
-                    Wkrótce
-                  </span>
-                </div>
-                <p className="text-[12px] text-muted">{item.description}</p>
-              </div>
-            </Link>
-          ))}
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-[15px] font-semibold text-foreground">Ciekawe miejsca</h2>
+          <SectionLink href="/miejsca">Wszystkie</SectionLink>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-8 text-center text-muted">
+          <MapPin size={32} className="mx-auto text-muted-foreground/30 mb-3" />
+          <p className="text-[14px]">Wkrótce dodamy ciekawe miejsca dla rodzin w Krakowie</p>
         </div>
       </section>
 
-      {freeItems.length > 0 && (
-        <section className="container-page mt-14">
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="text-[15px] font-semibold text-foreground">Bezpłatne</h2>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {freeItems.map((item) => (
-              <ContentCard key={item.id} item={item} />
-            ))}
-          </div>
-        </section>
-      )}
+      <section className="container-page mt-14">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-[15px] font-semibold text-foreground">Kolonie dla dzieci</h2>
+          <SectionLink href="/kolonie">Wszystkie</SectionLink>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-8 text-center text-muted">
+          <Tent size={32} className="mx-auto text-muted-foreground/30 mb-3" />
+          <p className="text-[14px]">Wkrótce dodamy oferty kolonii i półkolonii</p>
+        </div>
+      </section>
 
       <section className="container-page mt-14">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-[15px] font-semibold text-foreground">Zajęcia pozaszkolne</h2>
+          <SectionLink href="/zajecia">Wszystkie</SectionLink>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-8 text-center text-muted">
+          <Users size={32} className="mx-auto text-muted-foreground/30 mb-3" />
+          <p className="text-[14px]">Wkrótce dodamy zajęcia pozaszkolne dla dzieci</p>
+        </div>
+      </section>
+
+      <section className="container-page mt-14 mb-8">
         <h2 className="text-[15px] font-semibold text-foreground mb-5">Przewodniki</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {[
@@ -148,24 +124,6 @@ export default async function HomePage() {
               <ArrowRight size={13} className="text-muted-foreground/30 shrink-0 ml-3 group-hover:text-primary group-hover:translate-x-0.5 transition-all duration-200" />
             </Link>
           ))}
-        </div>
-      </section>
-
-      <section className="container-page mt-14 mb-8">
-        <div className="rounded-xl bg-accent p-8 md:p-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-[17px] font-semibold text-foreground mb-1">Wszystkie wydarzenia</h2>
-            <p className="text-[13px] text-muted">
-              Sprawdź co się dzieje w Krakowie każdego dnia.
-            </p>
-          </div>
-          <Link
-            href="/wydarzenia"
-            className="group inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-xl text-[13px] font-medium hover:bg-primary-hover transition-colors duration-200 shrink-0 shadow-[var(--shadow-soft)]"
-          >
-            Przeglądaj wydarzenia
-            <ArrowRight size={13} className="group-hover:translate-x-0.5 transition-transform duration-200" />
-          </Link>
         </div>
       </section>
     </div>

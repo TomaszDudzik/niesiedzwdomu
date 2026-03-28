@@ -37,7 +37,27 @@ export type CampType = "kolonie" | "polkolonie" | "warsztaty_wakacyjne";
 
 export type CampSeason = "lato" | "zima" | "ferie_zimowe" | "ferie_wiosenne" | "caly_rok";
 
-export type PlaceType = "plac_zabaw" | "sala_zabaw" | "kawiarnia_rodzinna" | "inne";
+export type PlaceType =
+  | "zwierzeta"
+  | "edukacja"
+  | "rozrywka"
+  | "muzeum"
+  | "basen"
+  | "sport"
+  | "nauka"
+  | "warsztaty"
+  | "historia"
+  | "zwiedzanie"
+  | "widoki"
+  | "natura"
+  | "spacer"
+  | "park"
+  | "kultura"
+  | "kreatywne"
+  | "sala_zabaw"
+  | "atrakcja"
+  | "sztuka"
+  | "inne";
 
 // ============================================
 // Events — canonical events shown on frontend
@@ -63,6 +83,8 @@ export interface Event {
   district: District;
   venue_name: string;
   venue_address: string;
+  lat: number | null;
+  lng: number | null;
   organizer: string | null;
   source_url: string | null;
   is_featured: boolean;

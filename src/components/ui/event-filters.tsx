@@ -86,18 +86,6 @@ export function ContentFilters<T extends SharedFilters>({
           </button>
         ))}
 
-        <button
-          onClick={() => update("isFree", filters.isFree ? undefined : true)}
-          className={cn(
-            "px-3 py-1.5 rounded-lg text-[13px] font-medium border transition-all duration-200",
-            filters.isFree
-              ? "bg-primary text-primary-foreground border-primary"
-              : "bg-card text-muted border-border hover:border-primary/30 hover:text-foreground"
-          )}
-        >
-          Bezpłatne
-        </button>
-
         {activeCount > 0 && (
           <button onClick={clear} className="flex items-center gap-1 px-2 py-1.5 text-[12px] text-muted hover:text-primary transition-colors duration-200">
             <X size={12} /> Wyczyść
@@ -156,25 +144,6 @@ export function ContentFilters<T extends SharedFilters>({
             </select>
           </div>
 
-          <div>
-            <label className="block text-[11px] font-medium text-muted-foreground mb-1.5 uppercase tracking-wider">Wiek</label>
-            <div className="flex flex-wrap gap-1">
-              {AGE_GROUPS.map((group) => (
-                <button
-                  key={group.value}
-                  onClick={() => update("ageGroup", filters.ageGroup === group.value ? undefined : group.value)}
-                  className={cn(
-                    "px-2.5 py-1 rounded-lg text-[12px] font-medium transition-all duration-200",
-                    filters.ageGroup === group.value
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-accent text-muted hover:text-foreground"
-                  )}
-                >
-                  {group.label}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
       )}
     </div>

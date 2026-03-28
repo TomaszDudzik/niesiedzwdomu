@@ -67,7 +67,10 @@ export interface MarkerGroup {
 function groupByLocation(events: Event[]): MarkerGroup[] {
   const groups: Record<string, MarkerGroup> = {};
   for (const event of events) {
-    const coords = DISTRICT_COORDS[event.district] || KRAKOW_CENTER;
+    // Use exact coordinates if available, otherwise fall back to district center
+    const coords: [number, number] = (event.lat && event.lng)
+      ? [event.lat, event.lng]
+      : (DISTRICT_COORDS[event.district] || KRAKOW_CENTER);
     const key = `${coords[0]},${coords[1]}`;
     if (!groups[key]) {
       groups[key] = { coords, events: [], label: event.venue_name || event.district };

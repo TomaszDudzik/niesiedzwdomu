@@ -19,7 +19,9 @@
       "Bash(grep -r \"def main\\\\|execFile\\\\|subprocess\\\\|spawn\" /c/Users/dudzi/Desktop/Python/rodzice_w_tarapatach/rodzic_w_tarapatach --include=*.py --include=*.ts --include=*.tsx --exclude-dir=node_modules --exclude-dir=__pycache__)",
       "Bash(grep -E \"\\\\.\\(sh|bat|ps1|yml|yaml|json\\)$\")",
       "Bash(python -c \"from backend.db import get_client; db = get_client\\(\\); r = db.table\\(''scrape_sources''\\).select\\(''id, name, extractor_type''\\).execute\\(\\); print\\(r.data\\)\")",
-      "Bash(python -m backend.jobs.run_single_source \"45412445-6e8d-4fae-9b55-28d5b89ce04c\" --force)"
+      "Bash(python -m backend.jobs.run_single_source \"45412445-6e8d-4fae-9b55-28d5b89ce04c\" --force)",
+      "Bash(pip install:*)",
+      "Bash(python -c \":*)"
     ]
   }
 }

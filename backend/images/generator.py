@@ -1,14 +1,15 @@
 """
 Image generation for events using OpenAI.
 
-Each category has a fixed base scene (e.g. spektakl = stage with audience).
-GPT-4o-mini fills in event-specific details into that scene template.
-DALL-E 3 generates the final image.
+Categories with a base image (e.g. warsztaty.png) use GPT-4o image generation
+to create a new version of the scene with event-specific items added.
+Other categories use DALL-E 3 to generate from scratch.
 """
 
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 from openai import OpenAI
 
@@ -16,8 +17,11 @@ from backend.config import config
 
 logger = logging.getLogger(__name__)
 
+# Directory containing base images
+BASES_DIR = Path(__file__).parent
+
 # ── Base scenes per category ────────────────────────────────────────
-# Each defines the fixed composition — GPT fills in the specifics.
+# Used only for categories WITHOUT a base image (full generation).
 
 CATEGORY_SCENES: dict[str, str] = {
     "spektakl": (
@@ -27,10 +31,15 @@ CATEGORY_SCENES: dict[str, str] = {
         "Warm spotlight illuminates the stage, the audience is in soft shadow."
     ),
     "warsztaty": (
-        "A bright workshop table seen from above at an angle. "
-        "Children's hands are busy working on {details}. "
-        "Materials, tools, and colorful creations are spread across the table. "
-        "A cozy indoor space with natural light from a window."
+        "A natural, realistic scene with a warm wooden table as the main focus, viewed from a slightly angled top-down perspective (not perfectly flat). "
+        "The table fills most of the frame and shows natural wood texture and subtle imperfections. "
+        "Soft warm sunlight falls across the table, creating gentle shadows. "
+        "On the table, a small number of neatly arranged objects related to the event are visible: {details}. "
+        "The objects are placed loosely in the center with plenty of empty space around them. "
+        "A subtle hint of a chair or seat edge is visible at the side of the table, partially cropped and out of focus. "
+        "No people, no hands, no faces. "
+        "No clutter or additional furniture beyond the minimal hint of seating. "
+        "Calm, cozy, lived-in atmosphere, natural lighting, warm tones."
     ),
     "muzyka": (
         "A lively concert scene in an intimate venue. "
@@ -83,33 +92,31 @@ CATEGORY_SCENES: dict[str, str] = {
 }
 
 DALLE_STYLE = (
-    "No text or letters anywhere in the image. "
-    "Clean composition suitable for a website card thumbnail. "
-    "16:9 aspect ratio. Soft natural lighting. "
-    "Hand-painted illustration, slightly cartoonish but detailed. "
-    "Storybook style, soft shading, warm tones, high detail, inviting and cheerful."
+    "Realistic photography style. "
+    "No clutter, limited number of objects. "
+    "No people, no hands, no faces. "
+    "Clean composition, soft natural lighting, warm tones. "
+    "The image should be simple, clear, and focused on the objects on the table. "
+    "16:9 aspect ratio."
+    "Use soft shadows and natural imperfections, like a real photograph."
 )
 
+FALLBACK_PROMPT = "Clean composition. No text, no faces, no full figures. "
+
 FILL_SYSTEM_PROMPT = """\
-You are a visual scene designer. You will receive an event title, category, and description.
+You are a poster-style designer for a family events website.
 
-Your job: write a SHORT phrase (10-20 words) describing what SPECIFICALLY happens \
-in this event — the concrete visual element that makes it unique.
-
-Examples:
-- "Świnka Peppa na scenie" → "colorful Peppa Pig puppet characters acting out a farm adventure"
-- "Warsztaty ceramiczne" → "clay pottery pieces being shaped on small wheels, glazes in bright colors"
-- "Koncert kołysanek" → "a guitarist and singer performing gentle lullabies with soft instruments"
-- "Bieg rodzinny w Parku Jordana" → "families running together on a park trail, wearing race bibs"
-- "Wystawa dinozaurów" → "life-size dinosaur models and fossils, children measuring against a T-Rex leg"
-
-Rules:
-- Be VISUAL and SPECIFIC — describe what an illustrator should draw
-- Focus on the KEY element that makes this event different
-- No generic descriptions like "people having fun" or "families enjoying"
-- No text, logos, or branding elements
-- Output ONLY the short phrase, nothing else\
+Given an event title, category, and optional description, create a poster.
+No text, no faces, no full figures.
 """
+
+
+def _has_base_image(category: str) -> bool:
+    """Check if a category has a base image + mask pair."""
+    return (
+        (BASES_DIR / f"{category}.png").exists()
+        and (BASES_DIR / f"{category}_mask.png").exists()
+    )
 
 
 def generate_event_image(
@@ -119,36 +126,112 @@ def generate_event_image(
     size: str = "1792x1024",
     quality: str = "standard",
 ) -> str:
-    """Generate an image using category base scene + event-specific details.
+    """Generate an event image.
 
-    Step 1: GPT creates a short visual detail phrase from event data
-    Step 2: Detail is inserted into the category's base scene template
-    Step 3: DALL-E generates the image
-
-    Cost: ~$0.08-0.09 per image
+    If the category has a base image (e.g. warsztaty.png), uses GPT-4o
+    to generate a new image based on the reference photo with event items added.
+    Otherwise, generates from scratch with DALL-E 3.
     """
     client = OpenAI(api_key=config.openai_api_key)
 
-    # Step 1: Get event-specific visual details from GPT
+    if _has_base_image(category):
+        return _generate_with_reference(client, title, category, description)
+    else:
+        return _generate_from_scratch(client, title, category, description, size, quality)
+
+
+def _generate_with_reference(
+    client: OpenAI, title: str, category: str, description: str,
+) -> str:
+    """Use gpt-image-1 edit API with a base image.
+
+    Sends the base image + mask to the edit API which fills in
+    event-specific items on the table while keeping the rest intact.
+    """
+    base_path = BASES_DIR / f"{category}.png"
+    mask_path = BASES_DIR / f"{category}_mask.png"
+
+    logger.info("Using base image for '%s': %s", category, base_path.name)
+
+    # Build the prompt
+    event_info = f"Event: {title}"
+    if description:
+        event_info += f"\nDescription: {description[:300]}"
+
+    prompt = (
+        f"On this wooden table, arrange a rich spread of objects "
+        f"related to this event:\n\n"
+        f"{event_info}\n\n"
+        f"Place 6-10 varied objects across the table, filling most of the surface. "
+        f"Mix larger items with smaller details — tools, materials, decorations. "
+        f"Some items can overlap slightly or be grouped together naturally. "
+        f"The table should look actively used and inviting, not empty. "
+        f"Match the existing warm lighting and perspective. "
+        f"No people, no hands, no faces, no text. "
+        f"Realistic photography style."
+    )
+
+    logger.info("Generating image with edit for: %s", title)
+
+    # Open files for the API
+    with open(base_path, "rb") as img_file, open(mask_path, "rb") as mask_file:
+        response = client.images.edit(
+            model="gpt-image-1",
+            image=img_file,
+            mask=mask_file,
+            prompt=prompt,
+            n=1,
+            size="1536x1024",
+            quality="medium",
+        )
+
+    # gpt-image-1 returns b64_json by default
+    result = response.data[0]
+    if result.url:
+        logger.info("Image edited: %s...", result.url[:80])
+        return result.url
+    elif result.b64_json:
+        logger.info("Image edited (base64, %d chars)", len(result.b64_json))
+        return f"data:image/png;base64,{result.b64_json}"
+
+    raise RuntimeError("gpt-image-1 did not return an image")
+
+
+def _generate_from_scratch(
+    client: OpenAI, title: str, category: str, description: str,
+    size: str, quality: str,
+) -> str:
+    """Generate a full image from scratch with DALL-E 3."""
     details = _fill_details(client, title, category, description)
     logger.info("Details for '%s': %s", title, details)
 
-    # Step 2: Build scene from category template + details
     template = CATEGORY_SCENES.get(category, CATEGORY_SCENES["inne"])
-    scene = template.format(details=details)
+    scene = template.format(details=details, category=category)
     logger.info("Scene for '%s': %s", title, scene)
 
-    # Step 3: Generate image with DALL-E
     dalle_prompt = f"{scene}\n\nStyle: {DALLE_STYLE}"
 
     logger.info("Generating image for: %s", title)
-    response = client.images.generate(
-        model="dall-e-3",
-        prompt=dalle_prompt,
-        n=1,
-        size=size,
-        quality=quality,
-    )
+    try:
+        response = client.images.generate(
+            model="dall-e-3",
+            prompt=dalle_prompt,
+            n=1,
+            size=size,
+            quality=quality,
+        )
+    except Exception as e:
+        if "content_policy_violation" in str(e):
+            logger.warning("Scene prompt rejected by DALL-E, retrying with fallback")
+            response = client.images.generate(
+                model="dall-e-3",
+                prompt=FALLBACK_PROMPT,
+                n=1,
+                size=size,
+                quality=quality,
+            )
+        else:
+            raise
 
     image_url = response.data[0].url
     logger.info("Image generated: %s...", image_url[:80])
@@ -156,7 +239,7 @@ def generate_event_image(
 
 
 def _fill_details(
-    client: OpenAI, title: str, category: str, description: str,
+    client: OpenAI, title: str, category: str, description: str = "",
 ) -> str:
     """Use GPT to extract a short visual detail phrase from event data."""
     user_content = f"Event: {title}\nCategory: {category}"
@@ -170,7 +253,7 @@ def _fill_details(
             {"role": "user", "content": user_content},
         ],
         temperature=0.7,
-        max_tokens=60,
+        max_tokens=100,
     )
 
     return response.choices[0].message.content or title

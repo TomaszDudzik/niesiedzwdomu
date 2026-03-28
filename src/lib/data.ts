@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import type { Event } from "@/types/database";
+import type { Event, Place } from "@/types/database";
 
 /**
  * Server-side data fetching from Supabase.
@@ -19,6 +19,10 @@ function toEvent(row: Record<string, unknown>): Event {
   return { ...row, content_type: "event" } as Event;
 }
 
+function toPlace(row: Record<string, unknown>): Place {
+  return { ...row, content_type: "place" } as Place;
+}
+
 export async function getPublishedEvents(limit = 50): Promise<Event[]> {
   const db = getDb();
   const today = new Date().toISOString().slice(0, 10);
@@ -26,7 +30,7 @@ export async function getPublishedEvents(limit = 50): Promise<Event[]> {
     .from("events")
     .select("*")
     .eq("status", "published")
-    .gte("date_start", today)
+    .or(`date_start.gte.${today},date_end.gte.${today}`)
     .order("date_start", { ascending: true })
     .limit(limit);
   return (data || []).map(toEvent);
@@ -40,7 +44,7 @@ export async function getFeaturedEvent(): Promise<Event | null> {
     .select("*")
     .eq("status", "published")
     .eq("is_featured", true)
-    .gte("date_start", today)
+    .or(`date_start.gte.${today},date_end.gte.${today}`)
     .order("date_start", { ascending: true })
     .limit(1)
     .single();
@@ -55,7 +59,7 @@ export async function getFreeEvents(limit = 3): Promise<Event[]> {
     .select("*")
     .eq("status", "published")
     .eq("is_free", true)
-    .gte("date_start", today)
+    .or(`date_start.gte.${today},date_end.gte.${today}`)
     .order("date_start", { ascending: true })
     .limit(limit);
   return (data || []).map(toEvent);
@@ -80,9 +84,33 @@ export async function getRelatedEvents(event: Event, limit = 3): Promise<Event[]
     .select("*")
     .eq("status", "published")
     .neq("id", event.id)
-    .gte("date_start", today)
+    .or(`date_start.gte.${today},date_end.gte.${today}`)
     .or(`category.eq.${event.category},district.eq.${event.district}`)
     .order("date_start", { ascending: true })
     .limit(limit);
   return (data || []).map(toEvent);
+}
+
+// ── Places ──
+
+export async function getPublishedPlaces(limit = 50): Promise<Place[]> {
+  const db = getDb();
+  const { data } = await db
+    .from("places")
+    .select("*")
+    .eq("status", "published")
+    .order("title", { ascending: true })
+    .limit(limit);
+  return (data || []).map(toPlace);
+}
+
+export async function getPlaceBySlug(slug: string): Promise<Place | null> {
+  const db = getDb();
+  const { data } = await db
+    .from("places")
+    .select("*")
+    .eq("slug", slug)
+    .eq("status", "published")
+    .single();
+  return data ? toPlace(data) : null;
 }

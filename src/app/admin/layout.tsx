@@ -13,7 +13,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <span className="text-sm font-medium">Panel administracyjny</span>
           <div className="flex gap-4 text-xs text-stone-400">
             <a href="/admin" className="hover:text-white transition-colors">Dashboard</a>
-            <a href="/admin/zrodla" className="hover:text-white transition-colors">Źródła</a>
+            <a href="/admin/wydarzenia" className="hover:text-white transition-colors">Wydarzenia</a>
+            <a href="/admin/miejsca" className="hover:text-white transition-colors">Miejsca</a>
             <a href="/" className="hover:text-white transition-colors">← Wróć</a>
           </div>
         </div>

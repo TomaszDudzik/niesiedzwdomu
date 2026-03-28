@@ -58,6 +58,9 @@ export function getDateText(item: DiscoveryItem): string {
   switch (item.content_type) {
     case "event": {
       let s = formatDateShort(item.date_start);
+      if (item.date_end && item.date_end !== item.date_start) {
+        s += ` – ${formatDateShort(item.date_end)}`;
+      }
       if (item.time_start) s += ` · ${item.time_start}`;
       return s;
     }

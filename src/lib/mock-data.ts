@@ -463,11 +463,19 @@ export const CAMP_SEASON_LABELS: Record<CampSeason, string> = {
 
 // Place type labels
 export const PLACE_TYPE_LABELS: Record<PlaceType, string> = {
-  plac_zabaw: "Plac zabaw", sala_zabaw: "Sala zabaw", kawiarnia_rodzinna: "Kawiarnia rodzinna", inne: "Inne",
+  zwierzeta: "Zwierzęta", edukacja: "Edukacja", rozrywka: "Rozrywka", muzeum: "Muzeum",
+  basen: "Basen", sport: "Sport", nauka: "Nauka", warsztaty: "Warsztaty",
+  historia: "Historia", zwiedzanie: "Zwiedzanie", widoki: "Widoki", natura: "Natura",
+  spacer: "Spacer", park: "Park", kultura: "Kultura", kreatywne: "Kreatywne",
+  sala_zabaw: "Sala zabaw", atrakcja: "Atrakcja", sztuka: "Sztuka", inne: "Inne",
 };
 
 export const PLACE_TYPE_ICONS: Record<PlaceType, string> = {
-  plac_zabaw: "��", sala_zabaw: "��", kawiarnia_rodzinna: "☕", inne: "��",
+  zwierzeta: "🦁", edukacja: "📚", rozrywka: "🎢", muzeum: "🏛",
+  basen: "🏊", sport: "⚽", nauka: "🔬", warsztaty: "🎨",
+  historia: "🏰", zwiedzanie: "🗺", widoki: "🏔", natura: "🌿",
+  spacer: "🚶", park: "🌳", kultura: "🎭", kreatywne: "✂",
+  sala_zabaw: "🎮", atrakcja: "⭐", sztuka: "🖼", inne: "📍",
 };
 
 // Shared constants

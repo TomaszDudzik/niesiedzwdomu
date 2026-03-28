@@ -12,15 +12,11 @@ import logging
 import sys
 
 from backend import db as database
+from backend.jobs.logging_setup import setup_logging
 from backend.jobs.run_pipeline import process_source
 from backend.sources.loader import _db_row_to_source_dict
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
-)
-
+setup_logging("scraper")
 logger = logging.getLogger(__name__)
 
 

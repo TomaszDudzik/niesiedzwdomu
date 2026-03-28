@@ -1,6 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const query = address.toLowerCase().includes("kraków") ? address : `${address}, Kraków`;
+    const url = `https://nominatim.openstreetmap.org/search?${new URLSearchParams({
+      q: query, format: "json", limit: "1", countrycodes: "pl",
+    })}`;
+    const res = await fetch(url, {
+      headers: { "User-Agent": "rodzic-w-tarapatach/1.0" },
+    });
+    const data = await res.json();
+    if (data?.[0]) {
+      return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+    }
+  } catch (e) {
+    console.warn("[geocode] Failed for:", address, e);
+  }
+  return null;
+}
+
 // Use raw supabase client (no typed Database) for pipeline tables
 // which aren't in the generated types yet
 function getDb() {
@@ -105,6 +124,19 @@ export async function POST(request: NextRequest) {
     // Generate slug
     const slug = makeSlug(scraped.title);
 
+    // Geocode venue address
+    let lat: number | null = scraped.lat ?? null;
+    let lng: number | null = scraped.lng ?? null;
+    if (!lat && scraped.venue_address) {
+      const coords = await geocodeAddress(scraped.venue_address);
+      if (coords) {
+        lat = coords.lat;
+        lng = coords.lng;
+        // Save coordinates back to scraped_events for future use
+        await db.from("scraped_events").update({ lat, lng }).eq("id", id);
+      }
+    }
+
     // Push to canonical events table
     const canonical = {
       title: scraped.title,
@@ -124,6 +156,8 @@ export async function POST(request: NextRequest) {
       venue_address: scraped.venue_address || "",
       source_url: scraped.source_url,
       organizer: scraped.organizer_name,
+      lat,
+      lng,
       status: "published",
     };
 
