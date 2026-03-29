@@ -34,7 +34,7 @@ export function NavSection() {
             return disabled ? (
               <span
                 key={link.href}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium border border-border bg-card text-muted-foreground/40 cursor-default"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium border border-border bg-card text-muted-foreground/40 cursor-default"
               >
                 <link.icon size={13} />
                 {link.label}
@@ -44,7 +44,7 @@ export function NavSection() {
                 key={link.href}
                 href={link.href}
                 className={cn(
-                  "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium border transition-all duration-200",
+                  "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-all duration-200",
                   isActive(link.href)
                     ? "border-primary/30 bg-primary/5 text-primary"
                     : "border-border bg-card text-muted hover:text-foreground hover:border-primary/30"
