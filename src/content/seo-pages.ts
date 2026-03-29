@@ -3,7 +3,7 @@ import type { SeoPageConfig } from "@/types/seo";
 export const seoPages: SeoPageConfig[] = [
   {
     slug: "co-robic-z-dzieckiem-w-krakowie",
-    metaTitle: "Odkryj Kraków z dzieckiem | wyjdź z domu",
+    metaTitle: "Odkryj Kraków z dzieckiem | nie siedź w domu",
     metaDescription:
       "Odkryj Kraków z dzieckiem. Wydarzenia, miejsca, półkolonie i pomysły na czas z dzieckiem w jednym miejscu.",
     h1: "Odkryj Kraków z dzieckiem",
@@ -73,7 +73,7 @@ export const seoPages: SeoPageConfig[] = [
 
   {
     slug: "wydarzenia-dla-dzieci-krakow",
-    metaTitle: "Wydarzenia dla dzieci Kraków | wyjdź z domu",
+    metaTitle: "Wydarzenia dla dzieci Kraków | nie siedź w domu",
     metaDescription:
       "Sprawdź aktualne wydarzenia dla dzieci w Krakowie. Warsztaty, spektakle i atrakcje dla dzieci na dziś i weekend.",
     h1: "Wydarzenia dla dzieci w Krakowie",
@@ -123,7 +123,7 @@ export const seoPages: SeoPageConfig[] = [
 
   {
     slug: "polkolonie-krakow",
-    metaTitle: "Półkolonie Kraków dla dzieci | wyjdź z domu",
+    metaTitle: "Półkolonie Kraków dla dzieci | nie siedź w domu",
     metaDescription:
       "Znajdź półkolonie dla dzieci w Krakowie. Sprawdź oferty, terminy i zapisz dziecko na zajęcia.",
     h1: "Półkolonie w Krakowie",
@@ -169,7 +169,7 @@ export const seoPages: SeoPageConfig[] = [
 
   {
     slug: "place-zabaw-krakow",
-    metaTitle: "Najlepsze place zabaw Kraków | wyjdź z domu",
+    metaTitle: "Najlepsze place zabaw Kraków | nie siedź w domu",
     metaDescription:
       "Sprawdź najlepsze place zabaw w Krakowie dla dzieci. Znajdź miejsca do zabawy w swojej okolicy.",
     h1: "Place zabaw w Krakowie",

@@ -9,7 +9,7 @@ import { Footer } from "@/components/layout/footer";
 import { PageWrapper } from "@/components/layout/page-wrapper";
 
 export const metadata: Metadata = {
-  title: "wyjdź z domu — Odkryj Kraków z dzieckiem",
+  title: "nie siedź w domu — Odkryj Kraków z dzieckiem",
   description:
     "Wydarzenia, kolonie i najlepsze miejsca dla rodzin w Krakowie. Wszystko w jednym miejscu.",
   keywords: ["Kraków", "dzieci", "wydarzenia", "kolonie", "miejsca", "rodzina", "weekend"],
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     apple: "/icon.svg",
   },
   openGraph: {
-    title: "wyjdź z domu",
+    title: "nie siedź w domu",
     description: "Odkryj Kraków z dzieckiem. Wydarzenia, kolonie i miejsca dla rodzin.",
     locale: "pl_PL",
     type: "website",
