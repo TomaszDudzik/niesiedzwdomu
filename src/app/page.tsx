@@ -28,7 +28,7 @@ export default async function HomePage() {
             <h2 className="text-[15px] font-semibold text-foreground">Nadchodzące wydarzenia</h2>
             <SectionLink href="/wydarzenia">Wszystkie</SectionLink>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-4">
             {upcomingEvents.slice(0, 8).map((event) => (
               <ContentCard key={event.id} item={event} />
             ))}
@@ -42,7 +42,7 @@ export default async function HomePage() {
             <h2 className="text-[15px] font-semibold text-foreground">Ciekawe miejsca</h2>
             <SectionLink href="/miejsca">Wszystkie</SectionLink>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-4">
             {places.slice(0, 8).map((place) => (
               <ContentCard key={place.id} item={place} />
             ))}

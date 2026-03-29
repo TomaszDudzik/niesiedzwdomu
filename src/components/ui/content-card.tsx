@@ -46,9 +46,7 @@ export function ContentCard({ item }: ContentCardProps) {
                 <span className="text-[10px] text-muted-foreground">{getSecondaryInfo(item)}</span>
               </>
             )}
-            <span className="ml-auto font-semibold text-foreground text-[11px]">
-              {formatPrice(item.price)}
-            </span>
+
           </div>
         )}
 

@@ -463,12 +463,12 @@ export const CAMP_SEASON_LABELS: Record<CampSeason, string> = {
 
 // Place type labels
 export const PLACE_TYPE_LABELS: Record<PlaceType, string> = {
-  "Relaks i natura": "Relaks i natura",
-  "Nauka przez zabawę": "Nauka przez zabawę",
-  "Szybka rozrywka / atrakcje": "Szybka rozrywka / atrakcje",
-  "Ruch i aktywność fizyczna": "Ruch i aktywność fizyczna",
-  "Oglądanie / kultura": "Oglądanie / kultura",
-  "Kreatywność i warsztaty": "Kreatywność i warsztaty",
+  "Relaks i natura": "Relaks",
+  "Nauka przez zabawę": "Nauka",
+  "Szybka rozrywka / atrakcje": "Rozrywka",
+  "Ruch i aktywność fizyczna": "Ruch",
+  "Oglądanie / kultura": "Kultura",
+  "Kreatywność i warsztaty": "Kreatywność",
   "inne": "Inne",
 };
 

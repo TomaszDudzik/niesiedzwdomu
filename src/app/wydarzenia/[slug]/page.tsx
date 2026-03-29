@@ -59,7 +59,6 @@ export default async function EventDetailPage({ params }: PageProps) {
         <div className="lg:col-span-1">
           <div className="sticky top-20 space-y-5">
             <div className="rounded-xl border border-border bg-card p-5 space-y-4 shadow-[var(--shadow-card)]">
-              <span className="text-xl font-semibold text-foreground">{formatPrice(event.price)}</span>
               <div className="space-y-3 text-[13px]">
                 <div className="flex items-start gap-2.5">
                   <Calendar size={15} className="text-secondary/60 shrink-0 mt-0.5" />

@@ -190,7 +190,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
                 <h2 className="text-[15px] font-semibold text-foreground">{group.label}</h2>
                 <span className="text-[12px] text-muted-foreground">({group.places.length})</span>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                 {group.places.map((place) => (
                   <ContentCard key={place.id} item={place} />
                 ))}

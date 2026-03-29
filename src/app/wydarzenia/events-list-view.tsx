@@ -120,7 +120,7 @@ export function EventsListView({ events }: EventsListViewProps) {
           <p className="text-[14px] text-muted">Brak wydarzeń pasujących do filtrów.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-4">
           {filtered.map((event) => (
             <ContentCard key={event.id} item={event} />
           ))}
