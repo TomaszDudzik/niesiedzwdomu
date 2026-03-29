@@ -184,7 +184,7 @@ export const seoPages: SeoPageConfig[] = [
     listings: [
       {
         contentType: "place",
-        filterPlaceType: "plac_zabaw",
+        filterPlaceType: "Ruch i aktywność fizyczna",
         heading: "Polecane place zabaw",
         limit: 6,
         viewAllHref: "/miejsca",
