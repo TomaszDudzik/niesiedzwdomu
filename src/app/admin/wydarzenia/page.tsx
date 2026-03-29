@@ -905,7 +905,7 @@ function SourceForm({
   const [name, setName] = useState(initial.name);
   const [baseUrl, setBaseUrl] = useState(initial.base_url);
   const [adapter, setAdapter] = useState(currentAdapter);
-  const [contentType, setContentType] = useState<ContentTypeTab>((source?.content_type as ContentTypeTab) || defaultContentType);
+  const [contentType, setContentType] = useState<string>((source?.content_type as string) || defaultContentType);
   const [isActive, setIsActive] = useState(initial.is_active);
   const [listingUrls, setListingUrls] = useState(initial.listing_urls?.join("\n") || "");
   const [scrapeInterval, setScrapeInterval] = useState(initial.scrape_interval_hours);
@@ -970,7 +970,7 @@ function SourceForm({
 
         <div className="grid sm:grid-cols-3 gap-4">
           <Field label="Typ treści">
-            <select value={contentType} onChange={(e) => setContentType(e.target.value as ContentTypeTab)} className={inputClass}>
+            <select value={contentType} onChange={(e) => setContentType(e.target.value as string)} className={inputClass}>
               <option value="wydarzenia">Wydarzenia</option>
               <option value="kolonie">Kolonie</option>
               <option value="miejsca">Miejsca</option>
