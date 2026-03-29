@@ -888,7 +888,7 @@ function SourceEventsPanel({ sourceId, sourceName, onCountsChange }: { sourceId:
 function SourceForm({
   source, defaultContentType = "wydarzenia", adapterNames = [], onSave, onCancel,
 }: {
-  source: ScrapeSource | null; defaultContentType?: ContentTypeTab; adapterNames?: string[];
+  source: ScrapeSource | null; defaultContentType?: string; adapterNames?: string[];
   onSave: (data: Record<string, unknown>) => void; onCancel: () => void;
 }) {
   const initial = source || {
