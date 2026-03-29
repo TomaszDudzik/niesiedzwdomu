@@ -443,9 +443,9 @@ export const CATEGORY_LABELS: Record<EventCategory, string> = {
 };
 
 export const CATEGORY_ICONS: Record<EventCategory, string> = {
-  warsztaty: "��", spektakl: "��", muzyka: "��", sport: "⚽",
-  natura: "��", edukacja: "��", festyn: "��", kino: "��",
-  wystawa: "��️", inne: "✨",
+  warsztaty: "✂️", spektakl: "🎭", muzyka: "🎵", sport: "⚽",
+  natura: "🌿", edukacja: "📚", festyn: "🎉", kino: "🎬",
+  wystawa: "🖼️", inne: "✨",
 };
 
 // Camp type labels

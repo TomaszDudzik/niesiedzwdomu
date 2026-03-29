@@ -2,13 +2,13 @@
 
 import { useState, useMemo } from "react";
 import { Search, LayoutGrid, CalendarDays } from "lucide-react";
-import { CATEGORY_LABELS } from "@/lib/mock-data";
+import { CATEGORY_LABELS, CATEGORY_ICONS } from "@/lib/mock-data";
 import { ContentCard } from "@/components/ui/content-card";
 import { CalendarMapView } from "./calendar-map-view";
 import { cn } from "@/lib/utils";
 import type { Event, EventCategory } from "@/types/database";
 
-const categories = Object.entries(CATEGORY_LABELS) as [EventCategory, string][];
+const categoryKeys = Object.keys(CATEGORY_LABELS).filter((k) => k !== "inne") as EventCategory[];
 
 type ViewMode = "list" | "calendar-map";
 
@@ -34,6 +34,26 @@ export function EventsListView({ events }: EventsListViewProps) {
     }
     return result;
   }, [events, search, activeCategory]);
+
+  // Group by category preserving order
+  const grouped = useMemo(() => {
+    const groups: { category: EventCategory; label: string; icon: string; events: Event[] }[] = [];
+    const seen = new Set<string>();
+    for (const event of filtered) {
+      const cat = event.category;
+      if (!seen.has(cat)) {
+        seen.add(cat);
+        groups.push({
+          category: cat,
+          label: CATEGORY_LABELS[cat] || cat,
+          icon: CATEGORY_ICONS[cat] || "✨",
+          events: [],
+        });
+      }
+      groups.find((g) => g.category === cat)!.events.push(event);
+    }
+    return groups;
+  }, [filtered]);
 
   return (
     <div className="container-page pt-5 pb-10">
@@ -93,7 +113,7 @@ export function EventsListView({ events }: EventsListViewProps) {
         >
           Wszystkie
         </button>
-        {categories.map(([key, label]) => {
+        {categoryKeys.map((key) => {
           const count = events.filter((e) => e.category === key).length;
           if (count === 0) return null;
           return (
@@ -107,8 +127,8 @@ export function EventsListView({ events }: EventsListViewProps) {
                   : "bg-card text-muted border-border hover:border-primary/30 hover:text-foreground"
               )}
             >
-              {label}
-              <span className="ml-1 text-[11px] opacity-70">({count})</span>
+              {CATEGORY_ICONS[key]} {CATEGORY_LABELS[key]}
+              <span className="ml-1 text-[10px] opacity-70">({count})</span>
             </button>
           );
         })}
@@ -122,9 +142,20 @@ export function EventsListView({ events }: EventsListViewProps) {
           <p className="text-[14px] text-muted">Brak wydarzeń pasujących do filtrów.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-          {filtered.map((event) => (
-            <ContentCard key={event.id} item={event} />
+        <div className="space-y-12">
+          {grouped.map((group) => (
+            <section key={group.category}>
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-lg">{group.icon}</span>
+                <h2 className="text-[15px] font-semibold text-foreground">{group.label}</h2>
+                <span className="text-[12px] text-muted-foreground">({group.events.length})</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                {group.events.map((event) => (
+                  <ContentCard key={event.id} item={event} />
+                ))}
+              </div>
+            </section>
           ))}
         </div>
       )}

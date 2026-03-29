@@ -25,10 +25,18 @@ BASES_DIR = Path(__file__).parent
 
 CATEGORY_SCENES: dict[str, str] = {
     "spektakl": (
-        "A warm theater stage seen from the audience perspective. "
-        "Rows of children and parents sit in soft red seats, watching the performance. "
-        "On stage: {details}. "
-        "Warm spotlight illuminates the stage, the audience is in soft shadow."
+        "A natural, realistic theater scene with a large stage as the main focus, "
+        "viewed from the audience perspective at a slight eye-level angle (matching the reference image). "
+        "The stage fills most of the frame, with rich red velvet curtains and warm theatrical lighting. "
+        "Soft, diffused spotlights shine from above, creating gentle highlights and shadows on the stage floor. "
+        "On the stage, a small number of carefully arranged elements related to the event are visible: {details}. "
+        "The elements are placed centrally with plenty of empty space around them, keeping the composition clean and uncluttered. "
+        "At the very bottom edge of the frame, a single row of seated children is visible from behind, softly out of focus. "
+        "They remain unchanged and are not the focus of the image. "
+        "No faces, no readable text, no logos. "
+        "No clutter or excessive props — only a few key elements on stage. "
+        "Calm, magical, theatrical atmosphere. "
+        "Realistic photography style, warm tones, soft lighting, 16:9 composition."
     ),
     "warsztaty": (
         "A natural, realistic scene with a warm wooden table as the main focus, viewed from a slightly angled top-down perspective (not perfectly flat). "
@@ -153,23 +161,35 @@ def _generate_with_reference(
 
     logger.info("Using base image for '%s': %s", category, base_path.name)
 
-    # Build the prompt
+    # Build the prompt based on category
     event_info = f"Event: {title}"
     if description:
         event_info += f"\nDescription: {description[:300]}"
 
-    prompt = (
-        f"On this wooden table, arrange a rich spread of objects "
-        f"related to this event:\n\n"
-        f"{event_info}\n\n"
-        f"Place 6-10 varied objects across the table, filling most of the surface. "
-        f"Mix larger items with smaller details — tools, materials, decorations. "
-        f"Some items can overlap slightly or be grouped together naturally. "
-        f"The table should look actively used and inviting, not empty. "
-        f"Match the existing warm lighting and perspective. "
-        f"No people, no hands, no faces, no text. "
-        f"Realistic photography style."
-    )
+    if category == "spektakl":
+        prompt = (
+            f"On this theater stage, create a scene related to this event:\n\n"
+            f"{event_info}\n\n"
+            f"Place props, set pieces, and decorations on the stage that represent the performance. "
+            f"Include colorful elements like puppets, scenery backdrops, or theatrical props. "
+            f"The stage should look ready for a children's show — vibrant and magical. "
+            f"Match the existing theatrical lighting (warm spotlights, red curtains). "
+            f"No people, no faces, no text. "
+            f"Realistic photography style."
+        )
+    else:
+        prompt = (
+            f"On this wooden table, arrange a rich spread of objects "
+            f"related to this event:\n\n"
+            f"{event_info}\n\n"
+            f"Place 6-10 varied objects across the table, filling most of the surface. "
+            f"Mix larger items with smaller details — tools, materials, decorations. "
+            f"Some items can overlap slightly or be grouped together naturally. "
+            f"The table should look actively used and inviting, not empty. "
+            f"Match the existing warm lighting and perspective. "
+            f"No people, no hands, no faces, no text. "
+            f"Realistic photography style."
+        )
 
     logger.info("Generating image with edit for: %s", title)
 
