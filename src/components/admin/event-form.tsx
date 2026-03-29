@@ -31,6 +31,8 @@ const EMPTY_EVENT: Omit<Event, "id" | "created_at" | "updated_at"> = {
   district: "Stare Miasto",
   venue_name: "",
   venue_address: "",
+  lat: null,
+  lng: null,
   source_url: null,
   organizer: null,
   is_featured: false,
