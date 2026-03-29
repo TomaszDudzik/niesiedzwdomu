@@ -3,16 +3,12 @@
 import { useState, useMemo } from "react";
 import { Search, LayoutGrid, CalendarDays } from "lucide-react";
 import { CATEGORY_LABELS } from "@/lib/mock-data";
-import { filterEvents } from "@/lib/filter-events";
-import { ContentFilters } from "@/components/ui/event-filters";
-import { ContentList } from "@/components/ui/content-list";
+import { ContentCard } from "@/components/ui/content-card";
 import { CalendarMapView } from "./calendar-map-view";
 import { cn } from "@/lib/utils";
-import type { Event, EventFilters, EventCategory } from "@/types/database";
+import type { Event, EventCategory } from "@/types/database";
 
-const categoryOptions = (Object.entries(CATEGORY_LABELS) as [EventCategory, string][]).map(
-  ([key, label]) => ({ value: key, label })
-);
+const categories = Object.entries(CATEGORY_LABELS) as [EventCategory, string][];
 
 type ViewMode = "list" | "calendar-map";
 
@@ -21,17 +17,26 @@ interface EventsListViewProps {
 }
 
 export function EventsListView({ events }: EventsListViewProps) {
-  const [filters, setFilters] = useState<EventFilters>({});
   const [search, setSearch] = useState("");
+  const [activeCategory, setActiveCategory] = useState<EventCategory | null>(null);
   const [view, setView] = useState<ViewMode>("list");
 
-  const filtered = useMemo(
-    () => filterEvents(events, { ...filters, search: search || undefined }),
-    [events, filters, search]
-  );
+  const filtered = useMemo(() => {
+    let result = events;
+    if (search) {
+      const q = search.toLowerCase();
+      result = result.filter((e) =>
+        [e.title, e.description_short, e.venue_name, e.district].join(" ").toLowerCase().includes(q)
+      );
+    }
+    if (activeCategory) {
+      result = result.filter((e) => e.category === activeCategory);
+    }
+    return result;
+  }, [events, search, activeCategory]);
 
   return (
-    <div className="container-page py-10">
+    <div className="container-page pt-5 pb-10">
       <div className="flex items-center justify-between mb-1">
         <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">Wydarzenia</h1>
         <div className="flex items-center gap-1 rounded-xl border border-border p-1 bg-accent/50">
@@ -73,26 +78,38 @@ export function EventsListView({ events }: EventsListViewProps) {
           className="w-full pl-9 pr-3 py-2 rounded-xl border border-border bg-card text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-200"
         />
       </div>
-      <div className="mb-6">
-        <ContentFilters
-          filters={filters}
-          onChange={setFilters}
-          specificFilters={[
-            { label: "Kategoria", key: "category", options: categoryOptions, type: "pills" },
-          ]}
-        />
-      </div>
 
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-[12px] text-muted-foreground">{filtered.length} wyników</p>
-        {filtered.length === 0 && (filters.isFree || filters.category || filters.district || search) && (
-          <button
-            onClick={() => { setFilters({}); setSearch(""); }}
-            className="text-[12px] text-muted hover:text-primary transition-colors duration-200"
-          >
-            Wyczyść filtry
-          </button>
-        )}
+      <div className="flex flex-wrap gap-1.5 mb-8">
+        <button
+          onClick={() => setActiveCategory(null)}
+          className={cn(
+            "px-3 py-1.5 rounded-lg text-[13px] font-medium border transition-all duration-200",
+            !activeCategory
+              ? "bg-primary text-primary-foreground border-primary"
+              : "bg-card text-muted border-border hover:border-primary/30 hover:text-foreground"
+          )}
+        >
+          Wszystkie
+        </button>
+        {categories.map(([key, label]) => {
+          const count = events.filter((e) => e.category === key).length;
+          if (count === 0) return null;
+          return (
+            <button
+              key={key}
+              onClick={() => setActiveCategory(activeCategory === key ? null : key)}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-[13px] font-medium border transition-all duration-200",
+                activeCategory === key
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-card text-muted border-border hover:border-primary/30 hover:text-foreground"
+              )}
+            >
+              {label}
+              <span className="ml-1 text-[11px] opacity-70">({count})</span>
+            </button>
+          );
+        })}
       </div>
 
       {view === "calendar-map" ? (
@@ -101,10 +118,13 @@ export function EventsListView({ events }: EventsListViewProps) {
         <div className="text-center py-16">
           <Search size={32} className="mx-auto text-muted-foreground/20 mb-3" />
           <p className="text-[14px] text-muted">Brak wydarzeń pasujących do filtrów.</p>
-          <p className="text-[13px] text-muted-foreground mt-1">Spróbuj zmienić kryteria wyszukiwania.</p>
         </div>
       ) : (
-        <ContentList items={filtered} />
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          {filtered.map((event) => (
+            <ContentCard key={event.id} item={event} />
+          ))}
+        </div>
       )}
     </div>
   );

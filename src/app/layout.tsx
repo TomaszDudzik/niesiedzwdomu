@@ -6,6 +6,7 @@ import "@fontsource/plus-jakarta-sans/700.css";
 import "./globals.css";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
+import { PageWrapper } from "@/components/layout/page-wrapper";
 
 export const metadata: Metadata = {
   title: "wyjdź z domu — Odkryj Kraków z dzieckiem",
@@ -33,7 +34,7 @@ export default function RootLayout({
     <html lang="pl">
       <body className="min-h-screen flex flex-col">
         <Header />
-        <main className="flex-1">{children}</main>
+        <main className="flex-1"><PageWrapper>{children}</PageWrapper></main>
         <Footer />
       </body>
     </html>

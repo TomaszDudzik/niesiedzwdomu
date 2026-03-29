@@ -257,3 +257,91 @@ def _fill_details(
     )
 
     return response.choices[0].message.content or title
+
+
+# ── Place image generation ──────────────────────────────────────────
+
+PLACE_STYLE = (
+    "Watercolor illustration style, soft and warm. "
+    "No people, no faces, no text, no logos. "
+    "Clean composition with a clear focal point. "
+    "Soft natural lighting, warm inviting tones. "
+    "Suitable as a website thumbnail for a family-friendly place."
+)
+
+PLACE_SCENE_PROMPT = """\
+You are a visual scene designer for a family places guide in Kraków, Poland.
+
+Given a place name and description, create a short (2-3 sentences) visual scene \
+description for an illustrator. Focus on:
+- The most iconic or recognizable visual element of this place
+- The setting, architecture, or landscape
+- The atmosphere and mood
+
+Rules:
+- Be SPECIFIC to this place — capture what makes it unique
+- Focus on the building, landscape, or key visual feature
+- No people, no faces
+- Include Kraków architectural elements if relevant
+- Output ONLY the scene description, nothing else
+"""
+
+
+def generate_place_image(
+    title: str,
+    description_short: str = "",
+    description_long: str = "",
+    size: str = "1792x1024",
+    quality: str = "standard",
+) -> str:
+    """Generate an illustration for a place using DALL-E 3."""
+    client = OpenAI(api_key=config.openai_api_key)
+
+    # Build context for GPT
+    user_content = f"Place: {title}"
+    if description_short:
+        user_content += f"\nShort: {description_short}"
+    if description_long:
+        user_content += f"\nDetails: {description_long[:300]}"
+
+    # Step 1: GPT creates a scene description
+    scene_resp = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": PLACE_SCENE_PROMPT},
+            {"role": "user", "content": user_content},
+        ],
+        temperature=0.7,
+        max_tokens=150,
+    )
+    scene = scene_resp.choices[0].message.content or f"A family-friendly place: {title}"
+    logger.info("Place scene for '%s': %s", title, scene)
+
+    # Step 2: Generate with DALL-E 3
+    dalle_prompt = f"{scene}\n\nStyle: {PLACE_STYLE}"
+    logger.info("Generating place image for: %s", title)
+
+    try:
+        response = client.images.generate(
+            model="dall-e-3",
+            prompt=dalle_prompt,
+            n=1,
+            size=size,
+            quality=quality,
+        )
+    except Exception as e:
+        if "content_policy_violation" in str(e):
+            logger.warning("Place prompt rejected, retrying with fallback")
+            response = client.images.generate(
+                model="dall-e-3",
+                prompt=f"A warm watercolor illustration of a family-friendly attraction in Kraków. {PLACE_STYLE}",
+                n=1,
+                size=size,
+                quality=quality,
+            )
+        else:
+            raise
+
+    image_url = response.data[0].url
+    logger.info("Place image generated: %s...", image_url[:80])
+    return image_url

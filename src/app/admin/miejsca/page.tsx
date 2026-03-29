@@ -15,6 +15,7 @@ export default function AdminPlacesPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Record<string, unknown>>({});
+  const [generatingImage, setGeneratingImage] = useState<string | null>(null);
 
   const fetchPlaces = useCallback(async () => {
     setLoading(true);
@@ -74,6 +75,31 @@ export default function AdminPlacesPage() {
 
   const updateField = (key: string, value: unknown) => {
     setEditForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const generateImage = async (place: Place) => {
+    setGeneratingImage(place.id);
+    try {
+      const res = await fetch("/api/admin/generate-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: place.id,
+          title: place.title,
+          description_short: place.description_short,
+          description_long: place.description_long,
+          target: "places",
+        }),
+      });
+      const data = await res.json();
+      if (data.image_url) {
+        const bustUrl = `${data.image_url.split("?")[0]}?t=${Date.now()}`;
+        setPlaces((prev) => prev.map((p) => p.id === place.id ? { ...p, image_url: bustUrl } : p));
+      } else {
+        alert(`Błąd: ${data.error || "Nie udało się"}`);
+      }
+    } catch { alert("Błąd połączenia"); }
+    setGeneratingImage(null);
   };
 
   const inputClass = "w-full px-2 py-1.5 rounded-md border border-border text-[12px] bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30";
@@ -136,10 +162,10 @@ export default function AdminPlacesPage() {
                   {/* Actions */}
                   {!isEditing && (
                     <>
-                      <button onClick={() => { /* TODO: generate image */ }}
+                      <button onClick={() => generateImage(place)} disabled={generatingImage === place.id}
                         className={cn("p-1 rounded transition-colors", place.image_url ? "text-muted-foreground hover:bg-stone-100" : "text-blue-500 hover:bg-blue-50")}
-                        title="Wygeneruj obrazek (wkrótce)">
-                        <ImagePlus size={13} />
+                        title={place.image_url ? "Wygeneruj nowy obrazek" : "Wygeneruj obrazek"}>
+                        {generatingImage === place.id ? <Loader2 size={13} className="animate-spin" /> : <ImagePlus size={13} />}
                       </button>
                       <button onClick={() => startEditing(place)} className="p-1 rounded hover:bg-accent text-muted transition-colors" title="Edytuj">
                         <Pencil size={13} />

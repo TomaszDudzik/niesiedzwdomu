@@ -135,10 +135,8 @@ def upload_from_url(
         resp.raise_for_status()
         image_bytes = resp.content
 
-    # Crop to 16:10 to match card aspect ratio, then add category tab
+    # Crop to 3:2 to match card aspect ratio
     image_bytes = _crop_to_card(image_bytes)
-    if category:
-        image_bytes = _add_category_tab(image_bytes, category)
 
     # Generate filename from event_id if not provided
     if not filename:

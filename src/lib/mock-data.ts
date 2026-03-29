@@ -463,19 +463,23 @@ export const CAMP_SEASON_LABELS: Record<CampSeason, string> = {
 
 // Place type labels
 export const PLACE_TYPE_LABELS: Record<PlaceType, string> = {
-  zwierzeta: "Zwierzęta", edukacja: "Edukacja", rozrywka: "Rozrywka", muzeum: "Muzeum",
-  basen: "Basen", sport: "Sport", nauka: "Nauka", warsztaty: "Warsztaty",
-  historia: "Historia", zwiedzanie: "Zwiedzanie", widoki: "Widoki", natura: "Natura",
-  spacer: "Spacer", park: "Park", kultura: "Kultura", kreatywne: "Kreatywne",
-  sala_zabaw: "Sala zabaw", atrakcja: "Atrakcja", sztuka: "Sztuka", inne: "Inne",
+  "Relaks i natura": "Relaks i natura",
+  "Nauka przez zabawę": "Nauka przez zabawę",
+  "Szybka rozrywka / atrakcje": "Szybka rozrywka / atrakcje",
+  "Ruch i aktywność fizyczna": "Ruch i aktywność fizyczna",
+  "Oglądanie / kultura": "Oglądanie / kultura",
+  "Kreatywność i warsztaty": "Kreatywność i warsztaty",
+  "inne": "Inne",
 };
 
 export const PLACE_TYPE_ICONS: Record<PlaceType, string> = {
-  zwierzeta: "🦁", edukacja: "📚", rozrywka: "🎢", muzeum: "🏛",
-  basen: "🏊", sport: "⚽", nauka: "🔬", warsztaty: "🎨",
-  historia: "🏰", zwiedzanie: "🗺", widoki: "🏔", natura: "🌿",
-  spacer: "🚶", park: "🌳", kultura: "🎭", kreatywne: "✂",
-  sala_zabaw: "🎮", atrakcja: "⭐", sztuka: "🖼", inne: "📍",
+  "Relaks i natura": "🌿",
+  "Nauka przez zabawę": "🔬",
+  "Szybka rozrywka / atrakcje": "🎢",
+  "Ruch i aktywność fizyczna": "⚽",
+  "Oglądanie / kultura": "🎭",
+  "Kreatywność i warsztaty": "🎨",
+  "inne": "📍",
 };
 
 // Shared constants

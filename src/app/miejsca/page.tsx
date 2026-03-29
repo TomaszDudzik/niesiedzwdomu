@@ -1,13 +1,9 @@
-import { MapPin } from "lucide-react";
-import { ComingSoonPage } from "@/components/ui/coming-soon";
+import { getPublishedPlaces } from "@/lib/data";
+import { PlacesListView } from "./places-list-view";
 
-export default function PlacesPage() {
-  return (
-    <ComingSoonPage
-      icon={<MapPin size={40} strokeWidth={1.5} />}
-      title="Miejsca"
-      description="Pracujemy nad bazą miejsc przyjaznych rodzinom w Krakowie — place zabaw, sale zabaw, kawiarnie rodzinne i więcej."
-      detail="Odwiedzamy, sprawdzamy i opisujemy miejsca, żebyś wiedział dokąd warto się wybrać z dzieckiem."
-    />
-  );
+export const revalidate = 60;
+
+export default async function PlacesPage() {
+  const places = await getPublishedPlaces(100);
+  return <PlacesListView places={places} />;
 }

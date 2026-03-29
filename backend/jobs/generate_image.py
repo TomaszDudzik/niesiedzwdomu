@@ -1,8 +1,9 @@
 """
-Generate an event image via DALL-E and upload to Supabase Storage.
+Generate an image via DALL-E and upload to Supabase Storage.
 Run via: python -m backend.jobs.generate_image <json_args>
 
 Triggered from admin panel image generation button.
+Supports both events and places.
 Prints JSON result to stdout.
 """
 
@@ -13,7 +14,7 @@ import logging
 import sys
 
 from backend import db as database
-from backend.images.generator import generate_event_image
+from backend.images.generator import generate_event_image, generate_place_image
 from backend.images.storage import upload_from_url
 from backend.jobs.logging_setup import setup_logging
 
@@ -27,32 +28,47 @@ def main() -> None:
         sys.exit(1)
 
     args = json.loads(sys.argv[1])
-    event_id: str = args["id"]
+    item_id: str = args["id"]
     title: str = args["title"]
-    category: str = args.get("category", "inne")
-    description: str = args.get("description", "")
     target: str = args.get("target", "events")
 
-    logger.info("Generating image for event '%s' (id=%s, category=%s)", title, event_id, category)
+    if target == "places":
+        # Place image generation
+        description_short: str = args.get("description_short", "")
+        description_long: str = args.get("description_long", "")
 
-    # Step 1: Generate image (returns temporary OpenAI URL)
-    temp_url = generate_event_image(
-        title=title,
-        category=category,
-        description=description,
-    )
+        logger.info("Generating place image for '%s' (id=%s)", title, item_id)
 
-    # Step 2: Upload to Supabase Storage
-    db = database.get_client()
-    public_url = upload_from_url(db, temp_url, event_id, category=category)
+        temp_url = generate_place_image(
+            title=title,
+            description_short=description_short,
+            description_long=description_long,
+        )
 
-    # Step 3: Update the event record
-    table_name = "scraped_events" if target == "scraped" else "events"
-    db.table(table_name).update({"image_url": public_url}).eq("id", event_id).execute()
+        db = database.get_client()
+        public_url = upload_from_url(db, temp_url, item_id)
+        db.table("places").update({"image_url": public_url}).eq("id", item_id).execute()
 
-    logger.info("Image saved for event %s: %s", event_id, public_url)
+    else:
+        # Event image generation
+        category: str = args.get("category", "inne")
+        description: str = args.get("description", "")
 
-    # Output result as JSON to stdout (read by Next.js)
+        logger.info("Generating event image for '%s' (id=%s, category=%s)", title, item_id, category)
+
+        temp_url = generate_event_image(
+            title=title,
+            category=category,
+            description=description,
+        )
+
+        db = database.get_client()
+        public_url = upload_from_url(db, temp_url, item_id, category=category)
+
+        table_name = "scraped_events" if target == "scraped" else "events"
+        db.table(table_name).update({"image_url": public_url}).eq("id", item_id).execute()
+
+    logger.info("Image saved for %s: %s", item_id, public_url)
     print(json.dumps({"ok": True, "image_url": public_url}))
 
 

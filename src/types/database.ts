@@ -38,25 +38,12 @@ export type CampType = "kolonie" | "polkolonie" | "warsztaty_wakacyjne";
 export type CampSeason = "lato" | "zima" | "ferie_zimowe" | "ferie_wiosenne" | "caly_rok";
 
 export type PlaceType =
-  | "zwierzeta"
-  | "edukacja"
-  | "rozrywka"
-  | "muzeum"
-  | "basen"
-  | "sport"
-  | "nauka"
-  | "warsztaty"
-  | "historia"
-  | "zwiedzanie"
-  | "widoki"
-  | "natura"
-  | "spacer"
-  | "park"
-  | "kultura"
-  | "kreatywne"
-  | "sala_zabaw"
-  | "atrakcja"
-  | "sztuka"
+  | "Relaks i natura"
+  | "Nauka przez zabawę"
+  | "Szybka rozrywka / atrakcje"
+  | "Ruch i aktywność fizyczna"
+  | "Oglądanie / kultura"
+  | "Kreatywność i warsztaty"
   | "inne";
 
 // ============================================

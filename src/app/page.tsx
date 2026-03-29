@@ -1,14 +1,7 @@
 import Link from "next/link";
-import { ArrowRight, Calendar, MapPin, Tent, Users } from "lucide-react";
-import { getPublishedEvents } from "@/lib/data";
+import { ArrowRight, Tent, Users } from "lucide-react";
+import { getPublishedEvents, getPublishedPlaces } from "@/lib/data";
 import { ContentCard } from "@/components/ui/content-card";
-
-const QUICK_LINKS = [
-  { href: "/wydarzenia", label: "Wydarzenia", icon: Calendar, color: "bg-primary/10 text-primary" },
-  { href: "/miejsca", label: "Miejsca", icon: MapPin, color: "bg-secondary/10 text-secondary" },
-  { href: "/kolonie", label: "Kolonie", icon: Tent, color: "bg-amber-500/10 text-amber-600" },
-  { href: "/zajecia", label: "Zajęcia", icon: Users, color: "bg-secondary/10 text-secondary" },
-];
 
 function SectionLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
@@ -22,42 +15,15 @@ function SectionLink({ href, children }: { href: string; children: React.ReactNo
 export const revalidate = 60;
 
 export default async function HomePage() {
-  const upcomingEvents = await getPublishedEvents(8);
+  const [upcomingEvents, places] = await Promise.all([
+    getPublishedEvents(8),
+    getPublishedPlaces(8),
+  ]);
 
   return (
     <div>
-      {/* Hero */}
-      <section className="container-page pt-8 pb-8 md:pt-10 md:pb-10">
-        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-[-0.02em] leading-tight">
-              Odkryj Kraków z dzieckiem
-            </h1>
-            <p className="text-[14px] text-muted mt-1.5 max-w-md">
-              Wydarzenia, zajęcia, kolonie i miejsca dla rodzin — wszystko w jednym miejscu.
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2.5">
-          {QUICK_LINKS.map((link) => (
-            <Link
-              key={link.label}
-              href={link.href}
-              className="group inline-flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-[13px] font-medium border border-border bg-card text-foreground hover:border-primary/30 hover:shadow-[var(--shadow-soft)] transition-all duration-200"
-            >
-              <span className={`flex items-center justify-center w-7 h-7 rounded-lg ${link.color}`}>
-                <link.icon size={14} />
-              </span>
-              {link.label}
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      <div className="border-t border-border" />
-
       {upcomingEvents.length > 0 && (
-        <section className="container-page pt-12">
+        <section className="container-page pt-5">
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-[15px] font-semibold text-foreground">Nadchodzące wydarzenia</h2>
             <SectionLink href="/wydarzenia">Wszystkie</SectionLink>
@@ -70,16 +36,19 @@ export default async function HomePage() {
         </section>
       )}
 
-      <section className="container-page mt-14">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-[15px] font-semibold text-foreground">Ciekawe miejsca</h2>
-          <SectionLink href="/miejsca">Wszystkie</SectionLink>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-8 text-center text-muted">
-          <MapPin size={32} className="mx-auto text-muted-foreground/30 mb-3" />
-          <p className="text-[14px]">Wkrótce dodamy ciekawe miejsca dla rodzin w Krakowie</p>
-        </div>
-      </section>
+      {places.length > 0 && (
+        <section className="container-page mt-14">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-[15px] font-semibold text-foreground">Ciekawe miejsca</h2>
+            <SectionLink href="/miejsca">Wszystkie</SectionLink>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            {places.slice(0, 8).map((place) => (
+              <ContentCard key={place.id} item={place} />
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="container-page mt-14">
         <div className="flex items-center justify-between mb-5">
