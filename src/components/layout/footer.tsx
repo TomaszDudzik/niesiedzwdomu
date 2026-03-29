@@ -6,9 +6,9 @@ const FOOTER_SECTIONS = [
     title: "Odkrywaj",
     links: [
       { href: "/wydarzenia", label: "Wydarzenia" },
-      { href: "/kolonie", label: "Kolonie", comingSoon: true },
-      { href: "/miejsca", label: "Miejsca", comingSoon: true },
-      { href: "/zajecia", label: "Zajęcia", comingSoon: true },
+      { href: "/miejsca", label: "Miejsca" },
+      { href: "/kolonie", label: "Kolonie" },
+      { href: "/zajecia", label: "Zajęcia" },
       { href: "/kalendarz", label: "Kalendarz" },
     ],
   },

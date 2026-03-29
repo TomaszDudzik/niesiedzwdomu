@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Tent, Users } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { getPublishedEvents, getPublishedPlaces } from "@/lib/data";
 import { ContentCard } from "@/components/ui/content-card";
 
@@ -50,25 +50,37 @@ export default async function HomePage() {
         </section>
       )}
 
-      <section className="container-page mt-14">
+      <section className="container-page mt-14 opacity-40 pointer-events-none">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-[15px] font-semibold text-foreground">Kolonie dla dzieci</h2>
-          <SectionLink href="/kolonie">Wszystkie</SectionLink>
         </div>
-        <div className="rounded-xl border border-border bg-card p-8 text-center text-muted">
-          <Tent size={32} className="mx-auto text-muted-foreground/30 mb-3" />
-          <p className="text-[14px]">Wkrótce dodamy oferty kolonii i półkolonii</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          {[1,2,3,4].map((i) => (
+            <div key={i} className="rounded-xl border border-border bg-card">
+              <div className="aspect-[3/2] rounded-t-xl bg-accent" />
+              <div className="p-3 space-y-2">
+                <div className="h-3 bg-accent rounded w-3/4" />
+                <div className="h-2 bg-accent rounded w-1/2" />
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 
-      <section className="container-page mt-14">
+      <section className="container-page mt-14 opacity-40 pointer-events-none">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-[15px] font-semibold text-foreground">Zajęcia pozaszkolne</h2>
-          <SectionLink href="/zajecia">Wszystkie</SectionLink>
         </div>
-        <div className="rounded-xl border border-border bg-card p-8 text-center text-muted">
-          <Users size={32} className="mx-auto text-muted-foreground/30 mb-3" />
-          <p className="text-[14px]">Wkrótce dodamy zajęcia pozaszkolne dla dzieci</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          {[1,2,3,4].map((i) => (
+            <div key={i} className="rounded-xl border border-border bg-card">
+              <div className="aspect-[3/2] rounded-t-xl bg-accent" />
+              <div className="p-3 space-y-2">
+                <div className="h-3 bg-accent rounded w-3/4" />
+                <div className="h-2 bg-accent rounded w-1/2" />
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 
