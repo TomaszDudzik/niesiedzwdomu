@@ -52,9 +52,6 @@ export function Footer() {
                   <li key={link.label}>
                     <Link href={link.href} className="inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-primary transition-colors duration-200">
                       {link.label}
-                      {"comingSoon" in link && link.comingSoon && (
-                        <span className="text-[10px] text-muted-foreground/50">·&nbsp;wkrótce</span>
-                      )}
                     </Link>
                   </li>
                 ))}
