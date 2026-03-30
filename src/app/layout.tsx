@@ -7,6 +7,7 @@ import "./globals.css";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { PageWrapper } from "@/components/layout/page-wrapper";
+import { Analytics } from "@vercel/analytics/react";
 
 export const metadata: Metadata = {
   title: "nie siedź w domu — Odkryj Kraków z dzieckiem",
@@ -36,6 +37,7 @@ export default function RootLayout({
         <Header />
         <main className="flex-1"><PageWrapper>{children}</PageWrapper></main>
         <Footer />
+        <Analytics />
       </body>
     </html>
   );
