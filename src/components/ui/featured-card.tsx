@@ -17,7 +17,7 @@ export function FeaturedCard({ item }: FeaturedCardProps) {
       className="group block rounded-xl border border-border bg-card shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5 transition-all duration-200"
     >
       <div className="grid md:grid-cols-2 gap-0">
-        <div className="relative aspect-[3/2] md:aspect-auto overflow-hidden rounded-t-xl md:rounded-l-xl md:rounded-tr-none bg-accent">
+        <div className="relative aspect-[15/8] md:aspect-auto overflow-hidden rounded-t-xl md:rounded-l-xl md:rounded-tr-none bg-accent">
           {item.image_url ? (
             <img src={item.image_url} alt={item.title} className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300" />
           ) : (

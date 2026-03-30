@@ -27,7 +27,7 @@ export default async function EventDetailPage({ params }: PageProps) {
       <div className="grid lg:grid-cols-3 gap-10">
         <div className="lg:col-span-2">
           {event.image_url && (
-            <div className="rounded-xl overflow-hidden mb-8 aspect-[3/2] bg-accent">
+            <div className="rounded-xl overflow-hidden mb-8 aspect-[15/8] bg-accent">
               <img src={event.image_url} alt={event.title} className="w-full h-full object-cover" />
             </div>
           )}

@@ -23,7 +23,7 @@ export default async function PlaceDetailPage({ params }: PageProps) {
       <div className="grid lg:grid-cols-3 gap-10">
         <div className="lg:col-span-2">
           {place.image_url && (
-            <div className="rounded-xl overflow-hidden mb-8 aspect-[3/2] bg-accent">
+            <div className="rounded-xl overflow-hidden mb-8 aspect-[15/8] bg-accent">
               <img src={place.image_url} alt={place.title} className="w-full h-full object-cover" />
             </div>
           )}
