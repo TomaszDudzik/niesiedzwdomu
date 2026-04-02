@@ -73,7 +73,7 @@ export default function AdminPlacesPage() {
       age_min: place.age_min,
       age_max: place.age_max,
       source_url: place.source_url,
-      facebook_url: place.facebook_url,
+      facebook_url: place.facebook_url ?? "",
       is_indoor: place.is_indoor,
       is_free: place.is_free,
       likes: place.likes,
@@ -103,7 +103,7 @@ export default function AdminPlacesPage() {
       setUploadingImage(null);
     }
 
-    const dbPayload = {
+    const dbPayload: Record<string, unknown> = {
       title: editForm.title,
       description_short: editForm.description_short,
       description_long: editForm.description_long,
@@ -117,17 +117,32 @@ export default function AdminPlacesPage() {
       age_min: editForm.age_min ?? null,
       age_max: editForm.age_max ?? null,
       source_url: editForm.source_url || null,
-      ...(editForm.facebook_url ? { facebook_url: editForm.facebook_url } : {}),
       likes: Number(editForm.likes) || 0,
       dislikes: Number(editForm.dislikes) || 0,
     };
 
-    const saveRes = await fetch("/api/admin/places", {
+    // Try saving with facebook_url, retry without if column doesn't exist
+    const payloadWithFb = editForm.facebook_url
+      ? { id, ...dbPayload, facebook_url: String(editForm.facebook_url) }
+      : { id, ...dbPayload };
+
+    let saveRes = await fetch("/api/admin/places", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, ...dbPayload }),
+      body: JSON.stringify(payloadWithFb),
     });
-    const saveData = await saveRes.json();
+    let saveData = await saveRes.json();
+
+    // Retry without facebook_url if column doesn't exist
+    if (!saveRes.ok && saveData.error?.includes("facebook_url")) {
+      saveRes = await fetch("/api/admin/places", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, ...dbPayload }),
+      });
+      saveData = await saveRes.json();
+    }
+
     if (!saveRes.ok) {
       alert(`Błąd zapisu: ${saveData.error || "Nieznany błąd"}`);
       return;
