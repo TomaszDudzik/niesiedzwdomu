@@ -1,16 +1,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { getPublishedEvents, getPublishedPlaces } from "@/lib/data";
-import { ContentCard } from "@/components/ui/content-card";
-
-function SectionLink({ href, children }: { href: string; children: React.ReactNode }) {
-  return (
-    <Link href={href} className="group inline-flex items-center gap-1 text-[13px] font-medium text-primary hover:text-primary-hover transition-colors">
-      {children}
-      <ArrowRight size={13} className="group-hover:translate-x-0.5 transition-transform duration-200" />
-    </Link>
-  );
-}
+import { HomeFilteredView } from "./home-filtered-view";
 
 export const revalidate = 60;
 
@@ -22,33 +13,7 @@ export default async function HomePage() {
 
   return (
     <div>
-      {upcomingEvents.length > 0 && (
-        <section className="container-page pt-5">
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="text-[15px] font-semibold text-foreground">Nadchodzące wydarzenia</h2>
-            <SectionLink href="/wydarzenia">Wszystkie</SectionLink>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {upcomingEvents.slice(0, 8).map((event) => (
-              <ContentCard key={event.id} item={event} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {places.length > 0 && (
-        <section className="container-page mt-14">
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="text-[15px] font-semibold text-foreground">Ciekawe miejsca</h2>
-            <SectionLink href="/miejsca">Wszystkie</SectionLink>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {places.slice(0, 8).map((place) => (
-              <ContentCard key={place.id} item={place} />
-            ))}
-          </div>
-        </section>
-      )}
+      <HomeFilteredView events={upcomingEvents} places={places} />
 
       <section className="container-page mt-14 opacity-40 pointer-events-none">
         <div className="flex items-center justify-between mb-5">

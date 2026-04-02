@@ -22,7 +22,7 @@ export function NavSection() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
           <h1 className="text-lg md:text-xl font-bold text-foreground tracking-[-0.02em] leading-tight">
-            Odkryj Kraków z dzieckiem
+            {pathname.startsWith("/wydarzenia") ? "Wydarzenia" : pathname.startsWith("/miejsca") ? "Miejsca" : pathname.startsWith("/kolonie") ? "Kolonie" : pathname.startsWith("/zajecia") ? "Zajęcia" : "Odkryj świat z dzieckiem"}
           </h1>
           <p className="text-[12px] text-muted mt-0.5 max-w-md">
             Wydarzenia, zajęcia, kolonie i miejsca dla rodzin
