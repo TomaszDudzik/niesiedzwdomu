@@ -77,7 +77,7 @@ export function HomeFilteredView({ events, places }: HomeFilteredViewProps) {
     if (search) {
       const q = search.toLowerCase();
       result = result.filter((p) =>
-        [p.title, p.description_short, p.address, p.district].join(" ").toLowerCase().includes(q)
+        [p.title, p.description_short, p.street, p.city, p.district].join(" ").toLowerCase().includes(q)
       );
     }
     if (activePlaceType) {
@@ -118,11 +118,11 @@ export function HomeFilteredView({ events, places }: HomeFilteredViewProps) {
       <section className="container-page pt-5">
         <div className="rounded-xl border border-border bg-card p-4">
           {/* Filter button + search row */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <button
               onClick={() => setFiltersOpen(!filtersOpen)}
               className={cn(
-                "inline-flex items-center gap-2 px-4 py-1.5 rounded-lg text-[12px] font-semibold border-2 transition-all duration-200 shrink-0",
+                "inline-flex items-center justify-center gap-2 px-4 py-2 sm:py-1.5 rounded-lg text-[13px] sm:text-[12px] font-semibold border-2 transition-all duration-200 shrink-0",
                 filtersOpen || hasActiveFilters
                   ? "bg-primary text-primary-foreground border-primary shadow-sm"
                   : "bg-primary/5 text-foreground border-primary/20 hover:bg-primary/10 hover:border-primary/30"
@@ -141,7 +141,7 @@ export function HomeFilteredView({ events, places }: HomeFilteredViewProps) {
                 placeholder="Szukaj wydarzeń i miejsc..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-border bg-background text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-200"
+                className="w-full pl-8 pr-3 py-2 sm:py-1.5 rounded-lg border border-border bg-background text-[13px] sm:text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-200"
               />
             </div>
           </div>

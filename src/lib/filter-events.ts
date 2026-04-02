@@ -105,7 +105,7 @@ export function filterPlaces(places: Place[], filters: PlaceFilters): Place[] {
     if (filters.isFree && !place.is_free) return false;
     if (filters.isIndoor !== undefined && place.is_indoor !== filters.isIndoor) return false;
     if (!matchesAge(place.age_min, place.age_max, filters.ageGroup)) return false;
-    if (!matchesSearch([place.title, place.description_short, place.address, place.district], filters.search)) return false;
+    if (!matchesSearch([place.title, place.description_short, place.street, place.city, place.district], filters.search)) return false;
     return true;
   });
 }

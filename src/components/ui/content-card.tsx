@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Calendar, MapPin } from "lucide-react";
+import { Calendar, MapPin, ThumbsUp, ThumbsDown } from "lucide-react";
 import type { DiscoveryItem } from "@/types/database";
 import { formatPrice } from "@/lib/utils";
 import { getItemHref, getTypeBadgeLabel, getSubcategoryLabel, getDateText, getLocationText, getSecondaryInfo, getPlaceholderIcon } from "@/lib/content-helpers";
@@ -75,6 +75,18 @@ export function ContentCard({ item }: ContentCardProps) {
             <MapPin size={10} className="text-secondary/60" />
             <span className="truncate">{getLocationText(item)}</span>
           </span>
+          {(item.likes > 0 || item.dislikes > 0) && (
+            <span className="ml-auto flex items-center gap-2 shrink-0">
+              <span className="flex items-center gap-0.5">
+                <ThumbsUp size={9} className="text-primary/50" />
+                <span>{item.likes}</span>
+              </span>
+              <span className="flex items-center gap-0.5">
+                <ThumbsDown size={9} className="text-muted-foreground/40" />
+                <span>{item.dislikes}</span>
+              </span>
+            </span>
+          )}
         </div>
       </div>
     </Link>

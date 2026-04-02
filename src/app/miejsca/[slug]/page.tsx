@@ -47,7 +47,7 @@ export default async function PlaceDetailPage({ params }: PageProps) {
           )}
 
           <div className="mt-10 pt-8 border-t border-border">
-            <FeedbackButtons eventId={place.id} initialLikes={place.likes} initialDislikes={place.dislikes} />
+            <FeedbackButtons contentType="place" itemId={place.id} initialLikes={place.likes} initialDislikes={place.dislikes} />
           </div>
         </div>
 
@@ -55,10 +55,10 @@ export default async function PlaceDetailPage({ params }: PageProps) {
           <div className="sticky top-20 space-y-5">
             <div className="rounded-xl border border-border bg-card p-5 space-y-4 shadow-[var(--shadow-card)]">
               <div className="space-y-3 text-[13px]">
-                {place.address && (
+                {(place.street || place.city) && (
                   <div className="flex items-start gap-2.5">
                     <MapPin size={15} className="text-secondary/60 shrink-0 mt-0.5" />
-                    <p className="font-medium text-foreground">{place.address}</p>
+                    <p className="font-medium text-foreground">{[place.street, place.city].filter(Boolean).join(", ")}</p>
                   </div>
                 )}
                 <div className="flex items-start gap-2.5">

@@ -52,7 +52,7 @@ export default async function EventDetailPage({ params }: PageProps) {
           )}
 
           <div className="mt-10 pt-8 border-t border-border">
-            <FeedbackButtons eventId={event.id} initialLikes={event.likes} initialDislikes={event.dislikes} />
+            <FeedbackButtons contentType="event" itemId={event.id} initialLikes={event.likes} initialDislikes={event.dislikes} />
           </div>
         </div>
 

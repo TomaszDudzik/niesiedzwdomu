@@ -49,7 +49,7 @@ export function getLocationText(item: DiscoveryItem): string {
   switch (item.content_type) {
     case "event": return item.venue_name;
     case "camp": return item.venue_name;
-    case "place": return item.address;
+    case "place": return [item.street, item.city].filter(Boolean).join(", ");
   }
 }
 

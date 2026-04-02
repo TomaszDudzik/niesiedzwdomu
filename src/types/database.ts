@@ -128,7 +128,8 @@ export interface Place {
   image_url: string | null;
   place_type: PlaceType;
   is_indoor: boolean;
-  address: string;
+  street: string;
+  city: string;
   district: District;
   lat: number | null;
   lng: number | null;
@@ -139,6 +140,7 @@ export interface Place {
   amenities: string[];
   opening_hours: string | null;
   source_url: string | null;
+  facebook_url: string | null;
   is_featured: boolean;
   status: ContentStatus;
   likes: number;

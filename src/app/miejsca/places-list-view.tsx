@@ -55,7 +55,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
     if (search) {
       const q = search.toLowerCase();
       result = result.filter((p) =>
-        [p.title, p.description_short, p.address].join(" ").toLowerCase().includes(q)
+        [p.title, p.description_short, p.street, p.city].join(" ").toLowerCase().includes(q)
       );
     }
     if (activeType) {
@@ -106,7 +106,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
         id: place.id,
         title: place.title,
         slug: place.slug,
-        venue_name: place.address,
+        venue_name: [place.street, place.city].filter(Boolean).join(", "),
       });
     }
     return Object.values(groups);
@@ -133,7 +133,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
           <button
             onClick={() => setFiltersOpen(!filtersOpen)}
             className={cn(
-              "inline-flex items-center gap-2 px-4 py-1.5 rounded-lg text-[12px] font-semibold border-2 transition-all duration-200 shrink-0",
+              "inline-flex items-center gap-2 px-4 py-2 sm:py-1.5 rounded-lg text-[13px] sm:text-[12px] font-semibold border-2 transition-all duration-200 shrink-0",
               filtersOpen || hasActiveFilters
                 ? "bg-primary text-primary-foreground border-primary shadow-sm"
                 : "bg-primary/5 text-foreground border-primary/20 hover:bg-primary/10 hover:border-primary/30"
@@ -145,7 +145,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
               <span className="ml-0.5 w-1.5 h-1.5 rounded-full bg-primary-foreground" />
             )}
           </button>
-          <div className="relative flex-1">
+          <div className="relative flex-1 hidden sm:block">
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
             <input
               type="text"
@@ -185,6 +185,17 @@ export function PlacesListView({ places }: PlacesListViewProps) {
 
         {filtersOpen && (
           <div className="mt-3 pt-3 border-t border-border space-y-3">
+            {/* Search — mobile only (inside filters) */}
+            <div className="relative sm:hidden">
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
+              <input
+                type="text"
+                placeholder="Szukaj miejsc..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-8 pr-3 py-2 rounded-lg border border-border bg-background text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-200"
+              />
+            </div>
             {/* Place types */}
             <div>
               <p className="text-[11px] font-medium text-muted-foreground mb-1.5">Typ miejsca</p>
