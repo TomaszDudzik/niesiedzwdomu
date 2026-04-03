@@ -469,6 +469,7 @@ export const PLACE_TYPE_LABELS: Record<PlaceType, string> = {
   "Ruch i aktywność fizyczna": "Ruch",
   "Oglądanie / kultura": "Kultura",
   "Kreatywność i warsztaty": "Kreatywność",
+  "Sala zabaw": "Sala zabaw",
   "inne": "Inne",
 };
 
@@ -479,6 +480,7 @@ export const PLACE_TYPE_ICONS: Record<PlaceType, string> = {
   "Ruch i aktywność fizyczna": "⚽",
   "Oglądanie / kultura": "🎭",
   "Kreatywność i warsztaty": "🎨",
+  "Sala zabaw": "🧸",
   "inne": "📍",
 };
 

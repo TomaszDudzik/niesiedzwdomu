@@ -44,6 +44,7 @@ export type PlaceType =
   | "Ruch i aktywność fizyczna"
   | "Oglądanie / kultura"
   | "Kreatywność i warsztaty"
+  | "Sala zabaw"
   | "inne";
 
 // ============================================

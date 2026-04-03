@@ -140,7 +140,7 @@ export default async function PlaceDetailPage({ params }: PageProps) {
                   </a>
                 )}
 
-                <a href={`https://www.google.com/search?q=${encodeURIComponent(place.title + " Kraków")}&udm=50`}
+                <a href={`https://www.google.com/search?q=${encodeURIComponent(place.title + " Kraków kluczowe informacje godziny otwarcia cena biletów")}&udm=50`}
                   target="_blank" rel="noopener"
                   className="flex items-center gap-2.5 text-[13px] text-foreground hover:text-primary transition-colors duration-200 group">
                   <Sparkles size={15} className="text-secondary/60 group-hover:text-primary shrink-0" />
