@@ -21,7 +21,7 @@ type ViewMode = "list" | "map";
 
 interface MarkerGroup {
   coords: [number, number];
-  events: { id: string; title: string; slug: string; venue_name: string }[];
+  events: { id: string; title: string; slug: string; venue_name: string; image_url?: string | null }[];
   label: string;
 }
 
@@ -36,7 +36,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
   const [activeAgeGroup, setActiveAgeGroup] = useState<string | null>(null);
   const [view, setView] = useState<ViewMode>("list");
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [MapComponent, setMapComponent] = useState<React.ComponentType<{ groups: MarkerGroup[] }> | null>(null);
+  const [MapComponent, setMapComponent] = useState<React.ComponentType<{ groups: MarkerGroup[]; basePath?: string }> | null>(null);
 
   const ageGroup = AGE_GROUPS.find((g) => g.key === activeAgeGroup) ?? null;
   const hasActiveFilters = search || activeType || activeDistrict || activeAgeGroup !== null;
@@ -107,6 +107,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
         title: place.title,
         slug: place.slug,
         venue_name: [place.street, place.city].filter(Boolean).join(", "),
+        image_url: place.image_url,
       });
     }
     return Object.values(groups);
@@ -279,7 +280,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
       {view === "map" ? (
         <div className="rounded-xl overflow-hidden border border-border" style={{ height: "500px" }}>
           {MapComponent ? (
-            <MapComponent groups={mapGroups} />
+            <MapComponent groups={mapGroups} basePath="/miejsca" />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-accent/20">
               <p className="text-[13px] text-muted">Ładowanie mapy...</p>
