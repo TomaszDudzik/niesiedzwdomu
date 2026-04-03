@@ -121,34 +121,40 @@ export default async function PlaceDetailPage({ params }: PageProps) {
               </div>
 
               {/* Links section */}
-              <div className="px-5 py-4 border-t border-border space-y-2.5">
-                {place.source_url ? (
-                  <a href={place.source_url} target="_blank" rel="noopener"
-                    className="flex items-center gap-2.5 text-[13px] text-foreground hover:text-primary transition-colors duration-200 group">
-                    <Globe size={15} className="text-secondary/60 group-hover:text-primary shrink-0" />
-                    <span className="font-medium truncate">Strona internetowa</span>
-                    <ExternalLink size={11} className="text-muted shrink-0 ml-auto" />
-                  </a>
-                ) : (
-                  <div className="flex items-center gap-2.5 text-[13px]">
-                    <Globe size={15} className="text-muted/40 shrink-0" />
-                    <span className="text-muted/60">Brak strony internetowej</span>
-                  </div>
-                )}
+              {(place.source_url || place.facebook_url) && (
+                <div className="px-5 py-4 border-t border-border space-y-2.5">
+                  {place.source_url && (
+                    <a href={place.source_url} target="_blank" rel="noopener"
+                      className="flex items-center gap-2.5 text-[13px] text-foreground hover:text-primary transition-colors duration-200 group">
+                      <Globe size={15} className="text-secondary/60 group-hover:text-primary shrink-0" />
+                      <span className="font-medium truncate">Strona internetowa</span>
+                      <ExternalLink size={11} className="text-muted shrink-0 ml-auto" />
+                    </a>
+                  )}
 
-                {place.facebook_url ? (
-                  <a href={place.facebook_url} target="_blank" rel="noopener"
-                    className="flex items-center gap-2.5 text-[13px] text-foreground hover:text-primary transition-colors duration-200 group">
-                    <FacebookIcon size={15} className="text-secondary/60 group-hover:text-primary shrink-0" />
-                    <span className="font-medium truncate">Facebook</span>
-                    <ExternalLink size={11} className="text-muted shrink-0 ml-auto" />
-                  </a>
-                ) : (
-                  <div className="flex items-center gap-2.5 text-[13px]">
-                    <FacebookIcon size={15} className="text-muted/40 shrink-0" />
-                    <span className="text-muted/60">Brak profilu Facebook</span>
-                  </div>
-                )}
+                  {place.facebook_url && (
+                    <a href={place.facebook_url} target="_blank" rel="noopener"
+                      className="flex items-center gap-2.5 text-[13px] text-foreground hover:text-primary transition-colors duration-200 group">
+                      <FacebookIcon size={15} className="text-secondary/60 group-hover:text-primary shrink-0" />
+                      <span className="font-medium truncate">Facebook</span>
+                      <ExternalLink size={11} className="text-muted shrink-0 ml-auto" />
+                    </a>
+                  )}
+                </div>
+              )}
+
+              {/* AI search */}
+              <div className="px-5 py-4 border-t border-border">
+                <a
+                  href={`https://www.google.com/search?q=${encodeURIComponent(place.title + " Kraków")}&udm=50`}
+                  target="_blank"
+                  rel="noopener"
+                  className="flex items-center justify-center gap-2 w-full px-4 py-2.5 text-[13px] font-medium text-white bg-gradient-to-r from-blue-500 to-violet-500 rounded-lg hover:from-blue-600 hover:to-violet-600 transition-all duration-200 shadow-sm"
+                >
+                  <span>🤖</span>
+                  <span>Wyszukaj w Google AI</span>
+                  <ExternalLink size={11} className="shrink-0 opacity-70" />
+                </a>
               </div>
 
               {/* Like button */}

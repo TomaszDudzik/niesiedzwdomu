@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import {
-  Trash2, Pencil, Eye, EyeOff, Loader2, RefreshCw,
+  Trash2, Pencil, Loader2, RefreshCw,
   ExternalLink, ImagePlus, Save, X, Upload, XCircle, MapPin, Plus,
 } from "lucide-react";
 import { PLACE_TYPE_LABELS, PLACE_TYPE_ICONS, DISTRICT_LIST } from "@/lib/mock-data";
@@ -120,6 +120,11 @@ export default function AdminPlacesPage() {
       likes: Number(editForm.likes) || 0,
       dislikes: Number(editForm.dislikes) || 0,
     };
+
+    // Include new image_url in DB payload if image was uploaded
+    if (newImageUrl) {
+      dbPayload.image_url = newImageUrl;
+    }
 
     // Try saving with facebook_url, retry without if column doesn't exist
     const payloadWithFb = editForm.facebook_url
@@ -267,7 +272,7 @@ export default function AdminPlacesPage() {
         </div>
       ) : (
         <div className="space-y-1.5">
-          {places.map((place, index) => {
+          {[...places].sort((a, b) => a.title.localeCompare(b.title, "pl")).map((place, index) => {
             const isExpanded = expanded === place.id;
             const isEditing = editing === place.id;
             const isDraft = place.status !== "published";
@@ -320,9 +325,14 @@ export default function AdminPlacesPage() {
                   )}
 
                   <button onClick={() => toggleStatus(place)}
-                    className="p-1 rounded text-muted-foreground hover:bg-stone-100 transition-colors"
-                    title={place.status === "published" ? "Ukryj" : "Publikuj"}>
-                    {place.status === "published" ? <EyeOff size={13} /> : <Eye size={13} />}
+                    className={cn(
+                      "px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide transition-colors",
+                      place.status === "published"
+                        ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                        : "bg-stone-200 text-stone-500 hover:bg-stone-300"
+                    )}
+                    title={place.status === "published" ? "Kliknij aby ukryć" : "Kliknij aby opublikować"}>
+                    {place.status === "published" ? "Published" : "Draft"}
                   </button>
 
                   <button onClick={() => handleDelete(place.id)}
