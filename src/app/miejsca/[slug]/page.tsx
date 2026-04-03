@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, MapPin, ExternalLink, Home, Globe, Users } from "lucide-react";
+import { ArrowLeft, MapPin, ExternalLink, Home, Globe, Users, Sparkles } from "lucide-react";
 import { PLACE_TYPE_LABELS, PLACE_TYPE_ICONS } from "@/lib/mock-data";
 import { FeedbackButtons } from "@/components/ui/feedback-buttons";
 import { getPlaceBySlug } from "@/lib/data";
@@ -121,39 +121,31 @@ export default async function PlaceDetailPage({ params }: PageProps) {
               </div>
 
               {/* Links section */}
-              {(place.source_url || place.facebook_url) && (
-                <div className="px-5 py-4 border-t border-border space-y-2.5">
-                  {place.source_url && (
-                    <a href={place.source_url} target="_blank" rel="noopener"
-                      className="flex items-center gap-2.5 text-[13px] text-foreground hover:text-primary transition-colors duration-200 group">
-                      <Globe size={15} className="text-secondary/60 group-hover:text-primary shrink-0" />
-                      <span className="font-medium truncate">Strona internetowa</span>
-                      <ExternalLink size={11} className="text-muted shrink-0 ml-auto" />
-                    </a>
-                  )}
+              <div className="px-5 py-4 border-t border-border space-y-2.5">
+                {place.source_url && (
+                  <a href={place.source_url} target="_blank" rel="noopener"
+                    className="flex items-center gap-2.5 text-[13px] text-foreground hover:text-primary transition-colors duration-200 group">
+                    <Globe size={15} className="text-secondary/60 group-hover:text-primary shrink-0" />
+                    <span className="font-medium truncate">Strona internetowa</span>
+                    <ExternalLink size={11} className="text-muted shrink-0 ml-auto" />
+                  </a>
+                )}
 
-                  {place.facebook_url && (
-                    <a href={place.facebook_url} target="_blank" rel="noopener"
-                      className="flex items-center gap-2.5 text-[13px] text-foreground hover:text-primary transition-colors duration-200 group">
-                      <FacebookIcon size={15} className="text-secondary/60 group-hover:text-primary shrink-0" />
-                      <span className="font-medium truncate">Facebook</span>
-                      <ExternalLink size={11} className="text-muted shrink-0 ml-auto" />
-                    </a>
-                  )}
-                </div>
-              )}
+                {place.facebook_url && (
+                  <a href={place.facebook_url} target="_blank" rel="noopener"
+                    className="flex items-center gap-2.5 text-[13px] text-foreground hover:text-primary transition-colors duration-200 group">
+                    <FacebookIcon size={15} className="text-secondary/60 group-hover:text-primary shrink-0" />
+                    <span className="font-medium truncate">Facebook</span>
+                    <ExternalLink size={11} className="text-muted shrink-0 ml-auto" />
+                  </a>
+                )}
 
-              {/* AI search */}
-              <div className="px-5 py-4 border-t border-border">
-                <a
-                  href={`https://www.google.com/search?q=${encodeURIComponent(place.title + " Kraków")}&udm=50`}
-                  target="_blank"
-                  rel="noopener"
-                  className="flex items-center justify-center gap-2 w-full px-4 py-2.5 text-[13px] font-medium text-white bg-gradient-to-r from-blue-500 to-violet-500 rounded-lg hover:from-blue-600 hover:to-violet-600 transition-all duration-200 shadow-sm"
-                >
-                  <span>🤖</span>
-                  <span>Wyszukaj w Google AI</span>
-                  <ExternalLink size={11} className="shrink-0 opacity-70" />
+                <a href={`https://www.google.com/search?q=${encodeURIComponent(place.title + " Kraków")}&udm=50`}
+                  target="_blank" rel="noopener"
+                  className="flex items-center gap-2.5 text-[13px] text-foreground hover:text-primary transition-colors duration-200 group">
+                  <Sparkles size={15} className="text-secondary/60 group-hover:text-primary shrink-0" />
+                  <span className="font-medium truncate">Dowiedz się więcej (AI)</span>
+                  <ExternalLink size={11} className="text-muted shrink-0 ml-auto" />
                 </a>
               </div>
 
