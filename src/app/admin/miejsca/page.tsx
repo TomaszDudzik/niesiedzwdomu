@@ -3,11 +3,11 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import {
   Trash2, Pencil, Loader2, RefreshCw,
-  ExternalLink, ImagePlus, Save, X, Upload, XCircle, MapPin, Plus,
+  ExternalLink, ImagePlus, Save, X, Upload, XCircle, MapPin, Plus, ClipboardPaste,
 } from "lucide-react";
 import { PLACE_TYPE_LABELS, PLACE_TYPE_ICONS, DISTRICT_LIST } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
-import type { Place, PlaceType } from "@/types/database";
+import type { Place } from "@/types/database";
 
 const MiniMapLazy = lazy(() => import("./mini-map").then((m) => ({ default: m.MiniMap })));
 
@@ -22,6 +22,142 @@ export default function AdminPlacesPage() {
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingPreview, setPendingPreview] = useState<string | null>(null);
   const [geocoding, setGeocoding] = useState(false);
+  const [pasteModal, setPasteModal] = useState(false);
+  const [pasteText, setPasteText] = useState("");
+  const [pastePreview, setPastePreview] = useState<Record<string, string>[]>([]);
+  const [pasteHeaders, setPasteHeaders] = useState<string[]>([]);
+  const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState({ done: 0, total: 0 });
+
+  const parsePastedData = (text: string) => {
+    const trimmed = text.trim();
+
+    // Try Python dict format: { "key": [...], ... } or data = { ... }
+    const dictMatch = trimmed.match(/\{[\s\S]*\}/);
+    if (dictMatch) {
+      // Strip Python comments, join implicit string concatenation
+      const raw = dictMatch[0]
+        .replace(/#[^\n]*/g, "")
+        .replace(/'\s*\n\s*'/g, "")
+        .replace(/"\s*\n\s*"/g, "");
+      // Try parsing: first as-is (double quotes), then with single→double quote conversion
+      const attempts = [
+        raw, // already double-quoted JSON
+        raw.replace(/(?<=[{,[\s])'/g, '"').replace(/'(?=\s*[:,\]}])/g, '"'), // only convert delimiter quotes
+      ];
+      for (const attempt of attempts) {
+        try {
+          const jsonStr = attempt
+            .replace(/\bTrue\b/g, "true")
+            .replace(/\bFalse\b/g, "false")
+            .replace(/\bNone\b/g, "null")
+            .replace(/,\s*}/g, "}")
+            .replace(/,\s*]/g, "]");
+          const obj = JSON.parse(jsonStr);
+
+          // Dict of lists format: { "col": [val1, val2], "col2": [val1, val2] }
+          const keys = Object.keys(obj);
+          if (keys.length > 0 && Array.isArray(obj[keys[0]])) {
+            const rowCount = obj[keys[0]].length;
+            const headers = keys;
+            const rows: Record<string, string>[] = [];
+            for (let i = 0; i < rowCount; i++) {
+              const row: Record<string, string> = {};
+              headers.forEach((h) => { row[h] = String(obj[h]?.[i] ?? ""); });
+              rows.push(row);
+            }
+            setPasteHeaders(headers);
+            setPastePreview(rows);
+            return;
+          }
+        } catch { /* try next attempt */ }
+      }
+    }
+
+    // Fallback: tab/comma/semicolon separated table
+    const lines = trimmed.split(/\r?\n/).filter((l) => l.trim());
+    if (lines.length < 2) { setPastePreview([]); setPasteHeaders([]); return; }
+    const sep = lines[0].includes("\t") ? "\t" : lines[0].includes(";") ? ";" : ",";
+    const headers = lines[0].split(sep).map((h) => h.trim().replace(/^"|"$/g, ""));
+    const rows = lines.slice(1).map((line) => {
+      const vals = line.split(sep).map((v) => v.trim().replace(/^"|"$/g, ""));
+      const row: Record<string, string> = {};
+      headers.forEach((h, i) => { row[h] = vals[i] || ""; });
+      return row;
+    }).filter((r) => Object.values(r).some((v) => v));
+    setPasteHeaders(headers);
+    setPastePreview(rows);
+  };
+
+  const FIELD_ALIASES: Record<string, string[]> = {
+    title: ["title", "tytuł", "tytul", "nazwa", "name"],
+    description_short: ["description_short", "krótki opis", "krotki opis", "opis krótki", "short description", "opis"],
+    description_long: ["description_long", "długi opis", "dlugi opis", "opis długi", "long description"],
+    place_type: ["place_type", "typ", "type", "kategoria", "category"],
+    street: ["street", "ulica", "adres", "address"],
+    city: ["city", "miasto"],
+    district: ["district", "dzielnica"],
+    lat: ["lat", "latitude"],
+    lng: ["lng", "lon", "longitude"],
+    age_min: ["age_min", "wiek od", "wiek_min"],
+    age_max: ["age_max", "wiek do", "wiek_max"],
+    source_url: ["source_url", "url", "strona", "website", "link"],
+    facebook_url: ["facebook_url", "facebook", "fb", "facebook page"],
+    is_indoor: ["is_indoor", "wewnątrz", "indoor"],
+    is_free: ["is_free", "darmowe", "free"],
+  };
+
+  const resolveField = (header: string): string | null => {
+    const h = header.toLowerCase().trim();
+    for (const [field, aliases] of Object.entries(FIELD_ALIASES)) {
+      if (aliases.includes(h)) return field;
+    }
+    return null;
+  };
+
+  const runPasteImport = async () => {
+    if (pastePreview.length === 0) return;
+    setImporting(true);
+    setImportProgress({ done: 0, total: pastePreview.length });
+    const imported: Place[] = [];
+
+    for (let i = 0; i < pastePreview.length; i++) {
+      const row = pastePreview[i];
+      const place: Record<string, unknown> = { city: "Kraków", district: "Inne", place_type: "inne" };
+      for (const header of pasteHeaders) {
+        const field = resolveField(header);
+        if (!field || !row[header]) continue;
+        const val = row[header];
+        if (["lat", "lng", "age_min", "age_max"].includes(field)) {
+          place[field] = Number(val) || null;
+        } else if (["is_indoor", "is_free"].includes(field)) {
+          place[field] = val.toLowerCase() === "true" || val === "1" || val.toLowerCase() === "tak";
+        } else {
+          place[field] = val;
+        }
+      }
+      if (!place.title) continue;
+
+      try {
+        const res = await fetch("/api/admin/places", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(place),
+        });
+        const data = await res.json();
+        if (data.id) imported.push({ ...data, content_type: "place" } as Place);
+      } catch { /* skip */ }
+      setImportProgress({ done: i + 1, total: pastePreview.length });
+    }
+
+    setPlaces((prev) => [...imported, ...prev]);
+    setImporting(false);
+    setPasteModal(false);
+    setPasteText("");
+    setPastePreview([]);
+    setPasteHeaders([]);
+    alert(`Zaimportowano ${imported.length} z ${pastePreview.length} miejsc`);
+  };
 
   const fetchPlaces = useCallback(async () => {
     setLoading(true);
@@ -255,6 +391,10 @@ export default function AdminPlacesPage() {
       <div className="flex items-center justify-between mb-2">
         <h1 className="text-2xl font-bold text-foreground">Miejsca</h1>
         <div className="flex items-center gap-2">
+          <button onClick={() => setPasteModal(true)} className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-muted border border-border rounded-xl hover:border-[#CCC] transition-colors">
+            <ClipboardPaste size={14} />
+            Wklej dane
+          </button>
           <button onClick={createPlace} className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-white bg-primary rounded-xl hover:bg-primary/90 transition-colors">
             <Plus size={14} />
             Dodaj miejsce
@@ -516,6 +656,111 @@ export default function AdminPlacesPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Paste Import Modal */}
+      {pasteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col mx-4">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <div>
+                <h2 className="text-[15px] font-bold text-foreground">Wklej dane</h2>
+                <p className="text-[11px] text-muted mt-0.5">Wklej tabelę z Excela, Google Sheets lub DataFrame</p>
+              </div>
+              <button onClick={() => { setPasteModal(false); setPasteText(""); setPastePreview([]); setPasteHeaders([]); }}
+                className="p-1.5 rounded hover:bg-accent text-muted transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="px-5 py-4 overflow-y-auto flex-1 space-y-4">
+              <div>
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                  Pierwszy wiersz = nagłówki (title, ulica, miasto, typ, opis...)
+                </p>
+                <textarea
+                  className="w-full h-40 px-3 py-2 rounded-lg border border-border text-[12px] font-mono bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30 resize-none"
+                  placeholder={'{\n  "tytul": ["Kraków Zoo"],\n  "ulica": ["ul. Kasy Oszczędności 14"],\n  "miasto": ["Kraków"],\n  "typ": ["Relaks i natura"]\n}'}
+                  value={pasteText}
+                  onChange={(e) => { setPasteText(e.target.value); parsePastedData(e.target.value); }}
+                />
+              </div>
+
+              {/* Detected columns */}
+              {pasteHeaders.length > 0 && (
+                <div>
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                    Rozpoznane kolumny
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {pasteHeaders.map((h) => {
+                      const field = resolveField(h);
+                      return (
+                        <span key={h} className={cn(
+                          "px-2 py-0.5 rounded-full text-[10px] font-medium",
+                          field ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                        )}>
+                          {h} {field ? `→ ${field}` : "(pominięta)"}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Preview */}
+              {pastePreview.length > 0 && (
+                <div>
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                    Podgląd ({pastePreview.length} wierszy)
+                  </p>
+                  <div className="overflow-x-auto rounded-lg border border-border">
+                    <table className="w-full text-[11px]">
+                      <thead>
+                        <tr className="bg-accent/30">
+                          {pasteHeaders.filter((h) => resolveField(h)).map((h) => (
+                            <th key={h} className="px-2.5 py-1.5 text-left font-medium text-muted-foreground whitespace-nowrap">
+                              {resolveField(h)}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pastePreview.slice(0, 5).map((row, i) => (
+                          <tr key={i} className="border-t border-border/50">
+                            {pasteHeaders.filter((h) => resolveField(h)).map((h) => (
+                              <td key={h} className="px-2.5 py-1.5 text-foreground max-w-[200px] truncate">
+                                {row[h] || <span className="text-muted/40">—</span>}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="px-5 py-4 border-t border-border flex items-center justify-between">
+              <p className="text-[11px] text-muted">Miejsca zostaną dodane jako Draft</p>
+              <div className="flex items-center gap-2">
+                {importing && (
+                  <span className="text-[11px] text-muted">{importProgress.done}/{importProgress.total}</span>
+                )}
+                <button onClick={() => { setPasteModal(false); setPasteText(""); setPastePreview([]); setPasteHeaders([]); }}
+                  className="px-3 py-1.5 text-[12px] font-medium text-muted border border-border rounded-lg hover:text-foreground transition-colors">
+                  Anuluj
+                </button>
+                <button onClick={runPasteImport} disabled={importing || pastePreview.length === 0 || !pasteHeaders.some((h) => resolveField(h) === "title")}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50">
+                  {importing ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+                  {importing ? "Importowanie..." : `Importuj ${pastePreview.length} miejsc`}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
