@@ -99,6 +99,7 @@ export async function getPublishedPlaces(limit = 50): Promise<Place[]> {
     .from("places")
     .select("*")
     .eq("status", "published")
+    .order("likes", { ascending: false })
     .order("title", { ascending: true })
     .limit(limit);
   return (data || []).map(toPlace);

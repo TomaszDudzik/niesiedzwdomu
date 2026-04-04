@@ -68,7 +68,7 @@ export function HomeFilteredView({ events, places }: HomeFilteredViewProps) {
         (e.age_max === null || e.age_max >= ageGroup.min)
       );
     }
-    return result;
+    return [...result].sort((a, b) => b.likes - a.likes);
   }, [events, search, contentType, activeCategory, activeDistrict, ageGroup]);
 
   const filteredPlaces = useMemo(() => {
@@ -92,7 +92,7 @@ export function HomeFilteredView({ events, places }: HomeFilteredViewProps) {
         (p.age_max === null || p.age_max >= ageGroup.min)
       );
     }
-    return result;
+    return [...result].sort((a, b) => b.likes - a.likes);
   }, [places, search, contentType, activePlaceType, activeDistrict, ageGroup]);
 
   function clearFilters() {
@@ -288,29 +288,9 @@ export function HomeFilteredView({ events, places }: HomeFilteredViewProps) {
         </div>
       </section>
 
-      {/* Events section */}
-      {filteredEvents.length > 0 && (
-        <section className="container-page mt-6">
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="text-[15px] font-semibold text-foreground">
-              Nadchodzące wydarzenia
-              {hasActiveFilters && (
-                <span className="ml-2 text-[12px] font-normal text-muted-foreground">({filteredEvents.length})</span>
-              )}
-            </h2>
-            <SectionLink href="/wydarzenia">Wszystkie</SectionLink>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {filteredEvents.slice(0, 8).map((event) => (
-              <ContentCard key={event.id} item={event} />
-            ))}
-          </div>
-        </section>
-      )}
-
       {/* Places section */}
       {filteredPlaces.length > 0 && (
-        <section className="container-page mt-14">
+        <section className="container-page mt-6">
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-[15px] font-semibold text-foreground">
               Ciekawe miejsca
@@ -323,6 +303,26 @@ export function HomeFilteredView({ events, places }: HomeFilteredViewProps) {
           <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-4">
             {filteredPlaces.slice(0, 8).map((place) => (
               <ContentCard key={place.id} item={place} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Events section */}
+      {filteredEvents.length > 0 && (
+        <section className="container-page mt-14">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-[15px] font-semibold text-foreground">
+              Nadchodzące wydarzenia
+              {hasActiveFilters && (
+                <span className="ml-2 text-[12px] font-normal text-muted-foreground">({filteredEvents.length})</span>
+              )}
+            </h2>
+            <SectionLink href="/wydarzenia">Wszystkie</SectionLink>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            {filteredEvents.slice(0, 8).map((event) => (
+              <ContentCard key={event.id} item={event} />
             ))}
           </div>
         </section>
