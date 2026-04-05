@@ -32,18 +32,18 @@ export default function AdminPlacesPage() {
   const parsePastedData = (text: string) => {
     const trimmed = text.trim();
 
-    // Try Python dict format: { "key": [...], ... } or data = { ... }
-    const dictMatch = trimmed.match(/\{[\s\S]*\}/);
-    if (dictMatch) {
+    // Try JSON/Python structured data
+    const structMatch = trimmed.match(/[\[{][\s\S]*[\]}]/);
+    if (structMatch) {
       // Strip Python comments, join implicit string concatenation
-      const raw = dictMatch[0]
+      const raw = structMatch[0]
         .replace(/#[^\n]*/g, "")
         .replace(/'\s*\n\s*'/g, "")
         .replace(/"\s*\n\s*"/g, "");
       // Try parsing: first as-is (double quotes), then with single→double quote conversion
       const attempts = [
-        raw, // already double-quoted JSON
-        raw.replace(/(?<=[{,[\s])'/g, '"').replace(/'(?=\s*[:,\]}])/g, '"'), // only convert delimiter quotes
+        raw,
+        raw.replace(/(?<=[{,[\s])'/g, '"').replace(/'(?=\s*[:,\]}])/g, '"'),
       ];
       for (const attempt of attempts) {
         try {
@@ -55,20 +55,35 @@ export default function AdminPlacesPage() {
             .replace(/,\s*]/g, "]");
           const obj = JSON.parse(jsonStr);
 
-          // Dict of lists format: { "col": [val1, val2], "col2": [val1, val2] }
-          const keys = Object.keys(obj);
-          if (keys.length > 0 && Array.isArray(obj[keys[0]])) {
-            const rowCount = obj[keys[0]].length;
-            const headers = keys;
-            const rows: Record<string, string>[] = [];
-            for (let i = 0; i < rowCount; i++) {
+          // Array of objects: [{...}, {...}]
+          if (Array.isArray(obj) && obj.length > 0 && typeof obj[0] === "object") {
+            const headers = [...new Set(obj.flatMap((o: Record<string, unknown>) => Object.keys(o)))];
+            const rows = obj.map((o: Record<string, unknown>) => {
               const row: Record<string, string> = {};
-              headers.forEach((h) => { row[h] = String(obj[h]?.[i] ?? ""); });
-              rows.push(row);
-            }
+              headers.forEach((h) => { row[h] = o[h] != null ? String(o[h]) : ""; });
+              return row;
+            });
             setPasteHeaders(headers);
             setPastePreview(rows);
             return;
+          }
+
+          // Dict of lists format: { "col": [val1, val2], "col2": [val1, val2] }
+          if (typeof obj === "object" && !Array.isArray(obj)) {
+            const keys = Object.keys(obj);
+            if (keys.length > 0 && Array.isArray(obj[keys[0]])) {
+              const rowCount = obj[keys[0]].length;
+              const headers = keys;
+              const rows: Record<string, string>[] = [];
+              for (let i = 0; i < rowCount; i++) {
+                const row: Record<string, string> = {};
+                headers.forEach((h) => { row[h] = String(obj[h]?.[i] ?? ""); });
+                rows.push(row);
+              }
+              setPasteHeaders(headers);
+              setPastePreview(rows);
+              return;
+            }
           }
         } catch { /* try next attempt */ }
       }
@@ -404,15 +419,37 @@ export default function AdminPlacesPage() {
           </button>
         </div>
       </div>
-      <p className="text-sm text-muted mb-6">{places.length} miejsc</p>
+      {/* Stats */}
+      <div className="flex items-center gap-3 mb-6">
+        <span className="text-sm text-muted">{places.length} miejsc</span>
+        <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">
+          {places.filter((p) => p.status === "published").length} published
+        </span>
+        <span className="text-[11px] px-2 py-0.5 rounded-full bg-stone-200 text-stone-500 font-medium">
+          {places.filter((p) => p.status !== "published").length} draft
+        </span>
+      </div>
 
       {loading ? (
         <div className="flex items-center justify-center py-16">
           <Loader2 className="animate-spin text-muted-foreground" size={24} />
         </div>
       ) : (
-        <div className="space-y-1.5">
-          {[...places].sort((a, b) => a.title.localeCompare(b.title, "pl")).map((place, index) => {
+        <div className="space-y-6">
+          {Object.entries(PLACE_TYPE_LABELS).map(([type, label]) => {
+            const typePlaces = [...places]
+              .filter((p) => p.place_type === type)
+              .sort((a, b) => a.title.localeCompare(b.title, "pl"));
+            if (typePlaces.length === 0) return null;
+            return (
+              <div key={type}>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-lg">{PLACE_TYPE_ICONS[type as keyof typeof PLACE_TYPE_ICONS] || "📍"}</span>
+                  <h2 className="text-[13px] font-semibold text-foreground">{label}</h2>
+                  <span className="text-[11px] text-muted">({typePlaces.length})</span>
+                </div>
+                <div className="space-y-1.5">
+          {typePlaces.map((place, index) => {
             const isExpanded = expanded === place.id;
             const isEditing = editing === place.id;
             const isDraft = place.status !== "published";
@@ -653,6 +690,10 @@ export default function AdminPlacesPage() {
                     </div>
                   </div>
                 )}
+              </div>
+            );
+          })}
+                </div>
               </div>
             );
           })}

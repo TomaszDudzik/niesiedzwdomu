@@ -470,6 +470,7 @@ export const PLACE_TYPE_LABELS: Record<PlaceType, string> = {
   "Oglądanie / kultura": "Kultura",
   "Kreatywność i warsztaty": "Kreatywność",
   "Sala zabaw": "Sala zabaw",
+  "Plac zabaw": "Plac zabaw",
   "inne": "Inne",
 };
 
@@ -481,6 +482,7 @@ export const PLACE_TYPE_ICONS: Record<PlaceType, string> = {
   "Oglądanie / kultura": "🎭",
   "Kreatywność i warsztaty": "🎨",
   "Sala zabaw": "🧸",
+  "Plac zabaw": "🛝",
   "inne": "📍",
 };
 
