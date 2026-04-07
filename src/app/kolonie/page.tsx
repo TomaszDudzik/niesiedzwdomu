@@ -1,13 +1,19 @@
-import { Tent } from "lucide-react";
-import { ComingSoonPage } from "@/components/ui/coming-soon";
+import type { Metadata } from "next";
+import { getPublishedCamps } from "@/lib/data";
+import { CampsListView } from "./camps-list-view";
 
-export default function CampsPage() {
-  return (
-    <ComingSoonPage
-      icon={<Tent size={40} strokeWidth={1.5} />}
-      title="Kolonie i półkolonie"
-      description="Zbieramy najlepsze kolonie, półkolonie i warsztaty wakacyjne dla dzieci w Krakowie."
-      detail="Weryfikujemy oferty, zbieramy opinie rodziców i przygotowujemy porównania — żebyś mógł wybrać najlepszą opcję dla swojego dziecka."
-    />
-  );
+export const revalidate = 60;
+
+export const metadata: Metadata = {
+  title: "Kolonie i Półkolonie w Krakowie | NieSiedzWDomu",
+  description:
+    "Sprawdzone kolonie, półkolonie i warsztaty wakacyjne dla dzieci. Porównuj terminy, czas trwania i lokalizacje w jednym miejscu.",
+  alternates: {
+    canonical: "/kolonie",
+  },
+};
+
+export default async function CampsPage() {
+  const camps = await getPublishedCamps(120);
+  return <CampsListView camps={camps} />;
 }

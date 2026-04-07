@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import {
   Trash2, Pencil, Loader2, RefreshCw,
-  ExternalLink, ImagePlus, Save, X, Upload, XCircle, MapPin, Plus, ClipboardPaste,
+  ExternalLink, ImagePlus, Save, X, Upload, XCircle, MapPin, Plus, ClipboardPaste, ChevronDown, ChevronRight,
 } from "lucide-react";
 import { PLACE_TYPE_LABELS, PLACE_TYPE_ICONS, DISTRICT_LIST } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
@@ -28,6 +28,12 @@ export default function AdminPlacesPage() {
   const [pasteHeaders, setPasteHeaders] = useState<string[]>([]);
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState({ done: 0, total: 0 });
+  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
+
+  const isCategoryExpanded = (type: string) => !collapsedCategories[type];
+  const toggleCategory = (type: string) => {
+    setCollapsedCategories((prev) => ({ ...prev, [type]: !prev[type] }));
+  };
 
   const parsePastedData = (text: string) => {
     const trimmed = text.trim();
@@ -410,9 +416,9 @@ export default function AdminPlacesPage() {
             <ClipboardPaste size={14} />
             Wklej dane
           </button>
-          <button onClick={createPlace} className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-white bg-primary rounded-xl hover:bg-primary/90 transition-colors">
+          <button onClick={createPlace} className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-white bg-foreground rounded-xl hover:bg-stone-700 transition-colors">
             <Plus size={14} />
-            Dodaj miejsce
+            Dodaj
           </button>
           <button onClick={fetchPlaces} className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-muted border border-border rounded-xl hover:border-[#CCC] transition-colors">
             <RefreshCw size={14} />
@@ -441,13 +447,20 @@ export default function AdminPlacesPage() {
               .filter((p) => p.place_type === type)
               .sort((a, b) => a.title.localeCompare(b.title, "pl"));
             if (typePlaces.length === 0) return null;
+            const expandedCategory = isCategoryExpanded(type);
             return (
               <div key={type}>
-                <div className="flex items-center gap-2 mb-2">
+                <button
+                  type="button"
+                  onClick={() => toggleCategory(type)}
+                  className="w-full flex items-center gap-2 mb-2 text-left rounded-md px-1.5 py-1 hover:bg-accent/50 transition-colors"
+                >
+                  {expandedCategory ? <ChevronDown size={14} className="text-muted-foreground" /> : <ChevronRight size={14} className="text-muted-foreground" />}
                   <span className="text-lg">{PLACE_TYPE_ICONS[type as keyof typeof PLACE_TYPE_ICONS] || "📍"}</span>
                   <h2 className="text-[13px] font-semibold text-foreground">{label}</h2>
                   <span className="text-[11px] text-muted">({typePlaces.length})</span>
-                </div>
+                </button>
+                {expandedCategory && (
                 <div className="space-y-1.5">
           {typePlaces.map((place, index) => {
             const isExpanded = expanded === place.id;
@@ -694,6 +707,7 @@ export default function AdminPlacesPage() {
             );
           })}
                 </div>
+                )}
               </div>
             );
           })}

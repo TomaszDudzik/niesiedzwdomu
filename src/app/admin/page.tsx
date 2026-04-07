@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays, MapPin } from "lucide-react";
+import { CalendarDays, MapPin, Tent } from "lucide-react";
 
 export default function AdminDashboard() {
   return (
@@ -23,6 +23,13 @@ export default function AdminDashboard() {
           </div>
           <h3 className="font-semibold text-foreground mb-1">Miejsca</h3>
           <p className="text-sm text-muted">Zarządzaj ciekawymi miejscami</p>
+        </Link>
+        <Link href="/admin/kolonie" className="bg-card rounded-xl border border-border p-6 hover:shadow-sm hover:border-stone-300 transition-all">
+          <div className="w-9 h-9 rounded-lg text-sky-600 bg-sky-50 flex items-center justify-center mb-3">
+            <Tent size={18} />
+          </div>
+          <h3 className="font-semibold text-foreground mb-1">Kolonie</h3>
+          <p className="text-sm text-muted">Importuj i zarządzaj ofertami kolonii</p>
         </Link>
       </div>
     </div>

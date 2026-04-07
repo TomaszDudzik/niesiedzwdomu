@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import type { Event, Place } from "@/types/database";
+import type { Camp, Event, Place } from "@/types/database";
 
 /**
  * Server-side data fetching from Supabase.
@@ -21,6 +21,16 @@ function toEvent(row: Record<string, unknown>): Event {
 
 function toPlace(row: Record<string, unknown>): Place {
   return { ...row, content_type: "place" } as Place;
+}
+
+function toCamp(row: Record<string, unknown>): Camp {
+  const priceFrom = typeof row.price_from === "number" ? row.price_from : null;
+  const priceSingle = typeof row.price === "number" ? row.price : null;
+  return {
+    ...row,
+    content_type: "camp",
+    price: priceFrom ?? priceSingle ?? null,
+  } as Camp;
 }
 
 export async function getPublishedEvents(limit = 50): Promise<Event[]> {
@@ -114,4 +124,30 @@ export async function getPlaceBySlug(slug: string): Promise<Place | null> {
     .eq("status", "published")
     .single();
   return data ? toPlace(data) : null;
+}
+
+// ── Camps ──
+
+export async function getPublishedCamps(limit = 80): Promise<Camp[]> {
+  const db = getDb();
+  const today = new Date().toISOString().slice(0, 10);
+  const { data } = await db
+    .from("camps")
+    .select("*")
+    .eq("status", "published")
+    .or(`date_start.gte.${today},date_end.gte.${today}`)
+    .order("date_start", { ascending: true })
+    .limit(limit);
+  return (data || []).map(toCamp);
+}
+
+export async function getCampBySlug(slug: string): Promise<Camp | null> {
+  const db = getDb();
+  const { data } = await db
+    .from("camps")
+    .select("*")
+    .eq("slug", slug)
+    .eq("status", "published")
+    .single();
+  return data ? toCamp(data) : null;
 }
