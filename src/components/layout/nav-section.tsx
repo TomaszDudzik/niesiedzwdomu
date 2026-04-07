@@ -36,6 +36,10 @@ export function NavSection() {
                         ? "Misja"
                       : pathname.startsWith("/kontakt")
                         ? "Kontakt"
+                      : pathname.startsWith("/regulamin")
+                        ? "Regulamin"
+                      : pathname.startsWith("/prywatnosc")
+                        ? "Prywatnosc"
                       : "Nie siedź w domu - odkryj Kraków z dzieckiem"}
           </h1>
           <p className="text-[12px] text-muted mt-0.5 max-w-md">
@@ -45,6 +49,10 @@ export function NavSection() {
                 ? "Poznaj wartosci i cele, ktore stoja za NieSiedzWDomu."
               : pathname.startsWith("/kontakt")
                 ? "Napisz do nas, jesli chcesz dodac wydarzenie, miejsce, kolonie lub zajecia."
+              : pathname.startsWith("/regulamin")
+                ? "Poznaj zasady korzystania z serwisu NieSiedzWDomu."
+              : pathname.startsWith("/prywatnosc")
+                ? "Sprawdz, jak przetwarzamy dane i korzystamy z plikow cookies."
               : "Na NieSiedzWDomu znajdziesz sprawdzone wydarzenia, miejsca i inspiracje dla rodzin z dziećmi w Krakowie."}
           </p>
         </div>
