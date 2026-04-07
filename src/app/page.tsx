@@ -1,9 +1,20 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { getPublishedEvents, getPublishedPlaces } from "@/lib/data";
 import { HomeFilteredView } from "./home-filtered-view";
 
 export const revalidate = 60;
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://niesiedzwdomu.pl";
+
+export const metadata: Metadata = {
+  title: "Nie siedź w domu - Odkryj Kraków z dzieckiem | NieSiedzWDomu",
+  description:
+    "NieSiedzWDomu to wydarzenia, miejsca, kolonie i pomysly na rodzinny czas w Krakowie. Sprawdzone propozycje w jednym miejscu.",
+  alternates: {
+    canonical: "/",
+  },
+};
 
 export default async function HomePage() {
   const [upcomingEvents, places] = await Promise.all([
@@ -11,8 +22,46 @@ export default async function HomePage() {
     getPublishedPlaces(8),
   ]);
 
+  const organizationSchema = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "NieSiedzWDomu",
+    url: SITE_URL,
+    logo: `${SITE_URL}/logo.svg`,
+    contactPoint: [
+      {
+        "@type": "ContactPoint",
+        email: "kontakt.niesiedzwdomu@gmail.com",
+        contactType: "customer support",
+        availableLanguage: ["pl"],
+      },
+    ],
+  };
+
+  const websiteSchema = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "NieSiedzWDomu",
+    url: SITE_URL,
+    inLanguage: "pl-PL",
+    potentialAction: {
+      "@type": "SearchAction",
+      target: `${SITE_URL}/wydarzenia?search={search_term_string}`,
+      "query-input": "required name=search_term_string",
+    },
+  };
+
   return (
     <div>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
+      />
+
       <HomeFilteredView events={upcomingEvents} places={places} />
 
       <section className="container-page mt-14 opacity-40 pointer-events-none">

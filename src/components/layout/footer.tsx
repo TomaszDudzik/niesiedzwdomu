@@ -9,7 +9,6 @@ const FOOTER_SECTIONS = [
       { href: "/wydarzenia", label: "Wydarzenia" },
       { href: "/kolonie", label: "Kolonie" },
       { href: "/zajecia", label: "Zajęcia" },
-      { href: "/kalendarz", label: "Kalendarz" },
     ],
   },
   {
@@ -26,8 +25,7 @@ const FOOTER_SECTIONS = [
     links: [
       { href: "/o-nas", label: "O nas" },
       { href: "/misja", label: "Misja" },
-      { href: "/kontakt", label: "Kontakt" },
-      { href: "/kontakt", label: "Napisz do nas" },
+      { href: "/kontakt", label: "Napisz do Nas" },
     ],
   },
 ];

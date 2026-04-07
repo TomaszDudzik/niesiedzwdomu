@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, Calendar, Clock, MapPin, Users, ExternalLink } from "lucide-react";
 import { CATEGORY_LABELS } from "@/lib/mock-data";
@@ -11,15 +12,162 @@ export const revalidate = 60;
 
 interface PageProps { params: Promise<{ slug: string }>; }
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://niesiedzwdomu.pl";
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const event = await getEventBySlug(slug);
+
+  if (!event) {
+    return {
+      title: "Wydarzenie nie znalezione | NieSiedzWDomu",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const description = event.description_short || `Sprawdz szczegoly wydarzenia ${event.title} w Krakowie.`;
+  const url = `${SITE_URL}/wydarzenia/${event.slug}`;
+
+  return {
+    title: `${event.title} | Wydarzenia dla dzieci Krakow`,
+    description,
+    alternates: {
+      canonical: `/wydarzenia/${event.slug}`,
+    },
+    openGraph: {
+      title: event.title,
+      description,
+      url,
+      type: "article",
+      locale: "pl_PL",
+      images: event.image_url
+        ? [{ url: event.image_url, alt: event.title }]
+        : [{ url: "/og-image.svg", alt: "NieSiedzWDomu" }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: event.title,
+      description,
+      images: event.image_url ? [event.image_url] : ["/og-image.svg"],
+    },
+  };
+}
+
 export default async function EventDetailPage({ params }: PageProps) {
   const { slug } = await params;
   const event = await getEventBySlug(slug);
   if (!event) notFound();
 
   const related = await getRelatedEvents(event, 3);
+  const eventUrl = `${SITE_URL}/wydarzenia/${event.slug}`;
+  const hasOfferPrice = event.is_free || event.price !== null;
+  const eventStart = event.time_start ? `${event.date_start}T${event.time_start}` : event.date_start;
+  const eventEnd = event.date_end
+    ? event.time_end
+      ? `${event.date_end}T${event.time_end}`
+      : event.date_end
+    : undefined;
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Strona glowna",
+        item: SITE_URL,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Wydarzenia",
+        item: `${SITE_URL}/wydarzenia`,
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: event.title,
+        item: eventUrl,
+      },
+    ],
+  };
+  const eventSchema = {
+    "@context": "https://schema.org",
+    "@type": "Event",
+    name: event.title,
+    description: event.description_short,
+    url: eventUrl,
+    image: event.image_url ? [event.image_url] : [`${SITE_URL}/og-image.svg`],
+    startDate: eventStart,
+    endDate: eventEnd,
+    eventStatus: "https://schema.org/EventScheduled",
+    eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
+    location: {
+      "@type": "Place",
+      name: event.venue_name || "Krakow",
+      address: {
+        "@type": "PostalAddress",
+        streetAddress: event.venue_address || undefined,
+        addressLocality: "Krakow",
+        addressCountry: "PL",
+      },
+      geo:
+        event.lat !== null && event.lng !== null
+          ? {
+              "@type": "GeoCoordinates",
+              latitude: event.lat,
+              longitude: event.lng,
+            }
+          : undefined,
+    },
+    organizer: event.organizer
+      ? {
+          "@type": "Organization",
+          name: event.organizer,
+        }
+      : {
+          "@type": "Organization",
+          name: "NieSiedzWDomu",
+          url: SITE_URL,
+        },
+    offers: hasOfferPrice
+      ? {
+          "@type": "Offer",
+          url: event.source_url || eventUrl,
+          priceCurrency: "PLN",
+          availability: "https://schema.org/InStock",
+          price: event.is_free ? 0 : event.price,
+          validFrom: event.created_at,
+        }
+      : undefined,
+    keywords: [CATEGORY_LABELS[event.category], event.district, "wydarzenia dla dzieci", "Krakow"].join(", "),
+    audience:
+      event.age_min !== null || event.age_max !== null
+        ? {
+            "@type": "PeopleAudience",
+            suggestedMinAge: event.age_min ?? undefined,
+            suggestedMaxAge: event.age_max ?? undefined,
+          }
+        : undefined,
+    isAccessibleForFree: event.is_free,
+    inLanguage: "pl-PL",
+    areaServed: {
+      "@type": "City",
+      name: "Krakow",
+    },
+  };
 
   return (
     <div className="container-page py-8">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(eventSchema) }}
+      />
+
       <Link href="/wydarzenia" className="inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-primary transition-colors duration-200 mb-8">
         <ArrowLeft size={13} /> Wydarzenia
       </Link>

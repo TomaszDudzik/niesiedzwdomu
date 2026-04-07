@@ -22,10 +22,30 @@ export function NavSection() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
           <h1 className="text-lg md:text-xl font-bold text-foreground tracking-[-0.02em] leading-tight">
-            {pathname.startsWith("/wydarzenia") ? "Wydarzenia" : pathname.startsWith("/miejsca") ? "Miejsca" : pathname.startsWith("/kolonie") ? "Kolonie" : pathname.startsWith("/zajecia") ? "Zajęcia" : "Odkryj świat z dzieckiem"}
+            {pathname.startsWith("/wydarzenia")
+              ? "Wydarzenia"
+              : pathname.startsWith("/miejsca")
+                ? "Miejsca"
+                : pathname.startsWith("/kolonie")
+                  ? "Kolonie"
+                  : pathname.startsWith("/zajecia")
+                    ? "Zajęcia"
+                    : pathname.startsWith("/o-nas")
+                      ? "O nas"
+                      : pathname.startsWith("/misja")
+                        ? "Misja"
+                      : pathname.startsWith("/kontakt")
+                        ? "Kontakt"
+                      : "Nie siedź w domu - odkryj Kraków z dzieckiem"}
           </h1>
           <p className="text-[12px] text-muted mt-0.5 max-w-md">
-            Wydarzenia, zajęcia, kolonie i miejsca dla rodzin
+            {pathname.startsWith("/o-nas")
+              ? "Poznaj nasza misje i sposob pracy z tresciami dla rodzin z dziecmi."
+              : pathname.startsWith("/misja")
+                ? "Poznaj wartosci i cele, ktore stoja za NieSiedzWDomu."
+              : pathname.startsWith("/kontakt")
+                ? "Napisz do nas, jesli chcesz dodac wydarzenie, miejsce, kolonie lub zajecia."
+              : "Na NieSiedzWDomu znajdziesz sprawdzone wydarzenia, miejsca i inspiracje dla rodzin z dziećmi w Krakowie."}
           </p>
         </div>
         <div className="flex gap-1.5">

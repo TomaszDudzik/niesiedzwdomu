@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, MapPin, ExternalLink, Home, Globe, Users, Sparkles } from "lucide-react";
 import { PLACE_TYPE_LABELS, PLACE_TYPE_ICONS } from "@/lib/mock-data";
@@ -15,13 +16,131 @@ export const revalidate = 60;
 
 interface PageProps { params: Promise<{ slug: string }>; }
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://niesiedzwdomu.pl";
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const place = await getPlaceBySlug(slug);
+
+  if (!place) {
+    return {
+      title: "Miejsce nie znalezione | NieSiedzWDomu",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const description = place.description_short || `Sprawdz miejsce ${place.title} w Krakowie.`;
+  const url = `${SITE_URL}/miejsca/${place.slug}`;
+
+  return {
+    title: `${place.title} | Miejsca dla dzieci Krakow`,
+    description,
+    alternates: {
+      canonical: `/miejsca/${place.slug}`,
+    },
+    openGraph: {
+      title: place.title,
+      description,
+      url,
+      type: "website",
+      locale: "pl_PL",
+      images: place.image_url
+        ? [{ url: place.image_url, alt: place.title }]
+        : [{ url: "/og-image.svg", alt: "NieSiedzWDomu" }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: place.title,
+      description,
+      images: place.image_url ? [place.image_url] : ["/og-image.svg"],
+    },
+  };
+}
+
 export default async function PlaceDetailPage({ params }: PageProps) {
   const { slug } = await params;
   const place = await getPlaceBySlug(slug);
   if (!place) notFound();
 
+  const placeUrl = `${SITE_URL}/miejsca/${place.slug}`;
+  const sameAsLinks = [place.source_url, place.facebook_url].filter(
+    (url): url is string => Boolean(url)
+  );
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Strona glowna",
+        item: SITE_URL,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Miejsca",
+        item: `${SITE_URL}/miejsca`,
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: place.title,
+        item: placeUrl,
+      },
+    ],
+  };
+  const placeSchema = {
+    "@context": "https://schema.org",
+    "@type": "Place",
+    name: place.title,
+    description: place.description_short,
+    url: placeUrl,
+    image: place.image_url ? [place.image_url] : [`${SITE_URL}/og-image.svg`],
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: place.street || undefined,
+      addressLocality: place.city || "Krakow",
+      addressRegion: place.district || undefined,
+      addressCountry: "PL",
+    },
+    geo:
+      place.lat !== null && place.lng !== null
+        ? {
+            "@type": "GeoCoordinates",
+            latitude: place.lat,
+            longitude: place.lng,
+          }
+        : undefined,
+    isAccessibleForFree: place.is_free,
+    openingHours: place.opening_hours || undefined,
+    sameAs: sameAsLinks.length > 0 ? sameAsLinks : undefined,
+    audience:
+      place.age_min !== null || place.age_max !== null
+        ? {
+            "@type": "PeopleAudience",
+            suggestedMinAge: place.age_min ?? undefined,
+            suggestedMaxAge: place.age_max ?? undefined,
+          }
+        : undefined,
+    inLanguage: "pl-PL",
+    areaServed: {
+      "@type": "City",
+      name: "Krakow",
+    },
+  };
+
   return (
     <div className="container-page py-8">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(placeSchema) }}
+      />
+
       <Link href="/miejsca" className="inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-primary transition-colors duration-200 mb-8">
         <ArrowLeft size={13} /> Miejsca
       </Link>
