@@ -124,9 +124,9 @@ function StructuredData({ schemas }: { schemas: object[] }) {
 }
 
 export function SeoLandingPage({ config }: { config: SeoPageConfig }) {
-  const structuredData = buildStructuredData(config);
-  const relatedLinks = buildRelatedLinks(config);
   const breadcrumbs = buildBreadcrumbs(config);
+  const structuredData = buildStructuredData(config, breadcrumbs);
+  const relatedLinks = buildRelatedLinks(config);
 
   return (
     <div>

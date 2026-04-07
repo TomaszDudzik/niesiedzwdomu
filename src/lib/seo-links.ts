@@ -1,5 +1,6 @@
 import type { InternalLink, SeoPageConfig } from "@/types/seo";
 import { seoPages } from "@/content/seo-pages";
+import { getCitySeoPage, nestedSeoPages } from "@/content/nested-seo-pages";
 
 /**
  * Static product pages that SEO pages should link to.
@@ -16,11 +17,16 @@ const PRODUCT_PAGES: InternalLink[] = [
  * Pages sharing more tags are considered more related.
  */
 const PAGE_TAGS: Record<string, string[]> = {
+  "krakow": ["ogólne", "miasto", "wydarzenia", "miejsca", "sport", "rodzina"],
+  "krakow/dla-rodzicow": ["rodzina", "wydarzenia", "miejsca", "kolonie", "bezpłatne"],
+  "krakow/dla-sportowcow": ["sport", "ruch", "miejsca", "wydarzenia", "na-zewnątrz"],
   "co-robic-z-dzieckiem-w-krakowie": ["ogólne", "wydarzenia", "miejsca", "kolonie", "bezpłatne"],
   "wydarzenia-dla-dzieci-krakow": ["wydarzenia", "warsztaty", "spektakle", "kultura"],
   "polkolonie-krakow": ["kolonie", "półkolonie", "wakacje", "ferie"],
   "place-zabaw-krakow": ["miejsca", "place-zabaw", "na-zewnątrz", "bezpłatne"],
 };
+
+const ALL_SEO_PAGES = [...seoPages, ...nestedSeoPages];
 
 /**
  * Computes a relevance score between two pages based on shared tags.
@@ -36,7 +42,7 @@ function relevanceScore(slugA: string, slugB: string): number {
  * Excludes the page itself. Returns up to `limit` results.
  */
 export function getRelatedSeoPages(currentSlug: string, limit = 4): InternalLink[] {
-  return seoPages
+  return ALL_SEO_PAGES
     .filter((p) => p.slug !== currentSlug)
     .map((p) => ({ page: p, score: relevanceScore(currentSlug, p.slug) }))
     .sort((a, b) => b.score - a.score)
@@ -99,6 +105,18 @@ export function buildRelatedLinks(page: SeoPageConfig): InternalLink[] {
  * Builds a breadcrumb trail for an SEO page.
  */
 export function buildBreadcrumbs(page: SeoPageConfig): { label: string; href: string }[] {
+  const segments = page.slug.split("/");
+
+  if (segments.length === 2) {
+    const cityPage = getCitySeoPage(segments[0]);
+
+    return [
+      { label: "Strona główna", href: "/" },
+      { label: cityPage?.h1 || segments[0], href: `/${segments[0]}` },
+      { label: page.h1, href: `/${page.slug}` },
+    ];
+  }
+
   return [
     { label: "Strona główna", href: "/" },
     { label: page.h1, href: `/${page.slug}` },
