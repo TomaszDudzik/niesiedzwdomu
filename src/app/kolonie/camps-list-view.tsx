@@ -2,10 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { CalendarRange, LayoutGrid, MapPin, Search, SlidersHorizontal, X } from "lucide-react";
+import { Calendar, Clock, ExternalLink, MapPin, Search, SlidersHorizontal, Users, X } from "lucide-react";
 import { CAMP_TYPE_ICONS, CAMP_TYPE_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
-import { cn, formatDateShort, formatPrice } from "@/lib/utils";
-import { ContentCard } from "@/components/ui/content-card";
+import { cn, formatAgeRange, formatDateShort, formatPrice } from "@/lib/utils";
 import type { Camp, CampType, District } from "@/types/database";
 
 const campTypes = Object.keys(CAMP_TYPE_LABELS) as CampType[];
@@ -16,8 +15,6 @@ const AGE_GROUPS = [
   { key: "9-12", label: "9-12 lat", icon: "🎒", min: 9, max: 12 },
   { key: "13+", label: "13+ lat", icon: "🧑", min: 13, max: 99 },
 ] as const;
-
-type ViewMode = "cards" | "timeline";
 
 interface CampsListViewProps {
   camps: Camp[];
@@ -47,6 +44,19 @@ function typeBarClass(type: CampType): string {
   return "bg-amber-500";
 }
 
+function organizerKey(organizer: string | null | undefined): string {
+  return (organizer || "Organizator").trim().toLocaleLowerCase("pl-PL");
+}
+
+function getCampDisplayTitle(title: string, organizer: string | null | undefined): string {
+  const normalizedOrganizer = (organizer || "").trim();
+  if (!normalizedOrganizer) return title;
+
+  const escapedOrganizer = normalizedOrganizer.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const prefixPattern = new RegExp(`^${escapedOrganizer}[\s:,-]+`, "i");
+  return title.replace(prefixPattern, "").trim() || title;
+}
+
 function formatDateShortWithWeekday(date: Date): string {
   const shortDate = formatDateShort(date);
   const weekday = date.toLocaleDateString("pl-PL", { weekday: "short" }).replace(".", "");
@@ -58,10 +68,10 @@ export function CampsListView({ camps }: CampsListViewProps) {
   const [activeType, setActiveType] = useState<CampType | null>(null);
   const [activeDistrict, setActiveDistrict] = useState<District | null>(null);
   const [activeAgeGroup, setActiveAgeGroup] = useState<string | null>(null);
-  const [view, setView] = useState<ViewMode>("timeline");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectedDayRange, setSelectedDayRange] = useState<{ from: number; to: number } | null>(null);
   const [draggingHandle, setDraggingHandle] = useState<"from" | "to" | null>(null);
+  const [expandedCampId, setExpandedCampId] = useState<string | null>(null);
   const sliderRef = useRef<HTMLDivElement | null>(null);
 
   const ageGroup = AGE_GROUPS.find((g) => g.key === activeAgeGroup) ?? null;
@@ -93,17 +103,6 @@ export function CampsListView({ camps }: CampsListViewProps) {
     }
     return result;
   }, [camps, search, activeType, activeDistrict, ageGroup]);
-
-  const grouped = useMemo(() => {
-    return campTypes
-      .map((type) => ({
-        type,
-        label: CAMP_TYPE_LABELS[type],
-        icon: CAMP_TYPE_ICONS[type],
-        items: filtered.filter((c) => c.camp_type === type),
-      }))
-      .filter((group) => group.items.length > 0);
-  }, [filtered]);
 
   const availableDistricts = useMemo(() => {
     const set = new Set<string>();
@@ -186,6 +185,28 @@ export function CampsListView({ camps }: CampsListViewProps) {
     };
   }, [timeline, selectedDayRange]);
 
+  const displayGroups = useMemo(() => {
+    const groupedRows = new Map<string, { organizer: string; rows: TimelineCamp[] }>();
+
+    for (const row of displayRows) {
+      const key = organizerKey(row.camp.organizer);
+      const existing = groupedRows.get(key);
+      if (existing) {
+        existing.rows.push(row);
+      } else {
+        groupedRows.set(key, {
+          organizer: row.camp.organizer || "Organizator",
+          rows: [row],
+        });
+      }
+    }
+
+    return Array.from(groupedRows.values()).map((group) => ({
+      ...group,
+      rows: group.rows.sort((a, b) => a.startDay - b.startDay),
+    }));
+  }, [displayRows]);
+
   const dayFromClientX = (clientX: number) => {
     if (!timeline || !sliderRef.current) return 0;
     const rect = sliderRef.current.getBoundingClientRect();
@@ -254,32 +275,6 @@ export function CampsListView({ camps }: CampsListViewProps) {
             />
           </div>
 
-          <div className="ml-auto flex items-center gap-1 rounded-lg border border-border p-0.5 bg-accent/50">
-            <button
-              onClick={() => setView("timeline")}
-              className={cn(
-                "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all duration-200",
-                view === "timeline"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground hover:bg-card/60"
-              )}
-            >
-              <CalendarRange size={13} />
-              Harmonogram
-            </button>
-            <button
-              onClick={() => setView("cards")}
-              className={cn(
-                "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all duration-200",
-                view === "cards"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground hover:bg-card/60"
-              )}
-            >
-              <LayoutGrid size={13} />
-              Karty
-            </button>
-          </div>
         </div>
 
         {filtersOpen && (
@@ -386,185 +381,220 @@ export function CampsListView({ camps }: CampsListViewProps) {
             </button>
           )}
         </div>
-      ) : view === "cards" ? (
-        <div className="space-y-12">
-          {grouped.map((group) => (
-            <section key={group.type}>
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-lg">{group.icon}</span>
-                <h2 className="text-[15px] font-semibold text-foreground">{group.label}</h2>
-                <span className="text-[12px] text-muted-foreground">({group.items.length})</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                {group.items.map((camp) => (
-                  <ContentCard key={camp.id} item={camp} />
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
       ) : (
         <div className="rounded-xl border border-border bg-card p-4 sm:p-5">
           <div className="mb-4">
             <h2 className="text-[15px] sm:text-[16px] font-semibold text-foreground">Harmonogram turnusów</h2>
             <p className="text-[12px] text-muted-foreground mt-1">
-              Szybko porównasz skąd jest kolonia i ile trwa. Pasek pokazuje zakres dat względem innych ofert.
+              Wszystkie szczegóły turnusu są dostępne po kliknięciu paska.
             </p>
           </div>
 
           {!timeline ? null : (
             <div className="space-y-3">
-              <div className="rounded-lg border border-border overflow-hidden">
-                <div className="flex items-center justify-between px-3 py-1.5 bg-accent/40 border-b border-border">
-                  <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Slicer dat</span>
-                  {timeline && (
-                    <span className="text-[11px] text-muted-foreground">
-                      {formatDateShort(new Date(activeFromDay * MS_DAY))} - {formatDateShort(new Date(activeToDay * MS_DAY))}
-                    </span>
-                  )}
+              <div className="rounded-lg border border-border bg-card px-3 py-2">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[11px] text-muted-foreground">Możesz wybrać daty, które Cię interesują</p>
                   {selectedDayRange !== null && (
                     <button
                       onClick={() => setSelectedDayRange(null)}
-                      className="text-[10px] text-primary hover:underline font-medium"
+                      className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors"
                     >
-                      Wyczyść
+                      <X size={10} /> Wyczyść
                     </button>
                   )}
                 </div>
-                <div className="px-3 pt-2 pb-1 bg-card">
-                  <div className="relative h-4 text-[10px] text-muted-foreground uppercase tracking-wide">
-                    {timeline.monthList.map((m) => (
-                      <span
-                        key={m.key}
-                        className="absolute -translate-x-1/2 whitespace-nowrap"
-                        style={{ left: `${((m.dayStart - timeline.rangeStart) / timeline.totalDays) * 100}%` }}
-                      >
-                        {m.label}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <div className="px-3 pb-3 bg-card">
-                  {timeline.monthList.length > 0 && (
-                    <>
-                      <div
-                        ref={sliderRef}
-                        className="relative h-7 mb-2 cursor-pointer"
-                        onMouseDown={(e) => {
-                          const nextDay = dayFromClientX(e.clientX);
-                          const pick: "from" | "to" = Math.abs(nextDay - activeFromDay) <= Math.abs(nextDay - activeToDay) ? "from" : "to";
-                          setSelectedDayRange((prev) => {
-                            const base = prev ?? { from: timeline.rangeStart, to: timeline.rangeEnd };
-                            if (pick === "from") {
-                              return { from: Math.min(nextDay, base.to), to: base.to };
-                            }
-                            return { from: base.from, to: Math.max(nextDay, base.from) };
-                          });
-                          setDraggingHandle(pick);
-                        }}
-                      >
-                        <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-2 rounded-full bg-accent" />
-                        <div
-                          className="absolute top-1/2 -translate-y-1/2 h-2 rounded-full bg-primary/70"
-                          style={{
-                            left: `${((activeFromDay - timeline.rangeStart) / timeline.totalDays) * 100}%`,
-                            width: `${((activeToDay - activeFromDay) / timeline.totalDays) * 100}%`,
-                          }}
-                        />
-                        <button
-                          type="button"
-                          aria-label="Początek zakresu"
-                          onMouseDown={(e) => {
-                            e.stopPropagation();
-                            setDraggingHandle("from");
-                          }}
-                          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-4 w-4 rounded-full bg-white border-2 border-primary shadow"
-                          style={{ left: `${((activeFromDay - timeline.rangeStart) / timeline.totalDays) * 100}%` }}
-                        />
-                        <button
-                          type="button"
-                          aria-label="Koniec zakresu"
-                          onMouseDown={(e) => {
-                            e.stopPropagation();
-                            setDraggingHandle("to");
-                          }}
-                          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-4 w-4 rounded-full bg-white border-2 border-primary shadow"
-                          style={{ left: `${((activeToDay - timeline.rangeStart) / timeline.totalDays) * 100}%` }}
-                        />
-                      </div>
 
-                      <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                        <span>Od: {formatDateShort(new Date(activeFromDay * MS_DAY))}</span>
-                        <span>Do: {formatDateShort(new Date(activeToDay * MS_DAY))}</span>
-                      </div>
-                    </>
-                  )}
-                </div>
+                {timeline.monthList.length > 0 && (
+                  <>
+                    <div
+                      ref={sliderRef}
+                      className="relative h-5 mb-2 cursor-pointer"
+                      onMouseDown={(e) => {
+                        const nextDay = dayFromClientX(e.clientX);
+                        const pick: "from" | "to" = Math.abs(nextDay - activeFromDay) <= Math.abs(nextDay - activeToDay) ? "from" : "to";
+                        setSelectedDayRange((prev) => {
+                          const base = prev ?? { from: timeline.rangeStart, to: timeline.rangeEnd };
+                          if (pick === "from") {
+                            return { from: Math.min(nextDay, base.to), to: base.to };
+                          }
+                          return { from: base.from, to: Math.max(nextDay, base.from) };
+                        });
+                        setDraggingHandle(pick);
+                      }}
+                    >
+                      <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-1.5 rounded-full bg-accent" />
+                      <div
+                        className="absolute top-1/2 -translate-y-1/2 h-1.5 rounded-full bg-[#7ba3cc]/70"
+                        style={{
+                          left: `${((activeFromDay - timeline.rangeStart) / timeline.totalDays) * 100}%`,
+                          width: `${((activeToDay - activeFromDay) / timeline.totalDays) * 100}%`,
+                        }}
+                      />
+                      <button
+                        type="button"
+                        aria-label="Początek zakresu"
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          setDraggingHandle("from");
+                        }}
+                        className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-3 w-3 rounded-full bg-white border-2 border-[#7ba3cc] shadow"
+                        style={{ left: `${((activeFromDay - timeline.rangeStart) / timeline.totalDays) * 100}%` }}
+                      />
+                      <button
+                        type="button"
+                        aria-label="Koniec zakresu"
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          setDraggingHandle("to");
+                        }}
+                        className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-3 w-3 rounded-full bg-white border-2 border-[#7ba3cc] shadow"
+                        style={{ left: `${((activeToDay - timeline.rangeStart) / timeline.totalDays) * 100}%` }}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-medium text-foreground bg-accent rounded px-1.5 py-0.5">{new Date(activeFromDay * MS_DAY).toLocaleDateString("pl-PL", { day: "numeric", month: "long" })}</span>
+                      <span className="text-[10px] text-muted-foreground">—</span>
+                      <span className="text-[10px] font-medium text-foreground bg-accent rounded px-1.5 py-0.5">{new Date(activeToDay * MS_DAY).toLocaleDateString("pl-PL", { day: "numeric", month: "long" })}</span>
+                    </div>
+                  </>
+                )}
               </div>
 
               {displayRows.length === 0 ? (
                 <p className="text-center text-[12px] text-muted-foreground py-6">Brak kolonii w tym miesiącu.</p>
               ) : (
-              <div className="space-y-2.5">
-                {displayRows.map((row) => {
-                  const visibleStart = Math.max(row.startDay, displayRangeStart);
-                  const left = ((visibleStart - displayRangeStart) / displayTotalDays) * 100;
-                  const visibleEnd = Math.min(row.endDay, displayRangeStart + displayTotalDays - 1);
-                  const width = ((visibleEnd - visibleStart + 1) / displayTotalDays) * 100;
-                  const isClipped = row.startDay < displayRangeStart || row.endDay > displayRangeStart + displayTotalDays - 1;
-                  const labelRight = Math.min(left + Math.max(width, 1.4), 100);
+              <div className="space-y-4">
+                {displayGroups.map((group) => {
+                  const expandedRow = group.rows.find((row) => row.camp.id === expandedCampId) ?? null;
 
                   return (
-                    <Link
-                      href={`/kolonie/${row.camp.slug}`}
-                      key={row.camp.id}
-                      className="group block rounded-lg border border-border bg-background p-2.5 sm:p-3 hover:border-primary/30 transition-colors"
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
-                        <div className="min-w-0">
-                          <p className="text-[13px] font-semibold text-foreground truncate group-hover:text-primary transition-colors">
-                            {CAMP_TYPE_ICONS[row.camp.camp_type]} {row.camp.title}
-                          </p>
-                          <p className="text-[11px] text-muted-foreground truncate">
-                            {row.camp.venue_name} • {row.camp.district}
-                          </p>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
-                          <span className="px-2 py-0.5 rounded-full bg-accent text-foreground font-medium">
-                            {formatDateShort(row.camp.date_start)} - {formatDateShort(row.camp.date_end)}
-                          </span>
-                          <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-medium">
-                            {row.durationDays} dni
-                          </span>
-                          <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-medium">
-                            {formatPrice(row.camp.price)}
-                          </span>
+                  <section key={group.organizer} className="rounded-lg border border-border bg-background p-2 sm:p-2.5">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0 flex items-center gap-1.5">
+                          <h3 className="text-[11px] font-semibold text-foreground truncate">{group.organizer}</h3>
+                          <span className="text-[9px] text-muted-foreground whitespace-nowrap">{group.rows.length} turn.</span>
                         </div>
                       </div>
 
-                      <div className="relative h-8">
-                        <span
-                          className="absolute top-0 -translate-x-1/2 text-[10px] text-muted-foreground whitespace-nowrap"
-                          style={{ left: `${left}%` }}
-                        >
-                          {formatDateShortWithWeekday(new Date(visibleStart * MS_DAY))}
-                        </span>
-                        <span
-                          className="absolute top-0 -translate-x-1/2 text-[10px] text-muted-foreground whitespace-nowrap"
-                          style={{ left: `${labelRight}%` }}
-                        >
-                          {formatDateShortWithWeekday(new Date(visibleEnd * MS_DAY))}
-                        </span>
-                        <div className="absolute left-0 right-0 bottom-0 h-3 rounded-full bg-accent/50 overflow-hidden">
-                          <div
-                            className={cn("absolute top-0 h-3 rounded-full", isClipped ? "bg-stone-400" : typeBarClass(row.camp.camp_type))}
-                            style={{ left: `${left}%`, width: `${Math.max(width, 1.4)}%` }}
-                          />
-                        </div>
+                      <div className="relative h-12 min-w-0">
+                        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-3.5 rounded-full bg-accent/50" />
+
+                        {group.rows.map((row) => {
+                          const visibleStart = Math.max(row.startDay, displayRangeStart);
+                          const left = ((visibleStart - displayRangeStart) / displayTotalDays) * 100;
+                          const visibleEnd = Math.min(row.endDay, displayRangeStart + displayTotalDays - 1);
+                          const width = ((visibleEnd - visibleStart + 1) / displayTotalDays) * 100;
+                          const labelRight = Math.min(left + Math.max(width, 1.6), 100);
+                          const isClipped = row.startDay < displayRangeStart || row.endDay > displayRangeStart + displayTotalDays - 1;
+                          const rangeLabel = `${formatDateShort(new Date(visibleStart * MS_DAY))} - ${formatDateShort(new Date(visibleEnd * MS_DAY))}`;
+
+                          return (
+                            <div key={row.camp.id}>
+                              <span
+                                className="absolute top-0.5 text-[9px] text-muted-foreground whitespace-nowrap bg-card/90 px-0.5 rounded"
+                                style={{ left: `${left}%` }}
+                              >
+                                {formatDateShortWithWeekday(new Date(visibleStart * MS_DAY))}
+                              </span>
+                              <span
+                                className="absolute bottom-0.5 -translate-x-full text-[9px] text-muted-foreground whitespace-nowrap bg-card/90 px-0.5 rounded"
+                                style={{ left: `${labelRight}%` }}
+                              >
+                                {formatDateShortWithWeekday(new Date(visibleEnd * MS_DAY))}
+                              </span>
+
+                              <button
+                                type="button"
+                                title={`${getCampDisplayTitle(row.camp.title, row.camp.organizer)} (${rangeLabel})`}
+                                aria-label={`Pokaż szczegóły turnusu ${getCampDisplayTitle(row.camp.title, row.camp.organizer)}`}
+                                onClick={() => setExpandedCampId((prev) => (prev === row.camp.id ? null : row.camp.id))}
+                                className={cn(
+                                  "absolute top-1/2 -translate-y-1/2 h-3.5 rounded-full transition-all duration-200",
+                                  isClipped
+                                    ? expandedCampId === row.camp.id ? "bg-slate-500 shadow-sm z-10" : "bg-slate-300 hover:bg-slate-400"
+                                    : expandedCampId === row.camp.id ? "bg-green-600 shadow-sm z-10" : "bg-[#7ba3cc] hover:bg-[#5b82b5]"
+                                )}
+                                style={{ left: `${left}%`, width: `${Math.max(width, 1.6)}%` }}
+                              />
+                            </div>
+                          );
+                        })}
                       </div>
-                    </Link>
-                  );
-                })}
+
+                      {expandedRow && (
+                        <div className="mt-2 rounded-xl border border-border bg-card overflow-hidden shadow-sm">
+                          {/* Header */}
+                          <div className="px-4 py-3 bg-[#7ba3cc]/10 border-b border-[#7ba3cc]/20 flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-[13px] font-semibold text-foreground leading-snug">
+                                {CAMP_TYPE_ICONS[expandedRow.camp.camp_type]} {expandedRow.camp.title}
+                              </p>
+                              <p className="text-[11px] text-muted-foreground mt-0.5">{expandedRow.camp.organizer}</p>
+                            </div>
+                            <span className="shrink-0 text-[10px] font-semibold text-[#7ba3cc] bg-[#7ba3cc]/15 rounded-full px-2.5 py-1 whitespace-nowrap">
+                              {CAMP_TYPE_LABELS[expandedRow.camp.camp_type]}
+                            </span>
+                          </div>
+
+                          {/* Info chips */}
+                          <div className="px-4 py-3 flex flex-wrap gap-2">
+                            <span className="inline-flex items-center gap-1.5 text-[11px] text-foreground bg-accent rounded-lg px-2.5 py-1.5">
+                              <Calendar size={11} className="text-[#7ba3cc]" />
+                              {formatDateShort(expandedRow.camp.date_start)} – {formatDateShort(expandedRow.camp.date_end)}
+                            </span>
+                            <span className="inline-flex items-center gap-1.5 text-[11px] text-foreground bg-accent rounded-lg px-2.5 py-1.5">
+                              <Clock size={11} className="text-[#7ba3cc]" />
+                              {expandedRow.durationDays} dni
+                            </span>
+                            <span className="inline-flex items-center gap-1.5 text-[11px] text-foreground bg-accent rounded-lg px-2.5 py-1.5">
+                              <Users size={11} className="text-[#7ba3cc]" />
+                              {formatAgeRange(expandedRow.camp.age_min, expandedRow.camp.age_max)}
+                            </span>
+                            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-foreground bg-accent rounded-lg px-2.5 py-1.5">
+                              {formatPrice(expandedRow.camp.price)}
+                            </span>
+                          </div>
+
+                          {/* Location + description */}
+                          <div className="px-4 pb-3 space-y-1.5">
+                            {(expandedRow.camp.venue_name || expandedRow.camp.venue_address) && (
+                              <p className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
+                                <MapPin size={11} className="mt-0.5 shrink-0 text-[#7ba3cc]" />
+                                {[expandedRow.camp.venue_name, expandedRow.camp.venue_address].filter(Boolean).join(", ")}
+                              </p>
+                            )}
+                            {expandedRow.camp.description_short && (
+                              <p className="text-[11px] text-foreground/80 leading-relaxed line-clamp-2">{expandedRow.camp.description_short}</p>
+                            )}
+                          </div>
+
+                          {/* Actions */}
+                          <div className="px-4 py-3 border-t border-border flex items-center gap-2">
+                            <Link
+                              href={`/kolonie/${expandedRow.camp.slug}`}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-[#7ba3cc] text-white hover:bg-[#5b82b5] transition-colors"
+                            >
+                              Pełne szczegóły <ExternalLink size={11} />
+                            </Link>
+                            {expandedRow.camp.source_url && (
+                              <a
+                                href={expandedRow.camp.source_url}
+                                target="_blank"
+                                rel="noopener"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium border border-border text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-colors"
+                              >
+                                Strona organizatora <ExternalLink size={11} />
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </section>
+                );})}
               </div>
               )}
             </div>
