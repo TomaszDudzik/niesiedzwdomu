@@ -6,8 +6,8 @@ type BreadcrumbItem = {
   href: string;
 };
 
-const SITE_NAME = "nie siedź w domu";
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.niesiedzwdomu.pl";
+const SITE_NAME = "niesiedzwdomu";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://niesiedzwdomu.pl";
 
 /**
  * Generates full Next.js Metadata for an SEO landing page.

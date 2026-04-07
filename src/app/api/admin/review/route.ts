@@ -8,7 +8,7 @@ async function geocodeAddress(address: string): Promise<{ lat: number; lng: numb
       q: query, format: "json", limit: "1", countrycodes: "pl",
     })}`;
     const res = await fetch(url, {
-      headers: { "User-Agent": "rodzic-w-tarapatach/1.0" },
+      headers: { "User-Agent": "niesiedzwdomu/1.0" },
     });
     const data = await res.json();
     if (data?.[0]) {

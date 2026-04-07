@@ -21,7 +21,7 @@ const cities: CityConfig[] = [
 
 const cityPages: SeoPageConfig[] = cities.map((city) => ({
   slug: city.slug,
-  metaTitle: `${city.label} | nie siedź w domu`,
+  metaTitle: `${city.label} | niesiedzwdomu`,
   metaDescription:
     `Sprawdź ${city.label.toLowerCase()} z perspektywy rodzin, aktywnych osób i codziennych planów. Wydarzenia, miejsca i praktyczne przewodniki w jednym miejscu.`,
   h1: city.label,
@@ -88,7 +88,7 @@ const groupTemplates: GroupTemplate[] = [
     slug: "dla-rodzicow",
     buildPage: (city) => ({
       slug: `${city.slug}/dla-rodzicow`,
-      metaTitle: `${city.label} dla rodziców | nie siedź w domu`,
+      metaTitle: `${city.label} dla rodziców | niesiedzwdomu`,
       metaDescription:
         `Sprawdź ${city.label.toLowerCase()} dla rodziców. Wydarzenia, miejsca i rodzinne aktywności w ${city.locative} zebrane w jednym miejscu.`,
       h1: `${city.label} dla rodziców`,
@@ -156,7 +156,7 @@ const groupTemplates: GroupTemplate[] = [
     slug: "dla-sportowcow",
     buildPage: (city) => ({
       slug: `${city.slug}/dla-sportowcow`,
-      metaTitle: `${city.label} dla sportowców | nie siedź w domu`,
+      metaTitle: `${city.label} dla sportowców | niesiedzwdomu`,
       metaDescription:
         `Aktywny ${city.label.toLowerCase()} dla sportowców. Sprawdź sportowe wydarzenia, ruchowe miejsca i rodzinne aktywności w ${city.locative}.`,
       h1: `${city.label} dla sportowców`,

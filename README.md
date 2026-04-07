@@ -1,4 +1,4 @@
-# ObczajTo.com
+# niesiedzwdomu
 
 Serwis dla rodzicow do odkrywania:
 - wydarzen
@@ -9,8 +9,8 @@ Projekt laczy aplikacje Next.js (frontend + admin API routes) z pipeline scrapin
 
 ## Project details
 
-- Nazwa robocza repo: `rodzic-w-tarapatach`
-- Domena produkcyjna: `ObczajTo.com` (wykupiona w home.pl)
+- Nazwa robocza repo: `niesiedzwdomu`
+- Domena produkcyjna: `niesiedzwdomu.pl` (wykupiona w home.pl)
 - Hosting aplikacji web: Vercel
 - Baza danych i storage: Supabase
 - Pipeline danych: Python (scraping, ekstrakcja, walidacja, review/publish)
@@ -78,7 +78,7 @@ NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
 SUPABASE_SERVICE_ROLE_KEY=YOUR_SUPABASE_SERVICE_ROLE_KEY
 OPENAI_API_KEY=YOUR_OPENAI_API_KEY
-NEXT_PUBLIC_SITE_URL=https://obczajto.com
+NEXT_PUBLIC_SITE_URL=https://niesiedzwdomu.pl
 ```
 
 ### Pipeline Python (`.env` w root projektu lokalnie)
@@ -148,13 +148,13 @@ python scripts/seed_sources.py
 
 Wazne: pipeline Python nie powinien byc uruchamiany jako funkcje Vercel. To osobny proces (cron/worker/serwer).
 
-## Domena `ObczajTo.com` z home.pl + Vercel
+## Domena `niesiedzwdomu.pl` z home.pl + Vercel
 
 Najprostszy i bezpieczny wariant:
 
 1. W Vercel: `Project -> Settings -> Domains` dodaj:
-   - `obczajto.com`
-   - `www.obczajto.com`
+   - `niesiedzwdomu.pl`
+   - `www.niesiedzwdomu.pl`
 2. Vercel pokaze docelowe rekordy DNS.
 3. W panelu home.pl ustaw rekordy zgodnie z Vercel (najczesciej):
    - `A` dla apex (`@`) -> `76.76.21.21`

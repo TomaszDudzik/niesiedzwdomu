@@ -12,7 +12,7 @@ import requests
 logger = logging.getLogger(__name__)
 
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
-USER_AGENT = "rodzic-w-tarapatach/1.0"
+USER_AGENT = "niesiedzwdomu/1.0"
 
 # Cache to avoid re-geocoding the same address within a session
 _cache: dict[str, tuple[float, float] | None] = {}

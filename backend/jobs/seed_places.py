@@ -220,7 +220,7 @@ def geocode(address: str) -> tuple[float, float] | None:
         resp = requests.get(
             "https://nominatim.openstreetmap.org/search",
             params={"q": query, "format": "json", "limit": "1", "countrycodes": "pl"},
-            headers={"User-Agent": "rodzic-w-tarapatach/1.0"},
+            headers={"User-Agent": "niesiedzwdomu/1.0"},
             timeout=10,
         )
         data = resp.json()

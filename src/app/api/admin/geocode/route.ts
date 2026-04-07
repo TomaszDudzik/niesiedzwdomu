@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
   try {
     for (const params of attempts) {
       const res = await fetch(`${NOMINATIM_URL}?${params}`, {
-        headers: { "User-Agent": "rodzic-w-tarapatach/1.0" },
+        headers: { "User-Agent": "niesiedzwdomu/1.0" },
       });
       const results = await res.json();
 

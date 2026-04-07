@@ -34,7 +34,7 @@ export function Logo({ variant = "default", size = "md", className }: LogoProps)
   return (
     <span className={cn("inline-flex items-center", className)}>
       <span className={cn("font-medium tracking-[-0.02em] leading-none", c.fontSize)} style={{ color }}>
-        nie siedź w domu
+        niesiedzwdomu
       </span>
       <span className={c.gap}>
         <Arrow w={c.arrowW} h={c.arrowH} stroke={arrowColor} strokeWidth={c.strokeWidth} />

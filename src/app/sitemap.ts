@@ -5,7 +5,7 @@ import { getPublishedEvents, getPublishedPlaces } from "@/lib/data";
 
 export const revalidate = 3600;
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.niesiedzwdomu.pl";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://niesiedzwdomu.pl";
 
 const STATIC_ROUTES = [
   { path: "", priority: 1, changeFrequency: "daily" as const },

@@ -62,7 +62,7 @@ export function Footer() {
 
         <div className="mt-10 pt-6 border-t border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <p className="text-[12px] text-muted-foreground">
-            © {new Date().getFullYear()} nie siedź w domu. Wszystkie prawa zastrzeżone.
+            © {new Date().getFullYear()} niesiedzwdomu. Wszystkie prawa zastrzeżone.
           </p>
           <div className="flex items-center gap-4 text-[12px] text-muted-foreground">
             <Link href="/regulamin" className="hover:text-primary transition-colors duration-200">Regulamin</Link>

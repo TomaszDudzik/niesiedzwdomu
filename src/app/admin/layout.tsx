@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Admin — nie siedź w domu",
+  title: "Admin — niesiedzwdomu",
   robots: "noindex, nofollow",
 };
 
