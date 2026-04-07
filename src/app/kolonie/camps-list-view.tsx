@@ -425,7 +425,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                     >
                       <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-1.5 rounded-full bg-accent" />
                       <div
-                        className="absolute top-1/2 -translate-y-1/2 h-1.5 rounded-full bg-[#7ba3cc]/70"
+                        className="absolute top-1/2 -translate-y-1/2 h-1.5 rounded-full bg-[#a8c4e0]/70"
                         style={{
                           left: `${((activeFromDay - timeline.rangeStart) / timeline.totalDays) * 100}%`,
                           width: `${((activeToDay - activeFromDay) / timeline.totalDays) * 100}%`,
@@ -438,7 +438,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                           e.stopPropagation();
                           setDraggingHandle("from");
                         }}
-                        className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-3 w-3 rounded-full bg-white border-2 border-[#7ba3cc] shadow"
+                        className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-3 w-3 rounded-full bg-white border-2 border-[#a8c4e0] shadow"
                         style={{ left: `${((activeFromDay - timeline.rangeStart) / timeline.totalDays) * 100}%` }}
                       />
                       <button
@@ -448,7 +448,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                           e.stopPropagation();
                           setDraggingHandle("to");
                         }}
-                        className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-3 w-3 rounded-full bg-white border-2 border-[#7ba3cc] shadow"
+                        className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-3 w-3 rounded-full bg-white border-2 border-[#a8c4e0] shadow"
                         style={{ left: `${((activeToDay - timeline.rangeStart) / timeline.totalDays) * 100}%` }}
                       />
                     </div>
@@ -515,7 +515,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                                   "absolute top-1/2 -translate-y-1/2 h-3.5 rounded-full transition-all duration-200",
                                   isClipped
                                     ? expandedCampId === row.camp.id ? "bg-slate-500 shadow-sm z-10" : "bg-slate-300 hover:bg-slate-400"
-                                    : expandedCampId === row.camp.id ? "bg-green-600 shadow-sm z-10" : "bg-[#7ba3cc] hover:bg-[#5b82b5]"
+                                    : expandedCampId === row.camp.id ? "bg-red-300 shadow-sm z-10" : "bg-[#a8c4e0] hover:bg-[#4a6fa0]"
                                 )}
                                 style={{ left: `${left}%`, width: `${Math.max(width, 1.6)}%` }}
                               />
@@ -527,14 +527,14 @@ export function CampsListView({ camps }: CampsListViewProps) {
                       {expandedRow && (
                         <div className="mt-2 rounded-xl border border-border bg-card overflow-hidden shadow-sm">
                           {/* Header */}
-                          <div className="px-4 py-3 bg-[#7ba3cc]/10 border-b border-[#7ba3cc]/20 flex items-start justify-between gap-3">
+                          <div className="px-4 py-3 bg-[#a8c4e0]/10 border-b border-[#a8c4e0]/20 flex items-start justify-between gap-3">
                             <div className="min-w-0">
                               <p className="text-[13px] font-semibold text-foreground leading-snug">
                                 {CAMP_TYPE_ICONS[expandedRow.camp.camp_type]} {expandedRow.camp.title}
                               </p>
                               <p className="text-[11px] text-muted-foreground mt-0.5">{expandedRow.camp.organizer}</p>
                             </div>
-                            <span className="shrink-0 text-[10px] font-semibold text-[#7ba3cc] bg-[#7ba3cc]/15 rounded-full px-2.5 py-1 whitespace-nowrap">
+                            <span className="shrink-0 text-[10px] font-semibold text-[#a8c4e0] bg-[#a8c4e0]/15 rounded-full px-2.5 py-1 whitespace-nowrap">
                               {CAMP_TYPE_LABELS[expandedRow.camp.camp_type]}
                             </span>
                           </div>
@@ -542,15 +542,15 @@ export function CampsListView({ camps }: CampsListViewProps) {
                           {/* Info chips */}
                           <div className="px-4 py-3 flex flex-wrap gap-2">
                             <span className="inline-flex items-center gap-1.5 text-[11px] text-foreground bg-accent rounded-lg px-2.5 py-1.5">
-                              <Calendar size={11} className="text-[#7ba3cc]" />
+                              <Calendar size={11} className="text-[#a8c4e0]" />
                               {formatDateShort(expandedRow.camp.date_start)} – {formatDateShort(expandedRow.camp.date_end)}
                             </span>
                             <span className="inline-flex items-center gap-1.5 text-[11px] text-foreground bg-accent rounded-lg px-2.5 py-1.5">
-                              <Clock size={11} className="text-[#7ba3cc]" />
+                              <Clock size={11} className="text-[#a8c4e0]" />
                               {expandedRow.durationDays} dni
                             </span>
                             <span className="inline-flex items-center gap-1.5 text-[11px] text-foreground bg-accent rounded-lg px-2.5 py-1.5">
-                              <Users size={11} className="text-[#7ba3cc]" />
+                              <Users size={11} className="text-[#a8c4e0]" />
                               {formatAgeRange(expandedRow.camp.age_min, expandedRow.camp.age_max)}
                             </span>
                             <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-foreground bg-accent rounded-lg px-2.5 py-1.5">
@@ -562,7 +562,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                           <div className="px-4 pb-3 space-y-1.5">
                             {(expandedRow.camp.venue_name || expandedRow.camp.venue_address) && (
                               <p className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
-                                <MapPin size={11} className="mt-0.5 shrink-0 text-[#7ba3cc]" />
+                                <MapPin size={11} className="mt-0.5 shrink-0 text-[#a8c4e0]" />
                                 {[expandedRow.camp.venue_name, expandedRow.camp.venue_address].filter(Boolean).join(", ")}
                               </p>
                             )}
@@ -575,7 +575,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                           <div className="px-4 py-3 border-t border-border flex items-center gap-2">
                             <Link
                               href={`/kolonie/${expandedRow.camp.slug}`}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-[#7ba3cc] text-white hover:bg-[#5b82b5] transition-colors"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-[#a8c4e0] text-white hover:bg-[#4a6fa0] transition-colors"
                             >
                               Pełne szczegóły <ExternalLink size={11} />
                             </Link>
