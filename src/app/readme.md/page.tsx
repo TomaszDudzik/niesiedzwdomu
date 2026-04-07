@@ -15,7 +15,7 @@ const envFrontend = [
   "NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY",
   "SUPABASE_SERVICE_ROLE_KEY=YOUR_SUPABASE_SERVICE_ROLE_KEY",
   "OPENAI_API_KEY=YOUR_OPENAI_API_KEY",
-  "NEXT_PUBLIC_SITE_URL=https://niesiedzwdomu.pl",
+  "NEXT_PUBLIC_SITE_URL=https://www.niesiedzwdomu.pl",
 ];
 
 const envPython = [

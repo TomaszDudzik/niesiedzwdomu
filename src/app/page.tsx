@@ -5,7 +5,7 @@ import { getPublishedEvents, getPublishedPlaces } from "@/lib/data";
 import { HomeFilteredView } from "./home-filtered-view";
 
 export const revalidate = 60;
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://niesiedzwdomu.pl";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.niesiedzwdomu.pl";
 
 export const metadata: Metadata = {
   title: "Nie siedź w domu - Odkryj Kraków z dzieckiem | NieSiedzWDomu",
