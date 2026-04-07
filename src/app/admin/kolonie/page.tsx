@@ -35,13 +35,13 @@ export default function AdminCampsPage() {
   const [importProgress, setImportProgress] = useState({ done: 0, total: 0 });
 
   const mapCampRow = (row: Record<string, unknown>): Camp => {
-    const priceFrom = row.price_from as number | null | undefined;
-    const priceSingle = row.price as number | null | undefined;
+    const priceFrom = typeof row.price_from === "number" ? row.price_from : null;
+    const priceSingle = typeof row.price === "number" ? row.price : null;
     return {
-      ...(row as Camp),
+      ...row,
       content_type: "camp",
       price: priceFrom ?? priceSingle ?? null,
-    };
+    } as Camp;
   };
 
   const fetchCamps = useCallback(async () => {
