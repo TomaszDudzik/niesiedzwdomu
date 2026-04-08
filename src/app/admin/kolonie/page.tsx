@@ -80,6 +80,7 @@ export default function AdminCampsPage() {
     published: 1,
     outdated: 2,
     cancelled: 3,
+    deleted: 4,
   };
 
   const filteredCamps = useMemo(() => {

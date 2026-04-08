@@ -189,6 +189,18 @@ def _generate_with_reference(
             f"No people, no faces, no text. "
             f"Realistic photography style."
         )
+    elif category == "sport":
+        prompt = (
+            f"On this indoor sports court, create a scene related to this event:\n\n"
+            f"{event_info}\n\n"
+            f"Place a focused set of sports-related objects on the gym floor. "
+            f"Use a realistic mix of larger and smaller items such as balls, cones, mats, rackets, bibs, or training props. "
+            f"Arrange them naturally in the center of the court, with enough space around them so they stay clearly visible. "
+            f"Keep the dark bleachers in the background unchanged and slightly out of focus. "
+            f"Match the existing cool indoor sports lighting, floor reflections, and perspective. "
+            f"No people, no hands, no faces, no text, no logos. "
+            f"Realistic photography style."
+        )
     else:
         prompt = (
             f"On this wooden table, arrange a rich spread of objects "
