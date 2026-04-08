@@ -49,6 +49,22 @@ def main() -> None:
         public_url = upload_from_url(db, temp_url, item_id)
         db.table("places").update({"image_url": public_url}).eq("id", item_id).execute()
 
+    elif target == "activities":
+        # Activity image generation
+        description: str = args.get("description", "")
+
+        logger.info("Generating activity image for '%s' (id=%s)", title, item_id)
+
+        temp_url = generate_event_image(
+            title=title,
+            category="inne",
+            description=description,
+        )
+
+        db = database.get_client()
+        public_url = upload_from_url(db, temp_url, item_id)
+        db.table("activities").update({"image_url": public_url}).eq("id", item_id).execute()
+
     else:
         # Event image generation
         category: str = args.get("category", "inne")

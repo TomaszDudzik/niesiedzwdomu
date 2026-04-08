@@ -43,12 +43,8 @@ export function EventsListView({ events }: EventsListViewProps) {
         [e.title, e.description_short, e.venue_name, e.district].join(" ").toLowerCase().includes(q)
       );
     }
-    if (activeCategory) {
-      result = result.filter((e) => e.category === activeCategory);
-    }
-    if (activeDistrict) {
-      result = result.filter((e) => e.district === activeDistrict);
-    }
+    if (activeCategory) result = result.filter((e) => e.category === activeCategory);
+    if (activeDistrict) result = result.filter((e) => e.district === activeDistrict);
     if (ageGroup) {
       result = result.filter((e) =>
         (e.age_min === null || e.age_min <= ageGroup.max) &&
@@ -58,7 +54,6 @@ export function EventsListView({ events }: EventsListViewProps) {
     return result;
   }, [events, search, activeCategory, activeDistrict, ageGroup]);
 
-  // Group by category preserving order
   const grouped = useMemo(() => {
     const groups: { category: EventCategory; label: string; icon: string; events: Event[] }[] = [];
     const seen = new Set<string>();
@@ -66,12 +61,7 @@ export function EventsListView({ events }: EventsListViewProps) {
       const cat = event.category;
       if (!seen.has(cat)) {
         seen.add(cat);
-        groups.push({
-          category: cat,
-          label: CATEGORY_LABELS[cat] || cat,
-          icon: CATEGORY_ICONS[cat] || "✨",
-          events: [],
-        });
+        groups.push({ category: cat, label: CATEGORY_LABELS[cat] || cat, icon: CATEGORY_ICONS[cat] || "✨", events: [] });
       }
       groups.find((g) => g.category === cat)!.events.push(event);
     }
@@ -93,188 +83,181 @@ export function EventsListView({ events }: EventsListViewProps) {
 
   return (
     <div className="container-page pt-5 pb-10">
-      {/* Filter panel */}
-      <div className="rounded-xl border border-border bg-card p-4 mb-6">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setFiltersOpen(!filtersOpen)}
-            className={cn(
-              "inline-flex items-center gap-2 px-4 py-2 sm:py-1.5 rounded-lg text-[13px] sm:text-[12px] font-semibold border-2 transition-all duration-200 shrink-0",
-              filtersOpen || hasActiveFilters
-                ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                : "bg-primary/5 text-foreground border-primary/20 hover:bg-primary/10 hover:border-primary/30"
-            )}
-          >
-            <SlidersHorizontal size={14} />
-            Filtry
-            {hasActiveFilters && (
-              <span className="ml-0.5 w-1.5 h-1.5 rounded-full bg-primary-foreground" />
-            )}
-          </button>
-          <div className="relative flex-1 hidden sm:block">
-            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
-            <input
-              type="text"
-              placeholder="Szukaj wydarzeń..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-border bg-background text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-200"
-            />
-          </div>
-          <div className="ml-auto flex items-center gap-1 rounded-lg border border-border p-0.5 bg-accent/50">
-            <button
-              onClick={() => setView("list")}
-              className={cn(
-                "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all duration-200",
-                view === "list"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground hover:bg-card/60"
-              )}
-            >
-              <LayoutGrid size={13} />
-              Lista
-            </button>
-            <button
-              onClick={() => setView("calendar-map")}
-              className={cn(
-                "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all duration-200",
-                view === "calendar-map"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground hover:bg-card/60"
-              )}
-            >
-              <CalendarDays size={13} />
-              Kalendarz
-            </button>
-          </div>
+      {/* Mobile top bar */}
+      <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 flex items-center gap-2">
+        <button
+          onClick={() => setFiltersOpen(!filtersOpen)}
+          className={cn("inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-[12px] font-semibold border-2 transition-all duration-200",
+            filtersOpen || hasActiveFilters ? "bg-primary text-primary-foreground border-primary" : "bg-primary/5 text-foreground border-primary/20 hover:bg-primary/10")}
+        >
+          <SlidersHorizontal size={13} />
+          Filtry
+          {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-primary-foreground" />}
+        </button>
+        <div className="relative flex-1">
+          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
+          <input type="text" placeholder="Szukaj wydarzeń..." value={search} onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-border bg-background text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-200" />
         </div>
+        <div className="flex items-center gap-1 rounded-lg border border-border p-0.5 bg-accent/50">
+          <button onClick={() => setView("list")} className={cn("px-2 py-1 rounded-lg text-[11px] font-medium transition-all duration-200", view === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}><LayoutGrid size={12} /></button>
+          <button onClick={() => setView("calendar-map")} className={cn("px-2 py-1 rounded-lg text-[11px] font-medium transition-all duration-200", view === "calendar-map" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}><CalendarDays size={12} /></button>
+        </div>
+      </div>
 
-        {filtersOpen && (
-          <div className="mt-3 pt-3 border-t border-border space-y-3">
-            {/* Search — mobile only (inside filters) */}
-            <div className="relative sm:hidden">
-              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
-              <input
-                type="text"
-                placeholder="Szukaj wydarzeń..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-8 pr-3 py-2 rounded-lg border border-border bg-background text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-200"
-              />
+      {/* Mobile filters dropdown */}
+      {filtersOpen && (
+        <div className="lg:hidden rounded-xl border border-border bg-card p-4 mb-4 space-y-3">
+          <div>
+            <p className="text-[11px] font-medium text-muted-foreground mb-1.5">Kategoria</p>
+            <div className="flex flex-wrap gap-1.5">
+              {categoryKeys.map((key) => {
+                const count = events.filter((e) => e.category === key).length;
+                if (count === 0) return null;
+                return (
+                  <button key={key} onClick={() => setActiveCategory(activeCategory === key ? null : key)}
+                    className={cn("px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-all duration-200",
+                      activeCategory === key ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
+                    {CATEGORY_ICONS[key]} {CATEGORY_LABELS[key]}
+                  </button>
+                );
+              })}
             </div>
-            {/* Categories */}
+          </div>
+          <div>
+            <p className="text-[11px] font-medium text-muted-foreground mb-1.5">Wiek dziecka</p>
+            <div className="flex flex-wrap gap-1.5">
+              {AGE_GROUPS.map((group) => (
+                <button key={group.key} onClick={() => setActiveAgeGroup(activeAgeGroup === group.key ? null : group.key)}
+                  className={cn("px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-all duration-200",
+                    activeAgeGroup === group.key ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
+                  {group.icon} {group.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <select value={activeDistrict || ""} onChange={(e) => setActiveDistrict(e.target.value ? (e.target.value as District) : null)}
+            className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-background text-[11px] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20">
+            <option value="">Wszystkie dzielnice</option>
+            {availableDistricts.map((d) => <option key={d} value={d}>{d}</option>)}
+          </select>
+          {hasActiveFilters && (
+            <button onClick={clearFilters} className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors">
+              <X size={11} /> Wyczyść filtry
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Desktop layout */}
+      <div className="lg:flex lg:gap-6 lg:items-start">
+
+        {/* Sidebar — desktop only */}
+        <aside className="hidden lg:block w-56 shrink-0 sticky top-20">
+          <div className="rounded-xl border border-border bg-card p-3 space-y-3">
+            <div className="flex items-center gap-1 rounded-lg border border-border p-0.5 bg-accent/50">
+              <button onClick={() => setView("list")} className={cn("flex-1 inline-flex items-center justify-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all duration-200", view === "list" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+                <LayoutGrid size={11} /> Lista
+              </button>
+              <button onClick={() => setView("calendar-map")} className={cn("flex-1 inline-flex items-center justify-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all duration-200", view === "calendar-map" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+                <CalendarDays size={11} /> Kalendarz
+              </button>
+            </div>
+
+            <div className="border-t border-border" />
+
+            <div className="relative">
+              <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
+              <input type="text" placeholder="Szukaj..." value={search} onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-7 pr-2 py-1 rounded-lg border border-border bg-background text-[11px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-200" />
+            </div>
+
             <div>
-              <p className="text-[11px] font-medium text-muted-foreground mb-1.5">Kategoria</p>
-              <div className="flex flex-wrap gap-1.5">
+              <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Kategoria</p>
+              <div className="flex flex-col gap-0.5">
                 {categoryKeys.map((key) => {
                   const count = events.filter((e) => e.category === key).length;
                   if (count === 0) return null;
                   return (
-                    <button
-                      key={key}
-                      onClick={() => setActiveCategory(activeCategory === key ? null : key)}
-                      className={cn(
-                        "px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-all duration-200",
-                        activeCategory === key
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground"
-                      )}
-                    >
-                      {CATEGORY_ICONS[key]} {CATEGORY_LABELS[key]}
+                    <button key={key} onClick={() => setActiveCategory(activeCategory === key ? null : key)}
+                      className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium text-left transition-all duration-200",
+                        activeCategory === key ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
+                      <span>{CATEGORY_ICONS[key]}</span>
+                      <span className="flex-1">{CATEGORY_LABELS[key]}</span>
+                      <span className="text-[9px] opacity-40">{count}</span>
                     </button>
                   );
                 })}
               </div>
             </div>
 
-            {/* Age group */}
             <div>
-              <p className="text-[11px] font-medium text-muted-foreground mb-1.5">Wiek dziecka</p>
-              <div className="flex flex-wrap gap-1.5">
+              <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Wiek</p>
+              <div className="flex flex-col gap-0.5">
                 {AGE_GROUPS.map((group) => (
-                  <button
-                    key={group.key}
-                    onClick={() => setActiveAgeGroup(activeAgeGroup === group.key ? null : group.key)}
-                    className={cn(
-                      "px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-all duration-200",
-                      activeAgeGroup === group.key
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground"
-                    )}
-                  >
-                    {group.icon} {group.label}
+                  <button key={group.key} onClick={() => setActiveAgeGroup(activeAgeGroup === group.key ? null : group.key)}
+                    className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium text-left transition-all duration-200",
+                      activeAgeGroup === group.key ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
+                    <span>{group.icon}</span>
+                    <span>{group.label}</span>
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* District */}
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="flex-1 min-w-[160px]">
-                <p className="text-[11px] font-medium text-muted-foreground mb-1.5">
-                  <MapPin size={10} className="inline mr-1" />
-                  Dzielnica
-                </p>
-                <select
-                  value={activeDistrict || ""}
-                  onChange={(e) => setActiveDistrict(e.target.value ? (e.target.value as District) : null)}
-                  className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-background text-[11px] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-200"
-                >
-                  <option value="">Wszystkie dzielnice</option>
-                  {availableDistricts.map((d) => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
-                </select>
-              </div>
+            <div>
+              <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                <MapPin size={9} className="inline mr-1" />Dzielnica
+              </p>
+              <select value={activeDistrict || ""} onChange={(e) => setActiveDistrict(e.target.value ? (e.target.value as District) : null)}
+                className="w-full px-2 py-1 rounded-lg border border-border bg-background text-[11px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary/20 transition-all duration-200">
+                <option value="">Wszystkie</option>
+                {availableDistricts.map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
             </div>
 
-            {/* Clear filters */}
             {hasActiveFilters && (
-              <button
-                onClick={clearFilters}
-                className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X size={11} />
-                Wyczyść filtry
+              <button onClick={clearFilters} className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors pt-2 border-t border-border w-full">
+                <X size={10} />Wyczyść filtry
               </button>
             )}
           </div>
-        )}
-      </div>
+        </aside>
 
-      {view === "calendar-map" ? (
-        <CalendarMapView events={filtered} />
-      ) : filtered.length === 0 ? (
-        <div className="text-center py-16">
-          <Search size={32} className="mx-auto text-muted-foreground/20 mb-3" />
-          <p className="text-[14px] text-muted mb-3">Brak wydarzeń pasujących do filtrów.</p>
-          {hasActiveFilters && (
-            <button
-              onClick={clearFilters}
-              className="text-[12px] font-medium text-primary hover:text-primary-hover transition-colors"
-            >
-              Wyczyść filtry
-            </button>
+        {/* Main content */}
+        <div className="flex-1 min-w-0">
+          {view === "calendar-map" ? (
+            <CalendarMapView events={filtered} />
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-16">
+              <Search size={32} className="mx-auto text-muted-foreground/20 mb-3" />
+              <p className="text-[14px] text-muted mb-3">Brak wydarzeń pasujących do filtrów.</p>
+              {hasActiveFilters && (
+                <button onClick={clearFilters} className="text-[12px] font-medium text-primary hover:text-primary-hover transition-colors">
+                  Wyczyść filtry
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-12">
+              {grouped.map((group) => (
+                <section key={group.category}>
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-lg">{group.icon}</span>
+                    <h2 className="text-[15px] font-semibold text-foreground">{group.label}</h2>
+                    <span className="text-[12px] text-muted-foreground">({group.events.length})</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {group.events.map((event) => (
+                      <ContentCard key={event.id} item={event} />
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
           )}
         </div>
-      ) : (
-        <div className="space-y-12">
-          {grouped.map((group) => (
-            <section key={group.category}>
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-lg">{group.icon}</span>
-                <h2 className="text-[15px] font-semibold text-foreground">{group.label}</h2>
-                <span className="text-[12px] text-muted-foreground">({group.events.length})</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                {group.events.map((event) => (
-                  <ContentCard key={event.id} item={event} />
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
-      )}
+      </div>
     </div>
   );
 }

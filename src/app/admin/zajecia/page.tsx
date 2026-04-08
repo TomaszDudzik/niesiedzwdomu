@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, lazy, Suspense } from "react";
 import {
   ChevronDown,
   ChevronRight,
   ClipboardPaste,
   ExternalLink,
+  ImagePlus,
   Loader2,
+  MapPin,
   Pencil,
   Plus,
   RefreshCw,
@@ -16,6 +18,8 @@ import {
   Upload,
   X,
 } from "lucide-react";
+
+const MiniMapLazy = lazy(() => import("../miejsca/mini-map").then((module) => ({ default: module.MiniMap })));
 import { ACTIVITY_TYPE_ICONS, ACTIVITY_TYPE_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
 import { cn, formatDateShort } from "@/lib/utils";
 import type { Activity } from "@/types/database";
@@ -229,6 +233,11 @@ export default function AdminActivitiesPage() {
   const [pastePreview, setPastePreview] = useState<Record<string, string>[]>([]);
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState({ done: 0, total: 0 });
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pendingPreview, setPendingPreview] = useState<string | null>(null);
+  const [generatingImage, setGeneratingImage] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState<string | null>(null);
+  const [geocoding, setGeocoding] = useState(false);
 
   const mapActivityRow = useCallback((row: Record<string, unknown>): Activity => ({
     ...row,
@@ -476,6 +485,55 @@ export default function AdminActivitiesPage() {
     alert(`Zaimportowano ${imported.length} z ${pastePreview.length} zajęć`);
   };
 
+  const handleFileSelect = (file: File) => {
+    if (pendingPreview) URL.revokeObjectURL(pendingPreview);
+    setPendingFile(file);
+    setPendingPreview(URL.createObjectURL(file));
+  };
+
+  const clearPendingFile = () => {
+    if (pendingPreview) URL.revokeObjectURL(pendingPreview);
+    setPendingFile(null);
+    setPendingPreview(null);
+  };
+
+  const generateImage = async (activity: Activity) => {
+    setGeneratingImage(activity.id);
+    try {
+      const res = await fetch("/api/admin/generate-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: activity.id, title: activity.title, description: activity.description_short, target: "activities" }),
+      });
+      const data = await res.json();
+      if (data.image_url) {
+        const bustUrl = `${data.image_url.split("?")[0]}?t=${Date.now()}`;
+        setActivities((prev) => prev.map((item) => (item.id === activity.id ? { ...item, image_url: bustUrl } : item)));
+      }
+    } catch {
+      alert("Błąd generowania obrazka");
+    }
+    setGeneratingImage(null);
+  };
+
+  const geocodeAddress = async () => {
+    const address = `${editForm.venue_address || ""}, Kraków`;
+    if (!address.trim()) return;
+    setGeocoding(true);
+    try {
+      const res = await fetch("/api/admin/geocode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address }),
+      });
+      const data = await res.json();
+      if (data.lat && data.lng) {
+        setEditForm((prev) => ({ ...prev, lat: data.lat, lng: data.lng }));
+      }
+    } catch { /* ignore */ }
+    setGeocoding(false);
+  };
+
   const startEditing = (activity: Activity) => {
     setEditing(activity.id);
     setEditForm({
@@ -505,6 +563,22 @@ export default function AdminActivitiesPage() {
   };
 
   const saveEdit = async (id: string) => {
+    let newImageUrl: string | null = null;
+    if (pendingFile) {
+      setUploadingImage(id);
+      const formData = new FormData();
+      formData.append("file", pendingFile);
+      formData.append("id", id);
+      formData.append("target", "activities");
+      try {
+        const res = await fetch("/api/admin/upload-image", { method: "POST", body: formData });
+        const data = await res.json();
+        if (data.image_url) newImageUrl = `${data.image_url.split("?")[0]}?t=${Date.now()}`;
+      } catch { /* ignore */ }
+      setUploadingImage(null);
+      clearPendingFile();
+    }
+
     const updates = {
       title: String(editForm.title || ""),
       description_short: String(editForm.description_short || ""),
@@ -528,6 +602,7 @@ export default function AdminActivitiesPage() {
       district: editForm.district,
       is_featured: Boolean(editForm.is_featured),
       is_free: Boolean(editForm.is_free),
+      ...(newImageUrl ? { image_url: newImageUrl } : {}),
     };
 
     const response = await fetch("/api/admin/activities", {
@@ -766,15 +841,6 @@ export default function AdminActivitiesPage() {
                                       ))}
                                     </select>
                                   </div>
-                                  <div>
-                                    <label className={labelClass}>Dzielnica</label>
-                                    <select className={inputClass} value={(editForm.district as string) || "Inne"} onChange={(event) => setEditForm((current) => ({ ...current, district: event.target.value }))}>
-                                      {DISTRICT_LIST.map((district) => (
-                                        <option key={district} value={district}>{district}</option>
-                                      ))}
-                                    </select>
-                                  </div>
-
                                   <div className="md:col-span-4">
                                     <label className={labelClass}>Krotki opis</label>
                                     <textarea rows={2} className={inputClass} value={(editForm.description_short as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, description_short: event.target.value }))} />
@@ -782,32 +848,6 @@ export default function AdminActivitiesPage() {
                                   <div className="md:col-span-4">
                                     <label className={labelClass}>Dlugi opis</label>
                                     <textarea rows={6} className={inputClass} value={(editForm.description_long as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, description_long: event.target.value }))} />
-                                  </div>
-
-                                  <div>
-                                    <label className={labelClass}>Data od</label>
-                                    <input type="date" className={inputClass} value={(editForm.date_start as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, date_start: event.target.value }))} />
-                                  </div>
-                                  <div>
-                                    <label className={labelClass}>Data do</label>
-                                    <input type="date" className={inputClass} value={(editForm.date_end as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, date_end: event.target.value }))} />
-                                  </div>
-                                  <div>
-                                    <label className={labelClass}>Godzina od</label>
-                                    <input type="time" className={inputClass} value={(editForm.time_start as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, time_start: event.target.value }))} />
-                                  </div>
-                                  <div>
-                                    <label className={labelClass}>Godzina do</label>
-                                    <input type="time" className={inputClass} value={(editForm.time_end as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, time_end: event.target.value }))} />
-                                  </div>
-
-                                  <div className="md:col-span-2">
-                                    <label className={labelClass}>Harmonogram</label>
-                                    <input className={inputClass} value={(editForm.schedule_summary as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, schedule_summary: event.target.value }))} placeholder="np. pon., śr. 17:00-18:30" />
-                                  </div>
-                                  <div className="md:col-span-2">
-                                    <label className={labelClass}>Dni tygodnia</label>
-                                    <input className={inputClass} value={(editForm.days_of_week as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, days_of_week: event.target.value }))} placeholder="pon, śr, pt" />
                                   </div>
 
                                   <div>
@@ -827,28 +867,21 @@ export default function AdminActivitiesPage() {
                                     <input type="number" min={0} className={inputClass} value={editForm.price_to === null ? "" : String(editForm.price_to ?? "")} onChange={(event) => setEditForm((current) => ({ ...current, price_to: event.target.value ? Number(event.target.value) : null }))} />
                                   </div>
 
-                                  <div className="flex items-center gap-2 pt-5">
-                                    <input type="checkbox" id={`free-activity-${activity.id}`} checked={Boolean(editForm.is_free)} onChange={(event) => setEditForm((current) => ({ ...current, is_free: event.target.checked }))} className="rounded border-border" />
-                                    <label htmlFor={`free-activity-${activity.id}`} className="text-[12px] text-foreground">Bezpłatne</label>
+                                  <div className="md:col-span-4 flex items-center gap-3">
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditForm((current) => ({ ...current, is_free: !current.is_free }))}
+                                      className={cn("inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-semibold border-2 transition-all duration-200",
+                                        editForm.is_free ? "bg-emerald-50 text-emerald-700 border-emerald-400" : "bg-background text-muted-foreground border-border hover:border-emerald-300"
+                                      )}
+                                    >
+                                      {editForm.is_free ? "✓ Bezpłatne" : "Bezpłatne"}
+                                    </button>
                                   </div>
-                                  <div className="flex items-center gap-2 pt-5">
-                                    <input type="checkbox" id={`featured-activity-${activity.id}`} checked={Boolean(editForm.is_featured)} onChange={(event) => setEditForm((current) => ({ ...current, is_featured: event.target.checked }))} className="rounded border-border" />
-                                    <label htmlFor={`featured-activity-${activity.id}`} className="text-[12px] text-foreground">Wyróżnij</label>
-                                  </div>
-
-                                  <div className="hidden md:block md:col-span-4" />
 
                                   <div className="md:col-span-2">
                                     <label className={labelClass}>Organizator</label>
                                     <input className={inputClass} value={(editForm.organizer as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, organizer: event.target.value }))} />
-                                  </div>
-                                  <div className="md:col-span-2">
-                                    <label className={labelClass}>Miejsce</label>
-                                    <input className={inputClass} value={(editForm.venue_name as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, venue_name: event.target.value }))} />
-                                  </div>
-                                  <div className="md:col-span-2">
-                                    <label className={labelClass}>Adres</label>
-                                    <input className={inputClass} value={(editForm.venue_address as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, venue_address: event.target.value }))} />
                                   </div>
                                   <div className="md:col-span-2">
                                     <label className={labelClass}>URL zrodla</label>
@@ -860,11 +893,80 @@ export default function AdminActivitiesPage() {
                                   </div>
                                 </div>
 
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                                  <div className="rounded-lg border border-border/50 p-3 space-y-3">
+                                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Lokalizacja</p>
+                                    <div className="grid grid-cols-2 gap-3">
+                                      <div className="col-span-2">
+                                        <label className={labelClass}>Miejsce</label>
+                                        <input className={inputClass} value={(editForm.venue_name as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, venue_name: event.target.value }))} />
+                                      </div>
+                                      <div className="col-span-2">
+                                        <label className={labelClass}>Adres</label>
+                                        <input className={inputClass} value={(editForm.venue_address as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, venue_address: event.target.value }))} />
+                                      </div>
+                                      <div className="col-span-2">
+                                        <label className={labelClass}>Współrzędne</label>
+                                        <div className="flex items-center gap-2">
+                                          <input type="number" step="any" className={inputClass} value={(editForm.lat as number) ?? ""} onChange={(e) => setEditForm((current) => ({ ...current, lat: e.target.value ? Number(e.target.value) : null }))} placeholder="Lat" />
+                                          <input type="number" step="any" className={inputClass} value={(editForm.lng as number) ?? ""} onChange={(e) => setEditForm((current) => ({ ...current, lng: e.target.value ? Number(e.target.value) : null }))} placeholder="Lng" />
+                                          <button onClick={geocodeAddress} disabled={geocoding} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-muted border border-border rounded hover:text-foreground hover:border-primary/30 transition-colors shrink-0 disabled:opacity-50">
+                                            {geocoding ? <Loader2 size={11} className="animate-spin" /> : <MapPin size={11} />}
+                                            {geocoding ? "Szukam..." : "Znajdź"}
+                                          </button>
+                                        </div>
+                                      </div>
+                                      <div className="col-span-2">
+                                        <label className={labelClass}>Dzielnica</label>
+                                        <select className={inputClass} value={(editForm.district as string) || "Inne"} onChange={(event) => setEditForm((current) => ({ ...current, district: event.target.value }))}>
+                                          {DISTRICT_LIST.map((district) => (
+                                            <option key={district} value={district}>{district}</option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                    </div>
+                                    {typeof editForm.lat === "number" && typeof editForm.lng === "number" && (
+                                      <div className="rounded-lg overflow-hidden border border-border" style={{ height: 180 }}>
+                                        <Suspense fallback={<div className="w-full h-full flex items-center justify-center bg-accent/20 text-[11px] text-muted">Ładowanie mapy...</div>}>
+                                          <MiniMapLazy lat={editForm.lat as number} lng={editForm.lng as number} />
+                                        </Suspense>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="rounded-lg border border-border/50 p-3 space-y-3">
+                                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Zdjęcie</p>
+                                    {(pendingPreview || activity.image_url) && (
+                                      <div className="relative">
+                                        <img src={pendingPreview || activity.image_url || ""} alt="" className={cn("w-full aspect-[3/2] rounded-lg object-cover border border-border", pendingPreview && "ring-2 ring-primary/40")} />
+                                        {pendingPreview && (
+                                          <button onClick={clearPendingFile} className="absolute top-1.5 right-1.5 bg-white rounded-full shadow-sm border border-border p-0.5 hover:bg-red-50 transition-colors" title="Usuń">
+                                            <X size={14} className="text-red-500" />
+                                          </button>
+                                        )}
+                                      </div>
+                                    )}
+                                    <div className="flex items-center gap-2">
+                                      <label className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-muted border border-border rounded hover:text-foreground hover:border-primary/30 transition-colors cursor-pointer">
+                                        <Plus size={11} />
+                                        {pendingPreview ? "Zmień plik" : "Wgraj plik"}
+                                        <input type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleFileSelect(file); e.target.value = ""; }} />
+                                      </label>
+                                      <button onClick={() => generateImage(activity)} disabled={generatingImage === activity.id} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-muted border border-border rounded hover:text-foreground hover:border-primary/30 transition-colors disabled:opacity-50">
+                                        {generatingImage === activity.id ? <Loader2 size={11} className="animate-spin" /> : <ImagePlus size={11} />}
+                                        {generatingImage === activity.id ? "Generowanie..." : "Generuj AI"}
+                                      </button>
+                                    </div>
+                                    {pendingPreview && <span className="text-[10px] text-primary font-medium">Nowy plik — zapisz aby wgrać</span>}
+                                  </div>
+                                </div>
+
                                 <div className="flex items-center gap-2">
-                                  <button onClick={() => saveEdit(activity.id)} className="inline-flex items-center gap-1 px-3 py-1.5 text-[11px] font-medium bg-foreground text-white rounded hover:bg-[#333] transition-colors">
-                                    <Save size={11} /> Zapisz
+                                  <button onClick={() => saveEdit(activity.id)} disabled={uploadingImage === activity.id} className="inline-flex items-center gap-1 px-3 py-1.5 text-[11px] font-medium bg-foreground text-white rounded hover:bg-[#333] transition-colors disabled:opacity-50">
+                                    {uploadingImage === activity.id ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />}
+                                    {uploadingImage === activity.id ? "Wgrywanie..." : "Zapisz"}
                                   </button>
-                                  <button onClick={() => { setEditing(null); setEditForm({}); }} className="inline-flex items-center gap-1 px-3 py-1.5 text-[11px] font-medium text-muted border border-border rounded hover:text-foreground transition-colors">
+                                  <button onClick={() => { clearPendingFile(); setEditing(null); setEditForm({}); }} className="inline-flex items-center gap-1 px-3 py-1.5 text-[11px] font-medium text-muted border border-border rounded hover:text-foreground transition-colors">
                                     <X size={11} /> Anuluj
                                   </button>
                                 </div>

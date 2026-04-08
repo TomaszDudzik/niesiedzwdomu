@@ -8,10 +8,12 @@ Other categories use DALL-E 3 to generate from scratch.
 
 from __future__ import annotations
 
+import io
 import logging
 from pathlib import Path
 
 from openai import OpenAI
+from PIL import Image
 
 from backend.config import config
 
@@ -29,8 +31,8 @@ CATEGORY_SCENES: dict[str, str] = {
         "viewed from the audience perspective at a slight eye-level angle (matching the reference image). "
         "The stage fills most of the frame, with rich red velvet curtains and warm theatrical lighting. "
         "Soft, diffused spotlights shine from above, creating gentle highlights and shadows on the stage floor. "
-        "On the stage, a small number of carefully arranged elements related to the event are visible: {details}. "
-        "The elements are placed centrally with plenty of empty space around them, keeping the composition clean and uncluttered. "
+        "On the stage, a small number of clearly visible, well-defined elements are placed as the main focal point: {details}. "
+        "These objects are sharp, detailed, and visually prominent, arranged neatly in the center with space around them. "
         "At the very bottom edge of the frame, a single row of seated children is visible from behind, softly out of focus. "
         "They remain unchanged and are not the focus of the image. "
         "No faces, no readable text, no logos. "
@@ -56,10 +58,21 @@ CATEGORY_SCENES: dict[str, str] = {
         "Colorful stage lights and a joyful atmosphere."
     ),
     "sport": (
-        "An outdoor sports activity in a green park setting. "
-        "Children and parents are actively engaged in {details}. "
-        "Trees and grass surround the area, sunny weather. "
-        "Energy and movement fill the scene."
+        "A natural, realistic indoor sports scene with a large gym floor as the main focus, "
+        "viewed from a slightly low eye-level perspective facing the center of the court (matching the reference image). "
+        "The polished wooden floor fills most of the frame, with subtle court markings and soft reflections. "
+        "In the background, dark empty bleachers are visible, softly lit and slightly out of focus. "
+        "Bright overhead sports lights shine from above, creating clear highlights and gentle shadows on the floor. "
+
+        "At the center of the court, a small number of clearly visible, well-defined sports-related elements are placed as the main focal point: {details}. "
+        "These objects are sharp, realistic, and properly scaled, arranged neatly in the center with space around them. "
+
+        "The elements should feel naturally placed on the court, as if prepared for an activity or training session. "
+
+        "No people, no faces, no text, no logos. "
+        "No clutter or excessive equipment — only a few key elements. "
+        "Clean, energetic, modern sports atmosphere. "
+        "Realistic photography style, neutral tones with slight cool lighting, 16:9 composition."
     ),
     "natura": (
         "A family nature outing in a beautiful green setting. "
@@ -144,8 +157,7 @@ def generate_event_image(
 
     if _has_base_image(category):
         return _generate_with_reference(client, title, category, description)
-    else:
-        return _generate_from_scratch(client, title, category, description, size, quality)
+    return _generate_from_scratch(client, title, category, description, size, quality)
 
 
 def _generate_with_reference(
@@ -193,17 +205,29 @@ def _generate_with_reference(
 
     logger.info("Generating image with edit for: %s", title)
 
-    # Open files for the API
-    with open(base_path, "rb") as img_file, open(mask_path, "rb") as mask_file:
-        response = client.images.edit(
-            model="gpt-image-1",
-            image=img_file,
-            mask=mask_file,
-            prompt=prompt,
-            n=1,
-            size="1536x1024",
-            quality="medium",
-        )
+    # Ensure mask matches base image dimensions
+    base_img = Image.open(base_path).convert("RGBA")
+    mask_img = Image.open(mask_path).convert("RGBA")
+    if mask_img.size != base_img.size:
+        logger.info("Resizing mask from %s to %s", mask_img.size, base_img.size)
+        mask_img = mask_img.resize(base_img.size, Image.LANCZOS)
+
+    base_buf = io.BytesIO()
+    base_img.save(base_buf, format="PNG")
+    base_buf.seek(0)
+
+    mask_buf = io.BytesIO()
+    mask_img.save(mask_buf, format="PNG")
+    mask_buf.seek(0)
+
+    response = client.images.edit(
+        model="gpt-image-1",
+        image=("image.png", base_buf, "image/png"),
+        mask=("mask.png", mask_buf, "image/png"),
+        prompt=prompt,
+        n=1,
+        size="1536x1024",
+    )
 
     # gpt-image-1 returns b64_json by default
     result = response.data[0]

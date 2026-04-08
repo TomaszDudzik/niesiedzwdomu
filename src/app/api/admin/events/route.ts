@@ -10,6 +10,20 @@ function getDb() {
   );
 }
 
+function sanitizeEventPayload(input: unknown): Record<string, unknown> {
+  if (!input || typeof input !== "object") return {};
+
+  const {
+    id: _id,
+    content_type: _contentType,
+    created_at: _createdAt,
+    updated_at: _updatedAt,
+    ...safe
+  } = input as Record<string, unknown>;
+
+  return safe;
+}
+
 // GET /api/admin/events — list all events (all statuses)
 export async function GET() {
   const db = getDb();
@@ -26,7 +40,7 @@ export async function GET() {
 // POST /api/admin/events — create a new event
 export async function POST(request: NextRequest) {
   const db = getDb();
-  const body = await request.json();
+  const body = sanitizeEventPayload(await request.json());
 
   const { data, error } = await db.from("events").insert(body).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -36,9 +50,11 @@ export async function POST(request: NextRequest) {
 // PATCH /api/admin/events — update event fields
 export async function PATCH(request: NextRequest) {
   const db = getDb();
-  const { id, ...updates } = await request.json();
+  const { id, ...updatesRaw } = await request.json();
+  const updates = sanitizeEventPayload(updatesRaw);
 
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
+  if (Object.keys(updates).length === 0) return NextResponse.json({ error: "no update fields provided" }, { status: 400 });
 
   const { data, error } = await db.from("events").update(updates).eq("id", id).select();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

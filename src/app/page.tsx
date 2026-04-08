@@ -18,8 +18,8 @@ export const metadata: Metadata = {
 
 export default async function HomePage() {
   const [upcomingEvents, places] = await Promise.all([
-    getPublishedEvents(8),
-    getPublishedPlaces(8),
+    getPublishedEvents(200),
+    getPublishedPlaces(200),
   ]);
 
   const organizationSchema = {
