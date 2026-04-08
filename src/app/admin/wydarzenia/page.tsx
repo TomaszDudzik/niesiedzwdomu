@@ -300,6 +300,7 @@ function AdminCanonicalEventsPanel() {
     published: 1,
     outdated: 2,
     cancelled: 3,
+    deleted: 4,
   };
 
   const filteredEvents = useMemo(() => {
