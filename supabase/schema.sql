@@ -4,7 +4,7 @@
 -- ============================================
 
 -- Shared enums
-CREATE TYPE content_status AS ENUM ('draft', 'published', 'cancelled');
+CREATE TYPE content_status AS ENUM ('draft', 'published', 'cancelled', 'deleted');
 
 CREATE TYPE district AS ENUM (
   'Stare Miasto', 'Kazimierz', 'Podgórze', 'Nowa Huta',
@@ -76,6 +76,7 @@ CREATE TABLE events (
   venue_name        TEXT NOT NULL DEFAULT '',
   venue_address     TEXT NOT NULL DEFAULT '',
   source_url        TEXT,
+  facebook_url      TEXT,
   organizer         TEXT,
   is_featured       BOOLEAN NOT NULL DEFAULT false,
   status            content_status NOT NULL DEFAULT 'draft',
@@ -122,6 +123,7 @@ CREATE TABLE camps (
   venue_address       TEXT NOT NULL DEFAULT '',
   organizer           TEXT,
   source_url          TEXT,
+  facebook_url        TEXT,
   is_featured         BOOLEAN NOT NULL DEFAULT false,
   status              content_status NOT NULL DEFAULT 'draft',
   likes               INT NOT NULL DEFAULT 0,

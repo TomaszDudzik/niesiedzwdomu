@@ -4,7 +4,7 @@
 
 export type ContentType = "event" | "camp" | "place";
 
-export type ContentStatus = "draft" | "published" | "cancelled";
+export type ContentStatus = "draft" | "published" | "cancelled" | "deleted";
 
 export type District =
   | "Stare Miasto"
@@ -76,6 +76,7 @@ export interface Event {
   lng: number | null;
   organizer: string | null;
   source_url: string | null;
+  facebook_url: string | null;
   is_featured: boolean;
   status: ContentStatus;
   likes: number;
@@ -112,6 +113,7 @@ export interface Camp {
   venue_address: string;
   organizer: string;
   source_url: string | null;
+  facebook_url: string | null;
   is_featured: boolean;
   status: ContentStatus;
   likes: number;

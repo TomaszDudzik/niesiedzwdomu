@@ -34,6 +34,7 @@ const EMPTY_EVENT: Omit<Event, "id" | "created_at" | "updated_at"> = {
   lat: null,
   lng: null,
   source_url: null,
+  facebook_url: null,
   organizer: null,
   is_featured: false,
   status: "draft",
@@ -339,6 +340,19 @@ export function AdminEventForm({ event, onSave, onCancel }: AdminEventFormProps)
             onChange={(e) => update("source_url", e.target.value || null)}
             className="w-full px-3 py-2.5 rounded-xl border border-border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
             placeholder="https://..."
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-muted mb-1.5">
+            Facebook
+          </label>
+          <input
+            type="url"
+            value={form.facebook_url || ""}
+            onChange={(e) => update("facebook_url", e.target.value || null)}
+            className="w-full px-3 py-2.5 rounded-xl border border-border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+            placeholder="https://facebook.com/..."
           />
         </div>
 

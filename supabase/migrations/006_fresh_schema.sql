@@ -27,7 +27,7 @@ DROP TYPE IF EXISTS place_type CASCADE;
 -- Enums
 -- ============================================================
 
-CREATE TYPE content_status AS ENUM ('draft', 'published', 'cancelled');
+CREATE TYPE content_status AS ENUM ('draft', 'published', 'cancelled', 'deleted');
 CREATE TYPE event_category AS ENUM (
   'warsztaty', 'spektakl', 'muzyka', 'sport',
   'natura', 'edukacja', 'festyn', 'kino', 'wystawa', 'inne'

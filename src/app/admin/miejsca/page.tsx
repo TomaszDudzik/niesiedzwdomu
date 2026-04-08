@@ -1,15 +1,16 @@
 "use client";
 
-import { useState, useEffect, useCallback, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from "react";
 import {
   Trash2, Pencil, Loader2, RefreshCw,
-  ExternalLink, ImagePlus, Save, X, Upload, XCircle, MapPin, Plus, ClipboardPaste, ChevronDown, ChevronRight,
+  ExternalLink, ImagePlus, Save, X, Upload, XCircle, MapPin, Plus, ClipboardPaste, ChevronDown, ChevronRight, Star,
 } from "lucide-react";
 import { PLACE_TYPE_LABELS, PLACE_TYPE_ICONS, DISTRICT_LIST } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import type { Place } from "@/types/database";
 
 const MiniMapLazy = lazy(() => import("./mini-map").then((m) => ({ default: m.MiniMap })));
+type PlaceListFilter = "all" | "published" | "draft";
 
 export default function AdminPlacesPage() {
   const [places, setPlaces] = useState<Place[]>([]);
@@ -29,6 +30,8 @@ export default function AdminPlacesPage() {
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState({ done: 0, total: 0 });
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
+  const [statusFilter, setStatusFilter] = useState<PlaceListFilter>("all");
+  const [typeFilter, setTypeFilter] = useState<string | null>(null);
 
   const isCategoryExpanded = (type: string) => !collapsedCategories[type];
   const toggleCategory = (type: string) => {
@@ -192,6 +195,72 @@ export default function AdminPlacesPage() {
 
   useEffect(() => { fetchPlaces(); }, [fetchPlaces]);
 
+  const filteredPlaces = useMemo(() => {
+    const scopedPlaces = typeFilter ? places.filter((place) => place.place_type === typeFilter) : places;
+    if (statusFilter === "all") return scopedPlaces;
+    if (statusFilter === "published") return scopedPlaces.filter((place) => place.status === "published");
+    return scopedPlaces.filter((place) => place.status !== "published");
+  }, [places, typeFilter, statusFilter]);
+  const displayedTypeKeys = useMemo(
+    () => Object.keys(PLACE_TYPE_LABELS).filter((type) => !typeFilter || type === typeFilter),
+    [typeFilter]
+  );
+
+  const publishedCount = useMemo(() => places.filter((place) => place.status === "published").length, [places]);
+  const draftCount = useMemo(() => places.filter((place) => place.status !== "published").length, [places]);
+  const sectionStats = useMemo(() => Object.fromEntries(
+    Object.keys(PLACE_TYPE_LABELS).map((type) => {
+      const typePlaces = places.filter((place) => place.place_type === type);
+      const published = typePlaces.filter((place) => place.status === "published").length;
+      return [type, { all: typePlaces.length, published, draft: typePlaces.length - published }];
+    })
+  ), [places]);
+  const visibleTypeKeys = useMemo(() => displayedTypeKeys, [displayedTypeKeys]);
+  const hasExpandedCategories = useMemo(() => visibleTypeKeys.some((type) => !collapsedCategories[type]), [visibleTypeKeys, collapsedCategories]);
+
+  const statusOrder: Record<Place["status"], number> = {
+    draft: 0,
+    published: 1,
+    cancelled: 2,
+    deleted: 3,
+  };
+
+  const toggleStatusFilter = (filter: PlaceListFilter) => {
+    const nextFilter = statusFilter === filter ? "all" : filter;
+    setTypeFilter(null);
+    setStatusFilter(nextFilter);
+    const nextCollapsed = Object.fromEntries(
+      Object.keys(PLACE_TYPE_LABELS).map((type) => {
+        const matchingItems = places.filter((place) => {
+          if (place.place_type !== type) return false;
+          if (nextFilter === "all") return true;
+          if (nextFilter === "published") return place.status === "published";
+          return place.status !== "published";
+        });
+        return [type, matchingItems.length === 0];
+      })
+    );
+    setCollapsedCategories(nextCollapsed);
+  };
+
+  const toggleTypeStatusFilter = (type: string, filter: PlaceListFilter) => {
+    if (typeFilter === type && statusFilter === filter) {
+      setTypeFilter(null);
+      setStatusFilter("all");
+      return;
+    }
+    setTypeFilter(type);
+    setStatusFilter(filter);
+    setCollapsedCategories((prev) => ({ ...prev, [type]: false }));
+  };
+
+  const toggleAllCategories = () => {
+    if (visibleTypeKeys.length === 0) return;
+    setCollapsedCategories(
+      Object.fromEntries(visibleTypeKeys.map((type) => [type, hasExpandedCategories]))
+    );
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm("Na pewno chcesz usunąć?")) return;
     await fetch("/api/admin/places", {
@@ -233,6 +302,7 @@ export default function AdminPlacesPage() {
       facebook_url: place.facebook_url ?? "",
       is_indoor: place.is_indoor,
       is_free: place.is_free,
+      is_featured: place.is_featured,
       likes: place.likes,
       dislikes: place.dislikes,
     });
@@ -274,6 +344,7 @@ export default function AdminPlacesPage() {
       age_min: editForm.age_min ?? null,
       age_max: editForm.age_max ?? null,
       source_url: editForm.source_url || null,
+      is_featured: Boolean(editForm.is_featured),
       likes: Number(editForm.likes) || 0,
       dislikes: Number(editForm.dislikes) || 0,
     };
@@ -404,6 +475,21 @@ export default function AdminPlacesPage() {
     }
   };
 
+  const toggleFeatured = async (place: Place) => {
+    const nextFeatured = !place.is_featured;
+    const res = await fetch("/api/admin/places", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: place.id, is_featured: nextFeatured }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(`Błąd: ${data.error || "Nie udało się zapisać wyróżnienia"}`);
+      return;
+    }
+    setPlaces((prev) => prev.map((p) => p.id === place.id ? { ...p, is_featured: nextFeatured } : p));
+  };
+
   const inputClass = "w-full px-2 py-1.5 rounded-md border border-border text-[12px] bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30";
   const labelClass = "block text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1";
 
@@ -427,13 +513,18 @@ export default function AdminPlacesPage() {
       </div>
       {/* Stats */}
       <div className="flex items-center gap-3 mb-6">
-        <span className="text-sm text-muted">{places.length} miejsc</span>
-        <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">
-          {places.filter((p) => p.status === "published").length} published
-        </span>
-        <span className="text-[11px] px-2 py-0.5 rounded-full bg-stone-200 text-stone-500 font-medium">
-          {places.filter((p) => p.status !== "published").length} draft
-        </span>
+        <button onClick={() => toggleStatusFilter("all")} className={cn("text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors", statusFilter === "all" ? "bg-sky-200 text-sky-800" : "bg-sky-100 text-sky-700 hover:bg-sky-200")}>
+          {places.length} miejsc
+        </button>
+        <button onClick={() => toggleStatusFilter("published")} className={cn("text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors", statusFilter === "published" ? "bg-emerald-200 text-emerald-800" : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200")}>
+          {publishedCount} published
+        </button>
+        <button onClick={() => toggleStatusFilter("draft")} className={cn("text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors", draftCount > 0 ? (statusFilter === "draft" ? "bg-rose-200 text-rose-800" : "bg-rose-100 text-rose-700 hover:bg-rose-200") : (statusFilter === "draft" ? "bg-stone-300 text-stone-700" : "bg-stone-200 text-stone-500 hover:bg-stone-300"))}>
+          {draftCount} draft
+        </button>
+        <button onClick={toggleAllCategories} className="ml-auto text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors bg-white border border-border text-muted hover:text-foreground hover:border-[#CCC]">
+          {hasExpandedCategories ? "Zwiń wszystkie" : "Rozwiń wszystkie"}
+        </button>
       </div>
 
       {loading ? (
@@ -442,25 +533,40 @@ export default function AdminPlacesPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          {Object.entries(PLACE_TYPE_LABELS).map(([type, label]) => {
-            const typePlaces = [...places]
+          {Object.entries(PLACE_TYPE_LABELS).filter(([type]) => !typeFilter || type === typeFilter).map(([type, label]) => {
+            const typePlaces = [...filteredPlaces]
               .filter((p) => p.place_type === type)
-              .sort((a, b) => a.title.localeCompare(b.title, "pl"));
-            if (typePlaces.length === 0) return null;
+              .sort((a, b) => {
+                const statusDiff = statusOrder[a.status] - statusOrder[b.status];
+                if (statusDiff !== 0) return statusDiff;
+                return a.title.localeCompare(b.title, "pl");
+              });
+            const stats = sectionStats[type] ?? { all: 0, published: 0, draft: 0 };
             const expandedCategory = isCategoryExpanded(type);
             return (
               <div key={type}>
-                <button
-                  type="button"
-                  onClick={() => toggleCategory(type)}
-                  className="w-full flex items-center gap-2 mb-2 text-left rounded-md px-1.5 py-1 hover:bg-accent/50 transition-colors"
-                >
-                  {expandedCategory ? <ChevronDown size={14} className="text-muted-foreground" /> : <ChevronRight size={14} className="text-muted-foreground" />}
-                  <span className="text-lg">{PLACE_TYPE_ICONS[type as keyof typeof PLACE_TYPE_ICONS] || "📍"}</span>
-                  <h2 className="text-[13px] font-semibold text-foreground">{label}</h2>
-                  <span className="text-[11px] text-muted">({typePlaces.length})</span>
-                </button>
+                <div className="w-full flex items-center gap-2 mb-2 rounded-md px-1.5 py-1 hover:bg-accent/50 transition-colors">
+                  <button
+                    type="button"
+                    onClick={() => toggleCategory(type)}
+                    className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                  >
+                    {expandedCategory ? <ChevronDown size={14} className="text-muted-foreground" /> : <ChevronRight size={14} className="text-muted-foreground" />}
+                    <span className="text-lg">{PLACE_TYPE_ICONS[type as keyof typeof PLACE_TYPE_ICONS] || "📍"}</span>
+                    <h2 className="text-[13px] font-semibold text-foreground">{label}</h2>
+                  </button>
+                  <div className="flex flex-wrap items-center gap-1 text-[10px]">
+                    <button type="button" onClick={() => toggleTypeStatusFilter(type, "all")} className={cn("px-1.5 py-0.5 rounded-full font-medium transition-colors", typeFilter === type && statusFilter === "all" ? "bg-sky-200 text-sky-800" : "bg-sky-100 text-sky-700 hover:bg-sky-200")}>{stats.all} all</button>
+                    <button type="button" onClick={() => toggleTypeStatusFilter(type, "published")} className={cn("px-1.5 py-0.5 rounded-full font-medium transition-colors", typeFilter === type && statusFilter === "published" ? "bg-emerald-200 text-emerald-800" : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200")}>{stats.published} published</button>
+                    <button type="button" onClick={() => toggleTypeStatusFilter(type, "draft")} className={cn("px-1.5 py-0.5 rounded-full font-medium transition-colors", stats.draft > 0 ? (typeFilter === type && statusFilter === "draft" ? "bg-rose-200 text-rose-800" : "bg-rose-100 text-rose-700 hover:bg-rose-200") : (typeFilter === type && statusFilter === "draft" ? "bg-stone-300 text-stone-700" : "bg-stone-200 text-stone-500 hover:bg-stone-300"))}>{stats.draft} draft</button>
+                  </div>
+                </div>
                 {expandedCategory && (
+                typePlaces.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-border/70 bg-white px-3 py-4 text-[12px] text-muted">
+                  Brak rekordów dla tego filtra.
+                </div>
+                ) : (
                 <div className="space-y-1.5">
           {typePlaces.map((place, index) => {
             const isExpanded = expanded === place.id;
@@ -507,6 +613,12 @@ export default function AdminPlacesPage() {
                     </button>
                   )}
 
+                  {!isEditing && (
+                    <button onClick={() => toggleFeatured(place)} className={cn("p-1 rounded transition-colors", place.is_featured ? "text-amber-500 hover:bg-amber-50" : "text-muted-foreground hover:bg-stone-100")} title="Wyróżnij">
+                      <Star size={13} fill={place.is_featured ? "currentColor" : "none"} />
+                    </button>
+                  )}
+
                   {place.source_url && (
                     <a href={place.source_url} target="_blank" rel="noopener"
                       className="p-1 rounded hover:bg-accent text-muted transition-colors">
@@ -519,7 +631,7 @@ export default function AdminPlacesPage() {
                       "px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide transition-colors",
                       place.status === "published"
                         ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
-                        : "bg-stone-200 text-stone-500 hover:bg-stone-300"
+                        : "bg-rose-100 text-rose-700 hover:bg-rose-200"
                     )}
                     title={place.status === "published" ? "Kliknij aby ukryć" : "Kliknij aby opublikować"}>
                     {place.status === "published" ? "Published" : "Draft"}
@@ -597,6 +709,10 @@ export default function AdminPlacesPage() {
                           className={cn(inputClass, "!w-auto px-3 py-1.5 text-center cursor-pointer", !(editForm.is_indoor as boolean) ? "!bg-primary !text-white !border-primary" : "")}>
                           Na zewnątrz
                         </button>
+                      </div>
+                      <div className="flex items-center gap-2 pt-5">
+                        <input type="checkbox" id={`featured-place-${place.id}`} checked={Boolean(editForm.is_featured)} onChange={(e) => updateField("is_featured", e.target.checked)} className="rounded border-border" />
+                        <label htmlFor={`featured-place-${place.id}`} className="text-[12px] text-foreground">Wyróżnij</label>
                       </div>
                       <div className="md:col-span-4">
                         <label className={labelClass}>Krótki opis</label>
@@ -707,6 +823,7 @@ export default function AdminPlacesPage() {
             );
           })}
                 </div>
+                )
                 )}
               </div>
             );

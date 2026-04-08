@@ -11,6 +11,7 @@ import {
   Plus,
   RefreshCw,
   Save,
+  Star,
   Trash2,
   Upload,
   X,
@@ -19,10 +20,15 @@ import { CAMP_TYPE_ICONS, CAMP_TYPE_LABELS, DISTRICT_LIST } from "@/lib/mock-dat
 import { cn, formatDateShort, formatPrice } from "@/lib/utils";
 import type { Camp } from "@/types/database";
 
+type DerivedCampStatus = Camp["status"] | "outdated";
+type CampListFilter = "all" | "published" | "draft" | "outdated";
+
 export default function AdminCampsPage() {
   const [camps, setCamps] = useState<Camp[]>([]);
   const [loading, setLoading] = useState(true);
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
+  const [statusFilter, setStatusFilter] = useState<CampListFilter>("all");
+  const [typeFilter, setTypeFilter] = useState<string | null>(null);
 
   const [editing, setEditing] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Record<string, unknown>>({});
@@ -58,20 +64,115 @@ export default function AdminCampsPage() {
     fetchCamps();
   }, [fetchCamps]);
 
-  const groupedCamps = useMemo(() => {
-    const order: Camp["camp_type"][] = ["polkolonie", "kolonie", "warsztaty_wakacyjne"];
-    return order.map((type) => ({
-      type,
-      items: camps.filter((c) => c.camp_type === type).sort((a, b) => a.title.localeCompare(b.title, "pl")),
-    }));
-  }, [camps]);
-
   const toggleCategory = (type: string) => {
     setCollapsedCategories((prev) => ({ ...prev, [type]: !prev[type] }));
   };
 
-  const publishedCount = useMemo(() => camps.filter((c) => c.status === "published").length, [camps]);
-  const draftCount = camps.length - publishedCount;
+  const getEffectiveStatus = useCallback((camp: Camp): DerivedCampStatus => {
+    const today = new Date().toISOString().slice(0, 10);
+    const endDate = camp.date_end ? camp.date_end.slice(0, 10) : null;
+    if (camp.status === "published" && endDate && endDate < today) return "outdated";
+    return camp.status;
+  }, []);
+
+  const statusOrder: Record<DerivedCampStatus, number> = {
+    draft: 0,
+    published: 1,
+    outdated: 2,
+    cancelled: 3,
+  };
+
+  const filteredCamps = useMemo(() => {
+    const scopedCamps = typeFilter ? camps.filter((camp) => camp.camp_type === typeFilter) : camps;
+    if (statusFilter === "all") return scopedCamps;
+    if (statusFilter === "draft") {
+      return scopedCamps.filter((camp) => {
+        const effectiveStatus = getEffectiveStatus(camp);
+        return effectiveStatus === "draft" || effectiveStatus === "cancelled";
+      });
+    }
+    return scopedCamps.filter((camp) => getEffectiveStatus(camp) === statusFilter);
+  }, [camps, typeFilter, statusFilter, getEffectiveStatus]);
+  const displayedTypeKeys = useMemo(
+    () => Object.keys(CAMP_TYPE_LABELS).filter((type) => !typeFilter || type === typeFilter),
+    [typeFilter]
+  );
+
+  const groupedCamps = useMemo(() => {
+    const order: Camp["camp_type"][] = ["polkolonie", "kolonie", "warsztaty_wakacyjne"];
+    return order.map((type) => ({
+      type,
+      items: filteredCamps
+        .filter((c) => c.camp_type === type)
+        .sort((a, b) => {
+          const statusDiff = statusOrder[getEffectiveStatus(a)] - statusOrder[getEffectiveStatus(b)];
+          if (statusDiff !== 0) return statusDiff;
+          const dateDiff = (a.date_start || "").localeCompare(b.date_start || "");
+          if (dateDiff !== 0) return dateDiff;
+          return a.title.localeCompare(b.title, "pl");
+        }),
+    }));
+  }, [filteredCamps, getEffectiveStatus]);
+
+  const publishedCount = useMemo(() => camps.filter((camp) => getEffectiveStatus(camp) === "published").length, [camps, getEffectiveStatus]);
+  const draftCount = useMemo(() => camps.filter((camp) => {
+    const effectiveStatus = getEffectiveStatus(camp);
+    return effectiveStatus === "draft" || effectiveStatus === "cancelled";
+  }).length, [camps, getEffectiveStatus]);
+  const outdatedCount = useMemo(() => camps.filter((camp) => getEffectiveStatus(camp) === "outdated").length, [camps, getEffectiveStatus]);
+  const sectionStats = useMemo(() => Object.fromEntries(
+    Object.keys(CAMP_TYPE_LABELS).map((type) => {
+      const typeCamps = camps.filter((camp) => camp.camp_type === type);
+      const published = typeCamps.filter((camp) => getEffectiveStatus(camp) === "published").length;
+      const draft = typeCamps.filter((camp) => {
+        const effectiveStatus = getEffectiveStatus(camp);
+        return effectiveStatus === "draft" || effectiveStatus === "cancelled";
+      }).length;
+      const outdated = typeCamps.filter((camp) => getEffectiveStatus(camp) === "outdated").length;
+      return [type, { all: typeCamps.length, published, draft, outdated }];
+    })
+  ), [camps, getEffectiveStatus]);
+  const visibleTypeKeys = useMemo(() => displayedTypeKeys, [displayedTypeKeys]);
+  const hasExpandedCategories = useMemo(() => visibleTypeKeys.some((type) => !collapsedCategories[type]), [visibleTypeKeys, collapsedCategories]);
+
+  const toggleStatusFilter = (filter: CampListFilter) => {
+    const nextFilter = statusFilter === filter ? "all" : filter;
+    setTypeFilter(null);
+    setStatusFilter(nextFilter);
+    const nextCollapsed = Object.fromEntries(
+      Object.keys(CAMP_TYPE_LABELS).map((type) => {
+        const matchingItems = camps.filter((camp) => {
+          if (camp.camp_type !== type) return false;
+          if (nextFilter === "all") return true;
+          if (nextFilter === "draft") {
+            const effectiveStatus = getEffectiveStatus(camp);
+            return effectiveStatus === "draft" || effectiveStatus === "cancelled";
+          }
+          return getEffectiveStatus(camp) === nextFilter;
+        });
+        return [type, matchingItems.length === 0];
+      })
+    );
+    setCollapsedCategories(nextCollapsed);
+  };
+
+  const toggleTypeStatusFilter = (type: string, filter: CampListFilter) => {
+    if (typeFilter === type && statusFilter === filter) {
+      setTypeFilter(null);
+      setStatusFilter("all");
+      return;
+    }
+    setTypeFilter(type);
+    setStatusFilter(filter);
+    setCollapsedCategories((prev) => ({ ...prev, [type]: false }));
+  };
+
+  const toggleAllCategories = () => {
+    if (visibleTypeKeys.length === 0) return;
+    setCollapsedCategories(
+      Object.fromEntries(visibleTypeKeys.map((type) => [type, hasExpandedCategories]))
+    );
+  };
 
   const FIELD_ALIASES: Record<string, string[]> = {
     title: ["title", "tytul", "tytuł", "nazwa", "nazwa turnusu", "nazwa_polkolonii"],
@@ -88,6 +189,7 @@ export default function AdminCampsPage() {
     price_to: ["price_to", "cena_do", "cena do"],
     organizer: ["organizer", "organizator"],
     source_url: ["source_url", "url", "link", "link_zrodlowy"],
+    facebook_url: ["facebook_url", "facebook", "fb", "facebook page"],
     venue_name: ["venue_name", "miejsce", "nazwa miejsca"],
     venue_address: ["venue_address", "adres", "address", "lokalizacja"],
     meals_included: ["meals_included", "wyzywienie", "wyzywienie (tak/nie/brak danych)"],
@@ -278,6 +380,7 @@ export default function AdminCampsPage() {
         venue_address: mapped.venue_address || "Krakow",
         organizer: mapped.organizer || mapped.venue_name || "Organizator",
         source_url: mapped.source_url || null,
+        facebook_url: mapped.facebook_url || null,
         is_featured: false,
       };
 
@@ -323,10 +426,12 @@ export default function AdminCampsPage() {
       price_to: row.price_to ?? null,
       organizer: camp.organizer,
       source_url: camp.source_url,
+      facebook_url: camp.facebook_url ?? "",
       venue_name: camp.venue_name,
       venue_address: camp.venue_address,
       district: camp.district,
       is_free: camp.is_free,
+      is_featured: camp.is_featured,
       meals_included: camp.meals_included,
       transport_included: camp.transport_included,
     });
@@ -349,20 +454,32 @@ export default function AdminCampsPage() {
       price_to: editForm.price_to === "" || editForm.price_to === null ? null : Number(editForm.price_to),
       organizer: String(editForm.organizer || ""),
       source_url: editForm.source_url ? String(editForm.source_url) : null,
+      facebook_url: editForm.facebook_url ? String(editForm.facebook_url) : null,
       venue_name: String(editForm.venue_name || ""),
       venue_address: String(editForm.venue_address || ""),
       district: editForm.district,
+      is_featured: Boolean(editForm.is_featured),
       is_free: Boolean(editForm.is_free),
       meals_included: Boolean(editForm.meals_included),
       transport_included: Boolean(editForm.transport_included),
     };
 
-    const res = await fetch("/api/admin/camps", {
+    let res = await fetch("/api/admin/camps", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, ...updates }),
     });
-    const data = await res.json();
+    let data = await res.json();
+
+    if (!res.ok && data.error?.includes("facebook_url")) {
+      const { facebook_url: _facebookUrl, ...updatesWithoutFacebook } = updates;
+      res = await fetch("/api/admin/camps", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, ...updatesWithoutFacebook }),
+      });
+      data = await res.json();
+    }
 
     if (!res.ok) {
       alert(`Blad zapisu: ${data.error || "Nieznany blad"}`);
@@ -401,6 +518,7 @@ export default function AdminCampsPage() {
       venue_address: "Krakow",
       organizer: "Organizator",
       source_url: null,
+      facebook_url: null,
       is_featured: false,
     };
 
@@ -427,6 +545,21 @@ export default function AdminCampsPage() {
     if (res.ok) {
       setCamps((prev) => prev.map((c) => (c.id === camp.id ? { ...c, status: newStatus } : c)));
     }
+  };
+
+  const toggleFeatured = async (camp: Camp) => {
+    const nextFeatured = !camp.is_featured;
+    const res = await fetch("/api/admin/camps", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: camp.id, is_featured: nextFeatured }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(`Błąd: ${data.error || "Nie udało się zapisać wyróżnienia"}`);
+      return;
+    }
+    setCamps((prev) => prev.map((c) => (c.id === camp.id ? { ...c, is_featured: nextFeatured } : c)));
   };
 
   const handleDelete = async (id: string) => {
@@ -462,9 +595,21 @@ export default function AdminCampsPage() {
       </div>
 
       <div className="flex items-center gap-3 mb-6">
-        <span className="text-sm text-muted">{camps.length} miejsc</span>
-        <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">{publishedCount} published</span>
-        <span className="text-[11px] px-2 py-0.5 rounded-full bg-stone-200 text-stone-500 font-medium">{draftCount} draft</span>
+        <button onClick={() => toggleStatusFilter("all")} className={cn("text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors", statusFilter === "all" ? "bg-sky-200 text-sky-800" : "bg-sky-100 text-sky-700 hover:bg-sky-200")}>
+          {camps.length} kolonii
+        </button>
+        <button onClick={() => toggleStatusFilter("published")} className={cn("text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors", statusFilter === "published" ? "bg-emerald-200 text-emerald-800" : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200")}>
+          {publishedCount} published
+        </button>
+        <button onClick={() => toggleStatusFilter("draft")} className={cn("text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors", draftCount > 0 ? (statusFilter === "draft" ? "bg-rose-200 text-rose-800" : "bg-rose-100 text-rose-700 hover:bg-rose-200") : (statusFilter === "draft" ? "bg-stone-300 text-stone-700" : "bg-stone-200 text-stone-500 hover:bg-stone-300"))}>
+          {draftCount} draft
+        </button>
+        <button onClick={() => toggleStatusFilter("outdated")} className={cn("text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors", statusFilter === "outdated" ? "bg-amber-200 text-amber-800" : "bg-amber-100 text-amber-700 hover:bg-amber-200")}>
+          {outdatedCount} outdated
+        </button>
+        <button onClick={toggleAllCategories} className="ml-auto text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors bg-white border border-border text-muted hover:text-foreground hover:border-[#CCC]">
+          {hasExpandedCategories ? "Zwiń wszystkie" : "Rozwiń wszystkie"}
+        </button>
       </div>
 
       {loading ? (
@@ -473,19 +618,31 @@ export default function AdminCampsPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          {groupedCamps.map(({ type, items }) => {
-            if (items.length === 0) return null;
+          {groupedCamps.filter(({ type }) => !typeFilter || type === typeFilter).map(({ type, items }) => {
             const expanded = !collapsedCategories[type];
+            const stats = sectionStats[type] ?? { all: 0, published: 0, draft: 0, outdated: 0 };
             return (
               <div key={type}>
-                <button type="button" onClick={() => toggleCategory(type)} className="w-full flex items-center gap-2 mb-2 text-left rounded-md px-1.5 py-1 hover:bg-accent/50 transition-colors">
-                  {expanded ? <ChevronDown size={14} className="text-muted-foreground" /> : <ChevronRight size={14} className="text-muted-foreground" />}
-                  <span className="text-lg">{CAMP_TYPE_ICONS[type]}</span>
-                  <h2 className="text-[13px] font-semibold text-foreground">{CAMP_TYPE_LABELS[type]}</h2>
-                  <span className="text-[11px] text-muted">({items.length})</span>
-                </button>
+                <div className="w-full flex items-center gap-2 mb-2 rounded-md px-1.5 py-1 hover:bg-accent/50 transition-colors">
+                  <button type="button" onClick={() => toggleCategory(type)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
+                    {expanded ? <ChevronDown size={14} className="text-muted-foreground" /> : <ChevronRight size={14} className="text-muted-foreground" />}
+                    <span className="text-lg">{CAMP_TYPE_ICONS[type]}</span>
+                    <h2 className="text-[13px] font-semibold text-foreground">{CAMP_TYPE_LABELS[type]}</h2>
+                  </button>
+                  <div className="flex flex-wrap items-center gap-1 text-[10px]">
+                    <button type="button" onClick={() => toggleTypeStatusFilter(type, "all")} className={cn("px-1.5 py-0.5 rounded-full font-medium transition-colors", typeFilter === type && statusFilter === "all" ? "bg-sky-200 text-sky-800" : "bg-sky-100 text-sky-700 hover:bg-sky-200")}>{stats.all} all</button>
+                    <button type="button" onClick={() => toggleTypeStatusFilter(type, "published")} className={cn("px-1.5 py-0.5 rounded-full font-medium transition-colors", typeFilter === type && statusFilter === "published" ? "bg-emerald-200 text-emerald-800" : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200")}>{stats.published} published</button>
+                    <button type="button" onClick={() => toggleTypeStatusFilter(type, "draft")} className={cn("px-1.5 py-0.5 rounded-full font-medium transition-colors", stats.draft > 0 ? (typeFilter === type && statusFilter === "draft" ? "bg-rose-200 text-rose-800" : "bg-rose-100 text-rose-700 hover:bg-rose-200") : (typeFilter === type && statusFilter === "draft" ? "bg-stone-300 text-stone-700" : "bg-stone-200 text-stone-500 hover:bg-stone-300"))}>{stats.draft} draft</button>
+                    <button type="button" onClick={() => toggleTypeStatusFilter(type, "outdated")} className={cn("px-1.5 py-0.5 rounded-full font-medium transition-colors", typeFilter === type && statusFilter === "outdated" ? "bg-amber-200 text-amber-800" : "bg-amber-100 text-amber-700 hover:bg-amber-200")}>{stats.outdated} outdated</button>
+                  </div>
+                </div>
 
                 {expanded && (
+                  items.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-border/70 bg-white px-3 py-4 text-[12px] text-muted">
+                    Brak rekordów dla tego filtra.
+                  </div>
+                  ) : (
                   <div className="space-y-1.5">
                     {items.map((camp, index) => {
                       const isDraft = camp.status !== "published";
@@ -512,13 +669,17 @@ export default function AdminCampsPage() {
                               <Pencil size={13} />
                             </button>
 
+                            <button onClick={() => toggleFeatured(camp)} className={cn("p-1 rounded transition-colors", camp.is_featured ? "text-amber-500 hover:bg-amber-50" : "text-muted-foreground hover:bg-stone-100")} title="Wyróżnij">
+                              <Star size={13} fill={camp.is_featured ? "currentColor" : "none"} />
+                            </button>
+
                             {camp.source_url && (
                               <a href={camp.source_url} target="_blank" rel="noopener" className="p-1 rounded hover:bg-accent text-muted transition-colors" title="Zrodlo">
                                 <ExternalLink size={13} />
                               </a>
                             )}
 
-                            <button onClick={() => toggleStatus(camp)} className={cn("px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide transition-colors", camp.status === "published" ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" : "bg-stone-200 text-stone-500 hover:bg-stone-300")}>
+                            <button onClick={() => toggleStatus(camp)} className={cn("px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide transition-colors", camp.status === "published" ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" : "bg-rose-100 text-rose-700 hover:bg-rose-200")}>
                               {camp.status === "published" ? "Published" : "Draft"}
                             </button>
 
@@ -584,6 +745,11 @@ export default function AdminCampsPage() {
                                   <input type="number" min={0} className={inputClass} value={editForm.price_to === null ? "" : String(editForm.price_to ?? "")} onChange={(e) => setEditForm((p) => ({ ...p, price_to: e.target.value ? Number(e.target.value) : null }))} />
                                 </div>
 
+                                <div className="flex items-center gap-2 pt-5">
+                                  <input type="checkbox" id={`featured-camp-${camp.id}`} checked={Boolean(editForm.is_featured)} onChange={(e) => setEditForm((p) => ({ ...p, is_featured: e.target.checked }))} className="rounded border-border" />
+                                  <label htmlFor={`featured-camp-${camp.id}`} className="text-[12px] text-foreground">Wyróżnij</label>
+                                </div>
+
                                 <div className="hidden md:block md:col-span-4" />
 
                                 <div className="md:col-span-2">
@@ -593,6 +759,10 @@ export default function AdminCampsPage() {
                                 <div className="md:col-span-2">
                                   <label className={labelClass}>URL zrodla</label>
                                   <input className={inputClass} value={(editForm.source_url as string) || ""} onChange={(e) => setEditForm((p) => ({ ...p, source_url: e.target.value }))} />
+                                </div>
+                                <div className="md:col-span-2">
+                                  <label className={labelClass}>Facebook</label>
+                                  <input className={inputClass} value={(editForm.facebook_url as string) || ""} onChange={(e) => setEditForm((p) => ({ ...p, facebook_url: e.target.value }))} placeholder="https://facebook.com/..." />
                                 </div>
                                 <div className="md:col-span-2">
                                   <label className={labelClass}>Miejsce</label>
@@ -618,6 +788,7 @@ export default function AdminCampsPage() {
                       );
                     })}
                   </div>
+                  )
                 )}
               </div>
             );

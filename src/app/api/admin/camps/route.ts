@@ -45,6 +45,7 @@ function pickCampFields(input: Record<string, unknown>) {
     venue_address: input.venue_address,
     organizer: input.organizer,
     source_url: input.source_url,
+    facebook_url: input.facebook_url,
     is_featured: input.is_featured,
     status: input.status,
     likes: input.likes,

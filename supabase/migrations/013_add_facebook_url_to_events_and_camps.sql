@@ -1,0 +1,5 @@
+ALTER TABLE events
+ADD COLUMN IF NOT EXISTS facebook_url TEXT;
+
+ALTER TABLE camps
+ADD COLUMN IF NOT EXISTS facebook_url TEXT;
