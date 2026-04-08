@@ -1,6 +1,6 @@
 import type {
   Event, Camp, Place, DiscoveryItem,
-  EventCategory, CampType, CampSeason, PlaceType, ContentType,
+  EventCategory, CampType, CampSeason, PlaceType, ContentType, ActivityType,
 } from "@/types/database";
 
 // ============================================
@@ -459,6 +459,28 @@ export const CAMP_TYPE_ICONS: Record<CampType, string> = {
 
 export const CAMP_SEASON_LABELS: Record<CampSeason, string> = {
   lato: "Lato", zima: "Zima", ferie_zimowe: "Ferie zimowe", ferie_wiosenne: "Ferie wiosenne", caly_rok: "Cały rok",
+};
+
+export const ACTIVITY_TYPE_LABELS: Record<ActivityType, string> = {
+  sportowe: "Sportowe",
+  artystyczne: "Artystyczne",
+  edukacyjne: "Edukacyjne",
+  muzyczne: "Muzyczne",
+  taneczne: "Taneczne",
+  jezykowe: "Językowe",
+  sensoryczne: "Sensoryczne",
+  inne: "Inne",
+};
+
+export const ACTIVITY_TYPE_ICONS: Record<ActivityType, string> = {
+  sportowe: "⚽",
+  artystyczne: "🎨",
+  edukacyjne: "📚",
+  muzyczne: "🎵",
+  taneczne: "💃",
+  jezykowe: "🗣️",
+  sensoryczne: "🧩",
+  inne: "✨",
 };
 
 // Place type labels

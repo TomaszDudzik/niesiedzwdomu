@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import type { Camp, Event, Place } from "@/types/database";
+import type { Activity, Camp, Event, Place } from "@/types/database";
 
 /**
  * Server-side data fetching from Supabase.
@@ -31,6 +31,16 @@ function toCamp(row: Record<string, unknown>): Camp {
     content_type: "camp",
     price: priceFrom ?? priceSingle ?? null,
   } as Camp;
+}
+
+function toActivity(row: Record<string, unknown>): Activity {
+  return {
+    ...row,
+    content_type: "activity",
+    days_of_week: Array.isArray(row.days_of_week) ? row.days_of_week.map(String) : [],
+    price_from: typeof row.price_from === "number" ? row.price_from : null,
+    price_to: typeof row.price_to === "number" ? row.price_to : null,
+  } as Activity;
 }
 
 export async function getPublishedEvents(limit = 50): Promise<Event[]> {
@@ -150,4 +160,21 @@ export async function getCampBySlug(slug: string): Promise<Camp | null> {
     .eq("status", "published")
     .single();
   return data ? toCamp(data) : null;
+}
+
+// ── Activities ──
+
+export async function getPublishedActivities(limit = 120): Promise<Activity[]> {
+  const db = getDb();
+  const today = new Date().toISOString().slice(0, 10);
+  const { data } = await db
+    .from("activities")
+    .select("*")
+    .eq("status", "published")
+    .or(`date_end.is.null,date_end.gte.${today}`)
+    .order("is_featured", { ascending: false })
+    .order("date_start", { ascending: true })
+    .order("title", { ascending: true })
+    .limit(limit);
+  return (data || []).map(toActivity);
 }

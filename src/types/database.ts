@@ -37,6 +37,16 @@ export type CampType = "kolonie" | "polkolonie" | "warsztaty_wakacyjne";
 
 export type CampSeason = "lato" | "zima" | "ferie_zimowe" | "ferie_wiosenne" | "caly_rok";
 
+export type ActivityType =
+  | "sportowe"
+  | "artystyczne"
+  | "edukacyjne"
+  | "muzyczne"
+  | "taneczne"
+  | "jezykowe"
+  | "sensoryczne"
+  | "inne";
+
 export type PlaceType =
   | "Relaks i natura"
   | "Nauka przez zabawę"
@@ -107,6 +117,40 @@ export interface Camp {
   age_min: number | null;
   age_max: number | null;
   price: number | null;
+  is_free: boolean;
+  district: District;
+  venue_name: string;
+  venue_address: string;
+  organizer: string;
+  source_url: string | null;
+  facebook_url: string | null;
+  is_featured: boolean;
+  status: ContentStatus;
+  likes: number;
+  dislikes: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Activity {
+  content_type: "activity";
+  id: string;
+  title: string;
+  slug: string;
+  description_short: string;
+  description_long: string;
+  image_url: string | null;
+  activity_type: ActivityType;
+  schedule_summary: string | null;
+  days_of_week: string[];
+  date_start: string;
+  date_end: string | null;
+  time_start: string | null;
+  time_end: string | null;
+  age_min: number | null;
+  age_max: number | null;
+  price_from: number | null;
+  price_to: number | null;
   is_free: boolean;
   district: District;
   venue_name: string;
@@ -220,6 +264,11 @@ export interface Database {
         Row: Event;
         Insert: Omit<Event, "id" | "created_at" | "updated_at" | "likes" | "dislikes">;
         Update: Partial<Omit<Event, "id" | "created_at" | "updated_at">>;
+      };
+      activities: {
+        Row: Activity;
+        Insert: Omit<Activity, "id" | "created_at" | "updated_at" | "likes" | "dislikes">;
+        Update: Partial<Omit<Activity, "id" | "created_at" | "updated_at">>;
       };
       scrape_sources: {
         Row: ScrapeSource;
