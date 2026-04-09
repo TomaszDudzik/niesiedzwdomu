@@ -25,16 +25,20 @@ export function AiLearnMoreLink({ title, topicHint }: AiLearnMoreLinkProps) {
       href={href}
       target="_blank"
       rel="noopener"
-      className="group flex items-center gap-2.5 rounded-xl border border-primary/20 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-4 py-3 text-[13px] text-foreground transition-all duration-200 hover:border-primary/35 hover:from-primary/15 hover:via-primary/10"
+      className="group relative flex items-center gap-3 overflow-hidden rounded-2xl border border-primary/35 bg-[linear-gradient(135deg,var(--color-primary)_0%,color-mix(in_oklab,var(--color-primary)_82%,black)_100%)] px-5 py-4 text-primary-foreground shadow-[var(--shadow-card)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-card-hover)]"
     >
-      <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-primary/15 text-primary">
-        <Sparkles size={14} />
+      <span className="pointer-events-none absolute inset-y-0 right-0 w-24 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.28),transparent_70%)] opacity-80" />
+      <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white/18 text-white ring-1 ring-white/30 backdrop-blur-sm">
+        <Sparkles size={18} />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="font-semibold leading-tight">Dowiedz się więcej</p>
-        <p className="text-[11px] text-muted truncate">Szybki research: praktyczne informacje i kontekst</p>
+        <p className="text-[15px] font-extrabold leading-tight tracking-[-0.01em]">Dowiedz się więcej</p>
+        <p className="text-[12px] text-primary-foreground/85 line-clamp-2">Sprawdź praktyczne informacje, dodatkowy kontekst i szybki research o tym miejscu</p>
       </div>
-      <ExternalLink size={13} className="text-muted group-hover:text-primary transition-colors duration-200" />
+      <div className="shrink-0 rounded-full bg-white/16 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-white ring-1 ring-white/25">
+        Kliknij
+      </div>
+      <ExternalLink size={15} className="shrink-0 text-white/90 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
     </a>
   );
 }

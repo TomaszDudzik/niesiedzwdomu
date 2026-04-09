@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, Calendar, Clock, MapPin, Users, ExternalLink } from "lucide-react";
+import { ArrowLeft, Calendar, Clock, MapPin, Users, ExternalLink, Globe } from "lucide-react";
 import { CATEGORY_LABELS } from "@/lib/mock-data";
 import { formatDate, formatPrice, formatAgeRange } from "@/lib/utils";
 import { FeedbackButtons } from "@/components/ui/feedback-buttons";
@@ -216,39 +216,73 @@ export default async function EventDetailPage({ params }: PageProps) {
 
         <div className="lg:col-span-1">
           <div className="sticky top-20 space-y-5">
-            <div className="rounded-xl border border-border bg-card p-5 space-y-4 shadow-[var(--shadow-card)]">
-              <div className="space-y-3 text-[13px]">
+            <div className="rounded-xl border border-border bg-card shadow-[var(--shadow-card)] overflow-hidden">
+              <div className="px-5 pt-5 pb-4 border-b border-border">
+                <h2 className="text-[15px] font-bold text-foreground leading-snug">{event.title}</h2>
+                <p className="text-[11px] text-muted mt-1 uppercase tracking-wider font-medium">
+                  {CATEGORY_LABELS[event.category]} · {event.district}
+                </p>
+              </div>
+
+              <div className="px-5 py-4 space-y-3.5 text-[13px]">
                 <div className="flex items-start gap-2.5">
                   <Calendar size={15} className="text-secondary/60 shrink-0 mt-0.5" />
                   <div>
+                    <p className="text-[11px] text-muted uppercase tracking-wider mb-0.5">Data</p>
                     <p className="font-medium text-foreground">{formatDate(event.date_start)}</p>
                     {event.date_end && event.date_end !== event.date_start && <p className="text-muted">do {formatDate(event.date_end)}</p>}
                   </div>
                 </div>
+
                 {event.time_start && (
                   <div className="flex items-start gap-2.5">
                     <Clock size={15} className="text-secondary/60 shrink-0 mt-0.5" />
-                    <p className="font-medium text-foreground">{event.time_start}{event.time_end && ` – ${event.time_end}`}</p>
+                    <div>
+                      <p className="text-[11px] text-muted uppercase tracking-wider mb-0.5">Godzina</p>
+                      <p className="font-medium text-foreground">{event.time_start}{event.time_end && ` – ${event.time_end}`}</p>
+                    </div>
                   </div>
                 )}
+
                 {event.venue_name && (
                   <div className="flex items-start gap-2.5">
                     <MapPin size={15} className="text-secondary/60 shrink-0 mt-0.5" />
-                    <div><p className="font-medium text-foreground">{event.venue_name}</p><p className="text-muted">{event.venue_address}</p></div>
+                    <div>
+                      <p className="text-[11px] text-muted uppercase tracking-wider mb-0.5">Miejsce</p>
+                      <p className="font-medium text-foreground">{event.venue_name}</p>
+                      <p className="text-muted">{event.venue_address}</p>
+                    </div>
                   </div>
                 )}
+
                 <div className="flex items-start gap-2.5">
                   <Users size={15} className="text-secondary/60 shrink-0 mt-0.5" />
-                  <p className="font-medium text-foreground">{formatAgeRange(event.age_min, event.age_max)}</p>
+                  <div>
+                    <p className="text-[11px] text-muted uppercase tracking-wider mb-0.5">Wiek</p>
+                    <p className="font-medium text-foreground">{formatAgeRange(event.age_min, event.age_max)}</p>
+                  </div>
                 </div>
               </div>
-              {event.source_url && (
-                <a href={event.source_url} target="_blank" rel="noopener"
-                  className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-[13px] font-medium hover:bg-primary-hover transition-colors duration-200 shadow-[var(--shadow-soft)]">
-                  <ExternalLink size={13} /> Strona organizatora
-                </a>
+
+              {(event.source_url || event.organizer) && (
+                <div className="px-5 py-4 border-t border-border space-y-2.5">
+                  {event.source_url && (
+                    <a
+                      href={event.source_url}
+                      target="_blank"
+                      rel="noopener"
+                      className="flex items-center gap-2.5 text-[13px] text-foreground hover:text-primary transition-colors duration-200 group"
+                    >
+                      <Globe size={15} className="text-secondary/60 group-hover:text-primary shrink-0" />
+                      <span className="font-medium truncate">Strona organizatora</span>
+                      <ExternalLink size={11} className="text-muted shrink-0 ml-auto" />
+                    </a>
+                  )}
+                  {event.organizer && (
+                    <p className="text-[12px] text-muted">Organizator: {event.organizer}</p>
+                  )}
+                </div>
               )}
-              {event.organizer && <p className="text-[12px] text-muted text-center">{event.organizer}</p>}
             </div>
           </div>
         </div>

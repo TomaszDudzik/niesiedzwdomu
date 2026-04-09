@@ -48,14 +48,14 @@ function AdminCanonicalEventsPanel() {
     title: ["title", "tytul", "tytuł", "nazwa", "name"],
     description_short: ["description_short", "krotki opis", "krótki opis", "opis", "short description"],
     description_long: ["description_long", "dlugi opis", "długi opis", "pelny opis", "pełny opis", "long description"],
-    category: ["category", "kategoria", "typ", "rodzaj"],
+    category: ["category", "kategoria", "typ", "rodzaj", "activity_type", "activity type"],
     date_start: ["date_start", "data", "data od", "start date", "date"],
     date_end: ["date_end", "data do", "end date"],
     time_start: ["time_start", "godzina od", "godzina", "start time", "czas od"],
     time_end: ["time_end", "godzina do", "end time", "czas do"],
     age_min: ["age_min", "wiek od", "minimalny wiek"],
     age_max: ["age_max", "wiek do", "maksymalny wiek"],
-    price: ["price", "cena", "koszt"],
+    price: ["price", "cena", "koszt", "price_from", "price_to", "price from", "price to"],
     is_free: ["is_free", "free", "darmowe", "bezplatne", "bezpłatne"],
     district: ["district", "dzielnica"],
     venue_name: ["venue_name", "miejsce", "lokalizacja", "venue"],
@@ -88,7 +88,8 @@ function AdminCanonicalEventsPanel() {
       const raw = structMatch[0]
         .replace(/#[^\n]*/g, "")
         .replace(/<NA>/g, "null")
-        .replace(/\bNaN\b/g, "null");
+        .replace(/\bNaN\b/g, "null")
+        .replace(/,\s*([}\]])/g, "$1");
 
       const attempts = [
         raw,
@@ -172,6 +173,30 @@ function AdminCanonicalEventsPanel() {
 
   const normalizeCategory = (value?: string): Event["category"] => {
     const normalized = (value || "").trim().toLowerCase();
+    const aliases: Record<string, Event["category"]> = {
+      warsztaty: "warsztaty",
+      spektakl: "spektakl",
+      spektakle: "spektakl",
+      kino: "kino",
+      koncert: "muzyka",
+      koncerty: "muzyka",
+      muzyka: "muzyka",
+      muzyczne: "muzyka",
+      edukacja: "edukacja",
+      edukacyjne: "edukacja",
+      sport: "sport",
+      sportowe: "sport",
+      natura: "natura",
+      przyroda: "natura",
+      festyn: "festyn",
+      festiwal: "festyn",
+      wystawa: "wystawa",
+      wystawy: "wystawa",
+      inne: "inne",
+    };
+
+    if (normalized in aliases) return aliases[normalized];
+
     const match = Object.entries(CATEGORY_LABELS).find(([key, label]) => {
       const keyMatch = key.toLowerCase() === normalized;
       const labelMatch = label.toLowerCase() === normalized;
@@ -222,7 +247,7 @@ function AdminCanonicalEventsPanel() {
         continue;
       }
 
-      const price = asNumber(mapped.price);
+      const price = asNumber(mapped.price) ?? asNumber(row.price_from) ?? asNumber(row.price_to);
       const isFree = mapped.is_free ? asBoolean(mapped.is_free) : price === null || price === 0;
       const payload = {
         content_type: "event",

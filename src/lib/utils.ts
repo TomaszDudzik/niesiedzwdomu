@@ -71,3 +71,10 @@ export function getNextWeekend(): { start: Date; end: Date } {
   sunday.setHours(23, 59, 59, 999);
   return { start: saturday, end: sunday };
 }
+
+export function toLocalDateKey(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}

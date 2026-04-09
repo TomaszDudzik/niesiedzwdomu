@@ -13,7 +13,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
-import { cn, formatPrice, formatAgeRange } from "@/lib/utils";
+import { cn, formatPrice, formatAgeRange, toLocalDateKey } from "@/lib/utils";
 import { getEventsForDate } from "@/lib/filter-events";
 import { CATEGORY_ICONS } from "@/lib/mock-data";
 import type { Event, EventCategory } from "@/types/database";
@@ -30,6 +30,12 @@ function isSameDay(a: Date, b: Date) {
 }
 function isToday(date: Date) { return isSameDay(date, new Date()); }
 function isWeekend(date: Date) { const d = date.getDay(); return d === 0 || d === 6; }
+
+function getTodayStart(): Date {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  return now;
+}
 
 function generateDateRange(centerDate: Date, daysBefore: number, daysAfter: number): Date[] {
   const dates: Date[] = [];
@@ -100,19 +106,30 @@ interface CalendarMapViewProps {
 }
 
 export function CalendarMapView({ events }: CalendarMapViewProps) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = getTodayStart();
 
-  const [selectedDate, setSelectedDate] = useState<Date>(today);
+  const [baseDate, setBaseDate] = useState<Date>(() => getTodayStart());
+  const [selectedDate, setSelectedDate] = useState<Date>(() => getTodayStart());
   const [mobileView, setMobileView] = useState<"map" | "list">("list");
   const [highlightedDistrict, setHighlightedDistrict] = useState<string | null>(null);
   const [MapComponent, setMapComponent] = useState<React.ComponentType<{ groups: MarkerGroup[] }> | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
-  const todayRef = useRef<HTMLButtonElement>(null);
 
-  // Generate 60 days: 7 before today, 52 after
-  const dateRange = useMemo(() => generateDateRange(today, 7, 52), []);
+  // Generate 60 days starting from today.
+  const dateRange = useMemo(() => generateDateRange(baseDate, 0, 59), [baseDate]);
+
+  // Always open timeline centered around current day.
+  useEffect(() => {
+    const current = getTodayStart();
+    setBaseDate(current);
+    setSelectedDate(current);
+    requestAnimationFrame(() => {
+      if (scrollRef.current) {
+        scrollRef.current.scrollTo({ left: 0, behavior: "auto" });
+      }
+    });
+  }, []);
 
   // Events for selected date
   const selectedEvents = useMemo(() => getEventsForDate(events, selectedDate), [events, selectedDate]);
@@ -125,21 +142,11 @@ export function CalendarMapView({ events }: CalendarMapViewProps) {
     for (const date of dateRange) {
       const dateEvents = getEventsForDate(events, date);
       if (dateEvents.length > 0) {
-        counts.set(date.toISOString().split("T")[0], dateEvents.length);
+        counts.set(toLocalDateKey(date), dateEvents.length);
       }
     }
     return counts;
   }, [events, dateRange]);
-
-  // Scroll to today on mount
-  useEffect(() => {
-    if (todayRef.current && scrollRef.current) {
-      const container = scrollRef.current;
-      const todayEl = todayRef.current;
-      const offset = todayEl.offsetLeft - container.offsetWidth / 2 + todayEl.offsetWidth / 2;
-      container.scrollTo({ left: offset, behavior: "instant" });
-    }
-  }, []);
 
   // Load map component
   useEffect(() => {
@@ -153,12 +160,11 @@ export function CalendarMapView({ events }: CalendarMapViewProps) {
   }, []);
 
   const jumpToToday = () => {
-    setSelectedDate(today);
-    if (todayRef.current && scrollRef.current) {
-      const container = scrollRef.current;
-      const todayEl = todayRef.current;
-      const offset = todayEl.offsetLeft - container.offsetWidth / 2 + todayEl.offsetWidth / 2;
-      container.scrollTo({ left: offset, behavior: "smooth" });
+    const current = getTodayStart();
+    setBaseDate(current);
+    setSelectedDate(current);
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({ left: 0, behavior: "smooth" });
     }
   };
 
@@ -171,7 +177,7 @@ export function CalendarMapView({ events }: CalendarMapViewProps) {
     // scroll to it
     setTimeout(() => {
       if (scrollRef.current) {
-        const targetKey = d.toISOString().split("T")[0];
+        const targetKey = toLocalDateKey(d);
         const el = scrollRef.current.querySelector(`[data-date="${targetKey}"]`) as HTMLElement | null;
         if (el) {
           const container = scrollRef.current;
@@ -227,7 +233,7 @@ export function CalendarMapView({ events }: CalendarMapViewProps) {
         {/* Scrollable date cells */}
         <div ref={scrollRef} className="flex overflow-x-auto scrollbar-hide py-2 px-2 gap-1" style={{ scrollbarWidth: "none" }}>
           {dateRange.map((date) => {
-            const key = date.toISOString().split("T")[0];
+            const key = toLocalDateKey(date);
             const selected = isSameDay(date, selectedDate);
             const todayFlag = isToday(date);
             const weekend = isWeekend(date);
@@ -238,7 +244,6 @@ export function CalendarMapView({ events }: CalendarMapViewProps) {
               <button
                 key={key}
                 data-date={key}
-                ref={todayFlag ? todayRef : undefined}
                 onClick={() => setSelectedDate(date)}
                 className={cn(
                   "flex flex-col items-center min-w-[52px] px-2 py-2 rounded-lg transition-all shrink-0 relative",

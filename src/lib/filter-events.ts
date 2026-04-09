@@ -1,6 +1,6 @@
 import type { Event, Camp, Place, EventFilters, CampFilters, PlaceFilters } from "@/types/database";
 import { AGE_GROUPS } from "./mock-data";
-import { getNextWeekend } from "./utils";
+import { getNextWeekend, toLocalDateKey } from "./utils";
 
 // ============================================
 // Shared filter logic
@@ -29,7 +29,7 @@ function matchesDateRange(dateStart: string, dateRange?: string): boolean {
 
   switch (dateRange) {
     case "today":
-      return dateStart === today.toISOString().split("T")[0];
+      return dateStart === toLocalDateKey(today);
     case "weekend": {
       const { start, end } = getNextWeekend();
       return eventDate >= start && eventDate <= end;
@@ -115,7 +115,7 @@ export function filterPlaces(places: Place[], filters: PlaceFilters): Place[] {
 // ============================================
 
 export function getEventsForDate(events: Event[], date: Date): Event[] {
-  const dateStr = date.toISOString().split("T")[0];
+  const dateStr = toLocalDateKey(date);
   return events.filter((e) => {
     if (e.status !== "published") return false;
     if (e.date_start === dateStr) return true;

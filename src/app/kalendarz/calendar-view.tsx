@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, MapPin } from "lucide-react";
 import Link from "next/link";
 import { cn, formatPrice, formatAgeRange } from "@/lib/utils";
@@ -20,11 +20,24 @@ interface CalendarViewProps {
   events: Event[];
 }
 
+function getTodayStart(): Date {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  return now;
+}
+
 export function CalendarView({ events }: CalendarViewProps) {
-  const today = new Date();
-  const [currentMonth, setCurrentMonth] = useState(today.getMonth());
-  const [currentYear, setCurrentYear] = useState(today.getFullYear());
-  const [selectedDate, setSelectedDate] = useState<Date>(today);
+  const [currentMonth, setCurrentMonth] = useState(() => getTodayStart().getMonth());
+  const [currentYear, setCurrentYear] = useState(() => getTodayStart().getFullYear());
+  const [selectedDate, setSelectedDate] = useState<Date>(() => getTodayStart());
+
+  // Always open calendar on today's local date.
+  useEffect(() => {
+    const today = getTodayStart();
+    setCurrentMonth(today.getMonth());
+    setCurrentYear(today.getFullYear());
+    setSelectedDate(today);
+  }, []);
 
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
   const firstDay = getFirstDayOfMonth(currentYear, currentMonth);
@@ -41,7 +54,12 @@ export function CalendarView({ events }: CalendarViewProps) {
 
   const prevMonth = () => { if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(currentYear - 1); } else { setCurrentMonth(currentMonth - 1); } };
   const nextMonth = () => { if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(currentYear + 1); } else { setCurrentMonth(currentMonth + 1); } };
-  const goToToday = () => { setCurrentMonth(today.getMonth()); setCurrentYear(today.getFullYear()); setSelectedDate(today); };
+  const goToToday = () => {
+    const today = getTodayStart();
+    setCurrentMonth(today.getMonth());
+    setCurrentYear(today.getFullYear());
+    setSelectedDate(today);
+  };
 
   return (
     <>
@@ -66,7 +84,7 @@ export function CalendarView({ events }: CalendarViewProps) {
                 const selected = isSameDay(date, selectedDate);
                 const todayFlag = isToday(date);
                 const count = eventCounts[day] || 0;
-                const isPast = date < new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                const isPast = date < getTodayStart();
                 return (
                   <button key={day} onClick={() => setSelectedDate(date)}
                     className={cn("aspect-square rounded-lg flex flex-col items-center justify-center relative transition-all duration-200 text-[13px]",
