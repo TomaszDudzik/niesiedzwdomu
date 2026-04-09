@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Calendar, MapPin, ArrowRight, Clock } from "lucide-react";
+import { Calendar, MapPin, ArrowRight, Clock, ThumbsUp } from "lucide-react";
 import type { DiscoveryItem } from "@/types/database";
 import { formatPrice, formatAgeRange, cn } from "@/lib/utils";
 import { getItemHref, getTypeBadgeLabel, getSubcategoryLabel, getDateText, getLocationText, getPlaceholderIcon } from "@/lib/content-helpers";
@@ -10,6 +10,7 @@ interface FeaturedCardProps {
 
 export function FeaturedCard({ item }: FeaturedCardProps) {
   const isPlace = item.content_type === "place";
+  const likesCount = typeof item.likes === "number" ? item.likes : 0;
 
   return (
     <Link
@@ -30,6 +31,10 @@ export function FeaturedCard({ item }: FeaturedCardProps) {
               Bezpłatnie
             </span>
           )}
+          <span className="absolute bottom-3 right-3 inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-foreground shadow-[var(--shadow-soft)] border border-border/70">
+            <ThumbsUp size={12} className="text-primary" />
+            {likesCount}
+          </span>
         </div>
 
         <div className="p-6 md:p-8 flex flex-col justify-center">

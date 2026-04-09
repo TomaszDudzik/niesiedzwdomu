@@ -44,8 +44,22 @@ export async function POST(request: NextRequest) {
 
   if (existing) {
     if (existing.is_positive === is_positive) {
-      // Same vote — no change
-      return NextResponse.json({ ok: true, changed: false });
+      // Same vote clicked again - remove vote (toggle off)
+      await db.from("feedback").delete().eq("id", existing.id);
+      await adjustCount(db, table, item_id, is_positive ? "likes" : "dislikes", -1);
+
+      const { data: updatedAfterToggle } = await db.from(table).select("likes, dislikes").eq("id", item_id).single();
+
+      revalidatePath("/");
+      revalidatePath(content_type === "event" ? "/wydarzenia" : "/miejsca");
+
+      return NextResponse.json({
+        ok: true,
+        changed: true,
+        removed: true,
+        likes: updatedAfterToggle?.likes ?? 0,
+        dislikes: updatedAfterToggle?.dislikes ?? 0,
+      });
     }
 
     // Change vote: delete old, adjust counters

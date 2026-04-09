@@ -4,6 +4,8 @@ import Link from "next/link";
 import { ArrowLeft, MapPin, ExternalLink, Home, Globe, Users, Sparkles } from "lucide-react";
 import { PLACE_TYPE_LABELS, PLACE_TYPE_ICONS } from "@/lib/mock-data";
 import { FeedbackButtons } from "@/components/ui/feedback-buttons";
+import { AiLearnMoreLink } from "@/components/ui/ai-learn-more-link";
+import { LiveLikesBadge } from "@/components/ui/live-likes-badge";
 import { getPlaceBySlug } from "@/lib/data";
 
 const FacebookIcon = ({ size = 15, className = "" }: { size?: number; className?: string }) => (
@@ -148,10 +150,18 @@ export default async function PlaceDetailPage({ params }: PageProps) {
       <div className="grid lg:grid-cols-3 gap-10">
         <div className="lg:col-span-2">
           {place.image_url && (
-            <div className="rounded-xl overflow-hidden mb-8 aspect-[15/8] bg-accent">
+            <div className="relative rounded-xl overflow-hidden mb-4 aspect-[15/8] bg-accent">
               <img src={place.image_url} alt={place.title} className="w-full h-full object-cover" />
+              <LiveLikesBadge contentType="place" itemId={place.id} initialLikes={place.likes} />
             </div>
           )}
+
+          <div className="mb-8">
+            <AiLearnMoreLink
+              title={place.title}
+              topicHint={`${PLACE_TYPE_LABELS[place.place_type] || place.place_type} miejsce dla dzieci`}
+            />
+          </div>
 
           <div className="flex items-center gap-1.5 mb-3 text-[11px] uppercase tracking-wider font-medium">
             <span className="text-lg mr-0.5">{PLACE_TYPE_ICONS[place.place_type] || "📍"}</span>
@@ -259,13 +269,6 @@ export default async function PlaceDetailPage({ params }: PageProps) {
                   </a>
                 )}
 
-                <a href={`https://www.google.com/search?q=${encodeURIComponent(place.title + " Kraków kluczowe informacje, główne atrakcje, godziny otwarcia, cena biletów")}&udm=50`}
-                  target="_blank" rel="noopener"
-                  className="flex items-center gap-2.5 text-[13px] text-foreground hover:text-primary transition-colors duration-200 group">
-                  <Sparkles size={15} className="text-secondary/60 group-hover:text-primary shrink-0" />
-                  <span className="font-medium truncate">Dowiedz się więcej (AI)</span>
-                  <ExternalLink size={11} className="text-muted shrink-0 ml-auto" />
-                </a>
               </div>
 
               {/* Like button */}

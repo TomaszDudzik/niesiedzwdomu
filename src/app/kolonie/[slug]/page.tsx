@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, Calendar, ExternalLink, MapPin, Users } from "lucide-react";
+import { ArrowLeft, Calendar, ExternalLink, MapPin, Users, ThumbsUp } from "lucide-react";
 import { CAMP_TYPE_LABELS } from "@/lib/mock-data";
 import { formatAgeRange, formatDate, formatPrice } from "@/lib/utils";
+import { AiLearnMoreLink } from "@/components/ui/ai-learn-more-link";
 import { getCampBySlug } from "@/lib/data";
 
 export const revalidate = 60;
@@ -44,10 +45,21 @@ export default async function CampDetailPage({ params }: PageProps) {
       <div className="grid lg:grid-cols-3 gap-10">
         <div className="lg:col-span-2">
           {camp.image_url && (
-            <div className="rounded-xl overflow-hidden mb-8 aspect-[15/8] bg-accent">
+            <div className="relative rounded-xl overflow-hidden mb-4 aspect-[15/8] bg-accent">
               <img src={camp.image_url} alt={camp.title} className="w-full h-full object-cover" />
+              <span className="absolute bottom-3 right-3 inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[11px] font-semibold text-foreground shadow-[var(--shadow-soft)] border border-border/70">
+                <ThumbsUp size={13} className="text-primary" />
+                {camp.likes}
+              </span>
             </div>
           )}
+
+          <div className="mb-8">
+            <AiLearnMoreLink
+              title={camp.title}
+              topicHint={`${CAMP_TYPE_LABELS[camp.camp_type]} dla dzieci`}
+            />
+          </div>
 
           <div className="flex items-center gap-1.5 mb-3 text-[11px] uppercase tracking-wider font-medium">
             <span className="text-primary">Kolonia</span>

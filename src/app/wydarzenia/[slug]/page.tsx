@@ -6,6 +6,8 @@ import { CATEGORY_LABELS } from "@/lib/mock-data";
 import { formatDate, formatPrice, formatAgeRange } from "@/lib/utils";
 import { FeedbackButtons } from "@/components/ui/feedback-buttons";
 import { ContentCard } from "@/components/ui/content-card";
+import { AiLearnMoreLink } from "@/components/ui/ai-learn-more-link";
+import { LiveLikesBadge } from "@/components/ui/live-likes-badge";
 import { getEventBySlug, getRelatedEvents } from "@/lib/data";
 
 export const revalidate = 60;
@@ -175,10 +177,18 @@ export default async function EventDetailPage({ params }: PageProps) {
       <div className="grid lg:grid-cols-3 gap-10">
         <div className="lg:col-span-2">
           {event.image_url && (
-            <div className="rounded-xl overflow-hidden mb-8 aspect-[15/8] bg-accent">
+            <div className="relative rounded-xl overflow-hidden mb-4 aspect-[15/8] bg-accent">
               <img src={event.image_url} alt={event.title} className="w-full h-full object-cover" />
+              <LiveLikesBadge contentType="event" itemId={event.id} initialLikes={event.likes} />
             </div>
           )}
+
+          <div className="mb-8">
+            <AiLearnMoreLink
+              title={event.title}
+              topicHint={`${CATEGORY_LABELS[event.category]} wydarzenie dla dzieci`}
+            />
+          </div>
 
           <div className="flex items-center gap-1.5 mb-3 text-[11px] uppercase tracking-wider font-medium">
             <span className="text-primary">Wydarzenie</span>
