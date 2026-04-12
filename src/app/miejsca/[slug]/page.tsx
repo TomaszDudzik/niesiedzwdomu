@@ -5,7 +5,6 @@ import { ArrowLeft, MapPin, ExternalLink, Home, Globe, Users, Sparkles } from "l
 import { PLACE_TYPE_LABELS, PLACE_TYPE_ICONS } from "@/lib/mock-data";
 import { FeedbackButtons } from "@/components/ui/feedback-buttons";
 import { AiLearnMoreLink } from "@/components/ui/ai-learn-more-link";
-import { LiveLikesBadge } from "@/components/ui/live-likes-badge";
 import { getPlaceBySlug } from "@/lib/data";
 
 const FacebookIcon = ({ size = 15, className = "" }: { size?: number; className?: string }) => (
@@ -152,7 +151,14 @@ export default async function PlaceDetailPage({ params }: PageProps) {
           {place.image_url && (
             <div className="relative rounded-xl overflow-hidden mb-4 aspect-[15/8] bg-accent">
               <img src={place.image_url} alt={place.title} className="w-full h-full object-cover" />
-              <LiveLikesBadge contentType="place" itemId={place.id} initialLikes={place.likes} />
+              <FeedbackButtons
+                contentType="place"
+                itemId={place.id}
+                initialLikes={place.likes}
+                initialDislikes={place.dislikes}
+                showLabel={false}
+                className="absolute bottom-3 right-3 z-10"
+              />
             </div>
           )}
 
@@ -269,11 +275,6 @@ export default async function PlaceDetailPage({ params }: PageProps) {
                   </a>
                 )}
 
-              </div>
-
-              {/* Like button */}
-              <div className="px-5 py-4 border-t border-border">
-                <FeedbackButtons contentType="place" itemId={place.id} initialLikes={place.likes} initialDislikes={place.dislikes} />
               </div>
             </div>
           </div>

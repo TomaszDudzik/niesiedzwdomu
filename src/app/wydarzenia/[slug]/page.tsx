@@ -7,7 +7,6 @@ import { formatDate, formatPrice, formatAgeRange } from "@/lib/utils";
 import { FeedbackButtons } from "@/components/ui/feedback-buttons";
 import { ContentCard } from "@/components/ui/content-card";
 import { AiLearnMoreLink } from "@/components/ui/ai-learn-more-link";
-import { LiveLikesBadge } from "@/components/ui/live-likes-badge";
 import { getEventBySlug, getRelatedEvents } from "@/lib/data";
 
 export const revalidate = 60;
@@ -179,7 +178,14 @@ export default async function EventDetailPage({ params }: PageProps) {
           {event.image_url && (
             <div className="relative rounded-xl overflow-hidden mb-4 aspect-[15/8] bg-accent">
               <img src={event.image_url} alt={event.title} className="w-full h-full object-cover" />
-              <LiveLikesBadge contentType="event" itemId={event.id} initialLikes={event.likes} />
+              <FeedbackButtons
+                contentType="event"
+                itemId={event.id}
+                initialLikes={event.likes}
+                initialDislikes={event.dislikes}
+                showLabel={false}
+                className="absolute bottom-3 right-3 z-10"
+              />
             </div>
           )}
 
@@ -208,10 +214,6 @@ export default async function EventDetailPage({ params }: PageProps) {
               ))}
             </div>
           )}
-
-          <div className="mt-10 pt-8 border-t border-border">
-            <FeedbackButtons contentType="event" itemId={event.id} initialLikes={event.likes} initialDislikes={event.dislikes} />
-          </div>
         </div>
 
         <div className="lg:col-span-1">

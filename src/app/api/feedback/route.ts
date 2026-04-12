@@ -27,8 +27,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
-  const table = content_type === "event" ? "events" : content_type === "place" ? "places" : null;
-  const fkColumn = content_type === "event" ? "event_id" : content_type === "place" ? "place_id" : null;
+  const table = content_type === "event" ? "events" : content_type === "place" ? "places" : content_type === "camp" ? "camps" : null;
+  const fkColumn = content_type === "event" ? "event_id" : content_type === "place" ? "place_id" : content_type === "camp" ? "camp_id" : null;
 
   if (!table || !fkColumn) {
     return NextResponse.json({ error: "Invalid content_type" }, { status: 400 });
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
       const { data: updatedAfterToggle } = await db.from(table).select("likes, dislikes").eq("id", item_id).single();
 
       revalidatePath("/");
-      revalidatePath(content_type === "event" ? "/wydarzenia" : "/miejsca");
+      revalidatePath(content_type === "event" ? "/wydarzenia" : content_type === "place" ? "/miejsca" : "/kolonie");
 
       return NextResponse.json({
         ok: true,
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
   const { data: updated } = await db.from(table).select("likes, dislikes").eq("id", item_id).single();
 
   revalidatePath("/");
-  revalidatePath(content_type === "event" ? "/wydarzenia" : "/miejsca");
+  revalidatePath(content_type === "event" ? "/wydarzenia" : content_type === "place" ? "/miejsca" : "/kolonie");
 
   return NextResponse.json({
     ok: true,
@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Missing params" }, { status: 400 });
   }
 
-  const fkColumn = content_type === "event" ? "event_id" : content_type === "place" ? "place_id" : null;
+  const fkColumn = content_type === "event" ? "event_id" : content_type === "place" ? "place_id" : content_type === "camp" ? "camp_id" : null;
   if (!fkColumn) {
     return NextResponse.json({ error: "Invalid content_type" }, { status: 400 });
   }

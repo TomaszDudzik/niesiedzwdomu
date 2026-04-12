@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Calendar, Clock, ExternalLink, MapPin, Search, SlidersHorizontal, Users, X } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { Search, SlidersHorizontal, X, MapPin, Check, Tags, Users, CalendarDays } from "lucide-react";
 import { CAMP_TYPE_ICONS, CAMP_TYPE_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
-import { cn, formatAgeRange, formatDateShort, formatPrice } from "@/lib/utils";
+import { cn, formatAgeRange, formatDateShort, toLocalDateKey } from "@/lib/utils";
 import type { Camp, CampType, District } from "@/types/database";
 
 const campTypes = Object.keys(CAMP_TYPE_LABELS) as CampType[];
@@ -16,298 +16,738 @@ const AGE_GROUPS = [
   { key: "13+", label: "13+ lat", icon: "🧑", min: 13, max: 99 },
 ] as const;
 
+const MONTHS_PL = [
+  "Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec",
+  "Lipiec", "Sierpień", "Wrzesień", "Październik", "Listopad", "Grudzień",
+];
+const DAYS_PL = ["Nd", "Pn", "Wt", "Śr", "Cz", "Pt", "So"];
+
+const DISTRICT_ICONS: Partial<Record<District, string>> = {
+  "Stare Miasto": "🏰",
+  "Kazimierz": "🕍",
+  "Podgórze": "🌉",
+  "Nowa Huta": "🏭",
+  "Krowodrza": "🌿",
+  "Bronowice": "🌾",
+  "Zwierzyniec": "🦬",
+  "Dębniki": "🌊",
+  "Prądnik Czerwony": "🌳",
+  "Prądnik Biały": "🍃",
+  "Czyżyny": "✈️",
+  "Bieżanów": "🚋",
+};
+
+interface DateRange {
+  start: Date;
+  end: Date;
+}
+
+interface OrganizerTile {
+  organizerKey: string;
+  organizerName: string;
+  leadCamp: Camp;
+  camps: Camp[];
+}
+
+interface CampTypeGroup {
+  type: CampType;
+  label: string;
+  icon: string;
+  organizers: OrganizerTile[];
+}
+
 interface CampsListViewProps {
   camps: Camp[];
 }
 
-interface TimelineCamp {
-  camp: Camp;
-  startDay: number;
-  endDay: number;
-  durationDays: number;
+function getTodayStart(): Date {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  return now;
 }
 
-const MS_DAY = 24 * 60 * 60 * 1000;
-
-function dayNumber(dateLike: string): number {
-  const date = new Date(dateLike);
-  return Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / MS_DAY);
+function toStartOfDay(date: Date): Date {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
 }
 
-function durationInclusive(from: string, to: string): number {
-  return Math.max(1, dayNumber(to) - dayNumber(from) + 1);
+function toEndOfDay(date: Date): Date {
+  const d = new Date(date);
+  d.setHours(23, 59, 59, 999);
+  return d;
 }
 
-function typeBarClass(type: CampType): string {
-  if (type === "kolonie") return "bg-blue-500";
-  if (type === "polkolonie") return "bg-emerald-500";
-  return "bg-amber-500";
+function getDaysInMonth(year: number, month: number): number {
+  return new Date(year, month + 1, 0).getDate();
 }
 
-function organizerKey(organizer: string | null | undefined): string {
-  return (organizer || "Organizator").trim().toLocaleLowerCase("pl-PL");
+function isSameDay(a: Date, b: Date): boolean {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
-function getCampDisplayTitle(title: string, organizer: string | null | undefined): string {
-  const normalizedOrganizer = (organizer || "").trim();
-  if (!normalizedOrganizer) return title;
-
-  const escapedOrganizer = normalizedOrganizer.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const prefixPattern = new RegExp(`^${escapedOrganizer}[\s:,-]+`, "i");
-  return title.replace(prefixPattern, "").trim() || title;
+function isToday(date: Date): boolean {
+  return isSameDay(date, new Date());
 }
 
-function formatDateShortWithWeekday(date: Date): string {
-  const shortDate = formatDateShort(date);
-  const weekday = date.toLocaleDateString("pl-PL", { weekday: "short" }).replace(".", "");
-  return `${shortDate} (${weekday})`;
+function isWeekend(date: Date): boolean {
+  const d = date.getDay();
+  return d === 0 || d === 6;
+}
+
+function parseDateOnly(value: string): Date | null {
+  if (!value) return null;
+  const d = new Date(`${value}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function toDateInputValue(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function openDatePicker(input: HTMLInputElement) {
+  input.showPicker?.();
+}
+
+function campIntersectsRange(camp: Camp, range: DateRange): boolean {
+  const campStart = parseDateOnly(camp.date_start);
+  const campEndRaw = parseDateOnly(camp.date_end) || campStart;
+  if (!campStart || !campEndRaw) return false;
+  const campEnd = toEndOfDay(campEndRaw);
+
+  return campStart <= range.end && campEnd >= range.start;
+}
+
+function getCampsForDate(camps: Camp[], date: Date): Camp[] {
+  const range = { start: toStartOfDay(date), end: toEndOfDay(date) };
+  return camps.filter((camp) => campIntersectsRange(camp, range));
+}
+
+function getOrganizerName(camp: Camp): string {
+  return camp.organizer?.trim() || camp.venue_name?.trim() || camp.title;
+}
+
+function getSessionLabel(count: number): string {
+  if (count === 1) return "1 turnus";
+  if (count < 5) return `${count} turnusy`;
+  return `${count} turnusów`;
+}
+
+function getOrganizerDistrictSummary(camps: Camp[]): string {
+  return Array.from(new Set(camps.map((camp) => camp.district))).join(" • ");
+}
+
+function getOrganizerAgeSummary(camps: Camp[]): string {
+  const mins = camps.map((camp) => camp.age_min).filter((age): age is number => age !== null);
+  const maxes = camps.map((camp) => camp.age_max).filter((age): age is number => age !== null);
+
+  const min = mins.length > 0 ? Math.min(...mins) : null;
+  const max = maxes.length > 0 ? Math.max(...maxes) : null;
+  return formatAgeRange(min, max);
+}
+
+function getDateChipLabel(camp: Camp): string {
+  const start = parseDateOnly(camp.date_start);
+  const end = parseDateOnly(camp.date_end);
+
+  if (!start) return camp.date_start;
+
+  const startLabel = `${DAYS_PL[start.getDay()]} ${formatDateShort(start)}`;
+  if (!end || isSameDay(start, end)) {
+    return startLabel;
+  }
+
+  return `${startLabel} - ${DAYS_PL[end.getDay()]} ${formatDateShort(end)}`;
 }
 
 export function CampsListView({ camps }: CampsListViewProps) {
-  const [search, setSearch] = useState("");
-  const [activeType, setActiveType] = useState<CampType | null>(null);
-  const [activeDistrict, setActiveDistrict] = useState<District | null>(null);
-  const [activeAgeGroup, setActiveAgeGroup] = useState<string | null>(null);
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [selectedDayRange, setSelectedDayRange] = useState<{ from: number; to: number } | null>(null);
-  const [draggingHandle, setDraggingHandle] = useState<"from" | "to" | null>(null);
-  const [expandedCampId, setExpandedCampId] = useState<string | null>(null);
-  const sliderRef = useRef<HTMLDivElement | null>(null);
+  const today = getTodayStart();
+  const startYear = today.getFullYear();
+  const startMonth = today.getMonth();
+  const calendarRef = useRef<HTMLDivElement | null>(null);
 
-  const ageGroup = AGE_GROUPS.find((g) => g.key === activeAgeGroup) ?? null;
-  const hasActiveFilters = search || activeType || activeDistrict || activeAgeGroup !== null;
+  const [search, setSearch] = useState("");
+  const [activeTypes, setActiveTypes] = useState<CampType[]>([]);
+  const [activeDistricts, setActiveDistricts] = useState<District[]>([]);
+  const [activeAgeGroups, setActiveAgeGroups] = useState<string[]>([]);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [singleDate, setSingleDate] = useState("");
+  const [rangeFrom, setRangeFrom] = useState("");
+  const [rangeTo, setRangeTo] = useState("");
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [currentMonth, setCurrentMonth] = useState(() => today.getMonth());
+  const [currentYear, setCurrentYear] = useState(() => today.getFullYear());
+
+  const ageGroups = useMemo(
+    () => AGE_GROUPS.filter((group) => activeAgeGroups.includes(group.key)),
+    [activeAgeGroups]
+  );
+
+  const hasDateFilters = !!singleDate || !!rangeFrom || !!rangeTo;
+  const hasActiveFilters =
+    !!search || activeTypes.length > 0 || activeDistricts.length > 0 || activeAgeGroups.length > 0 || hasDateFilters;
 
   const filtered = useMemo(() => {
     let result = camps;
+
     if (search) {
-      const q = search.toLowerCase();
-      result = result.filter((c) =>
-        [c.title, c.description_short, c.venue_name, c.venue_address, c.organizer]
+      const query = search.toLowerCase();
+      result = result.filter((camp) =>
+        [camp.title, camp.description_short, camp.venue_name, camp.venue_address, camp.organizer]
           .join(" ")
           .toLowerCase()
-          .includes(q)
+          .includes(query)
       );
     }
-    if (activeType) {
-      result = result.filter((c) => c.camp_type === activeType);
+
+    if (activeTypes.length > 0) {
+      result = result.filter((camp) => activeTypes.includes(camp.camp_type));
     }
-    if (activeDistrict) {
-      result = result.filter((c) => c.district === activeDistrict);
+
+    if (activeDistricts.length > 0) {
+      result = result.filter((camp) => activeDistricts.includes(camp.district));
     }
-    if (ageGroup) {
-      result = result.filter(
-        (c) =>
-          (c.age_min === null || c.age_min <= ageGroup.max) &&
-          (c.age_max === null || c.age_max >= ageGroup.min)
+
+    if (ageGroups.length > 0) {
+      result = result.filter((camp) =>
+        ageGroups.some(
+          (group) =>
+            (camp.age_min === null || camp.age_min <= group.max) &&
+            (camp.age_max === null || camp.age_max >= group.min)
+        )
       );
     }
+
     return result;
-  }, [camps, search, activeType, activeDistrict, ageGroup]);
+  }, [camps, search, activeTypes, activeDistricts, ageGroups]);
+
+  const dateFiltered = useMemo(() => {
+    const fromDate = parseDateOnly(rangeFrom);
+    const toDate = parseDateOnly(rangeTo);
+
+    if (fromDate || toDate) {
+      const start = fromDate ? toStartOfDay(fromDate) : new Date(1970, 0, 1);
+      const end = toDate ? toEndOfDay(toDate) : new Date(2100, 0, 1);
+      return filtered.filter((camp) => campIntersectsRange(camp, { start, end }));
+    }
+
+    const exactDate = parseDateOnly(singleDate);
+    if (exactDate) {
+      const range = { start: toStartOfDay(exactDate), end: toEndOfDay(exactDate) };
+      return filtered.filter((camp) => campIntersectsRange(camp, range));
+    }
+
+    return filtered;
+  }, [filtered, rangeFrom, rangeTo, singleDate]);
+
+  const daysInMonth = getDaysInMonth(currentYear, currentMonth);
+  const monthDays = useMemo(
+    () => Array.from({ length: daysInMonth }, (_, i) => new Date(currentYear, currentMonth, i + 1)),
+    [currentYear, currentMonth, daysInMonth]
+  );
+
+  const monthOptions = useMemo(
+    () => Array.from({ length: 12 }, (_, offset) => {
+      const d = new Date(startYear, startMonth + offset, 1);
+      return {
+        month: d.getMonth(),
+        year: d.getFullYear(),
+        label: MONTHS_PL[d.getMonth()].slice(0, 3),
+        key: `${d.getFullYear()}-${d.getMonth()}`,
+      };
+    }),
+    [startYear, startMonth]
+  );
+
+  const campCountMap = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const date of monthDays) {
+      const key = toLocalDateKey(date);
+      counts.set(key, getCampsForDate(filtered, date).length);
+    }
+    return counts;
+  }, [filtered, monthDays]);
+
+  const grouped = useMemo(() => {
+    const groupedByType = new Map<CampType, Camp[]>();
+
+    for (const camp of dateFiltered) {
+      const current = groupedByType.get(camp.camp_type) || [];
+      current.push(camp);
+      groupedByType.set(camp.camp_type, current);
+    }
+
+    return Array.from(groupedByType.entries()).map(([type, typeCamps]) => {
+      const organizerMap = new Map<string, OrganizerTile>();
+
+      [...typeCamps]
+        .sort((a, b) => new Date(a.date_start).getTime() - new Date(b.date_start).getTime())
+        .forEach((camp) => {
+          const organizerName = getOrganizerName(camp);
+          const organizerKey = organizerName.toLowerCase();
+          const existing = organizerMap.get(organizerKey);
+
+          if (!existing) {
+            organizerMap.set(organizerKey, {
+              organizerKey,
+              organizerName,
+              leadCamp: camp,
+              camps: [camp],
+            });
+            return;
+          }
+
+          existing.camps.push(camp);
+
+          const leadCampDate = new Date(existing.leadCamp.date_start).getTime();
+          const currentDate = new Date(camp.date_start).getTime();
+          if (currentDate < leadCampDate || (!existing.leadCamp.image_url && camp.image_url)) {
+            existing.leadCamp = camp;
+          }
+        });
+
+      return {
+        type,
+        label: CAMP_TYPE_LABELS[type] || type,
+        icon: CAMP_TYPE_ICONS[type] || "🏕️",
+        organizers: Array.from(organizerMap.values()).sort((a, b) => a.organizerName.localeCompare(b.organizerName, "pl")),
+      } satisfies CampTypeGroup;
+    });
+  }, [dateFiltered]);
 
   const availableDistricts = useMemo(() => {
     const set = new Set<string>();
-    camps.forEach((c) => set.add(c.district));
-    return DISTRICT_LIST.filter((d) => set.has(d));
+    camps.forEach((camp) => set.add(camp.district));
+    return DISTRICT_LIST.filter((district) => set.has(district));
   }, [camps]);
 
-  const timeline = useMemo(() => {
-    if (filtered.length === 0) return null;
+  const typeCounts = useMemo(() => {
+    const counts = new Map<CampType, number>();
+    camps.forEach((camp) => {
+      counts.set(camp.camp_type, (counts.get(camp.camp_type) || 0) + 1);
+    });
+    return counts;
+  }, [camps]);
 
-    const rows: TimelineCamp[] = filtered
-      .map((camp) => {
-        const startDay = dayNumber(camp.date_start);
-        const endDay = dayNumber(camp.date_end || camp.date_start);
-        return {
-          camp,
-          startDay,
-          endDay,
-          durationDays: durationInclusive(camp.date_start, camp.date_end || camp.date_start),
-        };
-      })
-      .sort((a, b) => a.startDay - b.startDay);
+  const districtCounts = useMemo(() => {
+    const counts = new Map<District, number>();
+    camps.forEach((camp) => {
+      counts.set(camp.district, (counts.get(camp.district) || 0) + 1);
+    });
+    return counts;
+  }, [camps]);
 
-    const rangeStart = Math.min(...rows.map((row) => row.startDay));
-    const rangeEnd = Math.max(...rows.map((row) => row.endDay));
+  const activeFilterBadges = useMemo(() => {
+    const badges: { id: string; label: string; onRemove: () => void }[] = [];
 
-    const monthList: { key: string; label: string; year: number; month: number; dayStart: number; dayEnd: number }[] = [];
-    const startDate = new Date(rows[0].camp.date_start);
-    const markerDate = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+    if (search.trim()) {
+      badges.push({ id: "search", label: `Szukaj: ${search.trim()}`, onRemove: () => setSearch("") });
+    }
 
-    while (dayNumber(markerDate.toISOString()) <= rangeEnd) {
-      const mYear = markerDate.getFullYear();
-      const mMonth = markerDate.getMonth();
-      const firstOfMonth = dayNumber(new Date(mYear, mMonth, 1).toISOString());
-      const lastOfMonth = dayNumber(new Date(mYear, mMonth + 1, 0).toISOString());
-      monthList.push({
-        key: `${mYear}-${mMonth}`,
-        label: markerDate.toLocaleDateString("pl-PL", { month: "long" }),
-        year: mYear,
-        month: mMonth,
-        dayStart: Math.max(rangeStart, firstOfMonth),
-        dayEnd: Math.min(rangeEnd, lastOfMonth),
+    activeTypes.forEach((type) => {
+      badges.push({
+        id: `type-${type}`,
+        label: `Typ: ${CAMP_TYPE_LABELS[type]}`,
+        onRemove: () => setActiveTypes((prev) => prev.filter((item) => item !== type)),
       });
-      markerDate.setMonth(markerDate.getMonth() + 1);
-    }
+    });
 
-    return { rows, rangeStart, rangeEnd, totalDays: Math.max(1, rangeEnd - rangeStart + 1), monthList };
-  }, [filtered]);
-
-  const { displayRows, displayRangeStart, displayTotalDays, activeFromDay, activeToDay } = useMemo(() => {
-    if (!timeline) {
-      return {
-        displayRows: [],
-        displayRangeStart: 0,
-        displayTotalDays: 1,
-        activeFromDay: 0,
-        activeToDay: 0,
-      };
-    }
-
-    const fromDay = selectedDayRange
-      ? Math.max(timeline.rangeStart, Math.min(selectedDayRange.from, timeline.rangeEnd))
-      : timeline.rangeStart;
-    const toDay = selectedDayRange
-      ? Math.max(timeline.rangeStart, Math.min(selectedDayRange.to, timeline.rangeEnd))
-      : timeline.rangeEnd;
-    const rangeStart = Math.min(fromDay, toDay);
-    const rangeEnd = Math.max(fromDay, toDay);
-
-    const rows = timeline.rows.filter((row) =>
-      row.startDay <= rangeEnd && row.endDay >= rangeStart
-    );
-
-    return {
-      displayRows: rows,
-      displayRangeStart: rangeStart,
-      displayTotalDays: Math.max(1, rangeEnd - rangeStart + 1),
-      activeFromDay: rangeStart,
-      activeToDay: rangeEnd,
-    };
-  }, [timeline, selectedDayRange]);
-
-  const displayGroups = useMemo(() => {
-    const groupedRows = new Map<string, { organizer: string; rows: TimelineCamp[] }>();
-
-    for (const row of displayRows) {
-      const key = organizerKey(row.camp.organizer);
-      const existing = groupedRows.get(key);
-      if (existing) {
-        existing.rows.push(row);
-      } else {
-        groupedRows.set(key, {
-          organizer: row.camp.organizer || "Organizator",
-          rows: [row],
+    activeAgeGroups.forEach((ageKey) => {
+      const ageGroup = AGE_GROUPS.find((group) => group.key === ageKey);
+      if (ageGroup) {
+        badges.push({
+          id: `age-${ageKey}`,
+          label: `Wiek: ${ageGroup.label}`,
+          onRemove: () => setActiveAgeGroups((prev) => prev.filter((item) => item !== ageKey)),
         });
       }
+    });
+
+    activeDistricts.forEach((district) => {
+      badges.push({
+        id: `district-${district}`,
+        label: `Dzielnica: ${district}`,
+        onRemove: () => setActiveDistricts((prev) => prev.filter((item) => item !== district)),
+      });
+    });
+
+    if (singleDate) {
+      const date = parseDateOnly(singleDate);
+      badges.push({
+        id: "singleDate",
+        label: `Data: ${date ? date.toLocaleDateString("pl-PL") : singleDate}`,
+        onRemove: () => {
+          setSingleDate("");
+          setSelectedDate(null);
+        },
+      });
+    } else if (rangeFrom || rangeTo) {
+      const fromLabel = rangeFrom ? (parseDateOnly(rangeFrom)?.toLocaleDateString("pl-PL") || rangeFrom) : "od początku";
+      const toLabel = rangeTo ? (parseDateOnly(rangeTo)?.toLocaleDateString("pl-PL") || rangeTo) : "bez końca";
+      badges.push({
+        id: "range",
+        label: `Zakres: ${fromLabel} - ${toLabel}`,
+        onRemove: () => {
+          setRangeFrom("");
+          setRangeTo("");
+        },
+      });
     }
 
-    return Array.from(groupedRows.values()).map((group) => ({
-      ...group,
-      rows: group.rows.sort((a, b) => a.startDay - b.startDay),
-    }));
-  }, [displayRows]);
-
-  const dayFromClientX = (clientX: number) => {
-    if (!timeline || !sliderRef.current) return 0;
-    const rect = sliderRef.current.getBoundingClientRect();
-    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / Math.max(1, rect.width)));
-    const daySpan = Math.max(1, timeline.rangeEnd - timeline.rangeStart);
-    return timeline.rangeStart + Math.round(ratio * daySpan);
-  };
-
-  useEffect(() => {
-    if (!draggingHandle || !timeline) return;
-
-    const onMove = (e: MouseEvent) => {
-      const nextDay = dayFromClientX(e.clientX);
-      setSelectedDayRange((prev) => {
-        const base = prev ?? { from: timeline.rangeStart, to: timeline.rangeEnd };
-        if (draggingHandle === "from") {
-          return { from: Math.min(nextDay, base.to), to: base.to };
-        }
-        return { from: base.from, to: Math.max(nextDay, base.from) };
-      });
-    };
-
-    const onUp = () => setDraggingHandle(null);
-
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
-  }, [draggingHandle, timeline]);
+    return badges;
+  }, [search, activeTypes, activeAgeGroups, activeDistricts, singleDate, rangeFrom, rangeTo]);
 
   function clearFilters() {
     setSearch("");
-    setActiveType(null);
-    setActiveDistrict(null);
-    setActiveAgeGroup(null);
+    setActiveTypes([]);
+    setActiveDistricts([]);
+    setActiveAgeGroups([]);
+    setSingleDate("");
+    setRangeFrom("");
+    setRangeTo("");
+    setSelectedDate(null);
+  }
+
+  function toggleType(type: CampType) {
+    setActiveTypes((prev) =>
+      prev.includes(type) ? prev.filter((item) => item !== type) : [...prev, type]
+    );
+  }
+
+  function toggleAgeGroup(ageKey: string) {
+    setActiveAgeGroups((prev) =>
+      prev.includes(ageKey) ? prev.filter((item) => item !== ageKey) : [...prev, ageKey]
+    );
+  }
+
+  function toggleDistrict(district: District) {
+    setActiveDistricts((prev) =>
+      prev.includes(district) ? prev.filter((item) => item !== district) : [...prev, district]
+    );
+  }
+
+  function updateDisplayedMonth(year: number, month: number) {
+    setCurrentYear(year);
+    setCurrentMonth(month);
+    setSelectedDate((prev) => {
+      if (!prev) return null;
+      const safeDay = Math.min(prev.getDate(), getDaysInMonth(year, month));
+      return new Date(year, month, safeDay);
+    });
+  }
+
+  function handleCalendarDateClick(date: Date) {
+    if (rangeFrom || rangeTo) {
+      setRangeFrom("");
+      setRangeTo("");
+      setSingleDate(toDateInputValue(date));
+      setSelectedDate(date);
+      return;
+    }
+
+    if (!selectedDate) {
+      setSingleDate(toDateInputValue(date));
+      setSelectedDate(date);
+      return;
+    }
+
+    if (isSameDay(selectedDate, date)) {
+      setSingleDate("");
+      setSelectedDate(null);
+      return;
+    }
+
+    const start = selectedDate < date ? selectedDate : date;
+    const end = selectedDate < date ? date : selectedDate;
+    setSingleDate("");
+    setRangeFrom(toDateInputValue(start));
+    setRangeTo(toDateInputValue(end));
+    setSelectedDate(null);
+  }
+
+  function focusCalendar() {
+    calendarRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function applyCampDatesToCalendar(camp: Camp) {
+    const start = parseDateOnly(camp.date_start);
+    const end = parseDateOnly(camp.date_end);
+    if (!start) return;
+
+    updateDisplayedMonth(start.getFullYear(), start.getMonth());
+
+    if (!end || isSameDay(start, end)) {
+      setRangeFrom("");
+      setRangeTo("");
+      setSingleDate(toDateInputValue(start));
+      setSelectedDate(start);
+    } else {
+      setSingleDate("");
+      setSelectedDate(null);
+      setRangeFrom(toDateInputValue(start));
+      setRangeTo(toDateInputValue(end));
+    }
+
+    focusCalendar();
   }
 
   return (
     <div className="container-page pt-5 pb-10">
-      <div className="rounded-xl border border-border bg-card p-4 mb-6">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setFiltersOpen(!filtersOpen)}
-            className={cn(
-              "inline-flex items-center gap-2 px-4 py-2 sm:py-1.5 rounded-lg text-[13px] sm:text-[12px] font-semibold border-2 transition-all duration-200 shrink-0",
-              filtersOpen || hasActiveFilters
-                ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                : "bg-primary/5 text-foreground border-primary/20 hover:bg-primary/10 hover:border-primary/30"
-            )}
-          >
-            <SlidersHorizontal size={14} />
-            Filtry
-            {hasActiveFilters && <span className="ml-0.5 w-1.5 h-1.5 rounded-full bg-primary-foreground" />}
-          </button>
+      <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 flex items-center gap-2">
+        <button
+          onClick={() => setFiltersOpen(!filtersOpen)}
+          className={cn(
+            "inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-[12px] font-semibold border-2 transition-all duration-200",
+            filtersOpen || hasActiveFilters
+              ? "bg-primary text-primary-foreground border-primary"
+              : "bg-primary/5 text-foreground border-primary/20 hover:bg-primary/10"
+          )}
+        >
+          <SlidersHorizontal size={13} />
+          Filtry
+          {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-primary-foreground" />}
+        </button>
+        <div className="relative flex-1">
+          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
+          <input
+            type="text"
+            placeholder="Szukaj kolonii..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-border bg-background text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-200"
+          />
+        </div>
+      </div>
 
-          <div className="relative flex-1 hidden sm:block">
-            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
+      {filtersOpen && (
+        <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 space-y-2.5">
+          <div>
+            <p className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground mb-1.5">
+              <CalendarDays size={11} /> Data
+            </p>
+            <p className="text-[10px] text-muted-foreground mb-1">Konkretna data</p>
             <input
-              type="text"
-              placeholder="Szukaj kolonii..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-border bg-background text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-200"
+              type="date"
+              onClick={(e) => openDatePicker(e.currentTarget)}
+              value={singleDate}
+              onChange={(e) => {
+                setSingleDate(e.target.value);
+                setRangeFrom("");
+                setRangeTo("");
+                setSelectedDate(parseDateOnly(e.target.value));
+              }}
+              className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-background text-[11px] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
+
+            <p className="text-[10px] text-muted-foreground mt-2 mb-1">Zakres dat (od-do)</p>
+            <div className="grid grid-cols-2 gap-1.5">
+              <input
+                type="date"
+                onClick={(e) => openDatePicker(e.currentTarget)}
+                value={rangeFrom}
+                onChange={(e) => {
+                  setRangeFrom(e.target.value);
+                  setSingleDate("");
+                  setSelectedDate(null);
+                }}
+                className="px-2 py-1.5 rounded-lg border border-border bg-background text-[11px] text-foreground"
+              />
+              <input
+                type="date"
+                onClick={(e) => openDatePicker(e.currentTarget)}
+                value={rangeTo}
+                onChange={(e) => {
+                  setRangeTo(e.target.value);
+                  setSingleDate("");
+                  setSelectedDate(null);
+                }}
+                className="px-2 py-1.5 rounded-lg border border-border bg-background text-[11px] text-foreground"
+              />
+            </div>
           </div>
 
-        </div>
+          <div>
+            <p className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground mb-1.5">
+              <Tags size={11} /> Typ kolonii
+            </p>
+            <div className="flex flex-wrap gap-1">
+              {campTypes.map((type) => {
+                const count = typeCounts.get(type) || 0;
+                if (count === 0) return null;
+                const selected = activeTypes.includes(type);
+                return (
+                  <button
+                    key={type}
+                    onClick={() => toggleType(type)}
+                    className={cn(
+                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
+                      selected
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground"
+                    )}
+                  >
+                    <span>{CAMP_TYPE_ICONS[type]}</span>
+                    <span>{CAMP_TYPE_LABELS[type]}</span>
+                    <span className="text-[10px] opacity-60">{count}</span>
+                    {selected && <Check size={11} />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
-        {filtersOpen && (
-          <div className="mt-3 pt-3 border-t border-border space-y-3">
-            <div className="relative sm:hidden">
-              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
+          <div>
+            <p className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground mb-1.5">
+              <Users size={11} /> Wiek dziecka
+            </p>
+            <div className="flex flex-wrap gap-1">
+              {AGE_GROUPS.map((group) => {
+                const selected = activeAgeGroups.includes(group.key);
+                return (
+                  <button
+                    key={group.key}
+                    onClick={() => toggleAgeGroup(group.key)}
+                    className={cn(
+                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
+                      selected
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground"
+                    )}
+                  >
+                    <span>{group.icon}</span>
+                    <span>{group.label}</span>
+                    {selected && <Check size={11} />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <p className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground mb-1.5">
+              <MapPin size={11} /> Dzielnica
+            </p>
+            <div className="flex flex-wrap gap-1">
+              {availableDistricts.map((district) => {
+                const selected = activeDistricts.includes(district);
+                const count = districtCounts.get(district) || 0;
+                const icon = DISTRICT_ICONS[district] || "📍";
+                return (
+                  <button
+                    key={district}
+                    onClick={() => toggleDistrict(district)}
+                    className={cn(
+                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
+                      selected
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground"
+                    )}
+                  >
+                    <span>{icon}</span>
+                    <span>{district}</span>
+                    <span className="text-[10px] opacity-60">{count}</span>
+                    {selected && <Check size={11} />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {hasActiveFilters && (
+            <button
+              onClick={clearFilters}
+              className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X size={11} /> Wyczyść filtry
+            </button>
+          )}
+        </div>
+      )}
+
+      <div className="lg:flex lg:gap-6 lg:items-start">
+        <aside className="hidden lg:block w-52 shrink-0 sticky top-20">
+          <div className="rounded-xl border border-border bg-card p-2.5 space-y-2.5">
+            <div className="relative">
+              <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
               <input
                 type="text"
-                placeholder="Szukaj kolonii..."
+                placeholder="Szukaj..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-8 pr-3 py-2 rounded-lg border border-border bg-background text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-200"
+                className="w-full pl-7 pr-2 py-1 rounded-lg border border-border bg-background text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-200"
               />
             </div>
 
             <div>
-              <p className="text-[11px] font-medium text-muted-foreground mb-1.5">Typ kolonii</p>
-              <div className="flex flex-wrap gap-1.5">
+              <p className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                <CalendarDays size={10} /> Data
+              </p>
+              <p className="text-[10px] text-muted-foreground mb-1">Konkretna data</p>
+              <input
+                type="date"
+                onClick={(e) => openDatePicker(e.currentTarget)}
+                value={singleDate}
+                onChange={(e) => {
+                  setSingleDate(e.target.value);
+                  setRangeFrom("");
+                  setRangeTo("");
+                  setSelectedDate(parseDateOnly(e.target.value));
+                }}
+                className="w-full px-2 py-1 rounded-lg border border-border bg-background text-[10px] text-foreground"
+              />
+
+              <p className="text-[10px] text-muted-foreground mt-2 mb-1">Zakres dat (od-do)</p>
+              <div className="grid grid-cols-2 gap-1.5">
+                <input
+                  type="date"
+                  onClick={(e) => openDatePicker(e.currentTarget)}
+                  value={rangeFrom}
+                  onChange={(e) => {
+                    setRangeFrom(e.target.value);
+                    setSingleDate("");
+                    setSelectedDate(null);
+                  }}
+                  className="px-1.5 py-1 rounded-lg border border-border bg-background text-[9px] text-foreground"
+                />
+                <input
+                  type="date"
+                  onClick={(e) => openDatePicker(e.currentTarget)}
+                  value={rangeTo}
+                  onChange={(e) => {
+                    setRangeTo(e.target.value);
+                    setSingleDate("");
+                    setSelectedDate(null);
+                  }}
+                  className="px-1.5 py-1 rounded-lg border border-border bg-background text-[9px] text-foreground"
+                />
+              </div>
+            </div>
+
+            <div>
+              <p className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                <Tags size={10} /> Typ kolonii
+              </p>
+              <div className="flex flex-col gap-0.5">
                 {campTypes.map((type) => {
-                  const count = camps.filter((c) => c.camp_type === type).length;
+                  const count = typeCounts.get(type) || 0;
                   if (count === 0) return null;
+                  const selected = activeTypes.includes(type);
                   return (
                     <button
                       key={type}
-                      onClick={() => setActiveType(activeType === type ? null : type)}
+                      onClick={() => toggleType(type)}
                       className={cn(
-                        "px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-all duration-200",
-                        activeType === type
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground"
+                        "flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
+                        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent"
                       )}
                     >
-                      {CAMP_TYPE_ICONS[type]} {CAMP_TYPE_LABELS[type]}
+                      <span>{CAMP_TYPE_ICONS[type]}</span>
+                      <span className="flex-1">{CAMP_TYPE_LABELS[type]}</span>
+                      {selected && <Check size={10} />}
+                      <span className="text-[8px] opacity-40">{count}</span>
                     </button>
                   );
                 })}
@@ -315,292 +755,285 @@ export function CampsListView({ camps }: CampsListViewProps) {
             </div>
 
             <div>
-              <p className="text-[11px] font-medium text-muted-foreground mb-1.5">Wiek dziecka</p>
-              <div className="flex flex-wrap gap-1.5">
-                {AGE_GROUPS.map((group) => (
-                  <button
-                    key={group.key}
-                    onClick={() => setActiveAgeGroup(activeAgeGroup === group.key ? null : group.key)}
-                    className={cn(
-                      "px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-all duration-200",
-                      activeAgeGroup === group.key
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground"
-                    )}
-                  >
-                    {group.icon} {group.label}
-                  </button>
-                ))}
+              <p className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                <Users size={10} /> Wiek
+              </p>
+              <div className="flex flex-col gap-0.5">
+                {AGE_GROUPS.map((group) => {
+                  const selected = activeAgeGroups.includes(group.key);
+                  return (
+                    <button
+                      key={group.key}
+                      onClick={() => toggleAgeGroup(group.key)}
+                      className={cn(
+                        "flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
+                        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent"
+                      )}
+                    >
+                      <span>{group.icon}</span>
+                      <span className="flex-1">{group.label}</span>
+                      {selected && <Check size={10} />}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="flex-1 min-w-[160px]">
-                <p className="text-[11px] font-medium text-muted-foreground mb-1.5">
-                  <MapPin size={10} className="inline mr-1" />
-                  Dzielnica
-                </p>
-                <select
-                  value={activeDistrict || ""}
-                  onChange={(e) => setActiveDistrict(e.target.value ? (e.target.value as District) : null)}
-                  className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-background text-[11px] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-200"
-                >
-                  <option value="">Wszystkie dzielnice</option>
-                  {availableDistricts.map((district) => (
-                    <option key={district} value={district}>
-                      {district}
-                    </option>
-                  ))}
-                </select>
+            <div>
+              <p className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                <MapPin size={9} className="inline mr-1" /> Dzielnica
+              </p>
+              <div className="flex flex-col gap-0.5">
+                {availableDistricts.map((district) => {
+                  const selected = activeDistricts.includes(district);
+                  const count = districtCounts.get(district) || 0;
+                  const icon = DISTRICT_ICONS[district] || "📍";
+                  return (
+                    <button
+                      key={district}
+                      onClick={() => toggleDistrict(district)}
+                      className={cn(
+                        "flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
+                        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent"
+                      )}
+                    >
+                      <span>{icon}</span>
+                      <span className="flex-1">{district}</span>
+                      {selected && <Check size={10} />}
+                      <span className="text-[8px] opacity-40">{count}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
             {hasActiveFilters && (
               <button
                 onClick={clearFilters}
-                className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors pt-2 border-t border-border w-full"
               >
-                <X size={11} />
-                Wyczyść filtry
+                <X size={10} /> Wyczyść filtry
               </button>
             )}
           </div>
-        )}
-      </div>
+        </aside>
 
-      {filtered.length === 0 ? (
-        <div className="text-center py-16">
-          <Search size={32} className="mx-auto text-muted-foreground/20 mb-3" />
-          <p className="text-[14px] text-muted mb-3">Brak kolonii pasujących do filtrów.</p>
-          {hasActiveFilters && (
-            <button
-              onClick={clearFilters}
-              className="text-[12px] font-medium text-primary hover:text-primary-hover transition-colors"
-            >
-              Wyczyść filtry
-            </button>
-          )}
-        </div>
-      ) : (
-        <div className="rounded-xl border border-border bg-card p-4 sm:p-5">
-          <div className="mb-4">
-            <h2 className="text-[15px] sm:text-[16px] font-semibold text-foreground">Harmonogram turnusów</h2>
-            <p className="text-[12px] text-muted-foreground mt-1">
-              Wszystkie szczegóły turnusu są dostępne po kliknięciu paska.
-            </p>
+        <div className="flex-1 min-w-0">
+          <div ref={calendarRef} className="rounded-xl border border-border bg-white overflow-hidden mb-4 scroll-mt-24">
+            <div className="px-3 pt-2 pb-1 border-b border-border/50">
+              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: "none" }}>
+                {monthOptions.map((opt) => {
+                  const isActive = opt.month === currentMonth && opt.year === currentYear;
+                  return (
+                    <button
+                      key={opt.key}
+                      onClick={() => updateDisplayedMonth(opt.year, opt.month)}
+                      className={cn(
+                        "shrink-0 rounded-full px-3 py-1 text-[11px] font-medium transition-colors",
+                        isActive ? "bg-primary text-primary-foreground" : "bg-accent text-foreground hover:bg-accent/70"
+                      )}
+                      title={`${MONTHS_PL[opt.month]} ${opt.year}`}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex lg:grid lg:grid-flow-col lg:auto-cols-fr overflow-x-auto lg:overflow-visible scrollbar-hide py-2 px-2 gap-1.5 lg:gap-0.5" style={{ scrollbarWidth: "none" }}>
+              {monthDays.map((date) => {
+                const key = toLocalDateKey(date);
+                const selected = selectedDate ? isSameDay(date, selectedDate) : false;
+                const rangeStart = parseDateOnly(rangeFrom);
+                const rangeEnd = parseDateOnly(rangeTo);
+                const inRange = !!(rangeStart && rangeEnd && date >= rangeStart && date <= rangeEnd);
+                const rangeEdge = !!(
+                  rangeStart && rangeEnd && (isSameDay(date, rangeStart) || isSameDay(date, rangeEnd))
+                );
+                const todayFlag = isToday(date);
+                const weekend = isWeekend(date);
+                const count = campCountMap.get(key) || 0;
+                const isPast = date < today;
+
+                return (
+                  <button
+                    key={key}
+                    onClick={() => handleCalendarDateClick(date)}
+                    title={`${date.toLocaleDateString("pl-PL")}${count > 0 ? ` • ${count} kolonii` : ""}`}
+                    className={cn(
+                      "flex flex-col items-center justify-center min-w-[54px] lg:min-w-0 px-2 lg:px-0.5 py-2 lg:py-1 rounded-lg lg:rounded-md transition-all relative shrink-0 lg:shrink",
+                      selected || rangeEdge
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : inRange
+                          ? "bg-primary/15 text-foreground ring-1 ring-primary/20"
+                          : todayFlag
+                            ? "bg-accent/80 text-foreground ring-1 ring-primary/30"
+                            : isPast
+                              ? "text-muted-foreground/40 hover:bg-accent/40"
+                              : weekend
+                                ? "text-foreground hover:bg-accent/60 bg-accent/20"
+                                : "text-foreground hover:bg-accent/50"
+                    )}
+                  >
+                    <span className={cn("text-[9px] lg:text-[8px] font-medium uppercase leading-none", selected ? "text-white/70" : "text-muted-foreground")}>
+                      {DAYS_PL[date.getDay()]}
+                    </span>
+                    <span className={cn("text-[12px] lg:text-[11px] font-semibold leading-tight mt-0.5", selected && "text-white")}>
+                      {date.getDate()}
+                    </span>
+                    <span
+                      className={cn(
+                        "mt-0.5 text-[9px] lg:text-[8px] leading-none font-semibold",
+                        selected
+                          ? "text-primary-foreground/85"
+                          : count > 0
+                            ? "text-primary/80"
+                            : "text-muted-foreground/55"
+                      )}
+                    >
+                      {count > 99 ? "99+" : count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          {!timeline ? null : (
-            <div className="space-y-3">
-              <div className="rounded-lg border border-border bg-card px-3 py-2">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-[11px] text-muted-foreground">Możesz wybrać daty, które Cię interesują</p>
-                  {selectedDayRange !== null && (
-                    <button
-                      onClick={() => setSelectedDayRange(null)}
-                      className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+          <div className="mb-4 rounded-xl border border-border bg-card px-2.5 py-2">
+            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide whitespace-nowrap" style={{ scrollbarWidth: "none" }}>
+              <p className="shrink-0 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Filtry:</p>
+              {activeFilterBadges.length > 0 ? (
+                <>
+                  {activeFilterBadges.map((badge) => (
+                    <span
+                      key={badge.id}
+                      className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-accent/60 px-2 py-0.5 text-[10px] font-medium text-foreground"
                     >
-                      <X size={10} /> Wyczyść
-                    </button>
-                  )}
-                </div>
-
-                {timeline.monthList.length > 0 && (
-                  <>
-                    <div
-                      ref={sliderRef}
-                      className="relative h-5 mb-2 cursor-pointer"
-                      onMouseDown={(e) => {
-                        const nextDay = dayFromClientX(e.clientX);
-                        const pick: "from" | "to" = Math.abs(nextDay - activeFromDay) <= Math.abs(nextDay - activeToDay) ? "from" : "to";
-                        setSelectedDayRange((prev) => {
-                          const base = prev ?? { from: timeline.rangeStart, to: timeline.rangeEnd };
-                          if (pick === "from") {
-                            return { from: Math.min(nextDay, base.to), to: base.to };
-                          }
-                          return { from: base.from, to: Math.max(nextDay, base.from) };
-                        });
-                        setDraggingHandle(pick);
-                      }}
-                    >
-                      <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-1.5 rounded-full bg-accent" />
-                      <div
-                        className="absolute top-1/2 -translate-y-1/2 h-1.5 rounded-full bg-[#a8c4e0]/70"
-                        style={{
-                          left: `${((activeFromDay - timeline.rangeStart) / timeline.totalDays) * 100}%`,
-                          width: `${((activeToDay - activeFromDay) / timeline.totalDays) * 100}%`,
-                        }}
-                      />
+                      <span>{badge.label}</span>
                       <button
                         type="button"
-                        aria-label="Początek zakresu"
-                        onMouseDown={(e) => {
-                          e.stopPropagation();
-                          setDraggingHandle("from");
-                        }}
-                        className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-3 w-3 rounded-full bg-white border-2 border-[#a8c4e0] shadow"
-                        style={{ left: `${((activeFromDay - timeline.rangeStart) / timeline.totalDays) * 100}%` }}
-                      />
-                      <button
-                        type="button"
-                        aria-label="Koniec zakresu"
-                        onMouseDown={(e) => {
-                          e.stopPropagation();
-                          setDraggingHandle("to");
-                        }}
-                        className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-3 w-3 rounded-full bg-white border-2 border-[#a8c4e0] shadow"
-                        style={{ left: `${((activeToDay - timeline.rangeStart) / timeline.totalDays) * 100}%` }}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-medium text-foreground bg-accent rounded px-1.5 py-0.5">{new Date(activeFromDay * MS_DAY).toLocaleDateString("pl-PL", { day: "numeric", month: "long" })}</span>
-                      <span className="text-[10px] text-muted-foreground">—</span>
-                      <span className="text-[10px] font-medium text-foreground bg-accent rounded px-1.5 py-0.5">{new Date(activeToDay * MS_DAY).toLocaleDateString("pl-PL", { day: "numeric", month: "long" })}</span>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {displayRows.length === 0 ? (
-                <p className="text-center text-[12px] text-muted-foreground py-6">Brak kolonii w tym miesiącu.</p>
+                        onClick={badge.onRemove}
+                        className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-muted-foreground hover:bg-border/70 hover:text-foreground transition-colors"
+                        aria-label={`Usuń filtr ${badge.label}`}
+                        title={`Usuń: ${badge.label}`}
+                      >
+                        <X size={9} />
+                      </button>
+                    </span>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                  >
+                    <X size={9} />
+                    Wyczyść
+                  </button>
+                </>
               ) : (
-              <div className="space-y-4">
-                {displayGroups.map((group) => {
-                  const expandedRow = group.rows.find((row) => row.camp.id === expandedCampId) ?? null;
-
-                  return (
-                  <section key={group.organizer} className="rounded-lg border border-border bg-background p-2 sm:p-2.5">
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="min-w-0 flex items-center gap-1.5">
-                          <h3 className="text-[11px] font-semibold text-foreground truncate">{group.organizer}</h3>
-                          <span className="text-[9px] text-muted-foreground whitespace-nowrap">{group.rows.length} turn.</span>
-                        </div>
-                      </div>
-
-                      <div className="relative h-12 min-w-0">
-                        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-3.5 rounded-full bg-accent/50" />
-
-                        {group.rows.map((row) => {
-                          const visibleStart = Math.max(row.startDay, displayRangeStart);
-                          const left = ((visibleStart - displayRangeStart) / displayTotalDays) * 100;
-                          const visibleEnd = Math.min(row.endDay, displayRangeStart + displayTotalDays - 1);
-                          const width = ((visibleEnd - visibleStart + 1) / displayTotalDays) * 100;
-                          const labelRight = Math.min(left + Math.max(width, 1.6), 100);
-                          const isClipped = row.startDay < displayRangeStart || row.endDay > displayRangeStart + displayTotalDays - 1;
-                          const rangeLabel = `${formatDateShort(new Date(visibleStart * MS_DAY))} - ${formatDateShort(new Date(visibleEnd * MS_DAY))}`;
-
-                          return (
-                            <div key={row.camp.id}>
-                              <span
-                                className="absolute top-0.5 text-[9px] text-muted-foreground whitespace-nowrap bg-card/90 px-0.5 rounded"
-                                style={{ left: `${left}%` }}
-                              >
-                                {formatDateShortWithWeekday(new Date(visibleStart * MS_DAY))}
-                              </span>
-                              <span
-                                className="absolute bottom-0.5 -translate-x-full text-[9px] text-muted-foreground whitespace-nowrap bg-card/90 px-0.5 rounded"
-                                style={{ left: `${labelRight}%` }}
-                              >
-                                {formatDateShortWithWeekday(new Date(visibleEnd * MS_DAY))}
-                              </span>
-
-                              <button
-                                type="button"
-                                title={`${getCampDisplayTitle(row.camp.title, row.camp.organizer)} (${rangeLabel})`}
-                                aria-label={`Pokaż szczegóły turnusu ${getCampDisplayTitle(row.camp.title, row.camp.organizer)}`}
-                                onClick={() => setExpandedCampId((prev) => (prev === row.camp.id ? null : row.camp.id))}
-                                className={cn(
-                                  "absolute top-1/2 -translate-y-1/2 h-3.5 rounded-full transition-all duration-200",
-                                  isClipped
-                                    ? expandedCampId === row.camp.id ? "bg-slate-500 shadow-sm z-10" : "bg-slate-300 hover:bg-slate-400"
-                                    : expandedCampId === row.camp.id ? "bg-red-300 shadow-sm z-10" : "bg-[#a8c4e0] hover:bg-[#4a6fa0]"
-                                )}
-                                style={{ left: `${left}%`, width: `${Math.max(width, 1.6)}%` }}
-                              />
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      {expandedRow && (
-                        <div className="mt-2 rounded-xl border border-border bg-card overflow-hidden shadow-sm">
-                          {/* Header */}
-                          <div className="px-4 py-3 bg-[#a8c4e0]/10 border-b border-[#a8c4e0]/20 flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="text-[13px] font-semibold text-foreground leading-snug">
-                                {CAMP_TYPE_ICONS[expandedRow.camp.camp_type]} {expandedRow.camp.title}
-                              </p>
-                              <p className="text-[11px] text-muted-foreground mt-0.5">{expandedRow.camp.organizer}</p>
-                            </div>
-                            <span className="shrink-0 text-[10px] font-semibold text-[#a8c4e0] bg-[#a8c4e0]/15 rounded-full px-2.5 py-1 whitespace-nowrap">
-                              {CAMP_TYPE_LABELS[expandedRow.camp.camp_type]}
-                            </span>
-                          </div>
-
-                          {/* Info chips */}
-                          <div className="px-4 py-3 flex flex-wrap gap-2">
-                            <span className="inline-flex items-center gap-1.5 text-[11px] text-foreground bg-accent rounded-lg px-2.5 py-1.5">
-                              <Calendar size={11} className="text-[#a8c4e0]" />
-                              {formatDateShort(expandedRow.camp.date_start)} – {formatDateShort(expandedRow.camp.date_end)}
-                            </span>
-                            <span className="inline-flex items-center gap-1.5 text-[11px] text-foreground bg-accent rounded-lg px-2.5 py-1.5">
-                              <Clock size={11} className="text-[#a8c4e0]" />
-                              {expandedRow.durationDays} dni
-                            </span>
-                            <span className="inline-flex items-center gap-1.5 text-[11px] text-foreground bg-accent rounded-lg px-2.5 py-1.5">
-                              <Users size={11} className="text-[#a8c4e0]" />
-                              {formatAgeRange(expandedRow.camp.age_min, expandedRow.camp.age_max)}
-                            </span>
-                            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-foreground bg-accent rounded-lg px-2.5 py-1.5">
-                              {formatPrice(expandedRow.camp.price)}
-                            </span>
-                          </div>
-
-                          {/* Location + description */}
-                          <div className="px-4 pb-3 space-y-1.5">
-                            {(expandedRow.camp.venue_name || expandedRow.camp.venue_address) && (
-                              <p className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
-                                <MapPin size={11} className="mt-0.5 shrink-0 text-[#a8c4e0]" />
-                                {[expandedRow.camp.venue_name, expandedRow.camp.venue_address].filter(Boolean).join(", ")}
-                              </p>
-                            )}
-                            {expandedRow.camp.description_short && (
-                              <p className="text-[11px] text-foreground/80 leading-relaxed line-clamp-2">{expandedRow.camp.description_short}</p>
-                            )}
-                          </div>
-
-                          {/* Actions */}
-                          <div className="px-4 py-3 border-t border-border flex items-center gap-2">
-                            <Link
-                              href={`/kolonie/${expandedRow.camp.slug}`}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-[#a8c4e0] text-white hover:bg-[#4a6fa0] transition-colors"
-                            >
-                              Pełne szczegóły <ExternalLink size={11} />
-                            </Link>
-                            {expandedRow.camp.source_url && (
-                              <a
-                                href={expandedRow.camp.source_url}
-                                target="_blank"
-                                rel="noopener"
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium border border-border text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-colors"
-                              >
-                                Strona organizatora <ExternalLink size={11} />
-                              </a>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </section>
-                );})}
-              </div>
+                <p className="text-[11px] text-muted-foreground">Brak aktywnych filtrów.</p>
               )}
+            </div>
+          </div>
+
+          {dateFiltered.length === 0 ? (
+            <div className="text-center py-16">
+              <Search size={32} className="mx-auto text-muted-foreground/20 mb-3" />
+              <p className="text-[14px] text-muted mb-3">Brak kolonii pasujących do filtrów.</p>
+              {hasActiveFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="text-[12px] font-medium text-primary hover:text-primary-hover transition-colors"
+                >
+                  Wyczyść filtry
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-12">
+              {grouped.map((group) => (
+                <section key={group.type}>
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-lg">{group.icon}</span>
+                    <h2 className="text-[15px] font-semibold text-foreground">{group.label}</h2>
+                    <span className="text-[12px] text-muted-foreground">({group.organizers.length})</span>
+                  </div>
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                    {group.organizers.map((organizer) => (
+                      <article
+                        key={organizer.organizerKey}
+                        className="rounded-xl border border-border bg-card shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5 transition-all duration-200 overflow-hidden"
+                      >
+                        <Link
+                          href={`/kolonie/${organizer.leadCamp.slug}`}
+                          className="group flex overflow-hidden h-[160px]"
+                        >
+                          <div className="w-[160px] shrink-0 relative self-stretch bg-accent">
+                            {organizer.leadCamp.image_url ? (
+                              <img
+                                src={organizer.leadCamp.image_url}
+                                alt={organizer.organizerName}
+                                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center text-3xl text-muted-foreground/30">
+                                {group.icon}
+                              </div>
+                            )}
+                            <span className="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full bg-white px-2 py-1 text-[10px] font-semibold text-foreground shadow-[var(--shadow-soft)] border border-border/70">
+                              {getSessionLabel(organizer.camps.length)}
+                            </span>
+                          </div>
+
+                          <div className="flex-1 min-w-0 p-3 flex flex-col gap-1.5">
+                            <h3 className="font-semibold text-[13px] text-foreground leading-snug group-hover:text-primary transition-colors duration-200 line-clamp-2">
+                              {organizer.organizerName}
+                            </h3>
+
+                            {organizer.leadCamp.description_short && (
+                              <p className="text-[11px] text-muted leading-relaxed line-clamp-2">
+                                {organizer.leadCamp.description_short}
+                              </p>
+                            )}
+
+                            <div className="mt-auto space-y-0.5">
+                              <div className="flex items-center gap-1 text-[10px] text-muted">
+                                <MapPin size={9} className="text-secondary/60 shrink-0" />
+                                <span className="truncate">{getOrganizerDistrictSummary(organizer.camps)}</span>
+                              </div>
+                              <div className="flex items-center gap-1 text-[10px] text-muted">
+                                <Users size={9} className="text-secondary/60 shrink-0" />
+                                <span className="truncate">{getOrganizerAgeSummary(organizer.camps)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </Link>
+
+                        <div className="border-t border-border/70 bg-background/40 px-3 py-2.5">
+                          <div className="flex flex-wrap gap-1.5">
+                            {organizer.camps.map((camp) => (
+                              <button
+                                key={camp.id}
+                                type="button"
+                                onClick={() => applyCampDatesToCalendar(camp)}
+                                className="inline-flex items-center rounded-full border border-border/80 bg-background px-2 py-0.5 text-[9px] font-medium text-foreground hover:bg-card hover:border-primary/20 transition-colors"
+                                title="Pokaż ten termin w kalendarzu"
+                              >
+                                {getDateChipLabel(camp)}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              ))}
             </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

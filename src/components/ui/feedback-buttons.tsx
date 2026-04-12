@@ -34,10 +34,12 @@ function getSessionId(): string {
 }
 
 interface FeedbackButtonsProps {
-  contentType: "event" | "place";
+  contentType: "event" | "place" | "camp";
   itemId: string;
   initialLikes: number;
   initialDislikes: number;
+  className?: string;
+  showLabel?: boolean;
 }
 
 export function FeedbackButtons({
@@ -45,6 +47,8 @@ export function FeedbackButtons({
   itemId,
   initialLikes,
   initialDislikes,
+  className,
+  showLabel = true,
 }: FeedbackButtonsProps) {
   const [vote, setVote] = useState<"up" | "down" | null>(null);
   const [likes, setLikes] = useState(initialLikes);
@@ -119,14 +123,14 @@ export function FeedbackButtons({
   }, [vote, likes, dislikes, loading, contentType, itemId]);
 
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-[13px] text-muted mr-1">Polecasz?</span>
+    <div className={cn("relative z-10 flex items-center gap-2", className)}>
+      {showLabel && <span className="text-[13px] text-muted mr-1">Polecasz?</span>}
       <button
         type="button"
         onClick={() => handleVote("up")}
         disabled={loading}
         className={cn(
-          "touch-manipulation flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[13px] font-medium border transition-all duration-200",
+          "touch-manipulation min-h-10 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium border transition-all duration-200 shadow-[var(--shadow-soft)] active:scale-[0.98]",
           vote === "up"
             ? "bg-primary text-primary-foreground border-primary"
             : "bg-card text-muted border-border hover:border-primary/30 hover:text-foreground"
