@@ -5,6 +5,7 @@ import { useMemo, useRef, useState } from "react";
 import { Search, SlidersHorizontal, X, MapPin, Check, Tags, Users, CalendarDays } from "lucide-react";
 import { CAMP_TYPE_ICONS, CAMP_TYPE_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
 import { cn, formatAgeRange, formatDateShort, toLocalDateKey } from "@/lib/utils";
+import { ImageWithFallback } from "@/components/ui/image-with-fallback";
 import type { Camp, CampType, District } from "@/types/database";
 
 const campTypes = Object.keys(CAMP_TYPE_LABELS) as CampType[];
@@ -959,7 +960,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                     <h2 className="text-[15px] font-semibold text-foreground">{group.label}</h2>
                     <span className="text-[12px] text-muted-foreground">({group.organizers.length})</span>
                   </div>
-                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {group.organizers.map((organizer) => (
                       <article
                         key={organizer.organizerKey}
@@ -971,10 +972,11 @@ export function CampsListView({ camps }: CampsListViewProps) {
                         >
                           <div className="w-[160px] shrink-0 relative self-stretch bg-accent">
                             {organizer.leadCamp.image_url ? (
-                              <img
+                              <ImageWithFallback
                                 src={organizer.leadCamp.image_url}
                                 alt={organizer.organizerName}
-                                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                                className="h-full w-full object-contain bg-accent/30 transition-transform duration-300 group-hover:scale-[1.03]"
+                                loading="lazy"
                               />
                             ) : (
                               <div className="flex h-full w-full items-center justify-center text-3xl text-muted-foreground/30">

@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
   const imageUrl = urlData.publicUrl;
 
   // Update the record
-  const table = target === "events" ? "events" : "places";
+  const table = target === "events" ? "events" : target === "camps" ? "camps" : "places";
   const { error: dbError } = await db.from(table).update({ image_url: imageUrl }).eq("id", id);
 
   if (dbError) {

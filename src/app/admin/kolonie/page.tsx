@@ -1,12 +1,13 @@
 ﻿"use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import {
   ClipboardPaste,
   ChevronDown,
   ChevronRight,
   ExternalLink,
   Loader2,
+  MapPin,
   Pencil,
   Plus,
   RefreshCw,
@@ -15,10 +16,13 @@ import {
   Trash2,
   Upload,
   X,
+  XCircle,
 } from "lucide-react";
 import { CAMP_TYPE_ICONS, CAMP_TYPE_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
 import { cn, formatDateShort, formatPrice } from "@/lib/utils";
 import type { Camp } from "@/types/database";
+
+const MiniMapLazy = lazy(() => import("../miejsca/mini-map").then((m) => ({ default: m.MiniMap })));
 
 type DerivedCampStatus = Camp["status"] | "outdated";
 type CampListFilter = "all" | "published" | "draft" | "outdated";
@@ -39,6 +43,27 @@ export default function AdminCampsPage() {
   const [pastePreview, setPastePreview] = useState<Record<string, string>[]>([]);
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState({ done: 0, total: 0 });
+
+  // Organizer-level grouping state
+  const [collapsedOrganizers, setCollapsedOrganizers] = useState<Record<string, boolean>>({});
+  const [editingOrganizer, setEditingOrganizer] = useState<string | null>(null);
+  const [organizerEditForm, setOrganizerEditForm] = useState<Record<string, unknown>>({});
+  const [uploadingOrganizerImage, setUploadingOrganizerImage] = useState(false);
+  const [organizerPendingFile, setOrganizerPendingFile] = useState<File | null>(null);
+  const [organizerPendingPreview, setOrganizerPendingPreview] = useState<string | null>(null);
+  const [editingSession, setEditingSession] = useState<string | null>(null);
+  const [sessionEditForm, setSessionEditForm] = useState<Record<string, unknown>>({});
+  const [sessionGeocoding, setSessionGeocoding] = useState(false);
+  // Add new organizer modal
+  const [addModal, setAddModal] = useState(false);
+  const [addSaving, setAddSaving] = useState(false);
+  const [addForm, setAddForm] = useState<Record<string, unknown>>({});
+  const [addSessions, setAddSessions] = useState<{ date_start: string; date_end: string }[]>([{ date_start: "", date_end: "" }]);
+  // Add single turnus to existing organizer
+  const [addTurnusFor, setAddTurnusFor] = useState<string | null>(null);
+  const [addTurnusForm, setAddTurnusForm] = useState<Record<string, unknown>>({});
+  const [addTurnusSaving, setAddTurnusSaving] = useState(false);
+  const [addTurnusGeocoding, setAddTurnusGeocoding] = useState(false);
 
   const mapCampRow = (row: Record<string, unknown>): Camp => {
     const priceFrom = typeof row.price_from === "number" ? row.price_from : null;
@@ -99,21 +124,24 @@ export default function AdminCampsPage() {
     [typeFilter]
   );
 
-  const groupedCamps = useMemo(() => {
+  const groupedByTypeAndOrganizer = useMemo(() => {
     const order: Camp["camp_type"][] = ["polkolonie", "kolonie", "warsztaty_wakacyjne"];
-    return order.map((type) => ({
-      type,
-      items: filteredCamps
+    return order.map((type) => {
+      const typeCamps = filteredCamps
         .filter((c) => c.camp_type === type)
-        .sort((a, b) => {
-          const statusDiff = statusOrder[getEffectiveStatus(a)] - statusOrder[getEffectiveStatus(b)];
-          if (statusDiff !== 0) return statusDiff;
-          const dateDiff = (a.date_start || "").localeCompare(b.date_start || "");
-          if (dateDiff !== 0) return dateDiff;
-          return a.title.localeCompare(b.title, "pl");
-        }),
-    }));
-  }, [filteredCamps, getEffectiveStatus]);
+        .sort((a, b) => (a.date_start || "").localeCompare(b.date_start || "") || a.title.localeCompare(b.title, "pl"));
+      const organizerMap = new Map<string, Camp[]>();
+      for (const camp of typeCamps) {
+        const key = camp.organizer || "Brak organizatora";
+        if (!organizerMap.has(key)) organizerMap.set(key, []);
+        organizerMap.get(key)!.push(camp);
+      }
+      return {
+        type,
+        organizers: Array.from(organizerMap.entries()).map(([organizer, sessions]) => ({ organizer, sessions })),
+      };
+    });
+  }, [filteredCamps]);
 
   const publishedCount = useMemo(() => camps.filter((camp) => getEffectiveStatus(camp) === "published").length, [camps, getEffectiveStatus]);
   const draftCount = useMemo(() => camps.filter((camp) => {
@@ -495,45 +523,29 @@ export default function AdminCampsPage() {
     setEditForm({});
   };
 
-  const createCamp = async () => {
-    const payload = {
-      title: "Nowa kolonia",
-      description_short: "Opis oferty",
+  const createCamp = () => {
+    setAddForm({
+      title: "",
+      description_short: "",
       description_long: "",
-      image_url: null,
-      date_start: new Date().toISOString().slice(0, 10),
-      date_end: new Date().toISOString().slice(0, 10),
       camp_type: "polkolonie",
-      season: "lato",
-      duration_days: 5,
+      age_min: "",
+      age_max: "",
+      price_from: "",
+      price_to: "",
+      organizer: "",
+      source_url: "",
+      facebook_url: "",
+      venue_name: "",
+      venue_address: "",
+      district: "Inne",
+      is_free: false,
+      is_featured: false,
       meals_included: false,
       transport_included: false,
-      age_min: null,
-      age_max: null,
-      price: null,
-      price_from: null,
-      price_to: null,
-      is_free: false,
-      district: "Inne",
-      venue_name: "Miejsce",
-      venue_address: "Krakow",
-      organizer: "Organizator",
-      source_url: null,
-      facebook_url: null,
-      is_featured: false,
-    };
-
-    const res = await fetch("/api/admin/camps", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
     });
-    const data = await res.json();
-    if (data?.id) {
-      const newCamp = mapCampRow(data as Record<string, unknown>);
-      setCamps((prev) => [newCamp, ...prev]);
-      startEditing(newCamp);
-    }
+    setAddSessions([{ date_start: "", date_end: "" }]);
+    setAddModal(true);
   };
 
   const toggleStatus = async (camp: Camp) => {
@@ -571,6 +583,292 @@ export default function AdminCampsPage() {
       body: JSON.stringify({ id }),
     });
     setCamps((prev) => prev.filter((c) => c.id !== id));
+  };
+
+  const toggleOrganizer = (key: string) => {
+    setCollapsedOrganizers((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const startEditingOrganizer = (key: string, proto: Camp) => {
+    setEditingOrganizer(key);
+    setOrganizerPendingFile(null);
+    setOrganizerPendingPreview(null);
+    setOrganizerEditForm({
+      description_short: proto.description_short,
+      description_long: proto.description_long,
+      camp_type: proto.camp_type,
+      organizer: proto.organizer,
+      image_url: proto.image_url || "",
+    });
+  };
+
+  const saveOrganizerEdit = async (campIds: string[]) => {
+    let uploadedImageUrl: string | null = null;
+    if (organizerPendingFile && campIds.length > 0) {
+      setUploadingOrganizerImage(true);
+      try {
+        const formData = new FormData();
+        formData.append("file", organizerPendingFile);
+        formData.append("id", campIds[0]);
+        formData.append("target", "camps");
+        const res = await fetch("/api/admin/upload-image", { method: "POST", body: formData });
+        const data = await res.json();
+        if (data.image_url) {
+          uploadedImageUrl = `${String(data.image_url).split("?")[0]}?t=${Date.now()}`;
+        } else {
+          alert(`Błąd obrazka: ${data.error || "Nie udało się"}`);
+        }
+      } catch {
+        alert("Błąd połączenia przy wgrywaniu obrazka");
+      }
+      setUploadingOrganizerImage(false);
+    }
+
+    const updates = {
+      description_short: String(organizerEditForm.description_short || ""),
+      description_long: String(organizerEditForm.description_long || ""),
+      camp_type: organizerEditForm.camp_type,
+      organizer: String(organizerEditForm.organizer || ""),
+      image_url: uploadedImageUrl || (organizerEditForm.image_url ? String(organizerEditForm.image_url) : null),
+    };
+    const results = await Promise.all(
+      campIds.map((id) =>
+        fetch("/api/admin/camps", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, ...updates }),
+        }).then((r) => r.json())
+      )
+    );
+    setCamps((prev) =>
+      prev.map((c) => {
+        const found = results.find((r) => r.updated?.id === c.id);
+        return found?.updated ? mapCampRow(found.updated as Record<string, unknown>) : c;
+      })
+    );
+    setEditingOrganizer(null);
+    setOrganizerEditForm({});
+    setOrganizerPendingFile(null);
+    setOrganizerPendingPreview(null);
+  };
+
+  const startEditingSession = (camp: Camp) => {
+    const row = camp as unknown as Record<string, unknown>;
+    setEditingSession(camp.id);
+    setSessionEditForm({
+      title: camp.title,
+      date_start: camp.date_start || "",
+      date_end: camp.date_end || "",
+      age_min: camp.age_min,
+      age_max: camp.age_max,
+      price_from: row.price_from ?? camp.price,
+      price_to: row.price_to ?? null,
+      venue_address: camp.venue_address,
+      city: "Kraków",
+      district: camp.district,
+      source_url: camp.source_url || "",
+      facebook_url: camp.facebook_url || "",
+      is_featured: camp.is_featured,
+    });
+  };
+
+  const saveSessionEdit = async (id: string) => {
+    const dateStart = String(sessionEditForm.date_start || "");
+    const dateEnd = String(sessionEditForm.date_end || "");
+    const res = await fetch("/api/admin/camps", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id,
+        title: String(sessionEditForm.title || ""),
+        date_start: dateStart,
+        date_end: dateEnd,
+        duration_days: calcDurationDays(dateStart, dateEnd),
+        season: inferSeason(dateStart),
+        age_min: sessionEditForm.age_min === "" || sessionEditForm.age_min === null ? null : Number(sessionEditForm.age_min),
+        age_max: sessionEditForm.age_max === "" || sessionEditForm.age_max === null ? null : Number(sessionEditForm.age_max),
+        price: null,
+        price_from: sessionEditForm.price_from === "" || sessionEditForm.price_from === null ? null : Number(sessionEditForm.price_from),
+        price_to: sessionEditForm.price_to === "" || sessionEditForm.price_to === null ? null : Number(sessionEditForm.price_to),
+        venue_address: String(sessionEditForm.venue_address || ""),
+        district: sessionEditForm.district,
+        source_url: sessionEditForm.source_url ? String(sessionEditForm.source_url) : null,
+        facebook_url: sessionEditForm.facebook_url ? String(sessionEditForm.facebook_url) : null,
+        is_featured: Boolean(sessionEditForm.is_featured),
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) { alert(`Błąd: ${data.error}`); return; }
+    if (data.updated) setCamps((prev) => prev.map((c) => (c.id === id ? mapCampRow(data.updated as Record<string, unknown>) : c)));
+    setEditingSession(null);
+  };
+
+  const geocodeSessionAddress = async () => {
+    const address = String(sessionEditForm.venue_address || "").trim();
+    const city = String(sessionEditForm.city || "Kraków").trim();
+    if (!address) {
+      alert("Wpisz adres turnusu");
+      return;
+    }
+    setSessionGeocoding(true);
+    try {
+      const res = await fetch("/api/admin/geocode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address, city: city || "Kraków" }),
+      });
+      const data = await res.json();
+      if (data.lat && data.lng) {
+        setSessionEditForm((prev) => ({
+          ...prev,
+          lat: data.lat,
+          lng: data.lng,
+          ...(data.district ? { district: data.district } : {}),
+        }));
+      } else {
+        alert(data.error || "Nie znaleziono lokalizacji");
+      }
+    } catch {
+      alert("Błąd geolokalizacji");
+    }
+    setSessionGeocoding(false);
+  };
+
+  const openAddTurnus = (orgKey: string) => {
+    const hyphenIdx = orgKey.indexOf("-");
+    const protoCampType = orgKey.slice(0, hyphenIdx) as Camp["camp_type"];
+    const organizerName = orgKey.slice(hyphenIdx + 1);
+    const proto = camps.find((c) => c.camp_type === protoCampType && (c.organizer || "Brak organizatora") === organizerName);
+    const protoRow = (proto ?? {}) as Record<string, unknown>;
+    setAddTurnusFor(orgKey);
+    setAddTurnusForm({
+      title: proto?.title || "",
+      date_start: "",
+      date_end: "",
+      age_min: proto?.age_min ?? null,
+      age_max: proto?.age_max ?? null,
+      price_from: protoRow.price_from ?? proto?.price ?? null,
+      price_to: protoRow.price_to ?? null,
+      venue_address: proto?.venue_address || "",
+      city: "Kraków",
+      district: proto?.district || "Inne",
+      source_url: proto?.source_url || "",
+      facebook_url: proto?.facebook_url || "",
+      is_featured: proto?.is_featured ?? false,
+      lat: null,
+      lng: null,
+    });
+  };
+
+  const geocodeAddTurnusAddress = async () => {
+    const address = String(addTurnusForm.venue_address || "").trim();
+    const city = String(addTurnusForm.city || "Kraków").trim();
+    if (!address) {
+      alert("Wpisz adres turnusu");
+      return;
+    }
+    setAddTurnusGeocoding(true);
+    try {
+      const res = await fetch("/api/admin/geocode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address, city: city || "Kraków" }),
+      });
+      const data = await res.json();
+      if (data.lat && data.lng) {
+        setAddTurnusForm((prev) => ({
+          ...prev,
+          lat: data.lat,
+          lng: data.lng,
+          ...(data.district ? { district: data.district } : {}),
+        }));
+      } else {
+        alert(data.error || "Nie znaleziono lokalizacji");
+      }
+    } catch {
+      alert("Błąd geolokalizacji");
+    }
+    setAddTurnusGeocoding(false);
+  };
+
+  const saveAddTurnus = async () => {
+    if (!addTurnusFor || !addTurnusForm.date_start || !addTurnusForm.date_end) { alert("Podaj daty turnusu."); return; }
+    setAddTurnusSaving(true);
+    const hyphenIdx = addTurnusFor.indexOf("-");
+    const protoCampType = addTurnusFor.slice(0, hyphenIdx) as Camp["camp_type"];
+    const organizerName = addTurnusFor.slice(hyphenIdx + 1);
+    const proto = camps.find((c) => c.camp_type === protoCampType && (c.organizer || "Brak organizatora") === organizerName);
+    if (!proto) { setAddTurnusSaving(false); return; }
+    const protoRow = proto as unknown as Record<string, unknown>;
+    const dateStart = String(addTurnusForm.date_start || "");
+    const dateEnd = String(addTurnusForm.date_end || "");
+    const res = await fetch("/api/admin/camps", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: String(addTurnusForm.title || proto.title), description_short: proto.description_short, description_long: proto.description_long,
+        image_url: proto.image_url, date_start: dateStart, date_end: dateEnd,
+        camp_type: proto.camp_type, season: inferSeason(dateStart), duration_days: calcDurationDays(dateStart, dateEnd),
+        meals_included: proto.meals_included, transport_included: proto.transport_included,
+        age_min: addTurnusForm.age_min === "" || addTurnusForm.age_min === null ? null : Number(addTurnusForm.age_min),
+        age_max: addTurnusForm.age_max === "" || addTurnusForm.age_max === null ? null : Number(addTurnusForm.age_max),
+        price: null,
+        price_from: addTurnusForm.price_from === "" || addTurnusForm.price_from === null ? null : Number(addTurnusForm.price_from),
+        price_to: addTurnusForm.price_to === "" || addTurnusForm.price_to === null ? null : Number(addTurnusForm.price_to),
+        is_free: proto.is_free, district: addTurnusForm.district || proto.district, venue_name: proto.venue_name,
+        venue_address: String(addTurnusForm.venue_address || ""), organizer: proto.organizer,
+        source_url: addTurnusForm.source_url ? String(addTurnusForm.source_url) : null,
+        facebook_url: addTurnusForm.facebook_url ? String(addTurnusForm.facebook_url) : null,
+        is_featured: Boolean(addTurnusForm.is_featured),
+      }),
+    });
+    const data = await res.json();
+    if (data?.id) setCamps((prev) => [...prev, mapCampRow(data as Record<string, unknown>)]);
+    setAddTurnusFor(null);
+    setAddTurnusSaving(false);
+  };
+
+  const saveNewCamps = async () => {
+    const validSessions = addSessions.filter((s) => s.date_start && s.date_end);
+    if (!addForm.title || validSessions.length === 0) { alert("Podaj tytuł i co najmniej jeden turnus z datami."); return; }
+    setAddSaving(true);
+    const created: Camp[] = [];
+    for (const session of validSessions) {
+      const dateStart = session.date_start;
+      const dateEnd = session.date_end;
+      try {
+        const res = await fetch("/api/admin/camps", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: String(addForm.title || "").trim(),
+            description_short: String(addForm.description_short || "Opis oferty"),
+            description_long: String(addForm.description_long || ""),
+            image_url: null, date_start: dateStart, date_end: dateEnd,
+            camp_type: addForm.camp_type || "polkolonie", season: inferSeason(dateStart),
+            duration_days: calcDurationDays(dateStart, dateEnd),
+            meals_included: Boolean(addForm.meals_included), transport_included: false,
+            age_min: addForm.age_min === "" || addForm.age_min === null ? null : Number(addForm.age_min),
+            age_max: addForm.age_max === "" || addForm.age_max === null ? null : Number(addForm.age_max),
+            price: null,
+            price_from: addForm.price_from === "" || addForm.price_from === null ? null : Number(addForm.price_from),
+            price_to: addForm.price_to === "" || addForm.price_to === null ? null : Number(addForm.price_to),
+            is_free: Boolean(addForm.is_free), district: addForm.district || "Inne",
+            venue_name: String(addForm.venue_name || "Miejsce"),
+            venue_address: String(addForm.venue_address || "Krakow"),
+            organizer: String(addForm.organizer || "Organizator"),
+            source_url: addForm.source_url ? String(addForm.source_url) : null,
+            facebook_url: addForm.facebook_url ? String(addForm.facebook_url) : null,
+            is_featured: Boolean(addForm.is_featured),
+          }),
+        });
+        const data = await res.json();
+        if (data?.id) created.push(mapCampRow(data as Record<string, unknown>));
+      } catch { /* skip */ }
+    }
+    setCamps((prev) => [...created, ...prev]);
+    setAddSaving(false);
+    setAddModal(false);
   };
 
   const inputClass = "w-full px-2 py-1.5 rounded-md border border-border text-[12px] bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30";
@@ -619,7 +917,7 @@ export default function AdminCampsPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          {groupedCamps.filter(({ type }) => !typeFilter || type === typeFilter).map(({ type, items }) => {
+          {groupedByTypeAndOrganizer.filter(({ type }) => !typeFilter || type === typeFilter).map(({ type, organizers }) => {
             const expanded = !collapsedCategories[type];
             const stats = sectionStats[type] ?? { all: 0, published: 0, draft: 0, outdated: 0 };
             return (
@@ -639,150 +937,269 @@ export default function AdminCampsPage() {
                 </div>
 
                 {expanded && (
-                  items.length === 0 ? (
+                  organizers.length === 0 ? (
                   <div className="rounded-lg border border-dashed border-border/70 bg-white px-3 py-4 text-[12px] text-muted">
                     Brak rekordów dla tego filtra.
                   </div>
                   ) : (
-                  <div className="space-y-1.5">
-                    {items.map((camp, index) => {
-                      const isDraft = camp.status !== "published";
-                      const isEditing = editing === camp.id;
+                  <div className="space-y-2">
+                    {organizers.map(({ organizer, sessions }) => {
+                      const orgKey = `${type}-${organizer}`;
+                      const orgExpanded = !collapsedOrganizers[orgKey];
+                      const proto = sessions[0];
+                      const protoRow = proto as unknown as Record<string, unknown>;
+                      const isEditingOrg = editingOrganizer === orgKey;
                       return (
-                        <div key={camp.id} className={cn("rounded-lg border border-border/70", isDraft ? "bg-stone-100 opacity-70" : "bg-white")}>
+                        <div key={orgKey} className="rounded-xl border border-border bg-white overflow-hidden">
+                          {/* Organizer header */}
                           <div className="flex items-center gap-2.5 px-3 py-2.5">
-                            <span className="shrink-0 w-6 text-center text-[11px] font-mono text-muted-foreground">{index + 1}</span>
-                            <span className="shrink-0 text-lg">{CAMP_TYPE_ICONS[camp.camp_type]}</span>
+                            <button type="button" onClick={() => toggleOrganizer(orgKey)} className="shrink-0 p-0.5 text-muted-foreground hover:text-foreground transition-colors">
+                              {orgExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                            </button>
                             <div className="flex-1 min-w-0">
-                              <p className="text-[13px] font-medium text-foreground truncate">{camp.title}</p>
-                              <div className="flex items-center gap-1.5 text-[11px] text-muted mt-0.5">
-                                <span>{CAMP_TYPE_LABELS[camp.camp_type]}</span>
-                                <span className="opacity-40">·</span>
-                                <span>{formatDateShort(camp.date_start)} - {formatDateShort(camp.date_end)}</span>
-                                <span className="opacity-40">·</span>
-                                <span>{formatPrice(camp.price)}</span>
-                                <span className="opacity-40">·</span>
-                                <span className="truncate max-w-[180px]">{camp.organizer}</span>
+                              <p className="text-[13px] font-semibold text-foreground truncate">{organizer}</p>
+                              <div className="flex items-center gap-2 text-[11px] text-muted mt-0.5 flex-wrap">
+                                <span className="shrink-0">{CAMP_TYPE_LABELS[proto.camp_type]}</span>
+                                {proto.description_short && (
+                                  <span className="truncate max-w-[320px] opacity-70">{proto.description_short}</span>
+                                )}
                               </div>
                             </div>
-
-                            <button onClick={() => startEditing(camp)} className="p-1 rounded hover:bg-accent text-muted transition-colors" title="Edytuj">
+                            <span className="text-[11px] text-muted-foreground shrink-0 mr-1">
+                              {sessions.length} {sessions.length === 1 ? "turnus" : sessions.length < 5 ? "turnusy" : "turnusów"}
+                            </span>
+                            <button onClick={() => startEditingOrganizer(orgKey, proto)} className={cn("p-1 rounded hover:bg-accent transition-colors shrink-0", isEditingOrg ? "text-primary" : "text-muted")} title="Edytuj dane organizatora">
                               <Pencil size={13} />
                             </button>
-
-                            <button onClick={() => toggleFeatured(camp)} className={cn("p-1 rounded transition-colors", camp.is_featured ? "text-amber-500 hover:bg-amber-50" : "text-muted-foreground hover:bg-stone-100")} title="Wyróżnij">
-                              <Star size={13} fill={camp.is_featured ? "currentColor" : "none"} />
+                            <button onClick={() => openAddTurnus(orgKey)} className="p-1 rounded hover:bg-accent text-muted transition-colors shrink-0" title="Dodaj turnus">
+                              <Plus size={13} />
                             </button>
-
-                            {camp.source_url && (
-                              <a href={camp.source_url} target="_blank" rel="noopener" className="p-1 rounded hover:bg-accent text-muted transition-colors" title="Zrodlo">
+                            {(proto.source_url || protoRow.facebook_url) && (
+                              <a href={(proto.source_url || protoRow.facebook_url as string) ?? ""} target="_blank" rel="noopener" className="p-1 rounded hover:bg-accent text-muted transition-colors shrink-0">
                                 <ExternalLink size={13} />
                               </a>
                             )}
-
-                            <button onClick={() => toggleStatus(camp)} className={cn("px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide transition-colors", camp.status === "published" ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" : "bg-rose-100 text-rose-700 hover:bg-rose-200")}>
-                              {camp.status === "published" ? "Published" : "Draft"}
-                            </button>
-
-                            <button onClick={() => handleDelete(camp.id)} className="p-1 rounded text-muted-foreground hover:bg-red-50 hover:text-red-600 transition-colors" title="Usun">
-                              <Trash2 size={13} />
-                            </button>
                           </div>
 
-                          {isEditing && (
-                            <div className="px-3 pb-3 pt-2 border-t border-border/50">
+                          {/* Organizer shared-data edit form */}
+                          {isEditingOrg && (
+                            <div className="px-3 pb-3 pt-2 border-t border-border/50 bg-accent/20">
                               <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
-                                <div className="md:col-span-2">
-                                  <label className={labelClass}>Tytul</label>
-                                  <input className={inputClass} value={(editForm.title as string) || ""} onChange={(e) => setEditForm((p) => ({ ...p, title: e.target.value }))} />
+                                <div className="md:col-span-3">
+                                  <label className={labelClass}>Organizator</label>
+                                  <input className={inputClass} value={(organizerEditForm.organizer as string) || ""} onChange={(e) => setOrganizerEditForm((p) => ({ ...p, organizer: e.target.value }))} />
                                 </div>
-                                <div>
+                                <div className="md:col-span-1">
                                   <label className={labelClass}>Typ</label>
-                                  <select className={inputClass} value={(editForm.camp_type as string) || camp.camp_type} onChange={(e) => setEditForm((p) => ({ ...p, camp_type: e.target.value }))}>
-                                    <option value="polkolonie">Polkolonie</option>
+                                  <select className={inputClass} value={(organizerEditForm.camp_type as string) || "polkolonie"} onChange={(e) => setOrganizerEditForm((p) => ({ ...p, camp_type: e.target.value }))}>
+                                    <option value="polkolonie">Półkolonie</option>
                                     <option value="kolonie">Kolonie</option>
                                     <option value="warsztaty_wakacyjne">Warsztaty wakacyjne</option>
                                   </select>
                                 </div>
-
                                 <div className="md:col-span-4">
-                                  <label className={labelClass}>Krotki opis</label>
-                                  <textarea rows={2} className={inputClass} value={(editForm.description_short as string) || ""} onChange={(e) => setEditForm((p) => ({ ...p, description_short: e.target.value }))} />
+                                  <label className={labelClass}>Krótki opis</label>
+                                  <textarea rows={2} className={inputClass} value={(organizerEditForm.description_short as string) || ""} onChange={(e) => setOrganizerEditForm((p) => ({ ...p, description_short: e.target.value }))} />
                                 </div>
                                 <div className="md:col-span-4">
-                                  <label className={labelClass}>Dlugi opis</label>
-                                  <textarea rows={6} className={inputClass} value={(editForm.description_long as string) || ""} onChange={(e) => setEditForm((p) => ({ ...p, description_long: e.target.value }))} />
+                                  <label className={labelClass}>Długi opis</label>
+                                  <textarea rows={4} className={inputClass} value={(organizerEditForm.description_long as string) || ""} onChange={(e) => setOrganizerEditForm((p) => ({ ...p, description_long: e.target.value }))} />
                                 </div>
-
-                                <div>
-                                  <label className={labelClass}>Data od</label>
-                                  <input type="date" className={inputClass} value={(editForm.date_start as string) || ""} onChange={(e) => setEditForm((p) => ({ ...p, date_start: e.target.value }))} />
-                                </div>
-                                <div>
-                                  <label className={labelClass}>Data do</label>
-                                  <input type="date" className={inputClass} value={(editForm.date_end as string) || ""} onChange={(e) => setEditForm((p) => ({ ...p, date_end: e.target.value }))} />
-                                </div>
-                                <div>
-                                  <label className={labelClass}>Dni</label>
-                                  <input type="number" min={1} className={inputClass} value={String(editForm.duration_days ?? "")} onChange={(e) => setEditForm((p) => ({ ...p, duration_days: e.target.value ? Number(e.target.value) : 1 }))} />
-                                </div>
-
-                                <div className="hidden md:block md:col-span-4" />
-
-                                <div>
-                                  <label className={labelClass}>Wiek od</label>
-                                  <input type="number" min={0} max={18} className={inputClass} value={editForm.age_min === null ? "" : String(editForm.age_min ?? "")} onChange={(e) => setEditForm((p) => ({ ...p, age_min: e.target.value ? Number(e.target.value) : null }))} />
-                                </div>
-                                <div>
-                                  <label className={labelClass}>Wiek do</label>
-                                  <input type="number" min={0} max={18} className={inputClass} value={editForm.age_max === null ? "" : String(editForm.age_max ?? "")} onChange={(e) => setEditForm((p) => ({ ...p, age_max: e.target.value ? Number(e.target.value) : null }))} />
-                                </div>
-                                <div>
-                                  <label className={labelClass}>Cena od</label>
-                                  <input type="number" min={0} className={inputClass} value={editForm.price_from === null ? "" : String(editForm.price_from ?? "")} onChange={(e) => setEditForm((p) => ({ ...p, price_from: e.target.value ? Number(e.target.value) : null }))} />
-                                </div>
-                                <div>
-                                  <label className={labelClass}>Cena do</label>
-                                  <input type="number" min={0} className={inputClass} value={editForm.price_to === null ? "" : String(editForm.price_to ?? "")} onChange={(e) => setEditForm((p) => ({ ...p, price_to: e.target.value ? Number(e.target.value) : null }))} />
-                                </div>
-
-                                <div className="flex items-center gap-2 pt-5">
-                                  <input type="checkbox" id={`featured-camp-${camp.id}`} checked={Boolean(editForm.is_featured)} onChange={(e) => setEditForm((p) => ({ ...p, is_featured: e.target.checked }))} className="rounded border-border" />
-                                  <label htmlFor={`featured-camp-${camp.id}`} className="text-[12px] text-foreground">Wyróżnij</label>
-                                </div>
-
-                                <div className="hidden md:block md:col-span-4" />
-
-                                <div className="md:col-span-2">
-                                  <label className={labelClass}>Organizator</label>
-                                  <input className={inputClass} value={(editForm.organizer as string) || ""} onChange={(e) => setEditForm((p) => ({ ...p, organizer: e.target.value }))} />
-                                </div>
-                                <div className="md:col-span-2">
-                                  <label className={labelClass}>URL zrodla</label>
-                                  <input className={inputClass} value={(editForm.source_url as string) || ""} onChange={(e) => setEditForm((p) => ({ ...p, source_url: e.target.value }))} />
-                                </div>
-                                <div className="md:col-span-2">
-                                  <label className={labelClass}>Facebook</label>
-                                  <input className={inputClass} value={(editForm.facebook_url as string) || ""} onChange={(e) => setEditForm((p) => ({ ...p, facebook_url: e.target.value }))} placeholder="https://facebook.com/..." />
-                                </div>
-                                <div className="md:col-span-2">
-                                  <label className={labelClass}>Miejsce</label>
-                                  <input className={inputClass} value={(editForm.venue_name as string) || ""} onChange={(e) => setEditForm((p) => ({ ...p, venue_name: e.target.value }))} />
-                                </div>
-                                <div className="md:col-span-2">
-                                  <label className={labelClass}>Adres</label>
-                                  <input className={inputClass} value={(editForm.venue_address as string) || ""} onChange={(e) => setEditForm((p) => ({ ...p, venue_address: e.target.value }))} />
+                                <div className="md:col-span-4">
+                                  <label className={labelClass}>Zdjęcie organizatora (wspólne)</label>
+                                  <div className="flex flex-wrap gap-3 items-start">
+                                    <div className="w-[180px] shrink-0">
+                                      {(organizerPendingPreview || organizerEditForm.image_url) ? (
+                                        <div className="relative group">
+                                          <img
+                                            src={String(organizerPendingPreview || organizerEditForm.image_url || "")}
+                                            alt="Podgląd zdjęcia"
+                                            className={cn("w-full aspect-[3/2] rounded-lg object-contain bg-accent/30 border border-border", organizerPendingPreview && "ring-2 ring-primary/40")}
+                                          />
+                                          {organizerPendingPreview && (
+                                            <button
+                                              onClick={() => { if (organizerPendingPreview) URL.revokeObjectURL(organizerPendingPreview); setOrganizerPendingFile(null); setOrganizerPendingPreview(null); }}
+                                              className="absolute -top-2 -right-2 p-1 rounded-full bg-white border border-border text-muted-foreground hover:text-red-600 shadow-sm"
+                                              title="Usuń wybrany plik"
+                                            >
+                                              <XCircle size={13} />
+                                            </button>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <div className="w-full aspect-[3/2] rounded-lg border border-dashed border-border flex items-center justify-center text-[11px] text-muted-foreground">
+                                          Brak zdjęcia
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div className="space-y-2 flex-1 min-w-[260px]">
+                                      <label className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-muted border border-border rounded hover:text-foreground hover:border-primary/30 transition-colors cursor-pointer">
+                                        <Upload size={11} />
+                                        {organizerPendingPreview ? "Zmień plik" : "Wgraj plik"}
+                                        <input
+                                          type="file"
+                                          accept="image/*"
+                                          className="hidden"
+                                          onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (!file) return;
+                                            if (organizerPendingPreview) URL.revokeObjectURL(organizerPendingPreview);
+                                            setOrganizerPendingFile(file);
+                                            setOrganizerPendingPreview(URL.createObjectURL(file));
+                                          }}
+                                        />
+                                      </label>
+                                      <input
+                                        className={inputClass}
+                                        placeholder="lub wklej URL obrazka"
+                                        value={String(organizerEditForm.image_url || "")}
+                                        onChange={(e) => setOrganizerEditForm((p) => ({ ...p, image_url: e.target.value }))}
+                                      />
+                                      <p className="text-[10px] text-muted">Po zapisie zdjęcie zostanie ustawione dla wszystkich turnusów organizatora.</p>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
-
+                              <p className="text-[10px] text-muted mb-2">Na poziomie organizatora edytujesz tylko: organizatora, typ oraz opisy. Reszta pól jest per turnus.</p>
                               <div className="flex items-center gap-2">
-                                <button onClick={() => saveEdit(camp.id)} className="inline-flex items-center gap-1 px-3 py-1.5 text-[11px] font-medium bg-foreground text-white rounded hover:bg-[#333] transition-colors">
-                                  <Save size={11} /> Zapisz
+                                <button onClick={() => saveOrganizerEdit(sessions.map((s) => s.id))} disabled={uploadingOrganizerImage} className="inline-flex items-center gap-1 px-3 py-1.5 text-[11px] font-medium bg-foreground text-white rounded hover:bg-[#333] transition-colors disabled:opacity-60">
+                                  {uploadingOrganizerImage ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />} {uploadingOrganizerImage ? "Wgrywanie..." : "Zapisz wszystkie"}
                                 </button>
-                                <button onClick={() => { setEditing(null); setEditForm({}); }} className="inline-flex items-center gap-1 px-3 py-1.5 text-[11px] font-medium text-muted border border-border rounded hover:text-foreground transition-colors">
+                                <button onClick={() => { setEditingOrganizer(null); setOrganizerEditForm({}); }} className="inline-flex items-center gap-1 px-3 py-1.5 text-[11px] font-medium text-muted border border-border rounded hover:text-foreground transition-colors">
                                   <X size={11} /> Anuluj
                                 </button>
                               </div>
+                            </div>
+                          )}
+
+                          {/* Sessions list */}
+                          {orgExpanded && (
+                            <div className="border-t border-border/40 divide-y divide-border/40">
+                              {sessions.map((camp, si) => {
+                                const isDraft = camp.status !== "published";
+                                const isSessEdit = editingSession === camp.id;
+                                return (
+                                  <div key={camp.id} className={cn("flex items-center gap-2 px-3 py-2 pl-10", isDraft && "opacity-60")}>
+                                    <span className="w-5 shrink-0 text-center text-[11px] font-mono text-muted-foreground">{si + 1}</span>
+                                    {isSessEdit ? (
+                                      <div className="w-full rounded-lg border border-border/60 bg-white p-2.5">
+                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                                          <div className="md:col-span-2">
+                                            <label className={labelClass}>Tytuł turnusu</label>
+                                            <input className={inputClass} value={String(sessionEditForm.title || "")} onChange={(e) => setSessionEditForm((p) => ({ ...p, title: e.target.value }))} />
+                                          </div>
+                                          <div>
+                                            <label className={labelClass}>Data od</label>
+                                            <input type="date" value={String(sessionEditForm.date_start || "")} onChange={(e) => setSessionEditForm((p) => ({ ...p, date_start: e.target.value }))} className={inputClass} />
+                                          </div>
+                                          <div>
+                                            <label className={labelClass}>Data do</label>
+                                            <input type="date" value={String(sessionEditForm.date_end || "")} onChange={(e) => setSessionEditForm((p) => ({ ...p, date_end: e.target.value }))} className={inputClass} />
+                                          </div>
+                                          <div>
+                                            <label className={labelClass}>Wiek od</label>
+                                            <input type="number" min={0} max={18} className={inputClass} value={sessionEditForm.age_min === null ? "" : String(sessionEditForm.age_min ?? "")} onChange={(e) => setSessionEditForm((p) => ({ ...p, age_min: e.target.value ? Number(e.target.value) : null }))} />
+                                          </div>
+                                          <div>
+                                            <label className={labelClass}>Wiek do</label>
+                                            <input type="number" min={0} max={18} className={inputClass} value={sessionEditForm.age_max === null ? "" : String(sessionEditForm.age_max ?? "")} onChange={(e) => setSessionEditForm((p) => ({ ...p, age_max: e.target.value ? Number(e.target.value) : null }))} />
+                                          </div>
+                                          <div>
+                                            <label className={labelClass}>Cena od</label>
+                                            <input type="number" min={0} className={inputClass} value={sessionEditForm.price_from === null ? "" : String(sessionEditForm.price_from ?? "")} onChange={(e) => setSessionEditForm((p) => ({ ...p, price_from: e.target.value ? Number(e.target.value) : null }))} />
+                                          </div>
+                                          <div>
+                                            <label className={labelClass}>Cena do</label>
+                                            <input type="number" min={0} className={inputClass} value={sessionEditForm.price_to === null ? "" : String(sessionEditForm.price_to ?? "")} onChange={(e) => setSessionEditForm((p) => ({ ...p, price_to: e.target.value ? Number(e.target.value) : null }))} />
+                                          </div>
+                                          <div className="md:col-span-2">
+                                            <label className={labelClass}>URL źródła</label>
+                                            <input className={inputClass} value={String(sessionEditForm.source_url || "")} onChange={(e) => setSessionEditForm((p) => ({ ...p, source_url: e.target.value }))} />
+                                          </div>
+                                          <div className="md:col-span-2">
+                                            <label className={labelClass}>Facebook</label>
+                                            <input className={inputClass} value={String(sessionEditForm.facebook_url || "")} onChange={(e) => setSessionEditForm((p) => ({ ...p, facebook_url: e.target.value }))} />
+                                          </div>
+                                          <div className="md:col-span-4 rounded-lg border border-border/60 p-3">
+                                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Lokalizacja</p>
+                                            <div className="grid grid-cols-1 md:grid-cols-[1fr,260px] gap-3 items-start">
+                                              <div className="space-y-2">
+                                                <div>
+                                                  <label className={labelClass}>Ulica</label>
+                                                  <input className={inputClass} value={String(sessionEditForm.venue_address || "")} onChange={(e) => setSessionEditForm((p) => ({ ...p, venue_address: e.target.value }))} />
+                                                </div>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                                  <div>
+                                                    <label className={labelClass}>Miasto</label>
+                                                    <input className={inputClass} value={String(sessionEditForm.city || "Kraków")} onChange={(e) => setSessionEditForm((p) => ({ ...p, city: e.target.value }))} />
+                                                  </div>
+                                                  <div>
+                                                    <label className={labelClass}>Dzielnica</label>
+                                                    <select className={inputClass} value={String(sessionEditForm.district || "Inne")} onChange={(e) => setSessionEditForm((p) => ({ ...p, district: e.target.value }))}>
+                                                      {DISTRICT_LIST.map((district) => <option key={district} value={district}>{district}</option>)}
+                                                    </select>
+                                                  </div>
+                                                </div>
+                                                <div>
+                                                  <label className={labelClass}>Współrzędne</label>
+                                                  <div className="grid grid-cols-[1fr,1fr,auto] gap-2">
+                                                    <input type="number" step="any" className={inputClass} value={sessionEditForm.lat === null || sessionEditForm.lat === undefined ? "" : String(sessionEditForm.lat)} onChange={(e) => setSessionEditForm((p) => ({ ...p, lat: e.target.value === "" ? null : Number(e.target.value) }))} />
+                                                    <input type="number" step="any" className={inputClass} value={sessionEditForm.lng === null || sessionEditForm.lng === undefined ? "" : String(sessionEditForm.lng)} onChange={(e) => setSessionEditForm((p) => ({ ...p, lng: e.target.value === "" ? null : Number(e.target.value) }))} />
+                                                    <button
+                                                      type="button"
+                                                      onClick={geocodeSessionAddress}
+                                                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium text-muted border border-border rounded hover:text-foreground transition-colors"
+                                                    >
+                                                      {sessionGeocoding ? <Loader2 size={11} className="animate-spin" /> : <MapPin size={11} />}
+                                                      {sessionGeocoding ? "Szukam..." : "Znajdź"}
+                                                    </button>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                              <div className="rounded-lg border border-border overflow-hidden" style={{ height: 180 }}>
+                                                {Number.isFinite(Number(sessionEditForm.lat)) && Number.isFinite(Number(sessionEditForm.lng)) ? (
+                                                  <Suspense fallback={<div className="w-full h-full flex items-center justify-center bg-accent/20 text-[11px] text-muted">Ładowanie mapy...</div>}>
+                                                    <MiniMapLazy lat={Number(sessionEditForm.lat)} lng={Number(sessionEditForm.lng)} />
+                                                  </Suspense>
+                                                ) : (
+                                                  <div className="w-full h-full flex items-center justify-center bg-accent/20 text-[11px] text-muted">Mapa pojawi się po geolokalizacji</div>
+                                                )}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                        <div className="mt-2 flex items-center gap-2">
+                                          <button onClick={() => saveSessionEdit(camp.id)} className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium bg-foreground text-white rounded hover:bg-[#333] transition-colors">
+                                            <Save size={10} /> Zapisz
+                                          </button>
+                                          <button onClick={() => setEditingSession(null)} className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-muted border border-border rounded hover:text-foreground transition-colors">
+                                            <X size={10} /> Anuluj
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <>
+                                        <span className="text-[12px] font-medium text-foreground flex-1">
+                                          {formatDateShort(camp.date_start)} — {formatDateShort(camp.date_end)}
+                                        </span>
+                                        <span className="text-[11px] text-muted shrink-0">{camp.duration_days} dni</span>
+                                        <button onClick={() => startEditingSession(camp)} className="p-1 rounded hover:bg-accent text-muted transition-colors shrink-0" title="Edytuj daty">
+                                          <Pencil size={12} />
+                                        </button>
+                                        <button onClick={() => toggleFeatured(camp)} className={cn("p-1 rounded transition-colors shrink-0", camp.is_featured ? "text-amber-500 hover:bg-amber-50" : "text-muted-foreground hover:bg-stone-100")} title="Wyróżnij">
+                                          <Star size={12} fill={camp.is_featured ? "currentColor" : "none"} />
+                                        </button>
+                                        <button onClick={() => toggleStatus(camp)} className={cn("px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide transition-colors shrink-0", camp.status === "published" ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" : "bg-rose-100 text-rose-700 hover:bg-rose-200")}>
+                                          {camp.status === "published" ? "Published" : "Draft"}
+                                        </button>
+                                        <button onClick={() => handleDelete(camp.id)} className="p-1 rounded text-muted-foreground hover:bg-red-50 hover:text-red-600 transition-colors shrink-0" title="Usuń">
+                                          <Trash2 size={12} />
+                                        </button>
+                                      </>
+                                    )}
+                                  </div>
+                                );
+                              })}
                             </div>
                           )}
                         </div>
@@ -794,6 +1211,235 @@ export default function AdminCampsPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {addModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col mx-4">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <div>
+                <h2 className="text-[15px] font-bold text-foreground">Nowa kolonia</h2>
+                <p className="text-[11px] text-muted mt-0.5">Dane organizatora raz — potem dodaj turnusy</p>
+              </div>
+              <button onClick={() => setAddModal(false)} className="p-1.5 rounded hover:bg-accent text-muted transition-colors"><X size={16} /></button>
+            </div>
+            <div className="px-5 py-4 overflow-y-auto flex-1 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="md:col-span-2">
+                  <label className={labelClass}>Tytuł *</label>
+                  <input className={inputClass} placeholder="np. Letni obóz sportowy" value={String(addForm.title || "")} onChange={(e) => setAddForm((p) => ({ ...p, title: e.target.value }))} />
+                </div>
+                <div>
+                  <label className={labelClass}>Typ</label>
+                  <select className={inputClass} value={String(addForm.camp_type || "polkolonie")} onChange={(e) => setAddForm((p) => ({ ...p, camp_type: e.target.value }))}>
+                    <option value="polkolonie">Półkolonie</option>
+                    <option value="kolonie">Kolonie</option>
+                    <option value="warsztaty_wakacyjne">Warsztaty wakacyjne</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={labelClass}>Organizator</label>
+                  <input className={inputClass} value={String(addForm.organizer || "")} onChange={(e) => setAddForm((p) => ({ ...p, organizer: e.target.value }))} />
+                </div>
+                <div className="md:col-span-2">
+                  <label className={labelClass}>Krótki opis</label>
+                  <textarea rows={2} className={inputClass} value={String(addForm.description_short || "")} onChange={(e) => setAddForm((p) => ({ ...p, description_short: e.target.value }))} />
+                </div>
+                <div className="md:col-span-2">
+                  <label className={labelClass}>Długi opis</label>
+                  <textarea rows={3} className={inputClass} value={String(addForm.description_long || "")} onChange={(e) => setAddForm((p) => ({ ...p, description_long: e.target.value }))} />
+                </div>
+                <div>
+                  <label className={labelClass}>Wiek od</label>
+                  <input type="number" min={0} max={18} className={inputClass} value={String(addForm.age_min ?? "")} onChange={(e) => setAddForm((p) => ({ ...p, age_min: e.target.value }))} />
+                </div>
+                <div>
+                  <label className={labelClass}>Wiek do</label>
+                  <input type="number" min={0} max={18} className={inputClass} value={String(addForm.age_max ?? "")} onChange={(e) => setAddForm((p) => ({ ...p, age_max: e.target.value }))} />
+                </div>
+                <div>
+                  <label className={labelClass}>Cena od (zł)</label>
+                  <input type="number" min={0} className={inputClass} value={String(addForm.price_from ?? "")} onChange={(e) => setAddForm((p) => ({ ...p, price_from: e.target.value }))} />
+                </div>
+                <div>
+                  <label className={labelClass}>Cena do (zł)</label>
+                  <input type="number" min={0} className={inputClass} value={String(addForm.price_to ?? "")} onChange={(e) => setAddForm((p) => ({ ...p, price_to: e.target.value }))} />
+                </div>
+                <div>
+                  <label className={labelClass}>Miejsce</label>
+                  <input className={inputClass} value={String(addForm.venue_name || "")} onChange={(e) => setAddForm((p) => ({ ...p, venue_name: e.target.value }))} />
+                </div>
+                <div>
+                  <label className={labelClass}>Adres</label>
+                  <input className={inputClass} value={String(addForm.venue_address || "")} onChange={(e) => setAddForm((p) => ({ ...p, venue_address: e.target.value }))} />
+                </div>
+                <div>
+                  <label className={labelClass}>URL źródła</label>
+                  <input className={inputClass} placeholder="https://..." value={String(addForm.source_url || "")} onChange={(e) => setAddForm((p) => ({ ...p, source_url: e.target.value }))} />
+                </div>
+                <div>
+                  <label className={labelClass}>Facebook</label>
+                  <input className={inputClass} placeholder="https://facebook.com/..." value={String(addForm.facebook_url || "")} onChange={(e) => setAddForm((p) => ({ ...p, facebook_url: e.target.value }))} />
+                </div>
+                <div className="flex items-center gap-4 pt-2">
+                  <label className="flex items-center gap-2 text-[12px] cursor-pointer">
+                    <input type="checkbox" checked={Boolean(addForm.meals_included)} onChange={(e) => setAddForm((p) => ({ ...p, meals_included: e.target.checked }))} className="rounded border-border" />
+                    Wyżywienie
+                  </label>
+                  <label className="flex items-center gap-2 text-[12px] cursor-pointer">
+                    <input type="checkbox" checked={Boolean(addForm.is_free)} onChange={(e) => setAddForm((p) => ({ ...p, is_free: e.target.checked }))} className="rounded border-border" />
+                    Bezpłatne
+                  </label>
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Turnusy *</p>
+                  <button onClick={() => setAddSessions((p) => [...p, { date_start: "", date_end: "" }])} className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary/80 transition-colors">
+                    <Plus size={12} /> Dodaj turnus
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {addSessions.map((session, si) => (
+                    <div key={si} className="flex items-center gap-2 rounded-lg border border-border bg-accent/30 px-3 py-2">
+                      <span className="text-[11px] font-mono text-muted-foreground w-5 shrink-0">{si + 1}.</span>
+                      <div className="flex-1 flex items-center gap-2">
+                        <div className="flex-1">
+                          <label className="block text-[9px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5">Od</label>
+                          <input type="date" className={inputClass} value={session.date_start} onChange={(e) => setAddSessions((p) => p.map((s, i) => i === si ? { ...s, date_start: e.target.value } : s))} />
+                        </div>
+                        <div className="flex-1">
+                          <label className="block text-[9px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5">Do</label>
+                          <input type="date" className={inputClass} value={session.date_end} onChange={(e) => setAddSessions((p) => p.map((s, i) => i === si ? { ...s, date_end: e.target.value } : s))} />
+                        </div>
+                      </div>
+                      {addSessions.length > 1 && (
+                        <button onClick={() => setAddSessions((p) => p.filter((_, i) => i !== si))} className="p-1 rounded text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors">
+                          <X size={13} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="px-5 py-4 border-t border-border flex items-center justify-between">
+              <p className="text-[11px] text-muted">Zostanie utworzone {addSessions.filter((s) => s.date_start && s.date_end).length} rekord(ów) jako Draft</p>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setAddModal(false)} className="px-3 py-1.5 text-[12px] font-medium text-muted border border-border rounded-lg hover:text-foreground transition-colors">Anuluj</button>
+                <button onClick={saveNewCamps} disabled={addSaving || !addForm.title || addSessions.filter((s) => s.date_start && s.date_end).length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-white bg-foreground rounded-lg hover:bg-stone-700 transition-colors disabled:opacity-50">
+                  {addSaving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                  {addSaving ? "Zapisywanie..." : "Utwórz turnusy"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {addTurnusFor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-xl max-h-[90vh] overflow-hidden flex flex-col mx-4">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <h2 className="text-[15px] font-bold text-foreground">Dodaj turnus</h2>
+              <button onClick={() => setAddTurnusFor(null)} className="p-1.5 rounded hover:bg-accent text-muted transition-colors"><X size={16} /></button>
+            </div>
+            <div className="px-5 py-4 space-y-3 overflow-y-auto flex-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className={labelClass}>Tytuł turnusu</label>
+                  <input className={inputClass} value={String(addTurnusForm.title || "")} onChange={(e) => setAddTurnusForm((p) => ({ ...p, title: e.target.value }))} />
+                </div>
+                <div>
+                  <label className={labelClass}>Data od *</label>
+                  <input type="date" className={inputClass} value={String(addTurnusForm.date_start || "")} onChange={(e) => setAddTurnusForm((p) => ({ ...p, date_start: e.target.value }))} />
+                </div>
+                <div>
+                  <label className={labelClass}>Data do *</label>
+                  <input type="date" className={inputClass} value={String(addTurnusForm.date_end || "")} onChange={(e) => setAddTurnusForm((p) => ({ ...p, date_end: e.target.value }))} />
+                </div>
+                <div>
+                  <label className={labelClass}>Wiek od</label>
+                  <input type="number" min={0} max={18} className={inputClass} value={addTurnusForm.age_min === null ? "" : String(addTurnusForm.age_min ?? "")} onChange={(e) => setAddTurnusForm((p) => ({ ...p, age_min: e.target.value ? Number(e.target.value) : null }))} />
+                </div>
+                <div>
+                  <label className={labelClass}>Wiek do</label>
+                  <input type="number" min={0} max={18} className={inputClass} value={addTurnusForm.age_max === null ? "" : String(addTurnusForm.age_max ?? "")} onChange={(e) => setAddTurnusForm((p) => ({ ...p, age_max: e.target.value ? Number(e.target.value) : null }))} />
+                </div>
+                <div>
+                  <label className={labelClass}>Cena od</label>
+                  <input type="number" min={0} className={inputClass} value={addTurnusForm.price_from === null ? "" : String(addTurnusForm.price_from ?? "")} onChange={(e) => setAddTurnusForm((p) => ({ ...p, price_from: e.target.value ? Number(e.target.value) : null }))} />
+                </div>
+                <div>
+                  <label className={labelClass}>Cena do</label>
+                  <input type="number" min={0} className={inputClass} value={addTurnusForm.price_to === null ? "" : String(addTurnusForm.price_to ?? "")} onChange={(e) => setAddTurnusForm((p) => ({ ...p, price_to: e.target.value ? Number(e.target.value) : null }))} />
+                </div>
+                <div className="md:col-span-2">
+                  <label className={labelClass}>URL źródła</label>
+                  <input className={inputClass} value={String(addTurnusForm.source_url || "")} onChange={(e) => setAddTurnusForm((p) => ({ ...p, source_url: e.target.value }))} />
+                </div>
+                <div className="md:col-span-2">
+                  <label className={labelClass}>Facebook</label>
+                  <input className={inputClass} value={String(addTurnusForm.facebook_url || "")} onChange={(e) => setAddTurnusForm((p) => ({ ...p, facebook_url: e.target.value }))} />
+                </div>
+                <div className="md:col-span-2 rounded-lg border border-border/60 p-3">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Lokalizacja</p>
+                  <div className="grid grid-cols-1 md:grid-cols-[1fr,260px] gap-3 items-start">
+                    <div className="space-y-2">
+                      <div>
+                        <label className={labelClass}>Ulica</label>
+                        <input className={inputClass} value={String(addTurnusForm.venue_address || "")} onChange={(e) => setAddTurnusForm((p) => ({ ...p, venue_address: e.target.value }))} />
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div>
+                          <label className={labelClass}>Miasto</label>
+                          <input className={inputClass} value={String(addTurnusForm.city || "Kraków")} onChange={(e) => setAddTurnusForm((p) => ({ ...p, city: e.target.value }))} />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Dzielnica</label>
+                          <select className={inputClass} value={String(addTurnusForm.district || "Inne")} onChange={(e) => setAddTurnusForm((p) => ({ ...p, district: e.target.value }))}>
+                            {DISTRICT_LIST.map((district) => <option key={district} value={district}>{district}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                      <div>
+                        <label className={labelClass}>Współrzędne</label>
+                        <div className="grid grid-cols-[1fr,1fr,auto] gap-2">
+                          <input type="number" step="any" className={inputClass} value={addTurnusForm.lat === null || addTurnusForm.lat === undefined ? "" : String(addTurnusForm.lat)} onChange={(e) => setAddTurnusForm((p) => ({ ...p, lat: e.target.value === "" ? null : Number(e.target.value) }))} />
+                          <input type="number" step="any" className={inputClass} value={addTurnusForm.lng === null || addTurnusForm.lng === undefined ? "" : String(addTurnusForm.lng)} onChange={(e) => setAddTurnusForm((p) => ({ ...p, lng: e.target.value === "" ? null : Number(e.target.value) }))} />
+                          <button
+                            type="button"
+                            onClick={geocodeAddTurnusAddress}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium text-muted border border-border rounded hover:text-foreground transition-colors"
+                          >
+                            {addTurnusGeocoding ? <Loader2 size={11} className="animate-spin" /> : <MapPin size={11} />}
+                            {addTurnusGeocoding ? "Szukam..." : "Znajdź"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-border overflow-hidden" style={{ height: 180 }}>
+                      {Number.isFinite(Number(addTurnusForm.lat)) && Number.isFinite(Number(addTurnusForm.lng)) ? (
+                        <Suspense fallback={<div className="w-full h-full flex items-center justify-center bg-accent/20 text-[11px] text-muted">Ładowanie mapy...</div>}>
+                          <MiniMapLazy lat={Number(addTurnusForm.lat)} lng={Number(addTurnusForm.lng)} />
+                        </Suspense>
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-accent/20 text-[11px] text-muted">Mapa pojawi się po geolokalizacji</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="px-5 py-4 border-t border-border flex items-center justify-end gap-2">
+              <button onClick={() => setAddTurnusFor(null)} className="px-3 py-1.5 text-[12px] font-medium text-muted border border-border rounded-lg hover:text-foreground transition-colors">Anuluj</button>
+              <button onClick={saveAddTurnus} disabled={addTurnusSaving || !addTurnusForm.date_start || !addTurnusForm.date_end} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-white bg-foreground rounded-lg hover:bg-stone-700 transition-colors disabled:opacity-50">
+                {addTurnusSaving ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+                {addTurnusSaving ? "Dodawanie..." : "Dodaj turnus"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
