@@ -10,7 +10,7 @@ const NAV_LINKS = [
   { href: "/miejsca", label: "Miejsca", icon: MapPin, color: "bg-secondary/10 text-secondary" },
   { href: "/wydarzenia", label: "Wydarzenia", icon: Calendar, color: "bg-primary/10 text-primary" },
   { href: "/kolonie", label: "Kolonie", icon: Tent, color: "bg-amber-500/10 text-amber-600" },
-  { href: "/zajecia", label: "Zajęcia", icon: Users, color: "bg-secondary/10 text-secondary", disabled: true },
+  { href: "/zajecia", label: "Zajęcia", icon: Users, color: "bg-secondary/10 text-secondary" },
 ];
 
 export function NavSection() {

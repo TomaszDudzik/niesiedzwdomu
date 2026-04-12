@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Search, LayoutGrid, CalendarDays, SlidersHorizontal, X, MapPin, Check, Tags, Users } from "lucide-react";
 import { CATEGORY_LABELS, CATEGORY_ICONS, DISTRICT_LIST } from "@/lib/mock-data";
 import { ContentCard } from "@/components/ui/content-card";
@@ -152,6 +152,8 @@ export function EventsListView({ events }: EventsListViewProps) {
   const today = getTodayStart();
   const startYear = today.getFullYear();
   const startMonth = today.getMonth();
+  const monthScrollerRef = useRef<HTMLDivElement | null>(null);
+  const todayButtonRef = useRef<HTMLButtonElement | null>(null);
 
   const [search, setSearch] = useState("");
   const [activeCategories, setActiveCategories] = useState<EventCategory[]>([]);
@@ -170,6 +172,18 @@ export function EventsListView({ events }: EventsListViewProps) {
   useEffect(() => {
     import("./map-leaflet").then((mod) => setMapComponent(() => mod.MapLeaflet));
   }, []);
+
+  useEffect(() => {
+    if (currentYear !== today.getFullYear() || currentMonth !== today.getMonth()) {
+      return;
+    }
+
+    todayButtonRef.current?.scrollIntoView({
+      behavior: "smooth",
+      inline: "center",
+      block: "nearest",
+    });
+  }, [currentMonth, currentYear, today]);
 
   const ageGroups = useMemo(
     () => AGE_GROUPS.filter((g) => activeAgeGroups.includes(g.key)),
@@ -442,6 +456,17 @@ export function EventsListView({ events }: EventsListViewProps) {
       {/* Mobile filters dropdown */}
       {filtersOpen && (
         <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 space-y-2.5">
+          <div className="flex items-center justify-between gap-3 pb-1 border-b border-border/70">
+            <p className="text-[11px] font-semibold text-foreground">Filtry wydarzeń</p>
+            <button
+              type="button"
+              onClick={() => setFiltersOpen(false)}
+              className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-2 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:border-primary/20 transition-colors"
+            >
+              <X size={10} /> Zwiń
+            </button>
+          </div>
+
           <div>
             <p className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground mb-1.5">
               <CalendarDays size={11} /> Data
@@ -563,6 +588,14 @@ export function EventsListView({ events }: EventsListViewProps) {
               <X size={11} /> Wyczyść filtry
             </button>
           )}
+
+          <button
+            type="button"
+            onClick={() => setFiltersOpen(false)}
+            className="w-full inline-flex items-center justify-center gap-1 rounded-lg border border-border bg-background px-3 py-2 text-[11px] font-semibold text-foreground hover:border-primary/20 hover:bg-accent/40 transition-colors"
+          >
+            Zamknij filtry
+          </button>
         </div>
       )}
 
@@ -740,7 +773,7 @@ export function EventsListView({ events }: EventsListViewProps) {
                 </div>
               </div>
 
-              <div className="flex lg:grid lg:grid-flow-col lg:auto-cols-fr overflow-x-auto lg:overflow-visible scrollbar-hide py-2 px-2 gap-1.5 lg:gap-0.5" style={{ scrollbarWidth: "none" }}>
+              <div ref={monthScrollerRef} className="flex lg:grid lg:grid-flow-col lg:auto-cols-fr overflow-x-auto lg:overflow-visible scrollbar-hide py-2 px-2 gap-1.5 lg:gap-0.5" style={{ scrollbarWidth: "none" }}>
                 {monthDays.map((date) => {
                   const key = toLocalDateKey(date);
                   const selected = selectedDate ? isSameDay(date, selectedDate) : false;
@@ -757,6 +790,7 @@ export function EventsListView({ events }: EventsListViewProps) {
 
                   return (
                     <button
+                      ref={todayFlag ? todayButtonRef : null}
                       key={key}
                       onClick={() => handleCalendarDateClick(date)}
                       title={`${date.toLocaleDateString("pl-PL")}${count > 0 ? ` • ${count} wydarzeń` : ""}`}
@@ -800,14 +834,14 @@ export function EventsListView({ events }: EventsListViewProps) {
             </div>
 
             <div className="mb-4 rounded-xl border border-border bg-card px-2.5 py-2">
-              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide whitespace-nowrap" style={{ scrollbarWidth: "none" }}>
-                <p className="shrink-0 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Filtry:</p>
+                <div className="flex flex-wrap items-center gap-1.5" >
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Filtry:</p>
                 {activeFilterBadges.length > 0 ? (
                   <>
                     {activeFilterBadges.map((badge) => (
                       <span
                         key={badge.id}
-                        className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-accent/60 px-2 py-0.5 text-[10px] font-medium text-foreground"
+                          className="inline-flex items-center gap-1 rounded-full border border-border bg-accent/60 px-2 py-0.5 text-[10px] font-medium text-foreground"
                       >
                         <span>{badge.label}</span>
                         <button
@@ -824,7 +858,7 @@ export function EventsListView({ events }: EventsListViewProps) {
                     <button
                       type="button"
                       onClick={clearFilters}
-                      className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                      className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
                     >
                       <X size={9} />
                       Wyczyść
