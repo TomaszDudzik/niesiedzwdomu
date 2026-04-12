@@ -1,22 +1,17 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
-  ChevronLeft,
-  ChevronRight,
   Clock,
   MapPin,
-  Calendar as CalendarIcon,
-  Users,
   Map as MapIcon,
   List,
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
-import { cn, formatPrice, formatAgeRange, toLocalDateKey } from "@/lib/utils";
+import { cn, toLocalDateKey } from "@/lib/utils";
 import { getEventsForDate } from "@/lib/filter-events";
-import { CATEGORY_ICONS } from "@/lib/mock-data";
-import type { Event, EventCategory } from "@/types/database";
+import type { Event } from "@/types/database";
 
 /* ── Helpers ── */
 const DAYS_PL = ["Nd", "Pn", "Wt", "Śr", "Cz", "Pt", "So"];
@@ -30,21 +25,12 @@ function isSameDay(a: Date, b: Date) {
 }
 function isToday(date: Date) { return isSameDay(date, new Date()); }
 function isWeekend(date: Date) { const d = date.getDay(); return d === 0 || d === 6; }
+function getDaysInMonth(year: number, month: number) { return new Date(year, month + 1, 0).getDate(); }
 
 function getTodayStart(): Date {
   const now = new Date();
   now.setHours(0, 0, 0, 0);
   return now;
-}
-
-function generateDateRange(centerDate: Date, daysBefore: number, daysAfter: number): Date[] {
-  const dates: Date[] = [];
-  for (let i = -daysBefore; i <= daysAfter; i++) {
-    const d = new Date(centerDate);
-    d.setDate(centerDate.getDate() + i);
-    dates.push(d);
-  }
-  return dates;
 }
 
 /* ── Map helpers ── */
@@ -86,20 +72,6 @@ function groupByLocation(events: Event[]): MarkerGroup[] {
   return Object.values(groups);
 }
 
-/* ── Category colors ── */
-const CATEGORY_COLORS: Record<EventCategory, string> = {
-  warsztaty: "bg-amber-100 text-amber-700 border-amber-200",
-  spektakl: "bg-purple-100 text-purple-700 border-purple-200",
-  muzyka: "bg-blue-100 text-blue-700 border-blue-200",
-  sport: "bg-green-100 text-green-700 border-green-200",
-  natura: "bg-emerald-100 text-emerald-700 border-emerald-200",
-  edukacja: "bg-indigo-100 text-indigo-700 border-indigo-200",
-  festyn: "bg-rose-100 text-rose-700 border-rose-200",
-  kino: "bg-slate-100 text-slate-700 border-slate-200",
-  wystawa: "bg-teal-100 text-teal-700 border-teal-200",
-  inne: "bg-gray-100 text-gray-700 border-gray-200",
-};
-
 /* ── Main component ── */
 interface CalendarMapViewProps {
   events: Event[];
@@ -107,28 +79,21 @@ interface CalendarMapViewProps {
 
 export function CalendarMapView({ events }: CalendarMapViewProps) {
   const today = getTodayStart();
+  const startYear = today.getFullYear();
+  const startMonth = today.getMonth();
 
-  const [baseDate, setBaseDate] = useState<Date>(() => getTodayStart());
   const [selectedDate, setSelectedDate] = useState<Date>(() => getTodayStart());
+  const [currentMonth, setCurrentMonth] = useState(() => today.getMonth());
+  const [currentYear, setCurrentYear] = useState(() => today.getFullYear());
   const [mobileView, setMobileView] = useState<"map" | "list">("list");
-  const [highlightedDistrict, setHighlightedDistrict] = useState<string | null>(null);
   const [MapComponent, setMapComponent] = useState<React.ComponentType<{ groups: MarkerGroup[] }> | null>(null);
 
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  // Generate 60 days starting from today.
-  const dateRange = useMemo(() => generateDateRange(baseDate, 0, 59), [baseDate]);
-
-  // Always open timeline centered around current day.
+  // Always open on today's local date.
   useEffect(() => {
     const current = getTodayStart();
-    setBaseDate(current);
     setSelectedDate(current);
-    requestAnimationFrame(() => {
-      if (scrollRef.current) {
-        scrollRef.current.scrollTo({ left: 0, behavior: "auto" });
-      }
-    });
+    setCurrentMonth(current.getMonth());
+    setCurrentYear(current.getFullYear());
   }, []);
 
   // Events for selected date
@@ -136,103 +101,76 @@ export function CalendarMapView({ events }: CalendarMapViewProps) {
   // Map groups filtered to selected date
   const groups = useMemo(() => groupByLocation(selectedEvents), [selectedEvents]);
 
-  // Event counts per date (for the strip)
+  const daysInMonth = getDaysInMonth(currentYear, currentMonth);
+  const monthDays = useMemo(
+    () => Array.from({ length: daysInMonth }, (_, i) => new Date(currentYear, currentMonth, i + 1)),
+    [currentYear, currentMonth, daysInMonth]
+  );
+
+  const monthOptions = useMemo(
+    () => Array.from({ length: 12 }, (_, offset) => {
+      const d = new Date(startYear, startMonth + offset, 1);
+      return {
+        month: d.getMonth(),
+        year: d.getFullYear(),
+        label: MONTHS_PL[d.getMonth()].slice(0, 3),
+        key: `${d.getFullYear()}-${d.getMonth()}`,
+      };
+    }),
+    [startYear, startMonth]
+  );
+
+  // Event counts per date (same matching logic as selectedEvents)
   const eventCountMap = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const date of dateRange) {
-      const dateEvents = getEventsForDate(events, date);
-      if (dateEvents.length > 0) {
-        counts.set(toLocalDateKey(date), dateEvents.length);
-      }
+    for (const date of monthDays) {
+      const key = toLocalDateKey(date);
+      counts.set(key, getEventsForDate(events, date).length);
     }
     return counts;
-  }, [events, dateRange]);
+  }, [events, monthDays]);
 
   // Load map component
   useEffect(() => {
     import("./map-leaflet").then((mod) => setMapComponent(() => mod.MapLeaflet));
   }, []);
 
-  const scrollTimeline = useCallback((direction: "left" | "right") => {
-    if (!scrollRef.current) return;
-    const amount = scrollRef.current.offsetWidth * 0.6;
-    scrollRef.current.scrollBy({ left: direction === "left" ? -amount : amount, behavior: "smooth" });
-  }, []);
-
-  const jumpToToday = () => {
-    const current = getTodayStart();
-    setBaseDate(current);
-    setSelectedDate(current);
-    if (scrollRef.current) {
-      scrollRef.current.scrollTo({ left: 0, behavior: "smooth" });
-    }
+  const updateDisplayedMonth = (year: number, month: number) => {
+    setCurrentYear(year);
+    setCurrentMonth(month);
+    setSelectedDate((prev) => {
+      const safeDay = Math.min(prev.getDate(), getDaysInMonth(year, month));
+      return new Date(year, month, safeDay);
+    });
   };
-
-  const jumpToWeekend = () => {
-    const d = new Date(today);
-    const day = d.getDay();
-    const daysUntilSat = (6 - day + 7) % 7 || 7;
-    d.setDate(d.getDate() + (day === 6 ? 0 : daysUntilSat));
-    setSelectedDate(d);
-    // scroll to it
-    setTimeout(() => {
-      if (scrollRef.current) {
-        const targetKey = toLocalDateKey(d);
-        const el = scrollRef.current.querySelector(`[data-date="${targetKey}"]`) as HTMLElement | null;
-        if (el) {
-          const container = scrollRef.current;
-          const offset = el.offsetLeft - container.offsetWidth / 2 + el.offsetWidth / 2;
-          container.scrollTo({ left: offset, behavior: "smooth" });
-        }
-      }
-    }, 50);
-  };
-
-  // Current month label from selected date
-  const monthLabel = `${MONTHS_PL[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`;
-  const dayLabel = selectedDate.toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long" });
 
   return (
     <div className="space-y-0">
-      {/* ── DATE TIMELINE STRIP ── */}
+      {/* ── MONTH CALENDAR ── */}
       <div className="rounded-xl border border-border bg-white overflow-hidden">
-        {/* Header row */}
-        <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/60 bg-accent/20">
-          <div className="flex items-center gap-2">
-            <CalendarIcon size={15} className="text-foreground/70" />
-            <span className="text-[13px] font-semibold text-foreground">{monthLabel}</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={jumpToToday}
-              className={cn(
-                "px-2.5 py-1 rounded-md text-[11px] font-medium transition-all",
-                isToday(selectedDate)
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-accent text-foreground hover:bg-accent/80"
-              )}
-            >
-              Dziś
-            </button>
-            <button
-              onClick={jumpToWeekend}
-              className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-accent text-foreground hover:bg-accent/80 transition-all"
-            >
-              Weekend
-            </button>
-            <div className="w-px h-4 bg-border/60 mx-1" />
-            <button onClick={() => scrollTimeline("left")} className="p-1 rounded hover:bg-accent transition-colors">
-              <ChevronLeft size={14} />
-            </button>
-            <button onClick={() => scrollTimeline("right")} className="p-1 rounded hover:bg-accent transition-colors">
-              <ChevronRight size={14} />
-            </button>
+        <div className="px-3 pt-2 pb-1 border-b border-border/50">
+          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: "none" }}>
+            {monthOptions.map((opt) => {
+              const isActive = opt.month === currentMonth && opt.year === currentYear;
+              return (
+                <button
+                  key={opt.key}
+                  onClick={() => updateDisplayedMonth(opt.year, opt.month)}
+                  className={cn(
+                    "shrink-0 rounded-full px-3 py-1 text-[11px] font-medium transition-colors",
+                    isActive ? "bg-primary text-primary-foreground" : "bg-accent text-foreground hover:bg-accent/70",
+                  )}
+                  title={`${MONTHS_PL[opt.month]} ${opt.year}`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* Scrollable date cells */}
-        <div ref={scrollRef} className="flex overflow-x-auto scrollbar-hide py-2 px-2 gap-1" style={{ scrollbarWidth: "none" }}>
-          {dateRange.map((date) => {
+        <div className="grid grid-flow-col auto-cols-fr gap-0.5 py-2 px-2">
+          {monthDays.map((date) => {
             const key = toLocalDateKey(date);
             const selected = isSameDay(date, selectedDate);
             const todayFlag = isToday(date);
@@ -243,12 +181,12 @@ export function CalendarMapView({ events }: CalendarMapViewProps) {
             return (
               <button
                 key={key}
-                data-date={key}
                 onClick={() => setSelectedDate(date)}
+                title={`${date.toLocaleDateString("pl-PL")}${count > 0 ? ` • ${count} wydarzeń` : ""}`}
                 className={cn(
-                  "flex flex-col items-center min-w-[52px] px-2 py-2 rounded-lg transition-all shrink-0 relative",
+                  "flex flex-col items-center justify-center min-h-[42px] px-0.5 py-1 rounded-md transition-all relative",
                   selected
-                    ? "bg-primary text-primary-foreground shadow-md scale-105"
+                    ? "bg-primary text-primary-foreground shadow-sm"
                     : todayFlag
                       ? "bg-accent/80 text-foreground ring-1 ring-primary/30"
                       : isPast
@@ -258,25 +196,24 @@ export function CalendarMapView({ events }: CalendarMapViewProps) {
                           : "text-foreground hover:bg-accent/50"
                 )}
               >
-                <span className={cn("text-[10px] font-medium uppercase", selected ? "text-white/70" : "text-muted-foreground")}>
+                <span className={cn("text-[8px] font-medium uppercase leading-none", selected ? "text-white/70" : "text-muted-foreground")}>
                   {DAYS_PL[date.getDay()]}
                 </span>
-                <span className={cn("text-[16px] font-semibold leading-tight mt-0.5", selected && "text-white")}>
+                <span className={cn("text-[11px] font-semibold leading-tight mt-0.5", selected && "text-white")}>
                   {date.getDate()}
                 </span>
-                {/* Event count indicator */}
-                {count > 0 && (
-                  <div className={cn(
-                    "mt-1 flex items-center justify-center min-w-[18px] h-[14px] rounded-full text-[9px] font-bold leading-none px-1",
+                <span
+                  className={cn(
+                    "mt-0.5 text-[8px] leading-none font-semibold",
                     selected
-                      ? "bg-white/25 text-primary-foreground"
-                      : count >= 5
-                        ? "bg-primary/15 text-foreground"
-                        : "bg-primary/10 text-foreground/70"
-                  )}>
-                    {count}
-                  </div>
-                )}
+                      ? "text-primary-foreground/85"
+                      : count > 0
+                        ? "text-primary/80"
+                        : "text-muted-foreground/55"
+                  )}
+                >
+                  {count > 99 ? "99+" : count}
+                </span>
               </button>
             );
           })}
@@ -307,89 +244,46 @@ export function CalendarMapView({ events }: CalendarMapViewProps) {
           </button>
         </div>
 
-        {/* Selected date header */}
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h3 className="text-[15px] font-semibold text-foreground capitalize">{dayLabel}</h3>
-            <p className="text-[12px] text-muted-foreground mt-0.5">
-              {selectedEvents.length === 0
-                ? "Brak wydarzeń w tym dniu"
-                : `${selectedEvents.length} ${selectedEvents.length === 1 ? "wydarzenie" : selectedEvents.length < 5 ? "wydarzenia" : "wydarzeń"}`}
-            </p>
-          </div>
-          {/* District summary pills */}
-          {groups.length > 0 && (
-            <div className="hidden md:flex items-center gap-1.5 flex-wrap justify-end">
-              {groups.map((g) => (
-                <button
-                  key={g.label}
-                  onClick={() => setHighlightedDistrict(highlightedDistrict === g.label ? null : g.label)}
-                  className={cn(
-                    "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border transition-all",
-                    highlightedDistrict === g.label
-                      ? "bg-primary text-primary-foreground border-foreground"
-                      : "bg-accent/50 text-muted-foreground border-border hover:border-primary/30"
-                  )}
-                >
-                  <MapPin size={9} />
-                  {g.label}
-                  <span className="opacity-60">({g.events.length})</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
         {/* Split layout */}
         <div className="grid lg:grid-cols-5 gap-3">
-          {/* Map panel */}
-          <div className={cn(
-            "lg:col-span-3 rounded-xl border border-border overflow-hidden",
-            mobileView === "list" ? "hidden lg:block" : "block",
-            "min-h-[350px] lg:min-h-[450px]"
-          )}>
-            {MapComponent ? (
-              <MapComponent groups={groups} />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-accent/20 min-h-[350px]">
-                <div className="text-center">
-                  <MapIcon size={24} className="mx-auto text-muted-foreground/30 mb-2" />
-                  <p className="text-[13px] text-muted-foreground">Ładowanie mapy…</p>
-                </div>
-              </div>
-            )}
-          </div>
-
           {/* Event list panel */}
           <div className={cn(
-            "lg:col-span-2",
+            "lg:col-span-3",
             mobileView === "map" ? "hidden lg:block" : "block",
           )}>
             {selectedEvents.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border/60 flex flex-col items-center justify-center py-16 px-6 text-center bg-accent/10 min-h-[350px]">
+              <div className="rounded-xl border border-dashed border-border/60 flex flex-col items-center justify-center py-16 px-6 text-center bg-accent/10 min-h-[320px]">
                 <div className="w-12 h-12 rounded-full bg-accent/50 flex items-center justify-center mb-3">
                   <Sparkles size={20} className="text-muted-foreground/50" />
                 </div>
                 <p className="text-[14px] font-medium text-foreground/80 mb-1">Brak wydarzeń</p>
                 <p className="text-[12px] text-muted-foreground max-w-[220px]">
-                  Wybierz inny dzień w osi czasu powyżej, aby zobaczyć dostępne wydarzenia.
+                  Wybierz inny dzień w wierszu powyżej, aby zobaczyć dostępne wydarzenia.
                 </p>
               </div>
             ) : (
-              <div className="space-y-2 max-h-[450px] overflow-y-auto pr-1 scrollbar-thin">
-                {selectedEvents
-                  .filter((e) => !highlightedDistrict || e.venue_name === highlightedDistrict || e.district === highlightedDistrict)
-                  .map((event) => (
-                    <EventCard key={event.id} event={event} />
-                  ))}
-                {highlightedDistrict && selectedEvents.filter((e) => e.venue_name !== highlightedDistrict && e.district !== highlightedDistrict).length > 0 && (
-                  <button
-                    onClick={() => setHighlightedDistrict(null)}
-                    className="w-full text-center py-2 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    + {selectedEvents.filter((e) => e.venue_name !== highlightedDistrict && e.district !== highlightedDistrict).length} więcej wydarzeń — pokaż wszystkie
-                  </button>
-                )}
+              <div className="space-y-2.5">
+                {selectedEvents.map((event) => (
+                  <EventCard key={event.id} event={event} />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Map panel */}
+          <div className={cn(
+            "lg:col-span-2 rounded-xl border border-border overflow-hidden",
+            mobileView === "list" ? "hidden lg:block" : "block",
+            "min-h-[320px] lg:min-h-[400px]"
+          )}>
+            {MapComponent ? (
+              <MapComponent groups={groups} />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-accent/20 min-h-[320px]">
+                <div className="text-center">
+                  <MapIcon size={24} className="mx-auto text-muted-foreground/30 mb-2" />
+                  <p className="text-[13px] text-muted-foreground">Ładowanie mapy…</p>
+                </div>
               </div>
             )}
           </div>
@@ -401,53 +295,44 @@ export function CalendarMapView({ events }: CalendarMapViewProps) {
 
 /* ── Event Card ── */
 function EventCard({ event }: { event: Event }) {
-  const categoryColor = CATEGORY_COLORS[event.category] || CATEGORY_COLORS.inne;
-  const categoryIcon = CATEGORY_ICONS[event.category] || "✨";
+  const timeLabel = event.time_start
+    ? `${event.time_start}${event.time_end ? ` – ${event.time_end}` : ""}`
+    : "Godzina wkrótce";
+  const addressLabel = event.venue_address || event.venue_name || event.district;
 
   return (
     <Link
       href={`/wydarzenia/${event.slug}`}
-      className="block rounded-xl border border-border bg-white p-3.5 hover:border-primary/25 hover:shadow-sm transition-all group"
+      className="group flex rounded-xl border border-border bg-card shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5 transition-all duration-200 overflow-hidden"
     >
-      {/* Top row: category + price */}
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border", categoryColor)}>
-          <span>{categoryIcon}</span>
-          {event.category}
-        </span>
-        <span className={cn(
-          "text-[12px] font-semibold shrink-0",
-          event.is_free ? "text-green-600" : "text-foreground"
-        )}>
-          {formatPrice(event.price)}
-        </span>
+      <div className="w-[116px] sm:w-[136px] shrink-0 relative self-stretch">
+        {event.image_url ? (
+          <img
+            src={event.image_url}
+            alt={event.title}
+            className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300"
+          />
+        ) : (
+          <div className="w-full h-full min-h-[112px] flex items-center justify-center bg-accent text-muted-foreground/35 text-xl">
+            🗓️
+          </div>
+        )}
       </div>
 
-      {/* Title */}
-      <h4 className="font-semibold text-[13px] text-foreground group-hover:text-foreground/80 transition-colors line-clamp-2 mb-2 leading-snug">
-        {event.title}
-      </h4>
-
-      {/* Info row */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-        {event.time_start && (
-          <span className="inline-flex items-center gap-1">
-            <Clock size={10} className="shrink-0" />
-            {event.time_start}{event.time_end && ` – ${event.time_end}`}
-          </span>
-        )}
-        {event.venue_name && (
-          <span className="inline-flex items-center gap-1">
-            <MapPin size={10} className="shrink-0" />
-            <span className="truncate max-w-[140px]">{event.venue_name}</span>
-          </span>
-        )}
-        {(event.age_min !== null || event.age_max !== null) && (
-          <span className="inline-flex items-center gap-1">
-            <Users size={10} className="shrink-0" />
-            {formatAgeRange(event.age_min, event.age_max)}
-          </span>
-        )}
+      <div className="flex-1 min-w-0 p-3.5 flex flex-col gap-2">
+        <h4 className="font-semibold text-[15px] text-foreground group-hover:text-primary transition-colors duration-200 line-clamp-2 leading-snug">
+          {event.title}
+        </h4>
+        <div className="mt-auto space-y-1 text-[12px] text-muted">
+          <div className="flex items-center gap-1.5">
+            <Clock size={11} className="text-secondary/60 shrink-0" />
+            <span className="truncate">{timeLabel}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <MapPin size={11} className="text-secondary/60 shrink-0" />
+            <span className="truncate">{addressLabel}</span>
+          </div>
+        </div>
       </div>
     </Link>
   );

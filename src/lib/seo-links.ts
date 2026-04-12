@@ -9,7 +9,6 @@ const PRODUCT_PAGES: InternalLink[] = [
   { href: "/wydarzenia", label: "Wszystkie wydarzenia", description: "Przeglądaj z filtrami" },
   { href: "/kolonie", label: "Kolonie i półkolonie", description: "Porównaj oferty" },
   { href: "/miejsca", label: "Miejsca", description: "Place zabaw, sale zabaw" },
-  { href: "/kalendarz", label: "Kalendarz", description: "Dzień po dniu" },
 ];
 
 /**
@@ -71,8 +70,8 @@ export function getRelatedProductPages(page: SeoPageConfig): InternalLink[] {
   if (types.has("place") || types.has("mixed")) {
     links.push(PRODUCT_PAGES.find((p) => p.href === "/miejsca")!);
   }
-  // Always include calendar
-  links.push(PRODUCT_PAGES.find((p) => p.href === "/kalendarz")!);
+  // Always include events calendar view
+  links.push({ href: "/wydarzenia", label: "Kalendarz wydarzeń", description: "Widok miesiąca" });
 
   return links;
 }

@@ -81,7 +81,7 @@ export const seoPages: SeoPageConfig[] = [
     ctaLabel: "Zobacz wydarzenia",
     ctaHref: "/wydarzenia",
     secondaryCtaLabel: "Kalendarz",
-    secondaryCtaHref: "/kalendarz",
+    secondaryCtaHref: "/wydarzenia",
     intro: [
       "W Krakowie codziennie dzieje się coś dla dzieci — od kameralnych warsztatów po duże wydarzenia rodzinne. Problem? Trudno je wszystkie znaleźć w jednym miejscu.",
       "Dlatego zbieramy najciekawsze wydarzenia dla dzieci w Krakowie i pokazujemy je w prosty sposób — możesz szybko sprawdzić, co dzieje się dziś, w weekend albo w konkretnym terminie.",
