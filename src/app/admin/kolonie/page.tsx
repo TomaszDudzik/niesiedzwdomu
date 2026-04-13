@@ -786,32 +786,20 @@ export default function AdminCampsPage() {
 
                                   <div className="md:col-span-4">
                                     <label className={labelClass}>Organizator</label>
-                                    {organizers.length > 0 ? (
-                                      <div className="space-y-1.5">
-                                        <select
-                                          className={inputClass}
-                                          value={(editForm.organizer_id as string) || ""}
-                                          onChange={(e) => {
-                                            const org = organizers.find((o) => o.id === e.target.value);
-                                            updateField("organizer_id", e.target.value || null);
-                                            if (org) updateField("organizer", org.name);
-                                          }}
-                                        >
-                                          <option value="">— brak / wpisz ręcznie —</option>
-                                          {organizers.map((o) => (
-                                            <option key={o.id} value={o.id}>{o.name}</option>
-                                          ))}
-                                        </select>
-                                        <input
-                                          className={inputClass}
-                                          placeholder="lub wpisz nazwę ręcznie"
-                                          value={(editForm.organizer as string) || ""}
-                                          onChange={(e) => { updateField("organizer", e.target.value); updateField("organizer_id", null); }}
-                                        />
-                                      </div>
-                                    ) : (
-                                      <input className={inputClass} value={(editForm.organizer as string) || ""} onChange={(e) => updateField("organizer", e.target.value)} />
-                                    )}
+                                    <select
+                                      className={inputClass}
+                                      value={(editForm.organizer_id as string) || ""}
+                                      onChange={(e) => {
+                                        const org = organizers.find((o) => o.id === e.target.value);
+                                        updateField("organizer_id", e.target.value || null);
+                                        updateField("organizer", org ? org.name : "");
+                                      }}
+                                    >
+                                      <option value="">— brak —</option>
+                                      {organizers.map((o) => (
+                                        <option key={o.id} value={o.id}>{o.name}</option>
+                                      ))}
+                                    </select>
                                   </div>
                                 </div>
 
