@@ -23,10 +23,10 @@ export default function AdminOrganizatorsPage() {
 
   const FIELD_ALIASES: Record<string, string[]> = {
     name: ["name", "nazwa", "organizator", "organizer"],
-    description_short: ["description_short", "krótki opis", "krotki opis", "opis krótki", "short description", "opis"],
-    description_long: ["description_long", "długi opis", "dlugi opis", "opis długi", "long description"],
+    description_short: ["description_short", "krotki_opis", "krótki_opis", "krótki opis", "krotki opis", "opis krótki", "short description", "opis"],
+    description_long: ["description_long", "dlugi_opis", "długi_opis", "długi opis", "dlugi opis", "opis długi", "long description"],
     image_url: ["image_url", "zdjęcie", "zdjecie", "image", "foto", "photo", "img"],
-    source_url: ["source_url", "url", "strona", "website", "link"],
+    source_url: ["source_url", "url_strony", "url", "strona", "website", "link"],
     facebook_url: ["facebook_url", "facebook", "fb", "facebook page"],
   };
 
