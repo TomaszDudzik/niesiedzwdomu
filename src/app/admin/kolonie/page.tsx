@@ -860,6 +860,16 @@ export default function AdminCampsPage() {
                                         </select>
                                       </div>
                                     </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <div>
+                                        <label className={labelClass}>Lat</label>
+                                        <input type="number" step="any" className={inputClass} value={(editForm.lat as number) ?? ""} onChange={(e) => updateField("lat", e.target.value ? Number(e.target.value) : null)} placeholder="—" />
+                                      </div>
+                                      <div>
+                                        <label className={labelClass}>Lng</label>
+                                        <input type="number" step="any" className={inputClass} value={(editForm.lng as number) ?? ""} onChange={(e) => updateField("lng", e.target.value ? Number(e.target.value) : null)} placeholder="—" />
+                                      </div>
+                                    </div>
                                     {typeof editForm.lat === "number" && typeof editForm.lng === "number" && (
                                       <div className="rounded-lg overflow-hidden border border-border" style={{ height: 160 }}>
                                         <Suspense fallback={<div className="w-full h-full flex items-center justify-center bg-accent/20 text-[11px] text-muted">Ładowanie mapy...</div>}>
