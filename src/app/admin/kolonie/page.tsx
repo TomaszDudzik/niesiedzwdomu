@@ -97,7 +97,7 @@ export default function AdminCampsPage() {
         .sort((a, b) => {
           const sd = statusOrder[getEffectiveStatus(a)] - statusOrder[getEffectiveStatus(b)];
           if (sd !== 0) return sd;
-          return (a.date_start || "").localeCompare(b.date_start || "") || a.title.localeCompare(b.title, "pl");
+          return a.title.localeCompare(b.title, "pl");
         }),
     }));
   }, [filteredCamps, getEffectiveStatus]);
