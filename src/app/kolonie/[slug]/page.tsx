@@ -276,7 +276,6 @@ export default async function CampDetailPage({ params }: PageProps) {
                 </p>
                 <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[12px] text-muted">
                   {(s.venue_name || s.venue_address) && <span>{s.venue_name || s.venue_address}</span>}
-                  <span>{formatAgeRange(s.age_min, s.age_max)}</span>
                   <span>{formatPrice(s.price)}</span>
                 </div>
                 <Link href={`/kolonie/${s.slug}`} className="text-[12px] text-primary hover:underline self-start">
