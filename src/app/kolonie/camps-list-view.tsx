@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 import { Search, SlidersHorizontal, X, MapPin, Check, Tags, Users, CalendarDays } from "lucide-react";
 import { CAMP_TYPE_ICONS, CAMP_TYPE_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
-import { cn, formatAgeRange, formatDateShort, toLocalDateKey } from "@/lib/utils";
+import { cn, formatDateShort, toLocalDateKey } from "@/lib/utils";
 import { ImageWithFallback } from "@/components/ui/image-with-fallback";
 import type { Camp, CampType, District } from "@/types/database";
 
@@ -1037,15 +1037,13 @@ export function CampsListView({ camps }: CampsListViewProps) {
                                   <div className="min-w-0">
                                     <table className="w-full table-fixed text-[10px]">
                                       <colgroup>
-                                        <col className="w-[44%]" />
-                                        <col className="w-[18%]" />
-                                        <col className="w-[24%]" />
+                                        <col className="w-[56%]" />
+                                        <col className="w-[30%]" />
                                         <col className="w-[14%]" />
                                       </colgroup>
                                       <thead>
                                         <tr className="border-b border-border/70 text-muted">
                                           <th className="py-1 pr-2 text-left font-semibold uppercase tracking-wider">Turnus</th>
-                                          <th className="px-2 py-1 text-left font-semibold uppercase tracking-wider">Wiek</th>
                                           <th className="px-2 py-1 text-left font-semibold uppercase tracking-wider">Termin</th>
                                           <th className="px-2 py-1 text-left font-semibold uppercase tracking-wider">Szczegóły</th>
                                         </tr>
@@ -1068,9 +1066,6 @@ export function CampsListView({ camps }: CampsListViewProps) {
                                                     {camp.title}
                                                   </button>
                                                 </div>
-                                              </td>
-                                              <td className="px-2 py-1.5 text-muted align-top whitespace-nowrap">
-                                                {formatAgeRange(camp.age_min, camp.age_max)}
                                               </td>
                                               <td className="px-2 py-1.5 text-muted align-top whitespace-nowrap">
                                                 <button
