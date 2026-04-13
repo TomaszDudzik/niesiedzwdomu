@@ -1,11 +1,12 @@
-﻿"use client";
+"use client";
 
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ClipboardPaste,
   ChevronDown,
-  ChevronRight,
+  ChevronUp,
+  ClipboardPaste,
   ExternalLink,
+  ImagePlus,
   Loader2,
   MapPin,
   Pencil,
@@ -16,7 +17,6 @@ import {
   Trash2,
   Upload,
   X,
-  XCircle,
 } from "lucide-react";
 import { CAMP_TYPE_ICONS, CAMP_TYPE_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
 import { cn, formatDateShort, formatPrice } from "@/lib/utils";
@@ -36,6 +36,10 @@ export default function AdminCampsPage() {
 
   const [editing, setEditing] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Record<string, unknown>>({});
+  const [uploadingImage, setUploadingImage] = useState<string | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pendingPreview, setPendingPreview] = useState<string | null>(null);
+  const [geocoding, setGeocoding] = useState(false);
 
   const [pasteModal, setPasteModal] = useState(false);
   const [pasteText, setPasteText] = useState("");
@@ -43,27 +47,6 @@ export default function AdminCampsPage() {
   const [pastePreview, setPastePreview] = useState<Record<string, string>[]>([]);
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState({ done: 0, total: 0 });
-
-  // Organizer-level grouping state
-  const [collapsedOrganizers, setCollapsedOrganizers] = useState<Record<string, boolean>>({});
-  const [editingOrganizer, setEditingOrganizer] = useState<string | null>(null);
-  const [organizerEditForm, setOrganizerEditForm] = useState<Record<string, unknown>>({});
-  const [uploadingOrganizerImage, setUploadingOrganizerImage] = useState(false);
-  const [organizerPendingFile, setOrganizerPendingFile] = useState<File | null>(null);
-  const [organizerPendingPreview, setOrganizerPendingPreview] = useState<string | null>(null);
-  const [editingSession, setEditingSession] = useState<string | null>(null);
-  const [sessionEditForm, setSessionEditForm] = useState<Record<string, unknown>>({});
-  const [sessionGeocoding, setSessionGeocoding] = useState(false);
-  // Add new organizer modal
-  const [addModal, setAddModal] = useState(false);
-  const [addSaving, setAddSaving] = useState(false);
-  const [addForm, setAddForm] = useState<Record<string, unknown>>({});
-  const [addSessions, setAddSessions] = useState<{ date_start: string; date_end: string }[]>([{ date_start: "", date_end: "" }]);
-  // Add single turnus to existing organizer
-  const [addTurnusFor, setAddTurnusFor] = useState<string | null>(null);
-  const [addTurnusForm, setAddTurnusForm] = useState<Record<string, unknown>>({});
-  const [addTurnusSaving, setAddTurnusSaving] = useState(false);
-  const [addTurnusGeocoding, setAddTurnusGeocoding] = useState(false);
 
   const mapCampRow = (row: Record<string, unknown>): Camp => {
     const priceFrom = typeof row.price_from === "number" ? row.price_from : null;
@@ -85,13 +68,7 @@ export default function AdminCampsPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => {
-    fetchCamps();
-  }, [fetchCamps]);
-
-  const toggleCategory = (type: string) => {
-    setCollapsedCategories((prev) => ({ ...prev, [type]: !prev[type] }));
-  };
+  useEffect(() => { fetchCamps(); }, [fetchCamps]);
 
   const getEffectiveStatus = useCallback((camp: Camp): DerivedCampStatus => {
     const today = new Date().toISOString().slice(0, 10);
@@ -101,108 +78,83 @@ export default function AdminCampsPage() {
   }, []);
 
   const statusOrder: Record<DerivedCampStatus, number> = {
-    draft: 0,
-    published: 1,
-    outdated: 2,
-    cancelled: 3,
-    deleted: 4,
+    draft: 0, published: 1, outdated: 2, cancelled: 3, deleted: 4,
   };
 
   const filteredCamps = useMemo(() => {
-    const scopedCamps = typeFilter ? camps.filter((camp) => camp.camp_type === typeFilter) : camps;
-    if (statusFilter === "all") return scopedCamps;
-    if (statusFilter === "draft") {
-      return scopedCamps.filter((camp) => {
-        const effectiveStatus = getEffectiveStatus(camp);
-        return effectiveStatus === "draft" || effectiveStatus === "cancelled";
-      });
-    }
-    return scopedCamps.filter((camp) => getEffectiveStatus(camp) === statusFilter);
+    const scoped = typeFilter ? camps.filter((c) => c.camp_type === typeFilter) : camps;
+    if (statusFilter === "all") return scoped;
+    if (statusFilter === "draft") return scoped.filter((c) => { const s = getEffectiveStatus(c); return s === "draft" || s === "cancelled"; });
+    return scoped.filter((c) => getEffectiveStatus(c) === statusFilter);
   }, [camps, typeFilter, statusFilter, getEffectiveStatus]);
-  const displayedTypeKeys = useMemo(
-    () => Object.keys(CAMP_TYPE_LABELS).filter((type) => !typeFilter || type === typeFilter),
-    [typeFilter]
-  );
 
-  const groupedByTypeAndOrganizer = useMemo(() => {
+  const groupedByType = useMemo(() => {
     const order: Camp["camp_type"][] = ["polkolonie", "kolonie", "warsztaty_wakacyjne"];
-    return order.map((type) => {
-      const typeCamps = filteredCamps
+    return order.map((type) => ({
+      type,
+      items: filteredCamps
         .filter((c) => c.camp_type === type)
-        .sort((a, b) => (a.date_start || "").localeCompare(b.date_start || "") || a.title.localeCompare(b.title, "pl"));
-      const organizerMap = new Map<string, Camp[]>();
-      for (const camp of typeCamps) {
-        const key = camp.organizer || "Brak organizatora";
-        if (!organizerMap.has(key)) organizerMap.set(key, []);
-        organizerMap.get(key)!.push(camp);
-      }
-      return {
-        type,
-        organizers: Array.from(organizerMap.entries()).map(([organizer, sessions]) => ({ organizer, sessions })),
-      };
-    });
-  }, [filteredCamps]);
+        .sort((a, b) => {
+          const sd = statusOrder[getEffectiveStatus(a)] - statusOrder[getEffectiveStatus(b)];
+          if (sd !== 0) return sd;
+          return (a.date_start || "").localeCompare(b.date_start || "") || a.title.localeCompare(b.title, "pl");
+        }),
+    }));
+  }, [filteredCamps, getEffectiveStatus]);
 
-  const publishedCount = useMemo(() => camps.filter((camp) => getEffectiveStatus(camp) === "published").length, [camps, getEffectiveStatus]);
-  const draftCount = useMemo(() => camps.filter((camp) => {
-    const effectiveStatus = getEffectiveStatus(camp);
-    return effectiveStatus === "draft" || effectiveStatus === "cancelled";
-  }).length, [camps, getEffectiveStatus]);
-  const outdatedCount = useMemo(() => camps.filter((camp) => getEffectiveStatus(camp) === "outdated").length, [camps, getEffectiveStatus]);
+  const publishedCount = useMemo(() => camps.filter((c) => getEffectiveStatus(c) === "published").length, [camps, getEffectiveStatus]);
+  const draftCount = useMemo(() => camps.filter((c) => { const s = getEffectiveStatus(c); return s === "draft" || s === "cancelled"; }).length, [camps, getEffectiveStatus]);
+  const outdatedCount = useMemo(() => camps.filter((c) => getEffectiveStatus(c) === "outdated").length, [camps, getEffectiveStatus]);
+
   const sectionStats = useMemo(() => Object.fromEntries(
     Object.keys(CAMP_TYPE_LABELS).map((type) => {
-      const typeCamps = camps.filter((camp) => camp.camp_type === type);
-      const published = typeCamps.filter((camp) => getEffectiveStatus(camp) === "published").length;
-      const draft = typeCamps.filter((camp) => {
-        const effectiveStatus = getEffectiveStatus(camp);
-        return effectiveStatus === "draft" || effectiveStatus === "cancelled";
-      }).length;
-      const outdated = typeCamps.filter((camp) => getEffectiveStatus(camp) === "outdated").length;
-      return [type, { all: typeCamps.length, published, draft, outdated }];
+      const tc = camps.filter((c) => c.camp_type === type);
+      return [type, {
+        all: tc.length,
+        published: tc.filter((c) => getEffectiveStatus(c) === "published").length,
+        draft: tc.filter((c) => { const s = getEffectiveStatus(c); return s === "draft" || s === "cancelled"; }).length,
+        outdated: tc.filter((c) => getEffectiveStatus(c) === "outdated").length,
+      }];
     })
   ), [camps, getEffectiveStatus]);
-  const visibleTypeKeys = useMemo(() => displayedTypeKeys, [displayedTypeKeys]);
-  const hasExpandedCategories = useMemo(() => visibleTypeKeys.some((type) => !collapsedCategories[type]), [visibleTypeKeys, collapsedCategories]);
+
+  const displayedTypeKeys = useMemo(
+    () => groupedByType.filter(({ type }) => !typeFilter || type === typeFilter).map(({ type }) => type),
+    [groupedByType, typeFilter]
+  );
+  const hasExpandedCategories = useMemo(() => displayedTypeKeys.some((t) => !collapsedCategories[t]), [displayedTypeKeys, collapsedCategories]);
+
+  const toggleCategory = (type: string) => setCollapsedCategories((prev) => ({ ...prev, [type]: !prev[type] }));
+  const toggleAllCategories = () => {
+    if (displayedTypeKeys.length === 0) return;
+    setCollapsedCategories(Object.fromEntries(displayedTypeKeys.map((t) => [t, hasExpandedCategories])));
+  };
 
   const toggleStatusFilter = (filter: CampListFilter) => {
-    const nextFilter = statusFilter === filter ? "all" : filter;
+    const next = statusFilter === filter ? "all" : filter;
     setTypeFilter(null);
-    setStatusFilter(nextFilter);
-    const nextCollapsed = Object.fromEntries(
-      Object.keys(CAMP_TYPE_LABELS).map((type) => {
-        const matchingItems = camps.filter((camp) => {
-          if (camp.camp_type !== type) return false;
-          if (nextFilter === "all") return true;
-          if (nextFilter === "draft") {
-            const effectiveStatus = getEffectiveStatus(camp);
-            return effectiveStatus === "draft" || effectiveStatus === "cancelled";
-          }
-          return getEffectiveStatus(camp) === nextFilter;
-        });
-        return [type, matchingItems.length === 0];
-      })
-    );
-    setCollapsedCategories(nextCollapsed);
+    setStatusFilter(next);
+    setCollapsedCategories(Object.fromEntries(
+      Object.keys(CAMP_TYPE_LABELS).map((type) => [
+        type,
+        camps.filter((c) => {
+          if (c.camp_type !== type) return false;
+          if (next === "all") return true;
+          if (next === "draft") { const s = getEffectiveStatus(c); return s === "draft" || s === "cancelled"; }
+          return getEffectiveStatus(c) === next;
+        }).length === 0,
+      ])
+    ));
   };
 
   const toggleTypeStatusFilter = (type: string, filter: CampListFilter) => {
-    if (typeFilter === type && statusFilter === filter) {
-      setTypeFilter(null);
-      setStatusFilter("all");
-      return;
-    }
+    if (typeFilter === type && statusFilter === filter) { setTypeFilter(null); setStatusFilter("all"); return; }
     setTypeFilter(type);
     setStatusFilter(filter);
     setCollapsedCategories((prev) => ({ ...prev, [type]: false }));
   };
 
-  const toggleAllCategories = () => {
-    if (visibleTypeKeys.length === 0) return;
-    setCollapsedCategories(
-      Object.fromEntries(visibleTypeKeys.map((type) => [type, hasExpandedCategories]))
-    );
-  };
-
+  // ── FIELD ALIASES ──────────────────────────────────────────────────────────
   const FIELD_ALIASES: Record<string, string[]> = {
     title: ["title", "tytul", "tytuł", "nazwa", "nazwa turnusu", "nazwa_polkolonii"],
     description_short: ["description_short", "krotki opis", "krótki opis", "tematyka", "temat", "program"],
@@ -247,9 +199,9 @@ export default function AdminCampsPage() {
 
   const inferSeason = (dateStart?: string): Camp["season"] => {
     if (!dateStart) return "caly_rok";
-    const month = new Date(dateStart).getMonth() + 1;
-    if ([6, 7, 8].includes(month)) return "lato";
-    if ([12, 1, 2].includes(month)) return "zima";
+    const m = new Date(dateStart).getMonth() + 1;
+    if ([6, 7, 8].includes(m)) return "lato";
+    if ([12, 1, 2].includes(m)) return "zima";
     return "caly_rok";
   };
 
@@ -263,105 +215,71 @@ export default function AdminCampsPage() {
 
   const calcDurationDays = (from?: string, to?: string): number => {
     if (!from || !to) return 5;
-    const a = new Date(from);
-    const b = new Date(to);
-    const diff = Math.round((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const diff = Math.round((new Date(to).getTime() - new Date(from).getTime()) / (1000 * 60 * 60 * 24)) + 1;
     return Number.isFinite(diff) && diff > 0 ? diff : 5;
   };
 
+  // ── PASTE IMPORT ───────────────────────────────────────────────────────────
   const parsePastedData = (text: string) => {
     const trimmed = text.trim();
-    if (!trimmed) {
-      setPasteHeaders([]);
-      setPastePreview([]);
-      return;
-    }
+    if (!trimmed) { setPasteHeaders([]); setPastePreview([]); return; }
 
     const structMatch = trimmed.match(/[\[{][\s\S]*[\]}]/);
     if (structMatch) {
-      const raw = structMatch[0]
-        .replace(/#[^\n]*/g, "")
-        .replace(/<NA>/g, "null")
-        .replace(/\bNaN\b/g, "null");
+      const raw = structMatch[0].replace(/#[^\n]*/g, "").replace(/<NA>/g, "null").replace(/\bNaN\b/g, "null");
 
       const pythonLikeToJson = (input: string) => {
-        let out = "";
-        let inSingle = false;
-        let escaped = false;
+        let out = ""; let inSingle = false; let escaped = false;
         for (let i = 0; i < input.length; i++) {
           const ch = input[i];
           if (inSingle) {
-            if (escaped) {
-              out += ch;
-              escaped = false;
-              continue;
-            }
-            if (ch === "\\") {
-              out += "\\\\";
-              escaped = true;
-              continue;
-            }
-            if (ch === "'") {
-              inSingle = false;
-              out += '"';
-              continue;
-            }
-            if (ch === '"') {
-              out += '\\"';
-              continue;
-            }
-            out += ch;
-            continue;
+            if (escaped) { out += ch; escaped = false; continue; }
+            if (ch === "\\") { out += "\\\\"; escaped = true; continue; }
+            if (ch === "'") { inSingle = false; out += '"'; continue; }
+            if (ch === '"') { out += '\\"'; continue; }
+            out += ch; continue;
           }
-          if (ch === "'") {
-            inSingle = true;
-            out += '"';
-            continue;
-          }
+          if (ch === "'") { inSingle = true; out += '"'; continue; }
           out += ch;
         }
         return out;
       };
 
-      const attempts = [
-        raw,
-        raw.replace(/(?<=[{,[\s])'/g, '"').replace(/'(?=\s*[:,\]}])/g, '"'),
-        pythonLikeToJson(raw),
-      ];
-
-      for (const attempt of attempts) {
+      for (const attempt of [raw, pythonLikeToJson(raw)]) {
         try {
-          const obj = JSON.parse(
-            attempt.replace(/\bTrue\b/g, "true").replace(/\bFalse\b/g, "false").replace(/\bNone\b/g, "null")
-          );
+          const obj = JSON.parse(attempt.replace(/\bTrue\b/g, "true").replace(/\bFalse\b/g, "false").replace(/\bNone\b/g, "null"));
           if (Array.isArray(obj) && obj.length > 0 && typeof obj[0] === "object") {
             const headers = [...new Set(obj.flatMap((o: Record<string, unknown>) => Object.keys(o)))];
-            const rows = obj.map((o: Record<string, unknown>) => {
-              const row: Record<string, string> = {};
-              headers.forEach((h) => {
-                row[h] = o[h] != null ? String(o[h]) : "";
-              });
-              return row;
-            });
             setPasteHeaders(headers);
-            setPastePreview(rows);
+            setPastePreview(obj.map((o: Record<string, unknown>) => {
+              const row: Record<string, string> = {};
+              headers.forEach((h) => { row[h] = o[h] != null ? String(o[h]) : ""; });
+              return row;
+            }));
             return;
           }
-        } catch {
-          // try next strategy
-        }
+        } catch { /* try next */ }
       }
     }
 
-    setPasteHeaders([]);
-    setPastePreview([]);
+    const lines = trimmed.split(/\r?\n/).filter((l) => l.trim());
+    if (lines.length < 2) { setPasteHeaders([]); setPastePreview([]); return; }
+    const sep = lines[0].includes("\t") ? "\t" : lines[0].includes(";") ? ";" : ",";
+    const headers = lines[0].split(sep).map((h) => h.trim().replace(/^"|"$/g, ""));
+    const rows = lines.slice(1).map((line) => {
+      const vals = line.split(sep).map((v) => v.trim().replace(/^"|"$/g, ""));
+      const row: Record<string, string> = {};
+      headers.forEach((h, i) => { row[h] = vals[i] || ""; });
+      return row;
+    }).filter((r) => Object.values(r).some(Boolean));
+    setPasteHeaders(headers);
+    setPastePreview(rows);
   };
 
   const runPasteImport = async () => {
     if (pastePreview.length === 0) return;
     setImporting(true);
     setImportProgress({ done: 0, total: pastePreview.length });
-
     const imported: Camp[] = [];
 
     for (let i = 0; i < pastePreview.length; i++) {
@@ -371,59 +289,49 @@ export default function AdminCampsPage() {
         const field = resolveField(header);
         if (field) mapped[field] = row[header] || "";
       }
-
-      if (!mapped.title) {
-        setImportProgress({ done: i + 1, total: pastePreview.length });
-        continue;
-      }
+      if (!mapped.title) { setImportProgress({ done: i + 1, total: pastePreview.length }); continue; }
 
       const dateStart = mapped.date_start || new Date().toISOString().slice(0, 10);
       const dateEnd = mapped.date_end || dateStart;
       const priceFrom = asNumber(mapped.price_from) ?? asNumber(mapped.price);
       const priceTo = asNumber(mapped.price_to);
-      const shortDescription = mapped.description_short || "Opis oferty";
+      const shortDesc = mapped.description_short || "Opis oferty";
       const careHours = mapped.care_hours ? `Godziny opieki: ${mapped.care_hours}.` : "";
       const seats = mapped.seats ? `Liczba miejsc: ${mapped.seats}.` : "";
-      const longDescription = mapped.description_long || `${shortDescription}${careHours ? ` ${careHours}` : ""}${seats ? ` ${seats}` : ""}`.trim();
-
-      const payload = {
-        title: mapped.title.trim(),
-        description_short: shortDescription,
-        description_long: longDescription,
-        image_url: null,
-        date_start: dateStart,
-        date_end: dateEnd,
-        camp_type: inferCampType(mapped.camp_type, mapped.title),
-        season: inferSeason(dateStart),
-        duration_days: asNumber(mapped.duration_days) || calcDurationDays(dateStart, dateEnd),
-        meals_included: ["tak", "true", "1"].includes((mapped.meals_included || "").toLowerCase()),
-        transport_included: false,
-        age_min: asNumber(mapped.age_min),
-        age_max: asNumber(mapped.age_max),
-        price: null,
-        price_from: priceFrom,
-        price_to: priceTo,
-        is_free: (priceFrom ?? priceTo ?? null) === 0,
-        district: detectDistrict(mapped.venue_address || ""),
-        venue_name: mapped.venue_name || mapped.organizer || "Miejsce",
-        venue_address: mapped.venue_address || "Krakow",
-        organizer: mapped.organizer || mapped.venue_name || "Organizator",
-        source_url: mapped.source_url || null,
-        facebook_url: mapped.facebook_url || null,
-        is_featured: false,
-      };
+      const longDesc = mapped.description_long || `${shortDesc}${careHours ? ` ${careHours}` : ""}${seats ? ` ${seats}` : ""}`.trim();
 
       try {
         const res = await fetch("/api/admin/camps", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+          body: JSON.stringify({
+            title: mapped.title.trim(),
+            description_short: shortDesc,
+            description_long: longDesc,
+            image_url: null,
+            date_start: dateStart,
+            date_end: dateEnd,
+            camp_type: inferCampType(mapped.camp_type, mapped.title),
+            season: inferSeason(dateStart),
+            duration_days: asNumber(mapped.duration_days) || calcDurationDays(dateStart, dateEnd),
+            meals_included: ["tak", "true", "1"].includes((mapped.meals_included || "").toLowerCase()),
+            transport_included: false,
+            age_min: asNumber(mapped.age_min),
+            age_max: asNumber(mapped.age_max),
+            price: null, price_from: priceFrom, price_to: priceTo,
+            is_free: (priceFrom ?? priceTo ?? null) === 0,
+            district: detectDistrict(mapped.venue_address || ""),
+            venue_name: mapped.venue_name || mapped.organizer || "Miejsce",
+            venue_address: mapped.venue_address || "Krakow",
+            organizer: mapped.organizer || mapped.venue_name || "Organizator",
+            source_url: mapped.source_url || null,
+            facebook_url: mapped.facebook_url || null,
+            is_featured: false,
+          }),
         });
         const data = await res.json();
         if (data?.id) imported.push(mapCampRow(data));
-      } catch {
-        // skip this row
-      }
+      } catch { /* skip */ }
 
       setImportProgress({ done: i + 1, total: pastePreview.length });
     }
@@ -437,8 +345,12 @@ export default function AdminCampsPage() {
     alert(`Zaimportowano ${imported.length} z ${pastePreview.length} kolonii`);
   };
 
+  // ── CRUD ───────────────────────────────────────────────────────────────────
   const startEditing = (camp: Camp) => {
     const row = camp as unknown as Record<string, unknown>;
+    if (pendingPreview) URL.revokeObjectURL(pendingPreview);
+    setPendingFile(null);
+    setPendingPreview(null);
     setEditing(camp.id);
     setEditForm({
       title: camp.title,
@@ -463,19 +375,44 @@ export default function AdminCampsPage() {
       is_featured: camp.is_featured,
       meals_included: camp.meals_included,
       transport_included: camp.transport_included,
+      status: camp.status,
     });
   };
 
   const saveEdit = async (id: string) => {
-    const updates = {
+    let newImageUrl: string | null = null;
+
+    if (pendingFile) {
+      setUploadingImage(id);
+      try {
+        const formData = new FormData();
+        formData.append("file", pendingFile);
+        formData.append("id", id);
+        formData.append("target", "camps");
+        const res = await fetch("/api/admin/upload-image", { method: "POST", body: formData });
+        const data = await res.json();
+        if (data.image_url) {
+          newImageUrl = `${String(data.image_url).split("?")[0]}?t=${Date.now()}`;
+        } else {
+          alert(`Błąd obrazka: ${data.error || "Nie udało się"}`);
+        }
+      } catch {
+        alert("Błąd połączenia przy wgrywaniu obrazka");
+      }
+      setUploadingImage(null);
+    }
+
+    const dateStart = String(editForm.date_start || "");
+    const dateEnd = String(editForm.date_end || "");
+    const updates: Record<string, unknown> = {
       title: String(editForm.title || ""),
       description_short: String(editForm.description_short || ""),
       description_long: String(editForm.description_long || ""),
       camp_type: editForm.camp_type,
       season: editForm.season,
-      date_start: editForm.date_start,
-      date_end: editForm.date_end,
-      duration_days: Number(editForm.duration_days) || 5,
+      date_start: dateStart,
+      date_end: dateEnd,
+      duration_days: Number(editForm.duration_days) || calcDurationDays(dateStart, dateEnd),
       age_min: editForm.age_min === "" || editForm.age_min === null ? null : Number(editForm.age_min),
       age_max: editForm.age_max === "" || editForm.age_max === null ? null : Number(editForm.age_max),
       price: null,
@@ -491,7 +428,9 @@ export default function AdminCampsPage() {
       is_free: Boolean(editForm.is_free),
       meals_included: Boolean(editForm.meals_included),
       transport_included: Boolean(editForm.transport_included),
+      status: editForm.status,
     };
+    if (newImageUrl) updates.image_url = newImageUrl;
 
     let res = await fetch("/api/admin/camps", {
       method: "PATCH",
@@ -501,51 +440,68 @@ export default function AdminCampsPage() {
     let data = await res.json();
 
     if (!res.ok && data.error?.includes("facebook_url")) {
-      const { facebook_url: _facebookUrl, ...updatesWithoutFacebook } = updates;
+      const { facebook_url: _fb, ...withoutFb } = updates;
       res = await fetch("/api/admin/camps", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, ...updatesWithoutFacebook }),
+        body: JSON.stringify({ id, ...withoutFb }),
       });
       data = await res.json();
     }
 
-    if (!res.ok) {
-      alert(`Blad zapisu: ${data.error || "Nieznany blad"}`);
-      return;
-    }
+    if (!res.ok) { alert(`Błąd zapisu: ${data.error || "Nieznany błąd"}`); return; }
 
     if (data.updated) {
       setCamps((prev) => prev.map((c) => (c.id === id ? mapCampRow(data.updated as Record<string, unknown>) : c)));
     }
-
+    if (pendingPreview) URL.revokeObjectURL(pendingPreview);
+    setPendingFile(null);
+    setPendingPreview(null);
     setEditing(null);
     setEditForm({});
   };
 
-  const createCamp = () => {
-    setAddForm({
-      title: "",
-      description_short: "",
-      description_long: "",
-      camp_type: "polkolonie",
-      age_min: "",
-      age_max: "",
-      price_from: "",
-      price_to: "",
-      organizer: "",
-      source_url: "",
-      facebook_url: "",
-      venue_name: "",
-      venue_address: "",
-      district: "Inne",
-      is_free: false,
-      is_featured: false,
-      meals_included: false,
-      transport_included: false,
+  const createCamp = async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const res = await fetch("/api/admin/camps", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: "Nowa kolonia",
+        description_short: "Opis oferty",
+        description_long: "",
+        image_url: null,
+        date_start: today,
+        date_end: today,
+        camp_type: "polkolonie",
+        season: "lato",
+        duration_days: 5,
+        meals_included: false,
+        transport_included: false,
+        age_min: null,
+        age_max: null,
+        price: null,
+        price_from: null,
+        price_to: null,
+        is_free: false,
+        district: "Inne",
+        venue_name: "Miejsce",
+        venue_address: "Krakow",
+        organizer: "Organizator",
+        source_url: null,
+        facebook_url: null,
+        is_featured: false,
+        status: "draft",
+      }),
     });
-    setAddSessions([{ date_start: "", date_end: "" }]);
-    setAddModal(true);
+    const data = await res.json();
+    if (data?.id) {
+      const newCamp = mapCampRow(data);
+      setCamps((prev) => [newCamp, ...prev]);
+      startEditing(newCamp);
+    } else {
+      alert(`Błąd: ${data.error || "Nie udało się utworzyć kolonii"}`);
+    }
   };
 
   const toggleStatus = async (camp: Camp) => {
@@ -555,28 +511,23 @@ export default function AdminCampsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: camp.id, status: newStatus }),
     });
-    if (res.ok) {
-      setCamps((prev) => prev.map((c) => (c.id === camp.id ? { ...c, status: newStatus } : c)));
-    }
+    if (res.ok) setCamps((prev) => prev.map((c) => (c.id === camp.id ? { ...c, status: newStatus } : c)));
   };
 
   const toggleFeatured = async (camp: Camp) => {
-    const nextFeatured = !camp.is_featured;
+    const next = !camp.is_featured;
     const res = await fetch("/api/admin/camps", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: camp.id, is_featured: nextFeatured }),
+      body: JSON.stringify({ id: camp.id, is_featured: next }),
     });
     const data = await res.json();
-    if (!res.ok) {
-      alert(`Błąd: ${data.error || "Nie udało się zapisać wyróżnienia"}`);
-      return;
-    }
-    setCamps((prev) => prev.map((c) => (c.id === camp.id ? { ...c, is_featured: nextFeatured } : c)));
+    if (!res.ok) { alert(`Błąd: ${data.error || "Nie udało się"}`); return; }
+    setCamps((prev) => prev.map((c) => (c.id === camp.id ? { ...c, is_featured: next } : c)));
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Na pewno chcesz usunac?")) return;
+    if (!confirm("Na pewno chcesz usunąć?")) return;
     await fetch("/api/admin/camps", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -585,141 +536,31 @@ export default function AdminCampsPage() {
     setCamps((prev) => prev.filter((c) => c.id !== id));
   };
 
-  const toggleOrganizer = (key: string) => {
-    setCollapsedOrganizers((prev) => ({ ...prev, [key]: !prev[key] }));
+  const handleFileSelect = (file: File) => {
+    if (pendingPreview) URL.revokeObjectURL(pendingPreview);
+    setPendingFile(file);
+    setPendingPreview(URL.createObjectURL(file));
   };
 
-  const startEditingOrganizer = (key: string, proto: Camp) => {
-    setEditingOrganizer(key);
-    setOrganizerPendingFile(null);
-    setOrganizerPendingPreview(null);
-    setOrganizerEditForm({
-      description_short: proto.description_short,
-      description_long: proto.description_long,
-      camp_type: proto.camp_type,
-      organizer: proto.organizer,
-      image_url: proto.image_url || "",
-    });
+  const clearPendingFile = () => {
+    if (pendingPreview) URL.revokeObjectURL(pendingPreview);
+    setPendingFile(null);
+    setPendingPreview(null);
   };
 
-  const saveOrganizerEdit = async (campIds: string[]) => {
-    let uploadedImageUrl: string | null = null;
-    if (organizerPendingFile && campIds.length > 0) {
-      setUploadingOrganizerImage(true);
-      try {
-        const formData = new FormData();
-        formData.append("file", organizerPendingFile);
-        formData.append("id", campIds[0]);
-        formData.append("target", "camps");
-        const res = await fetch("/api/admin/upload-image", { method: "POST", body: formData });
-        const data = await res.json();
-        if (data.image_url) {
-          uploadedImageUrl = `${String(data.image_url).split("?")[0]}?t=${Date.now()}`;
-        } else {
-          alert(`Błąd obrazka: ${data.error || "Nie udało się"}`);
-        }
-      } catch {
-        alert("Błąd połączenia przy wgrywaniu obrazka");
-      }
-      setUploadingOrganizerImage(false);
-    }
-
-    const updates = {
-      description_short: String(organizerEditForm.description_short || ""),
-      description_long: String(organizerEditForm.description_long || ""),
-      camp_type: organizerEditForm.camp_type,
-      organizer: String(organizerEditForm.organizer || ""),
-      image_url: uploadedImageUrl || (organizerEditForm.image_url ? String(organizerEditForm.image_url) : null),
-    };
-    const results = await Promise.all(
-      campIds.map((id) =>
-        fetch("/api/admin/camps", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id, ...updates }),
-        }).then((r) => r.json())
-      )
-    );
-    setCamps((prev) =>
-      prev.map((c) => {
-        const found = results.find((r) => r.updated?.id === c.id);
-        return found?.updated ? mapCampRow(found.updated as Record<string, unknown>) : c;
-      })
-    );
-    setEditingOrganizer(null);
-    setOrganizerEditForm({});
-    setOrganizerPendingFile(null);
-    setOrganizerPendingPreview(null);
-  };
-
-  const startEditingSession = (camp: Camp) => {
-    const row = camp as unknown as Record<string, unknown>;
-    setEditingSession(camp.id);
-    setSessionEditForm({
-      title: camp.title,
-      date_start: camp.date_start || "",
-      date_end: camp.date_end || "",
-      age_min: camp.age_min,
-      age_max: camp.age_max,
-      price_from: row.price_from ?? camp.price,
-      price_to: row.price_to ?? null,
-      venue_address: camp.venue_address,
-      city: "Kraków",
-      district: camp.district,
-      source_url: camp.source_url || "",
-      facebook_url: camp.facebook_url || "",
-      is_featured: camp.is_featured,
-    });
-  };
-
-  const saveSessionEdit = async (id: string) => {
-    const dateStart = String(sessionEditForm.date_start || "");
-    const dateEnd = String(sessionEditForm.date_end || "");
-    const res = await fetch("/api/admin/camps", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        id,
-        title: String(sessionEditForm.title || ""),
-        date_start: dateStart,
-        date_end: dateEnd,
-        duration_days: calcDurationDays(dateStart, dateEnd),
-        season: inferSeason(dateStart),
-        age_min: sessionEditForm.age_min === "" || sessionEditForm.age_min === null ? null : Number(sessionEditForm.age_min),
-        age_max: sessionEditForm.age_max === "" || sessionEditForm.age_max === null ? null : Number(sessionEditForm.age_max),
-        price: null,
-        price_from: sessionEditForm.price_from === "" || sessionEditForm.price_from === null ? null : Number(sessionEditForm.price_from),
-        price_to: sessionEditForm.price_to === "" || sessionEditForm.price_to === null ? null : Number(sessionEditForm.price_to),
-        venue_address: String(sessionEditForm.venue_address || ""),
-        district: sessionEditForm.district,
-        source_url: sessionEditForm.source_url ? String(sessionEditForm.source_url) : null,
-        facebook_url: sessionEditForm.facebook_url ? String(sessionEditForm.facebook_url) : null,
-        is_featured: Boolean(sessionEditForm.is_featured),
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok) { alert(`Błąd: ${data.error}`); return; }
-    if (data.updated) setCamps((prev) => prev.map((c) => (c.id === id ? mapCampRow(data.updated as Record<string, unknown>) : c)));
-    setEditingSession(null);
-  };
-
-  const geocodeSessionAddress = async () => {
-    const address = String(sessionEditForm.venue_address || "").trim();
-    const city = String(sessionEditForm.city || "Kraków").trim();
-    if (!address) {
-      alert("Wpisz adres turnusu");
-      return;
-    }
-    setSessionGeocoding(true);
+  const geocodeAddress = async () => {
+    const address = String(editForm.venue_address || "").trim();
+    if (!address) { alert("Wpisz adres"); return; }
+    setGeocoding(true);
     try {
       const res = await fetch("/api/admin/geocode", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address, city: city || "Kraków" }),
+        body: JSON.stringify({ address, city: "Kraków" }),
       });
       const data = await res.json();
       if (data.lat && data.lng) {
-        setSessionEditForm((prev) => ({
+        setEditForm((prev) => ({
           ...prev,
           lat: data.lat,
           lng: data.lng,
@@ -729,147 +570,12 @@ export default function AdminCampsPage() {
         alert(data.error || "Nie znaleziono lokalizacji");
       }
     } catch {
-      alert("Błąd geolokalizacji");
+      alert("Błąd połączenia");
     }
-    setSessionGeocoding(false);
+    setGeocoding(false);
   };
 
-  const openAddTurnus = (orgKey: string) => {
-    const hyphenIdx = orgKey.indexOf("-");
-    const protoCampType = orgKey.slice(0, hyphenIdx) as Camp["camp_type"];
-    const organizerName = orgKey.slice(hyphenIdx + 1);
-    const proto = camps.find((c) => c.camp_type === protoCampType && (c.organizer || "Brak organizatora") === organizerName);
-    const protoRow = (proto ?? {}) as Record<string, unknown>;
-    setAddTurnusFor(orgKey);
-    setAddTurnusForm({
-      title: proto?.title || "",
-      date_start: "",
-      date_end: "",
-      age_min: proto?.age_min ?? null,
-      age_max: proto?.age_max ?? null,
-      price_from: protoRow.price_from ?? proto?.price ?? null,
-      price_to: protoRow.price_to ?? null,
-      venue_address: proto?.venue_address || "",
-      city: "Kraków",
-      district: proto?.district || "Inne",
-      source_url: proto?.source_url || "",
-      facebook_url: proto?.facebook_url || "",
-      is_featured: proto?.is_featured ?? false,
-      lat: null,
-      lng: null,
-    });
-  };
-
-  const geocodeAddTurnusAddress = async () => {
-    const address = String(addTurnusForm.venue_address || "").trim();
-    const city = String(addTurnusForm.city || "Kraków").trim();
-    if (!address) {
-      alert("Wpisz adres turnusu");
-      return;
-    }
-    setAddTurnusGeocoding(true);
-    try {
-      const res = await fetch("/api/admin/geocode", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address, city: city || "Kraków" }),
-      });
-      const data = await res.json();
-      if (data.lat && data.lng) {
-        setAddTurnusForm((prev) => ({
-          ...prev,
-          lat: data.lat,
-          lng: data.lng,
-          ...(data.district ? { district: data.district } : {}),
-        }));
-      } else {
-        alert(data.error || "Nie znaleziono lokalizacji");
-      }
-    } catch {
-      alert("Błąd geolokalizacji");
-    }
-    setAddTurnusGeocoding(false);
-  };
-
-  const saveAddTurnus = async () => {
-    if (!addTurnusFor || !addTurnusForm.date_start || !addTurnusForm.date_end) { alert("Podaj daty turnusu."); return; }
-    setAddTurnusSaving(true);
-    const hyphenIdx = addTurnusFor.indexOf("-");
-    const protoCampType = addTurnusFor.slice(0, hyphenIdx) as Camp["camp_type"];
-    const organizerName = addTurnusFor.slice(hyphenIdx + 1);
-    const proto = camps.find((c) => c.camp_type === protoCampType && (c.organizer || "Brak organizatora") === organizerName);
-    if (!proto) { setAddTurnusSaving(false); return; }
-    const protoRow = proto as unknown as Record<string, unknown>;
-    const dateStart = String(addTurnusForm.date_start || "");
-    const dateEnd = String(addTurnusForm.date_end || "");
-    const res = await fetch("/api/admin/camps", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: String(addTurnusForm.title || proto.title), description_short: proto.description_short, description_long: proto.description_long,
-        image_url: proto.image_url, date_start: dateStart, date_end: dateEnd,
-        camp_type: proto.camp_type, season: inferSeason(dateStart), duration_days: calcDurationDays(dateStart, dateEnd),
-        meals_included: proto.meals_included, transport_included: proto.transport_included,
-        age_min: addTurnusForm.age_min === "" || addTurnusForm.age_min === null ? null : Number(addTurnusForm.age_min),
-        age_max: addTurnusForm.age_max === "" || addTurnusForm.age_max === null ? null : Number(addTurnusForm.age_max),
-        price: null,
-        price_from: addTurnusForm.price_from === "" || addTurnusForm.price_from === null ? null : Number(addTurnusForm.price_from),
-        price_to: addTurnusForm.price_to === "" || addTurnusForm.price_to === null ? null : Number(addTurnusForm.price_to),
-        is_free: proto.is_free, district: addTurnusForm.district || proto.district, venue_name: proto.venue_name,
-        venue_address: String(addTurnusForm.venue_address || ""), organizer: proto.organizer,
-        source_url: addTurnusForm.source_url ? String(addTurnusForm.source_url) : null,
-        facebook_url: addTurnusForm.facebook_url ? String(addTurnusForm.facebook_url) : null,
-        is_featured: Boolean(addTurnusForm.is_featured),
-      }),
-    });
-    const data = await res.json();
-    if (data?.id) setCamps((prev) => [...prev, mapCampRow(data as Record<string, unknown>)]);
-    setAddTurnusFor(null);
-    setAddTurnusSaving(false);
-  };
-
-  const saveNewCamps = async () => {
-    const validSessions = addSessions.filter((s) => s.date_start && s.date_end);
-    if (!addForm.title || validSessions.length === 0) { alert("Podaj tytuł i co najmniej jeden turnus z datami."); return; }
-    setAddSaving(true);
-    const created: Camp[] = [];
-    for (const session of validSessions) {
-      const dateStart = session.date_start;
-      const dateEnd = session.date_end;
-      try {
-        const res = await fetch("/api/admin/camps", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: String(addForm.title || "").trim(),
-            description_short: String(addForm.description_short || "Opis oferty"),
-            description_long: String(addForm.description_long || ""),
-            image_url: null, date_start: dateStart, date_end: dateEnd,
-            camp_type: addForm.camp_type || "polkolonie", season: inferSeason(dateStart),
-            duration_days: calcDurationDays(dateStart, dateEnd),
-            meals_included: Boolean(addForm.meals_included), transport_included: false,
-            age_min: addForm.age_min === "" || addForm.age_min === null ? null : Number(addForm.age_min),
-            age_max: addForm.age_max === "" || addForm.age_max === null ? null : Number(addForm.age_max),
-            price: null,
-            price_from: addForm.price_from === "" || addForm.price_from === null ? null : Number(addForm.price_from),
-            price_to: addForm.price_to === "" || addForm.price_to === null ? null : Number(addForm.price_to),
-            is_free: Boolean(addForm.is_free), district: addForm.district || "Inne",
-            venue_name: String(addForm.venue_name || "Miejsce"),
-            venue_address: String(addForm.venue_address || "Krakow"),
-            organizer: String(addForm.organizer || "Organizator"),
-            source_url: addForm.source_url ? String(addForm.source_url) : null,
-            facebook_url: addForm.facebook_url ? String(addForm.facebook_url) : null,
-            is_featured: Boolean(addForm.is_featured),
-          }),
-        });
-        const data = await res.json();
-        if (data?.id) created.push(mapCampRow(data as Record<string, unknown>));
-      } catch { /* skip */ }
-    }
-    setCamps((prev) => [...created, ...prev]);
-    setAddSaving(false);
-    setAddModal(false);
-  };
+  const updateField = (key: string, value: unknown) => setEditForm((prev) => ({ ...prev, [key]: value }));
 
   const inputClass = "w-full px-2 py-1.5 rounded-md border border-border text-[12px] bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30";
   const labelClass = "block text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1";
@@ -880,12 +586,10 @@ export default function AdminCampsPage() {
         <h1 className="text-2xl font-bold text-foreground">Kolonie</h1>
         <div className="flex items-center gap-2">
           <button onClick={() => setPasteModal(true)} className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-muted border border-border rounded-xl hover:border-[#CCC] transition-colors">
-            <ClipboardPaste size={14} />
-            Wklej dane
+            <ClipboardPaste size={14} /> Wklej dane
           </button>
           <button onClick={createCamp} className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-white bg-foreground rounded-xl hover:bg-stone-700 transition-colors">
-            <Plus size={14} />
-            Dodaj
+            <Plus size={14} /> Dodaj
           </button>
           <button onClick={fetchCamps} className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-muted border border-border rounded-xl hover:border-[#CCC] transition-colors">
             <RefreshCw size={14} />
@@ -894,18 +598,10 @@ export default function AdminCampsPage() {
       </div>
 
       <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => toggleStatusFilter("all")} className={cn("text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors", statusFilter === "all" ? "bg-sky-200 text-sky-800" : "bg-sky-100 text-sky-700 hover:bg-sky-200")}>
-          {camps.length} kolonii
-        </button>
-        <button onClick={() => toggleStatusFilter("published")} className={cn("text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors", statusFilter === "published" ? "bg-emerald-200 text-emerald-800" : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200")}>
-          {publishedCount} published
-        </button>
-        <button onClick={() => toggleStatusFilter("draft")} className={cn("text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors", draftCount > 0 ? (statusFilter === "draft" ? "bg-rose-200 text-rose-800" : "bg-rose-100 text-rose-700 hover:bg-rose-200") : (statusFilter === "draft" ? "bg-stone-300 text-stone-700" : "bg-stone-200 text-stone-500 hover:bg-stone-300"))}>
-          {draftCount} draft
-        </button>
-        <button onClick={() => toggleStatusFilter("outdated")} className={cn("text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors", statusFilter === "outdated" ? "bg-amber-200 text-amber-800" : "bg-amber-100 text-amber-700 hover:bg-amber-200")}>
-          {outdatedCount} outdated
-        </button>
+        <button onClick={() => toggleStatusFilter("all")} className={cn("text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors", statusFilter === "all" ? "bg-sky-200 text-sky-800" : "bg-sky-100 text-sky-700 hover:bg-sky-200")}>{camps.length} kolonii</button>
+        <button onClick={() => toggleStatusFilter("published")} className={cn("text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors", statusFilter === "published" ? "bg-emerald-200 text-emerald-800" : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200")}>{publishedCount} published</button>
+        <button onClick={() => toggleStatusFilter("draft")} className={cn("text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors", draftCount > 0 ? (statusFilter === "draft" ? "bg-rose-200 text-rose-800" : "bg-rose-100 text-rose-700 hover:bg-rose-200") : (statusFilter === "draft" ? "bg-stone-300 text-stone-700" : "bg-stone-200 text-stone-500 hover:bg-stone-300"))}>{draftCount} draft</button>
+        <button onClick={() => toggleStatusFilter("outdated")} className={cn("text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors", statusFilter === "outdated" ? "bg-amber-200 text-amber-800" : "bg-amber-100 text-amber-700 hover:bg-amber-200")}>{outdatedCount} outdated</button>
         <button onClick={toggleAllCategories} className="ml-auto text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors bg-white border border-border text-muted hover:text-foreground hover:border-[#CCC]">
           {hasExpandedCategories ? "Zwiń wszystkie" : "Rozwiń wszystkie"}
         </button>
@@ -917,14 +613,14 @@ export default function AdminCampsPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          {groupedByTypeAndOrganizer.filter(({ type }) => !typeFilter || type === typeFilter).map(({ type, organizers }) => {
+          {groupedByType.filter(({ type }) => !typeFilter || type === typeFilter).map(({ type, items }) => {
             const expanded = !collapsedCategories[type];
             const stats = sectionStats[type] ?? { all: 0, published: 0, draft: 0, outdated: 0 };
             return (
               <div key={type}>
                 <div className="w-full flex items-center gap-2 mb-2 rounded-md px-1.5 py-1 hover:bg-accent/50 transition-colors">
                   <button type="button" onClick={() => toggleCategory(type)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
-                    {expanded ? <ChevronDown size={14} className="text-muted-foreground" /> : <ChevronRight size={14} className="text-muted-foreground" />}
+                    {expanded ? <ChevronDown size={14} className="text-muted-foreground" /> : <ChevronUp size={14} className="text-muted-foreground rotate-180" />}
                     <span className="text-lg">{CAMP_TYPE_ICONS[type]}</span>
                     <h2 className="text-[13px] font-semibold text-foreground">{CAMP_TYPE_LABELS[type]}</h2>
                   </button>
@@ -937,515 +633,238 @@ export default function AdminCampsPage() {
                 </div>
 
                 {expanded && (
-                  organizers.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-border/70 bg-white px-3 py-4 text-[12px] text-muted">
-                    Brak rekordów dla tego filtra.
-                  </div>
+                  items.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-border/70 bg-white px-3 py-4 text-[12px] text-muted">
+                      Brak rekordów dla tego filtra.
+                    </div>
                   ) : (
-                  <div className="space-y-2">
-                    {organizers.map(({ organizer, sessions }) => {
-                      const orgKey = `${type}-${organizer}`;
-                      const orgExpanded = !collapsedOrganizers[orgKey];
-                      const proto = sessions[0];
-                      const protoRow = proto as unknown as Record<string, unknown>;
-                      const organizerExternalUrl =
-                        typeof protoRow.source_url === "string" && protoRow.source_url.trim()
-                          ? protoRow.source_url
-                          : typeof protoRow.facebook_url === "string" && protoRow.facebook_url.trim()
-                            ? protoRow.facebook_url
-                            : null;
-                      const isEditingOrg = editingOrganizer === orgKey;
-                      return (
-                        <div key={orgKey} className="rounded-xl border border-border bg-white overflow-hidden">
-                          {/* Organizer header */}
-                          <div className="flex items-center gap-2.5 px-3 py-2.5">
-                            <button type="button" onClick={() => toggleOrganizer(orgKey)} className="shrink-0 p-0.5 text-muted-foreground hover:text-foreground transition-colors">
-                              {orgExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                            </button>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-[13px] font-semibold text-foreground truncate">{organizer}</p>
-                              <div className="flex items-center gap-2 text-[11px] text-muted mt-0.5 flex-wrap">
-                                <span className="shrink-0">{CAMP_TYPE_LABELS[proto.camp_type]}</span>
-                                {proto.description_short && (
-                                  <span className="truncate max-w-[320px] opacity-70">{proto.description_short}</span>
-                                )}
-                              </div>
-                            </div>
-                            <span className="text-[11px] text-muted-foreground shrink-0 mr-1">
-                              {sessions.length} {sessions.length === 1 ? "turnus" : sessions.length < 5 ? "turnusy" : "turnusów"}
-                            </span>
-                            <button onClick={() => startEditingOrganizer(orgKey, proto)} className={cn("p-1 rounded hover:bg-accent transition-colors shrink-0", isEditingOrg ? "text-primary" : "text-muted")} title="Edytuj dane organizatora">
-                              <Pencil size={13} />
-                            </button>
-                            <button onClick={() => openAddTurnus(orgKey)} className="p-1 rounded hover:bg-accent text-muted transition-colors shrink-0" title="Dodaj turnus">
-                              <Plus size={13} />
-                            </button>
-                            {organizerExternalUrl && (
-                              <a href={organizerExternalUrl} target="_blank" rel="noopener" className="p-1 rounded hover:bg-accent text-muted transition-colors shrink-0">
-                                <ExternalLink size={13} />
-                              </a>
-                            )}
-                          </div>
+                    <div className="space-y-1.5">
+                      {items.map((camp, index) => {
+                        const isEditing = editing === camp.id;
+                        const effectiveStatus = getEffectiveStatus(camp);
+                        const isDraft = effectiveStatus !== "published";
+                        const campRow = camp as unknown as Record<string, unknown>;
+                        const externalUrl = (camp.source_url || campRow.facebook_url) as string | null;
+                        return (
+                          <div key={camp.id} className={cn("rounded-lg border border-border/70", isDraft ? "bg-stone-100 opacity-70" : "bg-white")}>
+                            <div className="flex items-center gap-2.5 px-3 py-2.5">
+                              <span className="shrink-0 w-6 text-center text-[11px] font-mono text-muted-foreground">{index + 1}</span>
+                              <span className="shrink-0 text-lg">{CAMP_TYPE_ICONS[camp.camp_type] || "🏕️"}</span>
 
-                          {/* Organizer shared-data edit form */}
-                          {isEditingOrg && (
-                            <div className="px-3 pb-3 pt-2 border-t border-border/50 bg-accent/20">
-                              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
-                                <div className="md:col-span-3">
-                                  <label className={labelClass}>Organizator</label>
-                                  <input className={inputClass} value={(organizerEditForm.organizer as string) || ""} onChange={(e) => setOrganizerEditForm((p) => ({ ...p, organizer: e.target.value }))} />
+                              {camp.image_url ? (
+                                <img src={camp.image_url} alt="" className="w-8 h-8 rounded object-cover shrink-0" />
+                              ) : (
+                                <span className="w-8 h-8 rounded bg-stone-100 shrink-0 flex items-center justify-center text-[10px] text-stone-400">—</span>
+                              )}
+
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[13px] font-medium text-foreground truncate">{camp.title}</p>
+                                <div className="flex items-center gap-1.5 text-[11px] text-muted mt-0.5 flex-wrap">
+                                  {camp.organizer && <span className="truncate max-w-[140px]">{camp.organizer}</span>}
+                                  {camp.organizer && <span className="opacity-40">·</span>}
+                                  <span>{formatDateShort(camp.date_start)}{camp.date_end ? ` – ${formatDateShort(camp.date_end)}` : ""}</span>
+                                  <span className="opacity-40">·</span>
+                                  <span>{formatPrice(camp.price)}</span>
+                                  {camp.venue_address && <><span className="opacity-40">·</span><span className="truncate max-w-[120px]">{camp.venue_address}</span></>}
                                 </div>
-                                <div className="md:col-span-1">
-                                  <label className={labelClass}>Typ</label>
-                                  <select className={inputClass} value={(organizerEditForm.camp_type as string) || "polkolonie"} onChange={(e) => setOrganizerEditForm((p) => ({ ...p, camp_type: e.target.value }))}>
-                                    <option value="polkolonie">Półkolonie</option>
-                                    <option value="kolonie">Kolonie</option>
-                                    <option value="warsztaty_wakacyjne">Warsztaty wakacyjne</option>
-                                  </select>
-                                </div>
-                                <div className="md:col-span-4">
-                                  <label className={labelClass}>Krótki opis</label>
-                                  <textarea rows={2} className={inputClass} value={(organizerEditForm.description_short as string) || ""} onChange={(e) => setOrganizerEditForm((p) => ({ ...p, description_short: e.target.value }))} />
-                                </div>
-                                <div className="md:col-span-4">
-                                  <label className={labelClass}>Długi opis</label>
-                                  <textarea rows={4} className={inputClass} value={(organizerEditForm.description_long as string) || ""} onChange={(e) => setOrganizerEditForm((p) => ({ ...p, description_long: e.target.value }))} />
-                                </div>
-                                <div className="md:col-span-4">
-                                  <label className={labelClass}>Zdjęcie organizatora (wspólne)</label>
-                                  <div className="flex flex-wrap gap-3 items-start">
-                                    <div className="w-[180px] shrink-0">
-                                      {(organizerPendingPreview || organizerEditForm.image_url) ? (
-                                        <div className="relative group">
-                                          <img
-                                            src={String(organizerPendingPreview || organizerEditForm.image_url || "")}
-                                            alt="Podgląd zdjęcia"
-                                            className={cn("w-full aspect-[3/2] rounded-lg object-contain bg-accent/30 border border-border", organizerPendingPreview && "ring-2 ring-primary/40")}
-                                          />
-                                          {organizerPendingPreview && (
-                                            <button
-                                              onClick={() => { if (organizerPendingPreview) URL.revokeObjectURL(organizerPendingPreview); setOrganizerPendingFile(null); setOrganizerPendingPreview(null); }}
-                                              className="absolute -top-2 -right-2 p-1 rounded-full bg-white border border-border text-muted-foreground hover:text-red-600 shadow-sm"
-                                              title="Usuń wybrany plik"
-                                            >
-                                              <XCircle size={13} />
-                                            </button>
-                                          )}
-                                        </div>
-                                      ) : (
-                                        <div className="w-full aspect-[3/2] rounded-lg border border-dashed border-border flex items-center justify-center text-[11px] text-muted-foreground">
-                                          Brak zdjęcia
-                                        </div>
-                                      )}
-                                    </div>
-                                    <div className="space-y-2 flex-1 min-w-[260px]">
-                                      <label className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-muted border border-border rounded hover:text-foreground hover:border-primary/30 transition-colors cursor-pointer">
-                                        <Upload size={11} />
-                                        {organizerPendingPreview ? "Zmień plik" : "Wgraj plik"}
-                                        <input
-                                          type="file"
-                                          accept="image/*"
-                                          className="hidden"
-                                          onChange={(e) => {
-                                            const file = e.target.files?.[0];
-                                            if (!file) return;
-                                            if (organizerPendingPreview) URL.revokeObjectURL(organizerPendingPreview);
-                                            setOrganizerPendingFile(file);
-                                            setOrganizerPendingPreview(URL.createObjectURL(file));
-                                          }}
-                                        />
-                                      </label>
-                                      <input
-                                        className={inputClass}
-                                        placeholder="lub wklej URL obrazka"
-                                        value={String(organizerEditForm.image_url || "")}
-                                        onChange={(e) => setOrganizerEditForm((p) => ({ ...p, image_url: e.target.value }))}
-                                      />
-                                      <p className="text-[10px] text-muted">Po zapisie zdjęcie zostanie ustawione dla wszystkich turnusów organizatora.</p>
-                                    </div>
+                              </div>
+
+                              <button onClick={() => startEditing(camp)} className="p-1 rounded hover:bg-accent text-muted transition-colors" title="Edytuj">
+                                <Pencil size={13} />
+                              </button>
+                              <button onClick={() => toggleFeatured(camp)} className={cn("p-1 rounded transition-colors", camp.is_featured ? "text-amber-500 hover:bg-amber-50" : "text-muted hover:bg-accent")} title="Wyróżnij">
+                                <Star size={13} fill={camp.is_featured ? "currentColor" : "none"} />
+                              </button>
+                              {externalUrl && (
+                                <a href={externalUrl} target="_blank" rel="noopener" className="p-1 rounded hover:bg-accent text-muted transition-colors" title="Źródło">
+                                  <ExternalLink size={13} />
+                                </a>
+                              )}
+                              {effectiveStatus === "outdated" ? (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700">Outdated</span>
+                              ) : (
+                                <button onClick={() => toggleStatus(camp)} className={cn(
+                                  "px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide transition-colors",
+                                  camp.status === "published" ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" : "bg-rose-100 text-rose-700 hover:bg-rose-200"
+                                )}>
+                                  {camp.status === "published" ? "Published" : camp.status === "cancelled" ? "Cancelled" : "Draft"}
+                                </button>
+                              )}
+                              <button onClick={() => handleDelete(camp.id)} className="p-1 rounded text-muted-foreground hover:bg-red-50 hover:text-red-600 transition-colors" title="Usuń">
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+
+                            {isEditing && (
+                              <div className="px-3 pb-3 pt-2 border-t border-border/50">
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+                                  <div className="md:col-span-3">
+                                    <label className={labelClass}>Tytuł</label>
+                                    <input className={inputClass} value={(editForm.title as string) || ""} onChange={(e) => updateField("title", e.target.value)} />
+                                  </div>
+                                  <div>
+                                    <label className={labelClass}>Typ</label>
+                                    <select className={inputClass} value={(editForm.camp_type as string) || "polkolonie"} onChange={(e) => updateField("camp_type", e.target.value)}>
+                                      <option value="polkolonie">Półkolonie</option>
+                                      <option value="kolonie">Kolonie</option>
+                                      <option value="warsztaty_wakacyjne">Warsztaty wakacyjne</option>
+                                    </select>
+                                  </div>
+
+                                  <div className="md:col-span-4">
+                                    <label className={labelClass}>Krótki opis</label>
+                                    <textarea rows={2} className={inputClass} value={(editForm.description_short as string) || ""} onChange={(e) => updateField("description_short", e.target.value)} />
+                                  </div>
+                                  <div className="md:col-span-4">
+                                    <label className={labelClass}>Długi opis</label>
+                                    <textarea rows={5} className={inputClass} value={(editForm.description_long as string) || ""} onChange={(e) => updateField("description_long", e.target.value)} />
+                                  </div>
+
+                                  <div>
+                                    <label className={labelClass}>Data od</label>
+                                    <input type="date" className={inputClass} value={(editForm.date_start as string) || ""} onChange={(e) => updateField("date_start", e.target.value)} />
+                                  </div>
+                                  <div>
+                                    <label className={labelClass}>Data do</label>
+                                    <input type="date" className={inputClass} value={(editForm.date_end as string) || ""} onChange={(e) => updateField("date_end", e.target.value || null)} />
+                                  </div>
+                                  <div>
+                                    <label className={labelClass}>Wiek od</label>
+                                    <input type="number" min={0} max={18} className={inputClass} value={editForm.age_min === null ? "" : String(editForm.age_min ?? "")} onChange={(e) => updateField("age_min", e.target.value ? Number(e.target.value) : null)} />
+                                  </div>
+                                  <div>
+                                    <label className={labelClass}>Wiek do</label>
+                                    <input type="number" min={0} max={18} className={inputClass} value={editForm.age_max === null ? "" : String(editForm.age_max ?? "")} onChange={(e) => updateField("age_max", e.target.value ? Number(e.target.value) : null)} />
+                                  </div>
+
+                                  <div>
+                                    <label className={labelClass}>Cena od (zł)</label>
+                                    <input type="number" min={0} className={inputClass} value={editForm.price_from === null ? "" : String(editForm.price_from ?? "")} onChange={(e) => updateField("price_from", e.target.value ? Number(e.target.value) : null)} />
+                                  </div>
+                                  <div>
+                                    <label className={labelClass}>Cena do (zł)</label>
+                                    <input type="number" min={0} className={inputClass} value={editForm.price_to === null ? "" : String(editForm.price_to ?? "")} onChange={(e) => updateField("price_to", e.target.value ? Number(e.target.value) : null)} />
+                                  </div>
+                                  <div className="flex items-center gap-4 pt-5">
+                                    <label className="flex items-center gap-2 text-[12px] cursor-pointer">
+                                      <input type="checkbox" checked={Boolean(editForm.is_free)} onChange={(e) => updateField("is_free", e.target.checked)} className="rounded border-border" />
+                                      Bezpłatne
+                                    </label>
+                                    <label className="flex items-center gap-2 text-[12px] cursor-pointer">
+                                      <input type="checkbox" checked={Boolean(editForm.meals_included)} onChange={(e) => updateField("meals_included", e.target.checked)} className="rounded border-border" />
+                                      Wyżywienie
+                                    </label>
+                                    <label className="flex items-center gap-2 text-[12px] cursor-pointer">
+                                      <input type="checkbox" checked={Boolean(editForm.transport_included)} onChange={(e) => updateField("transport_included", e.target.checked)} className="rounded border-border" />
+                                      Transport
+                                    </label>
+                                  </div>
+                                  <div />
+
+                                  <div className="md:col-span-2">
+                                    <label className={labelClass}>Organizator</label>
+                                    <input className={inputClass} value={(editForm.organizer as string) || ""} onChange={(e) => updateField("organizer", e.target.value)} />
+                                  </div>
+                                  <div className="md:col-span-2">
+                                    <label className={labelClass}>URL źródła</label>
+                                    <input className={inputClass} value={(editForm.source_url as string) || ""} onChange={(e) => updateField("source_url", e.target.value)} />
+                                  </div>
+                                  <div className="md:col-span-2">
+                                    <label className={labelClass}>Facebook</label>
+                                    <input className={inputClass} value={(editForm.facebook_url as string) || ""} onChange={(e) => updateField("facebook_url", e.target.value)} placeholder="https://facebook.com/..." />
+                                  </div>
+                                  <div className="md:col-span-2">
+                                    <label className={labelClass}>Status</label>
+                                    <select className={inputClass} value={(editForm.status as string) || "draft"} onChange={(e) => updateField("status", e.target.value)}>
+                                      <option value="draft">Draft</option>
+                                      <option value="published">Published</option>
+                                      <option value="cancelled">Cancelled</option>
+                                    </select>
                                   </div>
                                 </div>
-                              </div>
-                              <p className="text-[10px] text-muted mb-2">Na poziomie organizatora edytujesz tylko: organizatora, typ oraz opisy. Reszta pól jest per turnus.</p>
-                              <div className="flex items-center gap-2">
-                                <button onClick={() => saveOrganizerEdit(sessions.map((s) => s.id))} disabled={uploadingOrganizerImage} className="inline-flex items-center gap-1 px-3 py-1.5 text-[11px] font-medium bg-foreground text-white rounded hover:bg-[#333] transition-colors disabled:opacity-60">
-                                  {uploadingOrganizerImage ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />} {uploadingOrganizerImage ? "Wgrywanie..." : "Zapisz wszystkie"}
-                                </button>
-                                <button onClick={() => { setEditingOrganizer(null); setOrganizerEditForm({}); }} className="inline-flex items-center gap-1 px-3 py-1.5 text-[11px] font-medium text-muted border border-border rounded hover:text-foreground transition-colors">
-                                  <X size={11} /> Anuluj
-                                </button>
-                              </div>
-                            </div>
-                          )}
 
-                          {/* Sessions list */}
-                          {orgExpanded && (
-                            <div className="border-t border-border/40 divide-y divide-border/40">
-                              {sessions.map((camp, si) => {
-                                const isDraft = camp.status !== "published";
-                                const isSessEdit = editingSession === camp.id;
-                                return (
-                                  <div key={camp.id} className={cn("flex items-center gap-2 px-3 py-2 pl-10", isDraft && "opacity-60")}>
-                                    <span className="w-5 shrink-0 text-center text-[11px] font-mono text-muted-foreground">{si + 1}</span>
-                                    {isSessEdit ? (
-                                      <div className="w-full rounded-lg border border-border/60 bg-white p-2.5">
-                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-                                          <div className="md:col-span-2">
-                                            <label className={labelClass}>Tytuł turnusu</label>
-                                            <input className={inputClass} value={String(sessionEditForm.title || "")} onChange={(e) => setSessionEditForm((p) => ({ ...p, title: e.target.value }))} />
-                                          </div>
-                                          <div>
-                                            <label className={labelClass}>Data od</label>
-                                            <input type="date" value={String(sessionEditForm.date_start || "")} onChange={(e) => setSessionEditForm((p) => ({ ...p, date_start: e.target.value }))} className={inputClass} />
-                                          </div>
-                                          <div>
-                                            <label className={labelClass}>Data do</label>
-                                            <input type="date" value={String(sessionEditForm.date_end || "")} onChange={(e) => setSessionEditForm((p) => ({ ...p, date_end: e.target.value }))} className={inputClass} />
-                                          </div>
-                                          <div>
-                                            <label className={labelClass}>Wiek od</label>
-                                            <input type="number" min={0} max={18} className={inputClass} value={sessionEditForm.age_min === null ? "" : String(sessionEditForm.age_min ?? "")} onChange={(e) => setSessionEditForm((p) => ({ ...p, age_min: e.target.value ? Number(e.target.value) : null }))} />
-                                          </div>
-                                          <div>
-                                            <label className={labelClass}>Wiek do</label>
-                                            <input type="number" min={0} max={18} className={inputClass} value={sessionEditForm.age_max === null ? "" : String(sessionEditForm.age_max ?? "")} onChange={(e) => setSessionEditForm((p) => ({ ...p, age_max: e.target.value ? Number(e.target.value) : null }))} />
-                                          </div>
-                                          <div>
-                                            <label className={labelClass}>Cena od</label>
-                                            <input type="number" min={0} className={inputClass} value={sessionEditForm.price_from === null ? "" : String(sessionEditForm.price_from ?? "")} onChange={(e) => setSessionEditForm((p) => ({ ...p, price_from: e.target.value ? Number(e.target.value) : null }))} />
-                                          </div>
-                                          <div>
-                                            <label className={labelClass}>Cena do</label>
-                                            <input type="number" min={0} className={inputClass} value={sessionEditForm.price_to === null ? "" : String(sessionEditForm.price_to ?? "")} onChange={(e) => setSessionEditForm((p) => ({ ...p, price_to: e.target.value ? Number(e.target.value) : null }))} />
-                                          </div>
-                                          <div className="md:col-span-2">
-                                            <label className={labelClass}>URL źródła</label>
-                                            <input className={inputClass} value={String(sessionEditForm.source_url || "")} onChange={(e) => setSessionEditForm((p) => ({ ...p, source_url: e.target.value }))} />
-                                          </div>
-                                          <div className="md:col-span-2">
-                                            <label className={labelClass}>Facebook</label>
-                                            <input className={inputClass} value={String(sessionEditForm.facebook_url || "")} onChange={(e) => setSessionEditForm((p) => ({ ...p, facebook_url: e.target.value }))} />
-                                          </div>
-                                          <div className="md:col-span-4 rounded-lg border border-border/60 p-3">
-                                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Lokalizacja</p>
-                                            <div className="grid grid-cols-1 md:grid-cols-[1fr,260px] gap-3 items-start">
-                                              <div className="space-y-2">
-                                                <div>
-                                                  <label className={labelClass}>Ulica</label>
-                                                  <input className={inputClass} value={String(sessionEditForm.venue_address || "")} onChange={(e) => setSessionEditForm((p) => ({ ...p, venue_address: e.target.value }))} />
-                                                </div>
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                                  <div>
-                                                    <label className={labelClass}>Miasto</label>
-                                                    <input className={inputClass} value={String(sessionEditForm.city || "Kraków")} onChange={(e) => setSessionEditForm((p) => ({ ...p, city: e.target.value }))} />
-                                                  </div>
-                                                  <div>
-                                                    <label className={labelClass}>Dzielnica</label>
-                                                    <select className={inputClass} value={String(sessionEditForm.district || "Inne")} onChange={(e) => setSessionEditForm((p) => ({ ...p, district: e.target.value }))}>
-                                                      {DISTRICT_LIST.map((district) => <option key={district} value={district}>{district}</option>)}
-                                                    </select>
-                                                  </div>
-                                                </div>
-                                                <div>
-                                                  <label className={labelClass}>Współrzędne</label>
-                                                  <div className="grid grid-cols-[1fr,1fr,auto] gap-2">
-                                                    <input type="number" step="any" className={inputClass} value={sessionEditForm.lat === null || sessionEditForm.lat === undefined ? "" : String(sessionEditForm.lat)} onChange={(e) => setSessionEditForm((p) => ({ ...p, lat: e.target.value === "" ? null : Number(e.target.value) }))} />
-                                                    <input type="number" step="any" className={inputClass} value={sessionEditForm.lng === null || sessionEditForm.lng === undefined ? "" : String(sessionEditForm.lng)} onChange={(e) => setSessionEditForm((p) => ({ ...p, lng: e.target.value === "" ? null : Number(e.target.value) }))} />
-                                                    <button
-                                                      type="button"
-                                                      onClick={geocodeSessionAddress}
-                                                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium text-muted border border-border rounded hover:text-foreground transition-colors"
-                                                    >
-                                                      {sessionGeocoding ? <Loader2 size={11} className="animate-spin" /> : <MapPin size={11} />}
-                                                      {sessionGeocoding ? "Szukam..." : "Znajdź"}
-                                                    </button>
-                                                  </div>
-                                                </div>
-                                              </div>
-                                              <div className="rounded-lg border border-border overflow-hidden" style={{ height: 180 }}>
-                                                {Number.isFinite(Number(sessionEditForm.lat)) && Number.isFinite(Number(sessionEditForm.lng)) ? (
-                                                  <Suspense fallback={<div className="w-full h-full flex items-center justify-center bg-accent/20 text-[11px] text-muted">Ładowanie mapy...</div>}>
-                                                    <MiniMapLazy lat={Number(sessionEditForm.lat)} lng={Number(sessionEditForm.lng)} />
-                                                  </Suspense>
-                                                ) : (
-                                                  <div className="w-full h-full flex items-center justify-center bg-accent/20 text-[11px] text-muted">Mapa pojawi się po geolokalizacji</div>
-                                                )}
-                                              </div>
-                                            </div>
-                                          </div>
-                                        </div>
-                                        <div className="mt-2 flex items-center gap-2">
-                                          <button onClick={() => saveSessionEdit(camp.id)} className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium bg-foreground text-white rounded hover:bg-[#333] transition-colors">
-                                            <Save size={10} /> Zapisz
-                                          </button>
-                                          <button onClick={() => setEditingSession(null)} className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-muted border border-border rounded hover:text-foreground transition-colors">
-                                            <X size={10} /> Anuluj
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                                  <div className="rounded-lg border border-border/50 p-3 space-y-3">
+                                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Lokalizacja</p>
+                                    <div className="grid grid-cols-2 gap-3">
+                                      <div className="col-span-2">
+                                        <label className={labelClass}>Adres / Miejsce</label>
+                                        <input className={inputClass} value={(editForm.venue_address as string) || ""} onChange={(e) => updateField("venue_address", e.target.value)} placeholder="np. ul. Skarbowa 2, Kraków" />
+                                      </div>
+                                      <div className="col-span-2">
+                                        <label className={labelClass}>Nazwa miejsca</label>
+                                        <input className={inputClass} value={(editForm.venue_name as string) || ""} onChange={(e) => updateField("venue_name", e.target.value)} />
+                                      </div>
+                                      <div className="col-span-2">
+                                        <label className={labelClass}>Dzielnica</label>
+                                        <select className={inputClass} value={(editForm.district as string) || "Inne"} onChange={(e) => updateField("district", e.target.value)}>
+                                          {DISTRICT_LIST.slice(1).map((d) => <option key={d} value={d}>{d}</option>)}
+                                        </select>
+                                      </div>
+                                      <div className="col-span-2">
+                                        <label className={labelClass}>Współrzędne</label>
+                                        <div className="flex items-center gap-2">
+                                          <input type="number" step="any" className={inputClass} value={(editForm.lat as number) ?? ""} onChange={(e) => updateField("lat", e.target.value ? Number(e.target.value) : null)} placeholder="Lat" />
+                                          <input type="number" step="any" className={inputClass} value={(editForm.lng as number) ?? ""} onChange={(e) => updateField("lng", e.target.value ? Number(e.target.value) : null)} placeholder="Lng" />
+                                          <button onClick={geocodeAddress} disabled={geocoding} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-muted border border-border rounded hover:text-foreground hover:border-primary/30 transition-colors shrink-0 disabled:opacity-50">
+                                            {geocoding ? <Loader2 size={11} className="animate-spin" /> : <MapPin size={11} />}
+                                            {geocoding ? "Szukam..." : "Znajdź"}
                                           </button>
                                         </div>
                                       </div>
-                                    ) : (
-                                      <>
-                                        <span className="text-[12px] font-medium text-foreground flex-1">
-                                          {formatDateShort(camp.date_start)} — {formatDateShort(camp.date_end)}
-                                        </span>
-                                        <span className="text-[11px] text-muted shrink-0">{camp.duration_days} dni</span>
-                                        <button onClick={() => startEditingSession(camp)} className="p-1 rounded hover:bg-accent text-muted transition-colors shrink-0" title="Edytuj daty">
-                                          <Pencil size={12} />
-                                        </button>
-                                        <button onClick={() => toggleFeatured(camp)} className={cn("p-1 rounded transition-colors shrink-0", camp.is_featured ? "text-amber-500 hover:bg-amber-50" : "text-muted-foreground hover:bg-stone-100")} title="Wyróżnij">
-                                          <Star size={12} fill={camp.is_featured ? "currentColor" : "none"} />
-                                        </button>
-                                        <button onClick={() => toggleStatus(camp)} className={cn("px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide transition-colors shrink-0", camp.status === "published" ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" : "bg-rose-100 text-rose-700 hover:bg-rose-200")}>
-                                          {camp.status === "published" ? "Published" : "Draft"}
-                                        </button>
-                                        <button onClick={() => handleDelete(camp.id)} className="p-1 rounded text-muted-foreground hover:bg-red-50 hover:text-red-600 transition-colors shrink-0" title="Usuń">
-                                          <Trash2 size={12} />
-                                        </button>
-                                      </>
+                                    </div>
+                                    {typeof editForm.lat === "number" && typeof editForm.lng === "number" && (
+                                      <div className="rounded-lg overflow-hidden border border-border" style={{ height: 180 }}>
+                                        <Suspense fallback={<div className="w-full h-full flex items-center justify-center bg-accent/20 text-[11px] text-muted">Ładowanie mapy...</div>}>
+                                          <MiniMapLazy lat={editForm.lat as number} lng={editForm.lng as number} />
+                                        </Suspense>
+                                      </div>
                                     )}
                                   </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+
+                                  <div className="rounded-lg border border-border/50 p-3 space-y-3">
+                                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Obrazek</p>
+                                    {(pendingPreview || camp.image_url) && (
+                                      <div className="relative">
+                                        <img src={pendingPreview || camp.image_url || ""} alt="" className={cn("w-full aspect-[3/2] rounded-lg object-cover border border-border", pendingPreview && "ring-2 ring-primary/40")} />
+                                        {pendingPreview && (
+                                          <button onClick={clearPendingFile} className="absolute top-1.5 right-1.5 bg-white rounded-full shadow-sm border border-border p-0.5 hover:bg-red-50 transition-colors" title="Usuń">
+                                            <X size={14} className="text-red-500" />
+                                          </button>
+                                        )}
+                                      </div>
+                                    )}
+                                    <div className="flex items-center gap-2">
+                                      <label className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-muted border border-border rounded hover:text-foreground hover:border-primary/30 transition-colors cursor-pointer">
+                                        <ImagePlus size={11} />
+                                        {pendingPreview ? "Zmień plik" : "Wgraj plik"}
+                                        <input type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleFileSelect(file); e.target.value = ""; }} />
+                                      </label>
+                                    </div>
+                                    {pendingPreview && <span className="text-[10px] text-primary font-medium">Nowy plik — zapisz aby wgrać</span>}
+                                  </div>
+                                </div>
+
+                                <div className="flex gap-2">
+                                  <button onClick={() => saveEdit(camp.id)} disabled={uploadingImage === camp.id} className="inline-flex items-center gap-1 px-3 py-1.5 text-[11px] font-medium bg-foreground text-white rounded hover:bg-[#333] transition-colors disabled:opacity-50">
+                                    {uploadingImage === camp.id ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />}
+                                    {uploadingImage === camp.id ? "Wgrywanie..." : "Zapisz"}
+                                  </button>
+                                  <button onClick={() => { clearPendingFile(); setEditing(null); setEditForm({}); }} className="inline-flex items-center gap-1 px-3 py-1.5 text-[11px] font-medium text-muted border border-border rounded hover:text-foreground transition-colors">
+                                    <X size={11} /> Anuluj
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   )
                 )}
               </div>
             );
           })}
-        </div>
-      )}
-
-      {addModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col mx-4">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-              <div>
-                <h2 className="text-[15px] font-bold text-foreground">Nowa kolonia</h2>
-                <p className="text-[11px] text-muted mt-0.5">Dane organizatora raz — potem dodaj turnusy</p>
-              </div>
-              <button onClick={() => setAddModal(false)} className="p-1.5 rounded hover:bg-accent text-muted transition-colors"><X size={16} /></button>
-            </div>
-            <div className="px-5 py-4 overflow-y-auto flex-1 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="md:col-span-2">
-                  <label className={labelClass}>Tytuł *</label>
-                  <input className={inputClass} placeholder="np. Letni obóz sportowy" value={String(addForm.title || "")} onChange={(e) => setAddForm((p) => ({ ...p, title: e.target.value }))} />
-                </div>
-                <div>
-                  <label className={labelClass}>Typ</label>
-                  <select className={inputClass} value={String(addForm.camp_type || "polkolonie")} onChange={(e) => setAddForm((p) => ({ ...p, camp_type: e.target.value }))}>
-                    <option value="polkolonie">Półkolonie</option>
-                    <option value="kolonie">Kolonie</option>
-                    <option value="warsztaty_wakacyjne">Warsztaty wakacyjne</option>
-                  </select>
-                </div>
-                <div>
-                  <label className={labelClass}>Organizator</label>
-                  <input className={inputClass} value={String(addForm.organizer || "")} onChange={(e) => setAddForm((p) => ({ ...p, organizer: e.target.value }))} />
-                </div>
-                <div className="md:col-span-2">
-                  <label className={labelClass}>Krótki opis</label>
-                  <textarea rows={2} className={inputClass} value={String(addForm.description_short || "")} onChange={(e) => setAddForm((p) => ({ ...p, description_short: e.target.value }))} />
-                </div>
-                <div className="md:col-span-2">
-                  <label className={labelClass}>Długi opis</label>
-                  <textarea rows={3} className={inputClass} value={String(addForm.description_long || "")} onChange={(e) => setAddForm((p) => ({ ...p, description_long: e.target.value }))} />
-                </div>
-                <div>
-                  <label className={labelClass}>Wiek od</label>
-                  <input type="number" min={0} max={18} className={inputClass} value={String(addForm.age_min ?? "")} onChange={(e) => setAddForm((p) => ({ ...p, age_min: e.target.value }))} />
-                </div>
-                <div>
-                  <label className={labelClass}>Wiek do</label>
-                  <input type="number" min={0} max={18} className={inputClass} value={String(addForm.age_max ?? "")} onChange={(e) => setAddForm((p) => ({ ...p, age_max: e.target.value }))} />
-                </div>
-                <div>
-                  <label className={labelClass}>Cena od (zł)</label>
-                  <input type="number" min={0} className={inputClass} value={String(addForm.price_from ?? "")} onChange={(e) => setAddForm((p) => ({ ...p, price_from: e.target.value }))} />
-                </div>
-                <div>
-                  <label className={labelClass}>Cena do (zł)</label>
-                  <input type="number" min={0} className={inputClass} value={String(addForm.price_to ?? "")} onChange={(e) => setAddForm((p) => ({ ...p, price_to: e.target.value }))} />
-                </div>
-                <div>
-                  <label className={labelClass}>Miejsce</label>
-                  <input className={inputClass} value={String(addForm.venue_name || "")} onChange={(e) => setAddForm((p) => ({ ...p, venue_name: e.target.value }))} />
-                </div>
-                <div>
-                  <label className={labelClass}>Adres</label>
-                  <input className={inputClass} value={String(addForm.venue_address || "")} onChange={(e) => setAddForm((p) => ({ ...p, venue_address: e.target.value }))} />
-                </div>
-                <div>
-                  <label className={labelClass}>URL źródła</label>
-                  <input className={inputClass} placeholder="https://..." value={String(addForm.source_url || "")} onChange={(e) => setAddForm((p) => ({ ...p, source_url: e.target.value }))} />
-                </div>
-                <div>
-                  <label className={labelClass}>Facebook</label>
-                  <input className={inputClass} placeholder="https://facebook.com/..." value={String(addForm.facebook_url || "")} onChange={(e) => setAddForm((p) => ({ ...p, facebook_url: e.target.value }))} />
-                </div>
-                <div className="flex items-center gap-4 pt-2">
-                  <label className="flex items-center gap-2 text-[12px] cursor-pointer">
-                    <input type="checkbox" checked={Boolean(addForm.meals_included)} onChange={(e) => setAddForm((p) => ({ ...p, meals_included: e.target.checked }))} className="rounded border-border" />
-                    Wyżywienie
-                  </label>
-                  <label className="flex items-center gap-2 text-[12px] cursor-pointer">
-                    <input type="checkbox" checked={Boolean(addForm.is_free)} onChange={(e) => setAddForm((p) => ({ ...p, is_free: e.target.checked }))} className="rounded border-border" />
-                    Bezpłatne
-                  </label>
-                </div>
-              </div>
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Turnusy *</p>
-                  <button onClick={() => setAddSessions((p) => [...p, { date_start: "", date_end: "" }])} className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary/80 transition-colors">
-                    <Plus size={12} /> Dodaj turnus
-                  </button>
-                </div>
-                <div className="space-y-2">
-                  {addSessions.map((session, si) => (
-                    <div key={si} className="flex items-center gap-2 rounded-lg border border-border bg-accent/30 px-3 py-2">
-                      <span className="text-[11px] font-mono text-muted-foreground w-5 shrink-0">{si + 1}.</span>
-                      <div className="flex-1 flex items-center gap-2">
-                        <div className="flex-1">
-                          <label className="block text-[9px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5">Od</label>
-                          <input type="date" className={inputClass} value={session.date_start} onChange={(e) => setAddSessions((p) => p.map((s, i) => i === si ? { ...s, date_start: e.target.value } : s))} />
-                        </div>
-                        <div className="flex-1">
-                          <label className="block text-[9px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5">Do</label>
-                          <input type="date" className={inputClass} value={session.date_end} onChange={(e) => setAddSessions((p) => p.map((s, i) => i === si ? { ...s, date_end: e.target.value } : s))} />
-                        </div>
-                      </div>
-                      {addSessions.length > 1 && (
-                        <button onClick={() => setAddSessions((p) => p.filter((_, i) => i !== si))} className="p-1 rounded text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors">
-                          <X size={13} />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className="px-5 py-4 border-t border-border flex items-center justify-between">
-              <p className="text-[11px] text-muted">Zostanie utworzone {addSessions.filter((s) => s.date_start && s.date_end).length} rekord(ów) jako Draft</p>
-              <div className="flex items-center gap-2">
-                <button onClick={() => setAddModal(false)} className="px-3 py-1.5 text-[12px] font-medium text-muted border border-border rounded-lg hover:text-foreground transition-colors">Anuluj</button>
-                <button onClick={saveNewCamps} disabled={addSaving || !addForm.title || addSessions.filter((s) => s.date_start && s.date_end).length === 0} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-white bg-foreground rounded-lg hover:bg-stone-700 transition-colors disabled:opacity-50">
-                  {addSaving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-                  {addSaving ? "Zapisywanie..." : "Utwórz turnusy"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {addTurnusFor && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-xl max-h-[90vh] overflow-hidden flex flex-col mx-4">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-              <h2 className="text-[15px] font-bold text-foreground">Dodaj turnus</h2>
-              <button onClick={() => setAddTurnusFor(null)} className="p-1.5 rounded hover:bg-accent text-muted transition-colors"><X size={16} /></button>
-            </div>
-            <div className="px-5 py-4 space-y-3 overflow-y-auto flex-1">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className={labelClass}>Tytuł turnusu</label>
-                  <input className={inputClass} value={String(addTurnusForm.title || "")} onChange={(e) => setAddTurnusForm((p) => ({ ...p, title: e.target.value }))} />
-                </div>
-                <div>
-                  <label className={labelClass}>Data od *</label>
-                  <input type="date" className={inputClass} value={String(addTurnusForm.date_start || "")} onChange={(e) => setAddTurnusForm((p) => ({ ...p, date_start: e.target.value }))} />
-                </div>
-                <div>
-                  <label className={labelClass}>Data do *</label>
-                  <input type="date" className={inputClass} value={String(addTurnusForm.date_end || "")} onChange={(e) => setAddTurnusForm((p) => ({ ...p, date_end: e.target.value }))} />
-                </div>
-                <div>
-                  <label className={labelClass}>Wiek od</label>
-                  <input type="number" min={0} max={18} className={inputClass} value={addTurnusForm.age_min === null ? "" : String(addTurnusForm.age_min ?? "")} onChange={(e) => setAddTurnusForm((p) => ({ ...p, age_min: e.target.value ? Number(e.target.value) : null }))} />
-                </div>
-                <div>
-                  <label className={labelClass}>Wiek do</label>
-                  <input type="number" min={0} max={18} className={inputClass} value={addTurnusForm.age_max === null ? "" : String(addTurnusForm.age_max ?? "")} onChange={(e) => setAddTurnusForm((p) => ({ ...p, age_max: e.target.value ? Number(e.target.value) : null }))} />
-                </div>
-                <div>
-                  <label className={labelClass}>Cena od</label>
-                  <input type="number" min={0} className={inputClass} value={addTurnusForm.price_from === null ? "" : String(addTurnusForm.price_from ?? "")} onChange={(e) => setAddTurnusForm((p) => ({ ...p, price_from: e.target.value ? Number(e.target.value) : null }))} />
-                </div>
-                <div>
-                  <label className={labelClass}>Cena do</label>
-                  <input type="number" min={0} className={inputClass} value={addTurnusForm.price_to === null ? "" : String(addTurnusForm.price_to ?? "")} onChange={(e) => setAddTurnusForm((p) => ({ ...p, price_to: e.target.value ? Number(e.target.value) : null }))} />
-                </div>
-                <div className="md:col-span-2">
-                  <label className={labelClass}>URL źródła</label>
-                  <input className={inputClass} value={String(addTurnusForm.source_url || "")} onChange={(e) => setAddTurnusForm((p) => ({ ...p, source_url: e.target.value }))} />
-                </div>
-                <div className="md:col-span-2">
-                  <label className={labelClass}>Facebook</label>
-                  <input className={inputClass} value={String(addTurnusForm.facebook_url || "")} onChange={(e) => setAddTurnusForm((p) => ({ ...p, facebook_url: e.target.value }))} />
-                </div>
-                <div className="md:col-span-2 rounded-lg border border-border/60 p-3">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Lokalizacja</p>
-                  <div className="grid grid-cols-1 md:grid-cols-[1fr,260px] gap-3 items-start">
-                    <div className="space-y-2">
-                      <div>
-                        <label className={labelClass}>Ulica</label>
-                        <input className={inputClass} value={String(addTurnusForm.venue_address || "")} onChange={(e) => setAddTurnusForm((p) => ({ ...p, venue_address: e.target.value }))} />
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                        <div>
-                          <label className={labelClass}>Miasto</label>
-                          <input className={inputClass} value={String(addTurnusForm.city || "Kraków")} onChange={(e) => setAddTurnusForm((p) => ({ ...p, city: e.target.value }))} />
-                        </div>
-                        <div>
-                          <label className={labelClass}>Dzielnica</label>
-                          <select className={inputClass} value={String(addTurnusForm.district || "Inne")} onChange={(e) => setAddTurnusForm((p) => ({ ...p, district: e.target.value }))}>
-                            {DISTRICT_LIST.map((district) => <option key={district} value={district}>{district}</option>)}
-                          </select>
-                        </div>
-                      </div>
-                      <div>
-                        <label className={labelClass}>Współrzędne</label>
-                        <div className="grid grid-cols-[1fr,1fr,auto] gap-2">
-                          <input type="number" step="any" className={inputClass} value={addTurnusForm.lat === null || addTurnusForm.lat === undefined ? "" : String(addTurnusForm.lat)} onChange={(e) => setAddTurnusForm((p) => ({ ...p, lat: e.target.value === "" ? null : Number(e.target.value) }))} />
-                          <input type="number" step="any" className={inputClass} value={addTurnusForm.lng === null || addTurnusForm.lng === undefined ? "" : String(addTurnusForm.lng)} onChange={(e) => setAddTurnusForm((p) => ({ ...p, lng: e.target.value === "" ? null : Number(e.target.value) }))} />
-                          <button
-                            type="button"
-                            onClick={geocodeAddTurnusAddress}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium text-muted border border-border rounded hover:text-foreground transition-colors"
-                          >
-                            {addTurnusGeocoding ? <Loader2 size={11} className="animate-spin" /> : <MapPin size={11} />}
-                            {addTurnusGeocoding ? "Szukam..." : "Znajdź"}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="rounded-lg border border-border overflow-hidden" style={{ height: 180 }}>
-                      {Number.isFinite(Number(addTurnusForm.lat)) && Number.isFinite(Number(addTurnusForm.lng)) ? (
-                        <Suspense fallback={<div className="w-full h-full flex items-center justify-center bg-accent/20 text-[11px] text-muted">Ładowanie mapy...</div>}>
-                          <MiniMapLazy lat={Number(addTurnusForm.lat)} lng={Number(addTurnusForm.lng)} />
-                        </Suspense>
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-accent/20 text-[11px] text-muted">Mapa pojawi się po geolokalizacji</div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="px-5 py-4 border-t border-border flex items-center justify-end gap-2">
-              <button onClick={() => setAddTurnusFor(null)} className="px-3 py-1.5 text-[12px] font-medium text-muted border border-border rounded-lg hover:text-foreground transition-colors">Anuluj</button>
-              <button onClick={saveAddTurnus} disabled={addTurnusSaving || !addTurnusForm.date_start || !addTurnusForm.date_end} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-white bg-foreground rounded-lg hover:bg-stone-700 transition-colors disabled:opacity-50">
-                {addTurnusSaving ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
-                {addTurnusSaving ? "Dodawanie..." : "Dodaj turnus"}
-              </button>
-            </div>
-          </div>
         </div>
       )}
 
@@ -1455,23 +874,18 @@ export default function AdminCampsPage() {
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <div>
                 <h2 className="text-[15px] font-bold text-foreground">Wklej dane</h2>
-                <p className="text-[11px] text-muted mt-0.5">Wklej tabele z Excela, Google Sheets lub DataFrame</p>
+                <p className="text-[11px] text-muted mt-0.5">Wklej tabelę z Excela, Google Sheets lub dane JSON/DataFrame</p>
               </div>
-              <button onClick={() => { setPasteModal(false); setPasteText(""); setPastePreview([]); setPasteHeaders([]); }} className="p-1.5 rounded hover:bg-accent text-muted transition-colors">
+              <button onClick={() => { setPasteModal(false); setPasteText(""); setPasteHeaders([]); setPastePreview([]); }} className="p-1.5 rounded hover:bg-accent text-muted transition-colors">
                 <X size={16} />
               </button>
             </div>
-
             <div className="px-5 py-4 overflow-y-auto flex-1 space-y-4">
               <textarea
                 className="w-full h-40 px-3 py-2 rounded-lg border border-border text-[12px] font-mono bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30 resize-none"
                 value={pasteText}
-                onChange={(e) => {
-                  setPasteText(e.target.value);
-                  parsePastedData(e.target.value);
-                }}
+                onChange={(e) => { setPasteText(e.target.value); parsePastedData(e.target.value); }}
               />
-
               {pasteHeaders.length > 0 && (
                 <div>
                   <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Rozpoznane kolumny</p>
@@ -1480,17 +894,16 @@ export default function AdminCampsPage() {
                       const field = resolveField(h);
                       return (
                         <span key={h} className={cn("px-2 py-0.5 rounded-full text-[10px] font-medium", field ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700")}>
-                          {h} {field ? `-> ${field}` : "(pominieta)"}
+                          {h} {field ? `-> ${field}` : "(pominięta)"}
                         </span>
                       );
                     })}
                   </div>
                 </div>
               )}
-
               {pastePreview.length > 0 && (
                 <div>
-                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Podglad ({pastePreview.length} wierszy)</p>
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Podgląd ({pastePreview.length} wierszy)</p>
                   <div className="overflow-x-auto rounded-lg border border-border">
                     <table className="w-full text-[11px]">
                       <thead>
@@ -1504,7 +917,7 @@ export default function AdminCampsPage() {
                         {pastePreview.slice(0, 5).map((row, i) => (
                           <tr key={i} className="border-t border-border/50">
                             {pasteHeaders.filter((h) => resolveField(h)).map((h) => (
-                              <td key={h} className="px-2.5 py-1.5 text-foreground max-w-[200px] truncate">{row[h] || <span className="text-muted/40">-</span>}</td>
+                              <td key={h} className="px-2.5 py-1.5 text-foreground max-w-[220px] truncate">{row[h] || <span className="text-muted/40">—</span>}</td>
                             ))}
                           </tr>
                         ))}
@@ -1514,14 +927,11 @@ export default function AdminCampsPage() {
                 </div>
               )}
             </div>
-
             <div className="px-5 py-4 border-t border-border flex items-center justify-between">
-              <p className="text-[11px] text-muted">Kolonie zostana dodane jako Draft</p>
+              <p className="text-[11px] text-muted">Kolonie zostaną dodane jako Draft.</p>
               <div className="flex items-center gap-2">
                 {importing && <span className="text-[11px] text-muted">{importProgress.done}/{importProgress.total}</span>}
-                <button onClick={() => { setPasteModal(false); setPasteText(""); setPastePreview([]); setPasteHeaders([]); }} className="px-3 py-1.5 text-[12px] font-medium text-muted border border-border rounded-lg hover:text-foreground transition-colors">
-                  Anuluj
-                </button>
+                <button onClick={() => { setPasteModal(false); setPasteText(""); setPasteHeaders([]); setPastePreview([]); }} className="px-3 py-1.5 text-[12px] font-medium text-muted border border-border rounded-lg hover:text-foreground transition-colors">Anuluj</button>
                 <button
                   onClick={runPasteImport}
                   disabled={importing || pastePreview.length === 0 || !pasteHeaders.some((h) => resolveField(h) === "title")}
