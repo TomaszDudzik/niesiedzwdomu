@@ -5,7 +5,7 @@ import {
   Plus, Pencil, Trash2, RefreshCw,
   ChevronDown, ChevronUp, X,
   Loader2, Save, ExternalLink,
-  ImagePlus, Star, ClipboardPaste, Upload, MapPin,
+  Star, ClipboardPaste, Upload, MapPin,
 } from "lucide-react";
 import { CATEGORY_ICONS, CATEGORY_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
 import { cn, formatDateShort, formatPrice, slugify } from "@/lib/utils";
@@ -30,7 +30,6 @@ function AdminCanonicalEventsPanel() {
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
   const [editing, setEditing] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Record<string, unknown>>({});
-  const [generatingImage, setGeneratingImage] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingPreview, setPendingPreview] = useState<string | null>(null);
@@ -557,33 +556,6 @@ function AdminCanonicalEventsPanel() {
     }
   };
 
-  const generateImage = async (event: Event) => {
-    setGeneratingImage(event.id);
-    try {
-      const res = await fetch("/api/admin/generate-image", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: event.id,
-          title: event.title,
-          description: event.description_short,
-          category: event.category,
-          target: "events",
-        }),
-      });
-      const data = await res.json();
-      if (data.image_url) {
-        const bustUrl = `${data.image_url.split("?")[0]}?t=${Date.now()}`;
-        setEvents((prev) => prev.map((item) => (item.id === event.id ? { ...item, image_url: bustUrl } : item)));
-      } else {
-        alert(`Błąd: ${data.error || "Nie udało się"}`);
-      }
-    } catch {
-      alert("Błąd połączenia");
-    }
-    setGeneratingImage(null);
-  };
-
   const handleFileSelect = (file: File) => {
     if (pendingPreview) URL.revokeObjectURL(pendingPreview);
     setPendingFile(file);
@@ -1007,10 +979,6 @@ function AdminCanonicalEventsPanel() {
                                       {pendingPreview ? "Zmień plik" : "Wgraj plik"}
                                       <input type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleFileSelect(file); e.target.value = ""; }} />
                                     </label>
-                                    <button onClick={() => generateImage(event)} disabled={generatingImage === event.id} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-muted border border-border rounded hover:text-foreground hover:border-primary/30 transition-colors disabled:opacity-50">
-                                      {generatingImage === event.id ? <Loader2 size={11} className="animate-spin" /> : <ImagePlus size={11} />}
-                                      {generatingImage === event.id ? "Generowanie..." : "Generuj AI"}
-                                    </button>
                                   </div>
                                   {pendingPreview && <span className="text-[10px] text-primary font-medium">Nowy plik — zapisz aby wgrać</span>}
                                 </div>

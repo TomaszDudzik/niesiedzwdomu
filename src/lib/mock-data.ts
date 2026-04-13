@@ -1,6 +1,6 @@
 import type {
   Event, Camp, Place, DiscoveryItem,
-  EventCategory, CampType, CampSeason, PlaceType, ContentType, ActivityType,
+  EventCategory, CampType, CampCategory, CampSeason, PlaceType, ContentType, ActivityType,
 } from "@/types/database";
 
 // ============================================
@@ -182,6 +182,7 @@ export const mockCamps: Camp[] = [
     age_min: 8, age_max: 14, price: 2800, is_free: false,
     district: "Inne", venue_name: "Ośrodek Przygoda", venue_address: "Pcim, okolice Krakowa",
     organizer: "Fundacja AktywniRodzice", source_url: null, facebook_url: null,
+    category: "przygodowa", lat: null, lng: null,
     is_featured: true, status: "published", likes: 42, dislikes: 1,
     created_at: "2024-02-01T10:00:00Z", updated_at: "2024-02-01T10:00:00Z",
   },
@@ -198,6 +199,7 @@ export const mockCamps: Camp[] = [
     age_min: 5, age_max: 10, price: 650, is_free: false,
     district: "Kazimierz", venue_name: "Pracownia ArtKids", venue_address: "ul. Józefa 24, Kraków",
     organizer: "ArtKids Kraków", source_url: null, facebook_url: null,
+    category: "artystyczna", lat: null, lng: null,
     is_featured: true, status: "published", likes: 35, dislikes: 0,
     created_at: "2024-02-05T10:00:00Z", updated_at: "2024-02-05T10:00:00Z",
   },
@@ -214,6 +216,7 @@ export const mockCamps: Camp[] = [
     age_min: 7, age_max: 12, price: 750, is_free: false,
     district: "Krowodrza", venue_name: "Centrum Nauki FunLab", venue_address: "ul. Lea 12, Kraków",
     organizer: "FunLab Edukacja", source_url: null, facebook_url: null,
+    category: "edukacyjna", lat: null, lng: null,
     is_featured: false, status: "published", likes: 28, dislikes: 2,
     created_at: "2024-02-03T10:00:00Z", updated_at: "2024-02-03T10:00:00Z",
   },
@@ -230,6 +233,7 @@ export const mockCamps: Camp[] = [
     age_min: 6, age_max: 13, price: 800, is_free: false,
     district: "Nowa Huta", venue_name: "Stadion Hutnika", venue_address: "ul. Ptaszyckiego 4, Kraków",
     organizer: "Akademia Młodych Orłów", source_url: null, facebook_url: null,
+    category: "sportowa", lat: null, lng: null,
     is_featured: false, status: "published", likes: 19, dislikes: 0,
     created_at: "2024-02-04T10:00:00Z", updated_at: "2024-02-04T10:00:00Z",
   },
@@ -246,6 +250,7 @@ export const mockCamps: Camp[] = [
     age_min: 8, age_max: 14, price: 350, is_free: false,
     district: "Stare Miasto", venue_name: "Centrum Kultury Rotunda", venue_address: "ul. Oleandry 1, Kraków",
     organizer: "Teatr Młodych", source_url: null, facebook_url: null,
+    category: "artystyczna", lat: null, lng: null,
     is_featured: false, status: "published", likes: 14, dislikes: 0,
     created_at: "2024-02-06T10:00:00Z", updated_at: "2024-02-06T10:00:00Z",
   },
@@ -262,6 +267,7 @@ export const mockCamps: Camp[] = [
     age_min: 6, age_max: 11, price: 600, is_free: false,
     district: "Stare Miasto", venue_name: "Dom Kultury Pod Lipami", venue_address: "ul. Krupnicza 8, Kraków",
     organizer: "EduFun Kraków", source_url: null, facebook_url: null,
+    category: "edukacyjna", lat: null, lng: null,
     is_featured: false, status: "published", likes: 8, dislikes: 0,
     created_at: "2024-02-07T10:00:00Z", updated_at: "2024-02-07T10:00:00Z",
   },
@@ -454,6 +460,15 @@ export const CATEGORY_ICONS: Record<EventCategory, string> = {
 // Camp type labels
 export const CAMP_TYPE_LABELS: Record<CampType, string> = {
   kolonie: "Kolonie", polkolonie: "Półkolonie", warsztaty_wakacyjne: "Warsztaty wakacyjne",
+};
+
+export const CAMP_CATEGORY_LABELS: Record<CampCategory, string> = {
+  sportowa: "Sportowa", edukacyjna: "Edukacyjna", integracyjna: "Integracyjna",
+  przygodowa: "Przygodowa", artystyczna: "Artystyczna",
+};
+
+export const CAMP_CATEGORY_ICONS: Record<CampCategory, string> = {
+  sportowa: "⚽", edukacyjna: "📚", integracyjna: "🤝", przygodowa: "🏕️", artystyczna: "🎨",
 };
 
 export const CAMP_TYPE_ICONS: Record<CampType, string> = {

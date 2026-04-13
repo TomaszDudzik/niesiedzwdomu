@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from "react";
 import {
   Trash2, Pencil, Loader2, RefreshCw,
-  ExternalLink, ImagePlus, Save, X, Upload, XCircle, MapPin, Plus, ClipboardPaste, ChevronDown, ChevronRight, Star,
+  ExternalLink, Save, X, Upload, XCircle, MapPin, Plus, ClipboardPaste, ChevronDown, ChevronRight, Star,
 } from "lucide-react";
 import { PLACE_TYPE_LABELS, PLACE_TYPE_ICONS, DISTRICT_LIST } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
@@ -18,7 +18,6 @@ export default function AdminPlacesPage() {
   const [expanded] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Record<string, unknown>>({});
-  const [generatingImage, setGeneratingImage] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingPreview, setPendingPreview] = useState<string | null>(null);
@@ -393,31 +392,6 @@ export default function AdminPlacesPage() {
 
   const updateField = (key: string, value: unknown) => {
     setEditForm((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const generateImage = async (place: Place) => {
-    setGeneratingImage(place.id);
-    try {
-      const res = await fetch("/api/admin/generate-image", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: place.id,
-          title: place.title,
-          description_short: place.description_short,
-          description_long: place.description_long,
-          target: "places",
-        }),
-      });
-      const data = await res.json();
-      if (data.image_url) {
-        const bustUrl = `${data.image_url.split("?")[0]}?t=${Date.now()}`;
-        setPlaces((prev) => prev.map((p) => p.id === place.id ? { ...p, image_url: bustUrl } : p));
-      } else {
-        alert(`Błąd: ${data.error || "Nie udało się"}`);
-      }
-    } catch { alert("Błąd połączenia"); }
-    setGeneratingImage(null);
   };
 
   const handleFileSelect = (file: File) => {
@@ -807,11 +781,6 @@ export default function AdminPlacesPage() {
                             <input type="file" accept="image/*" className="hidden"
                               onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); e.target.value = ""; }} />
                           </label>
-                          <button onClick={() => generateImage(place)} disabled={generatingImage === place.id}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-muted border border-border rounded hover:text-foreground hover:border-primary/30 transition-colors disabled:opacity-50">
-                            {generatingImage === place.id ? <Loader2 size={11} className="animate-spin" /> : <ImagePlus size={11} />}
-                            {generatingImage === place.id ? "Generowanie..." : "Generuj AI"}
-                          </button>
                         </div>
                         {pendingPreview && (
                           <span className="text-[10px] text-primary font-medium">Nowy plik — zapisz aby wgrać</span>

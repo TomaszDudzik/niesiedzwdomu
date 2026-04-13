@@ -6,7 +6,6 @@ import {
   ChevronRight,
   ClipboardPaste,
   ExternalLink,
-  ImagePlus,
   Loader2,
   MapPin,
   Pencil,
@@ -235,7 +234,6 @@ export default function AdminActivitiesPage() {
   const [importProgress, setImportProgress] = useState({ done: 0, total: 0 });
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingPreview, setPendingPreview] = useState<string | null>(null);
-  const [generatingImage, setGeneratingImage] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState<string | null>(null);
   const [geocoding, setGeocoding] = useState(false);
 
@@ -495,25 +493,6 @@ export default function AdminActivitiesPage() {
     if (pendingPreview) URL.revokeObjectURL(pendingPreview);
     setPendingFile(null);
     setPendingPreview(null);
-  };
-
-  const generateImage = async (activity: Activity) => {
-    setGeneratingImage(activity.id);
-    try {
-      const res = await fetch("/api/admin/generate-image", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: activity.id, title: activity.title, description: activity.description_short, target: "activities" }),
-      });
-      const data = await res.json();
-      if (data.image_url) {
-        const bustUrl = `${data.image_url.split("?")[0]}?t=${Date.now()}`;
-        setActivities((prev) => prev.map((item) => (item.id === activity.id ? { ...item, image_url: bustUrl } : item)));
-      }
-    } catch {
-      alert("Błąd generowania obrazka");
-    }
-    setGeneratingImage(null);
   };
 
   const geocodeAddress = async () => {
@@ -968,10 +947,6 @@ export default function AdminActivitiesPage() {
                                         {pendingPreview ? "Zmień plik" : "Wgraj plik"}
                                         <input type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleFileSelect(file); e.target.value = ""; }} />
                                       </label>
-                                      <button onClick={() => generateImage(activity)} disabled={generatingImage === activity.id} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-muted border border-border rounded hover:text-foreground hover:border-primary/30 transition-colors disabled:opacity-50">
-                                        {generatingImage === activity.id ? <Loader2 size={11} className="animate-spin" /> : <ImagePlus size={11} />}
-                                        {generatingImage === activity.id ? "Generowanie..." : "Generuj AI"}
-                                      </button>
                                     </div>
                                     {pendingPreview && <span className="text-[10px] text-primary font-medium">Nowy plik — zapisz aby wgrać</span>}
                                   </div>

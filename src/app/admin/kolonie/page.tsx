@@ -17,14 +17,121 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { CAMP_TYPE_ICONS, CAMP_TYPE_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
+import { CAMP_CATEGORY_LABELS, CAMP_TYPE_ICONS, CAMP_TYPE_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
 import { cn, formatDateShort, formatPrice } from "@/lib/utils";
 import type { Camp, Organizer } from "@/types/database";
 
 const MiniMapLazy = lazy(() => import("../miejsca/mini-map").then((m) => ({ default: m.MiniMap })));
 
+// ── Constants (outside component to avoid re-creation on every render) ─────
+
 type DerivedCampStatus = Camp["status"] | "outdated";
 type CampListFilter = "all" | "published" | "draft" | "outdated";
+
+const STATUS_ORDER: Record<DerivedCampStatus, number> = {
+  draft: 0, published: 1, outdated: 2, cancelled: 3, deleted: 4,
+};
+
+const inputClass = "w-full px-2 py-1.5 rounded-md border border-border text-[12px] bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30";
+const labelClass = "block text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1";
+
+const FIELD_ALIASES: Record<string, string[]> = {
+  title:               ["title", "tytul", "tytuł", "nazwa", "nazwa turnusu", "nazwa_polkolonii"],
+  description_short:   ["description_short", "krotki opis", "krótki opis", "tematyka", "temat", "program"],
+  description_long:    ["description_long", "dlugi opis", "długi opis"],
+  camp_type:           ["camp_type", "typ", "rodzaj", "typ_oferty", "type"],
+  category:            ["category", "kategoria", "kategoria_obozu", "camp_subtype", "podtyp"],
+  date_start:          ["date_start", "termin_od", "data od", "od"],
+  date_end:            ["date_end", "termin_do", "data do", "do"],
+  duration_days:       ["duration_days", "dni", "liczba dni", "czas trwania"],
+  age_min:             ["age_min", "wiek_od", "wiek od"],
+  age_max:             ["age_max", "wiek_do", "wiek do"],
+  price:               ["price", "cena", "cena_za_tydzien", "cena_za_tydzien (pln, jesli dostepna)", "cena_za_tydzien (PLN, jeśli dostępna)"],
+  price_from:          ["price_from", "cena_od", "cena od"],
+  price_to:            ["price_to", "cena_do", "cena do"],
+  is_free:             ["is_free", "bezplatne", "bezpłatne", "darmowe"],
+  meals_included:      ["meals_included", "wyzywienie", "wyzywienie (tak/nie/brak danych)", "jedzenie"],
+  transport_included:  ["transport_included", "transport", "dojazd", "dowoz", "dowóz"],
+  organizer:           ["organizer", "organizator"],
+  source_url:          ["source_url", "url", "link", "link_zrodlowy"],
+  facebook_url:        ["facebook_url", "facebook", "fb", "facebook page"],
+  venue_name:          ["venue_name", "miejsce", "nazwa miejsca"],
+  venue_address:       ["venue_address", "adres", "address", "lokalizacja", "ulica"],
+  city:                ["city", "miasto", "places"],
+  care_hours:          ["care_hours", "godziny_opieki", "godziny", "hours"],
+  seats:               ["seats", "liczba_miejsc", "liczba_miejsc (jesli dostepna)", "liczba_miejsc (jeśli dostępna)", "miejsca"],
+};
+
+const CATEGORY_ALIASES: Record<string, Camp["category"]> = {
+  sport: "sportowa", sportowa: "sportowa", sportowy: "sportowa",
+  edukacja: "edukacyjna", edukacyjna: "edukacyjna", edukacyjny: "edukacyjna",
+  integracja: "integracyjna", integracyjna: "integracyjna", integracyjny: "integracyjna",
+  przygoda: "przygodowa", przygodowa: "przygodowa", przygodowy: "przygodowa",
+  artystyczna: "artystyczna", artystyczny: "artystyczna", art: "artystyczna", sztuka: "artystyczna",
+};
+
+function resolveField(header: string): string | null {
+  const key = header.toLowerCase().trim();
+  for (const [field, aliases] of Object.entries(FIELD_ALIASES)) {
+    if (aliases.some((a) => a.toLowerCase() === key)) return field;
+  }
+  return null;
+}
+
+function mapCampRow(row: Record<string, unknown>): Camp {
+  const priceFrom = typeof row.price_from === "number" ? row.price_from : null;
+  const priceSingle = typeof row.price === "number" ? row.price : null;
+  return { ...row, content_type: "camp", price: priceFrom ?? priceSingle ?? null } as Camp;
+}
+
+function asNumber(v?: string): number | null {
+  if (!v) return null;
+  const n = Number(String(v).replace(/,/g, ".").replace(/[^0-9.\-]/g, ""));
+  return Number.isFinite(n) ? n : null;
+}
+
+function inferCategory(raw: string | undefined): Camp["category"] {
+  if (!raw) return null;
+  return CATEGORY_ALIASES[raw.toLowerCase().trim()] ?? null;
+}
+
+function inferCampType(mappedType: string | undefined, title: string): Camp["camp_type"] {
+  const t = (mappedType || "").toLowerCase();
+  const n = title.toLowerCase();
+  if (t.includes("warsztat") || n.includes("warsztat")) return "warsztaty_wakacyjne";
+  if (t.includes("polkoloni") || n.includes("polkoloni")) return "polkolonie";
+  if (t.includes("koloni") || t.includes("oboz") || n.includes("koloni") || n.includes("oboz")) return "kolonie";
+  return "polkolonie";
+}
+
+function inferSeason(dateStart?: string): Camp["season"] {
+  if (!dateStart) return "caly_rok";
+  const m = new Date(dateStart).getMonth() + 1;
+  if ([6, 7, 8].includes(m)) return "lato";
+  if ([12, 1, 2].includes(m)) return "zima";
+  return "caly_rok";
+}
+
+function calcDurationDays(from?: string, to?: string): number {
+  if (!from || !to) return 5;
+  const diff = Math.round((new Date(to).getTime() - new Date(from).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  return Number.isFinite(diff) && diff > 0 ? diff : 5;
+}
+
+function detectDistrict(location: string): Camp["district"] {
+  const hit = DISTRICT_LIST.find((d) => location.toLowerCase().includes(d.toLowerCase()));
+  return (hit || "Inne") as Camp["district"];
+}
+
+function splitAddress(venueAddress: string) {
+  const parts = venueAddress.split(",").map((p) => p.trim()).filter(Boolean);
+  return {
+    street: parts.length >= 2 ? parts.slice(0, -1).join(", ") : parts[0] || "",
+    city:   parts.length >= 2 ? parts[parts.length - 1] : "Kraków",
+  };
+}
+
+// ── Component ───────────────────────────────────────────────────────────────
 
 export default function AdminCampsPage() {
   const [camps, setCamps] = useState<Camp[]>([]);
@@ -49,23 +156,13 @@ export default function AdminCampsPage() {
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState({ done: 0, total: 0 });
 
-  const mapCampRow = (row: Record<string, unknown>): Camp => {
-    const priceFrom = typeof row.price_from === "number" ? row.price_from : null;
-    const priceSingle = typeof row.price === "number" ? row.price : null;
-    return {
-      ...row,
-      content_type: "camp",
-      price: priceFrom ?? priceSingle ?? null,
-    } as Camp;
-  };
+  // ── Data fetching ──────────────────────────────────────────────────────────
 
   const fetchCamps = useCallback(async () => {
     setLoading(true);
     const res = await fetch("/api/admin/camps");
     const data = await res.json();
-    if (Array.isArray(data)) {
-      setCamps(data.map((c: Record<string, unknown>) => mapCampRow(c)));
-    }
+    if (Array.isArray(data)) setCamps(data.map((c: Record<string, unknown>) => mapCampRow(c)));
     setLoading(false);
   }, []);
 
@@ -77,16 +174,14 @@ export default function AdminCampsPage() {
       .then((data) => { if (Array.isArray(data)) setOrganizers(data); });
   }, []);
 
+  // ── Derived state ──────────────────────────────────────────────────────────
+
   const getEffectiveStatus = useCallback((camp: Camp): DerivedCampStatus => {
     const today = new Date().toISOString().slice(0, 10);
-    const endDate = camp.date_end ? camp.date_end.slice(0, 10) : null;
-    if (camp.status === "published" && endDate && endDate < today) return "outdated";
+    const end = camp.date_end ? camp.date_end.slice(0, 10) : null;
+    if (camp.status === "published" && end && end < today) return "outdated";
     return camp.status;
   }, []);
-
-  const statusOrder: Record<DerivedCampStatus, number> = {
-    draft: 0, published: 1, outdated: 2, cancelled: 3, deleted: 4,
-  };
 
   const filteredCamps = useMemo(() => {
     const scoped = typeFilter ? camps.filter((c) => c.camp_type === typeFilter) : camps;
@@ -102,24 +197,23 @@ export default function AdminCampsPage() {
       items: filteredCamps
         .filter((c) => c.camp_type === type)
         .sort((a, b) => {
-          const sd = statusOrder[getEffectiveStatus(a)] - statusOrder[getEffectiveStatus(b)];
-          if (sd !== 0) return sd;
-          return a.title.localeCompare(b.title, "pl");
+          const sd = STATUS_ORDER[getEffectiveStatus(a)] - STATUS_ORDER[getEffectiveStatus(b)];
+          return sd !== 0 ? sd : a.title.localeCompare(b.title, "pl");
         }),
     }));
   }, [filteredCamps, getEffectiveStatus]);
 
   const publishedCount = useMemo(() => camps.filter((c) => getEffectiveStatus(c) === "published").length, [camps, getEffectiveStatus]);
-  const draftCount = useMemo(() => camps.filter((c) => { const s = getEffectiveStatus(c); return s === "draft" || s === "cancelled"; }).length, [camps, getEffectiveStatus]);
+  const draftCount    = useMemo(() => camps.filter((c) => { const s = getEffectiveStatus(c); return s === "draft" || s === "cancelled"; }).length, [camps, getEffectiveStatus]);
   const outdatedCount = useMemo(() => camps.filter((c) => getEffectiveStatus(c) === "outdated").length, [camps, getEffectiveStatus]);
 
   const sectionStats = useMemo(() => Object.fromEntries(
     Object.keys(CAMP_TYPE_LABELS).map((type) => {
       const tc = camps.filter((c) => c.camp_type === type);
       return [type, {
-        all: tc.length,
+        all:      tc.length,
         published: tc.filter((c) => getEffectiveStatus(c) === "published").length,
-        draft: tc.filter((c) => { const s = getEffectiveStatus(c); return s === "draft" || s === "cancelled"; }).length,
+        draft:    tc.filter((c) => { const s = getEffectiveStatus(c); return s === "draft" || s === "cancelled"; }).length,
         outdated: tc.filter((c) => getEffectiveStatus(c) === "outdated").length,
       }];
     })
@@ -129,9 +223,16 @@ export default function AdminCampsPage() {
     () => groupedByType.filter(({ type }) => !typeFilter || type === typeFilter).map(({ type }) => type),
     [groupedByType, typeFilter]
   );
-  const hasExpandedCategories = useMemo(() => displayedTypeKeys.some((t) => !collapsedCategories[t]), [displayedTypeKeys, collapsedCategories]);
+  const hasExpandedCategories = useMemo(
+    () => displayedTypeKeys.some((t) => !collapsedCategories[t]),
+    [displayedTypeKeys, collapsedCategories]
+  );
 
-  const toggleCategory = (type: string) => setCollapsedCategories((prev) => ({ ...prev, [type]: !prev[type] }));
+  // ── Filter / collapse helpers ──────────────────────────────────────────────
+
+  const toggleCategory = (type: string) =>
+    setCollapsedCategories((prev) => ({ ...prev, [type]: !prev[type] }));
+
   const toggleAllCategories = () => {
     if (displayedTypeKeys.length === 0) return;
     setCollapsedCategories(Object.fromEntries(displayedTypeKeys.map((t) => [t, hasExpandedCategories])));
@@ -161,84 +262,35 @@ export default function AdminCampsPage() {
     setCollapsedCategories((prev) => ({ ...prev, [type]: false }));
   };
 
-  // ── FIELD ALIASES ──────────────────────────────────────────────────────────
-  const FIELD_ALIASES: Record<string, string[]> = {
-    title: ["title", "tytul", "tytuł", "nazwa", "nazwa turnusu", "nazwa_polkolonii"],
-    description_short: ["description_short", "krotki opis", "krótki opis", "tematyka", "temat", "program"],
-    description_long: ["description_long", "dlugi opis", "długi opis"],
-    camp_type: ["camp_type", "typ", "rodzaj", "typ_oferty", "type"],
-    date_start: ["date_start", "termin_od", "data od", "od"],
-    date_end: ["date_end", "termin_do", "data do", "do"],
-    duration_days: ["duration_days", "dni", "liczba dni", "czas trwania"],
-    age_min: ["age_min", "wiek_od", "wiek od"],
-    age_max: ["age_max", "wiek_do", "wiek do"],
-    price: ["price", "cena", "cena_za_tydzien", "cena_za_tydzien (pln, jesli dostepna)", "cena_za_tydzien (PLN, jeśli dostępna)"],
-    price_from: ["price_from", "cena_od", "cena od"],
-    price_to: ["price_to", "cena_do", "cena do"],
-    organizer: ["organizer", "organizator"],
-    source_url: ["source_url", "url", "link", "link_zrodlowy"],
-    facebook_url: ["facebook_url", "facebook", "fb", "facebook page"],
-    venue_name: ["venue_name", "miejsce", "nazwa miejsca"],
-    venue_address: ["venue_address", "adres", "address", "lokalizacja"],
-    meals_included: ["meals_included", "wyzywienie", "wyzywienie (tak/nie/brak danych)"],
-    care_hours: ["godziny_opieki", "godziny", "hours"],
-    seats: ["liczba_miejsc", "liczba_miejsc (jesli dostepna)", "liczba_miejsc (jeśli dostępna)", "miejsca"],
-  };
+  // ── Paste import ───────────────────────────────────────────────────────────
 
-  const resolveField = (header: string): string | null => {
-    const key = header.toLowerCase().trim();
-    for (const [field, aliases] of Object.entries(FIELD_ALIASES)) {
-      if (aliases.some((a) => a.toLowerCase() === key)) return field;
-    }
-    return null;
-  };
-
-  const asNumber = (v?: string): number | null => {
-    if (!v) return null;
-    const n = Number(String(v).replace(/,/g, ".").replace(/[^0-9.\-]/g, ""));
-    return Number.isFinite(n) ? n : null;
-  };
-
-  const detectDistrict = (location: string): Camp["district"] => {
-    const hit = DISTRICT_LIST.find((d) => location.toLowerCase().includes(d.toLowerCase()));
-    return (hit || "Inne") as Camp["district"];
-  };
-
-  const inferSeason = (dateStart?: string): Camp["season"] => {
-    if (!dateStart) return "caly_rok";
-    const m = new Date(dateStart).getMonth() + 1;
-    if ([6, 7, 8].includes(m)) return "lato";
-    if ([12, 1, 2].includes(m)) return "zima";
-    return "caly_rok";
-  };
-
-  const inferCampType = (mappedType: string | undefined, title: string): Camp["camp_type"] => {
-    const t = (mappedType || "").toLowerCase();
-    const n = title.toLowerCase();
-    if (t.includes("warsztat") || n.includes("warsztat")) return "warsztaty_wakacyjne";
-    if (t.includes("oboz") || t.includes("koloni") || n.includes("oboz") || n.includes("koloni")) return "kolonie";
-    return "polkolonie";
-  };
-
-  const calcDurationDays = (from?: string, to?: string): number => {
-    if (!from || !to) return 5;
-    const diff = Math.round((new Date(to).getTime() - new Date(from).getTime()) / (1000 * 60 * 60 * 24)) + 1;
-    return Number.isFinite(diff) && diff > 0 ? diff : 5;
-  };
-
-  // ── PASTE IMPORT ───────────────────────────────────────────────────────────
   const parsePastedData = (text: string) => {
     const trimmed = text.trim();
     if (!trimmed) { setPasteHeaders([]); setPastePreview([]); return; }
 
+    // Remove literal newlines inside JSON/Python string values (e.g. URLs with trailing \n before closing quote)
+    const fixLiteralNewlines = (s: string) => {
+      let r = "", inStr = false, esc = false;
+      for (const c of s) {
+        if (esc) { r += c; esc = false; }
+        else if (c === "\\" && inStr) { r += c; esc = true; }
+        else if (c === '"') { inStr = !inStr; r += c; }
+        else if (inStr && (c === "\n" || c === "\r")) { /* drop literal newlines inside strings */ }
+        else r += c;
+      }
+      return r;
+    };
+
     const structMatch = trimmed.match(/[\[{][\s\S]*[\]}]/);
     if (structMatch) {
-      const raw = structMatch[0].replace(/#[^\n]*/g, "").replace(/<NA>/g, "null").replace(/\bNaN\b/g, "null");
+      const raw = fixLiteralNewlines(structMatch[0]
+        .replace(/#[^\n]*/g, "")
+        .replace(/<NA>/g, "null")
+        .replace(/\bNaN\b/g, "null"));
 
-      const pythonLikeToJson = (input: string) => {
+      const pythonToJson = (input: string) => {
         let out = ""; let inSingle = false; let escaped = false;
-        for (let i = 0; i < input.length; i++) {
-          const ch = input[i];
+        for (const ch of input) {
           if (inSingle) {
             if (escaped) { out += ch; escaped = false; continue; }
             if (ch === "\\") { out += "\\\\"; escaped = true; continue; }
@@ -252,9 +304,11 @@ export default function AdminCampsPage() {
         return out;
       };
 
-      for (const attempt of [raw, pythonLikeToJson(raw)]) {
+      for (const attempt of [raw, pythonToJson(raw)]) {
         try {
-          const obj = JSON.parse(attempt.replace(/\bTrue\b/g, "true").replace(/\bFalse\b/g, "false").replace(/\bNone\b/g, "null"));
+          const obj = JSON.parse(
+            attempt.replace(/\bTrue\b/g, "true").replace(/\bFalse\b/g, "false").replace(/\bNone\b/g, "null")
+          );
           if (Array.isArray(obj) && obj.length > 0 && typeof obj[0] === "object") {
             const headers = [...new Set(obj.flatMap((o: Record<string, unknown>) => Object.keys(o)))];
             setPasteHeaders(headers);
@@ -273,12 +327,14 @@ export default function AdminCampsPage() {
     if (lines.length < 2) { setPasteHeaders([]); setPastePreview([]); return; }
     const sep = lines[0].includes("\t") ? "\t" : lines[0].includes(";") ? ";" : ",";
     const headers = lines[0].split(sep).map((h) => h.trim().replace(/^"|"$/g, ""));
-    const rows = lines.slice(1).map((line) => {
-      const vals = line.split(sep).map((v) => v.trim().replace(/^"|"$/g, ""));
-      const row: Record<string, string> = {};
-      headers.forEach((h, i) => { row[h] = vals[i] || ""; });
-      return row;
-    }).filter((r) => Object.values(r).some(Boolean));
+    const rows = lines.slice(1)
+      .map((line) => {
+        const vals = line.split(sep).map((v) => v.trim().replace(/^"|"$/g, ""));
+        const row: Record<string, string> = {};
+        headers.forEach((h, i) => { row[h] = vals[i] || ""; });
+        return row;
+      })
+      .filter((r) => Object.values(r).some(Boolean));
     setPasteHeaders(headers);
     setPastePreview(rows);
   };
@@ -296,49 +352,101 @@ export default function AdminCampsPage() {
         const field = resolveField(header);
         if (field) mapped[field] = row[header] || "";
       }
+
       if (!mapped.title) { setImportProgress({ done: i + 1, total: pastePreview.length }); continue; }
 
-      const dateStart = mapped.date_start || new Date().toISOString().slice(0, 10);
-      const dateEnd = mapped.date_end || dateStart;
-      const priceFrom = asNumber(mapped.price_from) ?? asNumber(mapped.price);
-      const priceTo = asNumber(mapped.price_to);
-      const shortDesc = mapped.description_short || "Opis oferty";
-      const careHours = mapped.care_hours ? `Godziny opieki: ${mapped.care_hours}.` : "";
-      const seats = mapped.seats ? `Liczba miejsc: ${mapped.seats}.` : "";
-      const longDesc = mapped.description_long || `${shortDesc}${careHours ? ` ${careHours}` : ""}${seats ? ` ${seats}` : ""}`.trim();
+      const dateStart  = mapped.date_start || new Date().toISOString().slice(0, 10);
+      const dateEnd    = mapped.date_end || dateStart;
+      const priceFrom  = asNumber(mapped.price_from) ?? asNumber(mapped.price);
+      const priceTo    = asNumber(mapped.price_to);
+      const shortDesc  = mapped.description_short || "Opis oferty";
+      const careHours  = mapped.care_hours ? `Godziny opieki: ${mapped.care_hours}.` : "";
+      const seats      = mapped.seats ? `Liczba miejsc: ${mapped.seats}.` : "";
+      const longDesc   = mapped.description_long || `${shortDesc}${careHours ? ` ${careHours}` : ""}${seats ? ` ${seats}` : ""}`.trim();
+      const venueAddress = mapped.venue_address?.trim() || "";
+      const cityHint   = mapped.city?.trim() || "";
+      const organizerName = mapped.organizer || mapped.venue_name || "Organizator";
+      const matchedOrg = organizers.find((o) => o.name.toLowerCase() === organizerName.toLowerCase());
 
       try {
+        // Step 1 — create camp with core data
         const res = await fetch("/api/admin/camps", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            title: mapped.title.trim(),
+            title:            mapped.title.trim(),
             description_short: shortDesc,
-            description_long: longDesc,
-            image_url: null,
-            date_start: dateStart,
-            date_end: dateEnd,
-            camp_type: inferCampType(mapped.camp_type, mapped.title),
-            season: inferSeason(dateStart),
-            duration_days: asNumber(mapped.duration_days) || calcDurationDays(dateStart, dateEnd),
-            meals_included: ["tak", "true", "1"].includes((mapped.meals_included || "").toLowerCase()),
-            transport_included: false,
-            age_min: asNumber(mapped.age_min),
-            age_max: asNumber(mapped.age_max),
-            price: null, price_from: priceFrom, price_to: priceTo,
-            is_free: (priceFrom ?? priceTo ?? null) === 0,
-            district: detectDistrict(mapped.venue_address || ""),
-            venue_name: mapped.venue_name || mapped.organizer || "Miejsce",
-            venue_address: mapped.venue_address || "Krakow",
-            organizer: mapped.organizer || mapped.venue_name || "Organizator",
-            source_url: mapped.source_url || null,
-            facebook_url: mapped.facebook_url || null,
-            is_featured: false,
+            description_long:  longDesc,
+            date_start:        dateStart,
+            date_end:          dateEnd,
+            camp_type:         inferCampType(mapped.camp_type, mapped.title),
+            category:          inferCategory(mapped.category),
+            season:            inferSeason(dateStart),
+            duration_days:     asNumber(mapped.duration_days) || calcDurationDays(dateStart, dateEnd),
+            meals_included:    ["tak", "true", "1"].includes((mapped.meals_included || "").toLowerCase()),
+            transport_included: ["tak", "true", "1"].includes((mapped.transport_included || "").toLowerCase()),
+            age_min:           asNumber(mapped.age_min),
+            age_max:           asNumber(mapped.age_max),
+            price_from:        priceFrom,
+            price_to:          priceTo,
+            is_free:           ["tak", "true", "1"].includes((mapped.is_free || "").toLowerCase()) || (priceFrom ?? priceTo ?? null) === 0,
+            venue_name:        mapped.venue_name || organizerName,
+            venue_address:     venueAddress,
+            organizer:         organizerName,
+            organizer_id:      matchedOrg?.id ?? null,
+            source_url:        mapped.source_url?.trim() || null,
+            facebook_url:      mapped.facebook_url?.trim() || null,
+            is_featured:       false,
           }),
         });
         const data = await res.json();
-        if (data?.id) imported.push(mapCampRow(data));
-      } catch { /* skip */ }
+        if (!data?.id) { setImportProgress({ done: i + 1, total: pastePreview.length }); continue; }
+        imported.push(mapCampRow(data));
+
+        // Step 2 — geocode and apply district + lat/lng
+        if (venueAddress) {
+          try {
+            if (i > 0) await new Promise((r) => setTimeout(r, 1100));
+            const { street, city: addrCity } = splitAddress(venueAddress);
+            const city = addrCity !== "Kraków" ? addrCity : (cityHint || "Kraków");
+            if (street) {
+              const geoRes = await fetch("/api/admin/geocode", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ address: street, city }),
+              });
+              const geo = await geoRes.json();
+              if (geo.lat && geo.lng) {
+                const district = (geo.district || detectDistrict(venueAddress)) as Camp["district"];
+                await fetch("/api/admin/camps", {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ id: data.id, lat: geo.lat, lng: geo.lng, district }),
+                });
+                const idx = imported.findIndex((c) => c.id === data.id);
+                if (idx !== -1) imported[idx] = { ...imported[idx], lat: geo.lat, lng: geo.lng, district };
+              }
+            }
+          } catch { /* geocoding is best-effort */ }
+        }
+
+        // Step 3 — pick a random photo from the category folder
+        const campCategory = inferCategory(mapped.category);
+        if (campCategory) {
+          try {
+            const photoRes = await fetch("/api/admin/random-photo", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ id: data.id, category: campCategory }),
+            });
+            const photo = await photoRes.json();
+            if (photo.image_url) {
+              const idx = imported.findIndex((c) => c.id === data.id);
+              if (idx !== -1) imported[idx] = { ...imported[idx], image_url: photo.image_url };
+            }
+          } catch { /* photo assignment is best-effort */ }
+        }
+      } catch { /* skip row */ }
 
       setImportProgress({ done: i + 1, total: pastePreview.length });
     }
@@ -353,45 +461,44 @@ export default function AdminCampsPage() {
   };
 
   // ── CRUD ───────────────────────────────────────────────────────────────────
+
   const startEditing = (camp: Camp) => {
-    const row = camp as unknown as Record<string, unknown>;
     if (pendingPreview) URL.revokeObjectURL(pendingPreview);
     setPendingFile(null);
     setPendingPreview(null);
     setEditing(camp.id);
+    const { street, city } = splitAddress(camp.venue_address || "");
+    const row = camp as unknown as Record<string, unknown>;
     setEditForm({
-      title: camp.title,
-      description_short: camp.description_short,
-      description_long: camp.description_long,
-      camp_type: camp.camp_type,
-      season: camp.season,
-      date_start: camp.date_start,
-      date_end: camp.date_end,
-      duration_days: camp.duration_days,
-      age_min: camp.age_min,
-      age_max: camp.age_max,
-      price_from: row.price_from ?? camp.price,
-      price_to: row.price_to ?? null,
-      organizer: camp.organizer,
-      organizer_id: camp.organizer_id ?? null,
-      source_url: camp.source_url,
-      facebook_url: camp.facebook_url ?? "",
-      venue_name: camp.venue_name,
-      venue_address: camp.venue_address,
-      street: (() => {
-        const parts = (camp.venue_address || "").split(",").map((p) => p.trim()).filter(Boolean);
-        return parts.length >= 2 ? parts.slice(0, -1).join(", ") : parts[0] || "";
-      })(),
-      city: (() => {
-        const parts = (camp.venue_address || "").split(",").map((p) => p.trim()).filter(Boolean);
-        return parts.length >= 2 ? parts[parts.length - 1] : "Kraków";
-      })(),
-      district: camp.district,
-      is_free: camp.is_free,
-      is_featured: camp.is_featured,
-      meals_included: camp.meals_included,
+      title:              camp.title,
+      description_short:  camp.description_short,
+      description_long:   camp.description_long,
+      camp_type:          camp.camp_type,
+      category:           camp.category ?? null,
+      season:             camp.season,
+      date_start:         camp.date_start,
+      date_end:           camp.date_end,
+      duration_days:      camp.duration_days,
+      age_min:            camp.age_min,
+      age_max:            camp.age_max,
+      price_from:         row.price_from ?? camp.price,
+      price_to:           row.price_to ?? null,
+      organizer:          camp.organizer,
+      organizer_id:       camp.organizer_id ?? null,
+      source_url:         camp.source_url,
+      facebook_url:       camp.facebook_url ?? "",
+      venue_name:         camp.venue_name,
+      venue_address:      camp.venue_address,
+      street,
+      city,
+      district:           camp.district,
+      lat:                camp.lat ?? null,
+      lng:                camp.lng ?? null,
+      is_free:            camp.is_free,
+      is_featured:        camp.is_featured,
+      meals_included:     camp.meals_included,
       transport_included: camp.transport_included,
-      status: camp.status,
+      status:             camp.status,
     });
   };
 
@@ -419,57 +526,59 @@ export default function AdminCampsPage() {
     }
 
     const dateStart = String(editForm.date_start || "");
-    const dateEnd = String(editForm.date_end || "");
+    const dateEnd   = String(editForm.date_end || "");
     const updates: Record<string, unknown> = {
-      title: String(editForm.title || ""),
-      description_short: String(editForm.description_short || ""),
-      description_long: String(editForm.description_long || ""),
-      camp_type: editForm.camp_type,
-      season: editForm.season,
-      date_start: dateStart,
-      date_end: dateEnd,
-      duration_days: Number(editForm.duration_days) || calcDurationDays(dateStart, dateEnd),
-      age_min: editForm.age_min === "" || editForm.age_min === null ? null : Number(editForm.age_min),
-      age_max: editForm.age_max === "" || editForm.age_max === null ? null : Number(editForm.age_max),
-      price: null,
-      price_from: editForm.price_from === "" || editForm.price_from === null ? null : Number(editForm.price_from),
-      price_to: editForm.price_to === "" || editForm.price_to === null ? null : Number(editForm.price_to),
-      organizer: String(editForm.organizer || ""),
-      organizer_id: editForm.organizer_id || null,
-      source_url: editForm.source_url ? String(editForm.source_url) : null,
-      facebook_url: editForm.facebook_url ? String(editForm.facebook_url) : null,
-      venue_name: String(editForm.venue_name || ""),
-      venue_address: [String(editForm.street || "").trim(), String(editForm.city || "Kraków").trim()].filter(Boolean).join(", "),
-      district: editForm.district,
-      is_featured: Boolean(editForm.is_featured),
-      is_free: Boolean(editForm.is_free),
-      meals_included: Boolean(editForm.meals_included),
+      title:              String(editForm.title || ""),
+      description_short:  String(editForm.description_short || ""),
+      description_long:   String(editForm.description_long || ""),
+      camp_type:          editForm.camp_type,
+      category:           editForm.category ?? null,
+      season:             editForm.season,
+      date_start:         dateStart,
+      date_end:           dateEnd,
+      duration_days:      Number(editForm.duration_days) || calcDurationDays(dateStart, dateEnd),
+      age_min:            editForm.age_min == null || editForm.age_min === "" ? null : Number(editForm.age_min),
+      age_max:            editForm.age_max == null || editForm.age_max === "" ? null : Number(editForm.age_max),
+      price_from:         editForm.price_from == null || editForm.price_from === "" ? null : Number(editForm.price_from),
+      price_to:           editForm.price_to == null || editForm.price_to === "" ? null : Number(editForm.price_to),
+      organizer:          String(editForm.organizer || ""),
+      organizer_id:       editForm.organizer_id || null,
+      source_url:         editForm.source_url ? String(editForm.source_url) : null,
+      facebook_url:       editForm.facebook_url ? String(editForm.facebook_url) : null,
+      venue_name:         String(editForm.venue_name || ""),
+      venue_address:      [String(editForm.street || "").trim(), String(editForm.city || "Kraków").trim()].filter(Boolean).join(", "),
+      district:           editForm.district,
+      is_featured:        Boolean(editForm.is_featured),
+      is_free:            Boolean(editForm.is_free),
+      meals_included:     Boolean(editForm.meals_included),
       transport_included: Boolean(editForm.transport_included),
-      status: editForm.status,
+      status:             editForm.status,
     };
     if (newImageUrl) updates.image_url = newImageUrl;
 
-    let res = await fetch("/api/admin/camps", {
+    const res = await fetch("/api/admin/camps", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, ...updates }),
     });
-    let data = await res.json();
-
-    if (!res.ok && data.error?.includes("facebook_url")) {
-      const { facebook_url: _fb, ...withoutFb } = updates;
-      res = await fetch("/api/admin/camps", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, ...withoutFb }),
-      });
-      data = await res.json();
-    }
-
+    const data = await res.json();
     if (!res.ok) { alert(`Błąd zapisu: ${data.error || "Nieznany błąd"}`); return; }
 
+    // Persist geocoded coords
+    if (typeof editForm.lat === "number" && typeof editForm.lng === "number") {
+      fetch("/api/admin/camps", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, lat: editForm.lat, lng: editForm.lng, district: editForm.district }),
+      }).catch(() => {});
+    }
+
     if (data.updated) {
-      setCamps((prev) => prev.map((c) => (c.id === id ? mapCampRow(data.updated as Record<string, unknown>) : c)));
+      setCamps((prev) => prev.map((c) =>
+        c.id === id
+          ? { ...mapCampRow(data.updated as Record<string, unknown>), lat: (editForm.lat as number) ?? c.lat, lng: (editForm.lng as number) ?? c.lng }
+          : c
+      ));
     }
     if (pendingPreview) URL.revokeObjectURL(pendingPreview);
     setPendingFile(null);
@@ -484,31 +593,28 @@ export default function AdminCampsPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        title: "Nowa kolonia",
-        description_short: "Opis oferty",
-        description_long: "",
-        image_url: null,
-        date_start: today,
-        date_end: today,
-        camp_type: "polkolonie",
-        season: "lato",
-        duration_days: 5,
-        meals_included: false,
+        title:              "Nowa kolonia",
+        description_short:  "Opis oferty",
+        description_long:   "",
+        date_start:         today,
+        date_end:           today,
+        camp_type:          "polkolonie",
+        season:             "lato",
+        duration_days:      5,
+        meals_included:     false,
         transport_included: false,
-        age_min: null,
-        age_max: null,
-        price: null,
-        price_from: null,
-        price_to: null,
-        is_free: false,
-        district: "Inne",
-        venue_name: "Miejsce",
-        venue_address: "Krakow",
-        organizer: "Organizator",
-        source_url: null,
-        facebook_url: null,
-        is_featured: false,
-        status: "draft",
+        age_min:            null,
+        age_max:            null,
+        price_from:         null,
+        price_to:           null,
+        is_free:            false,
+        district:           "Inne",
+        venue_name:         "Miejsce",
+        venue_address:      "Kraków",
+        organizer:          "Organizator",
+        source_url:         null,
+        facebook_url:       null,
+        is_featured:        false,
       }),
     });
     const data = await res.json();
@@ -567,11 +673,11 @@ export default function AdminCampsPage() {
 
   const geocodeAddress = async () => {
     const street = String(editForm.street || "").trim();
-    const city = String(editForm.city || "Kraków").trim() || "Kraków";
+    const city   = String(editForm.city || "Kraków").trim() || "Kraków";
     if (!street) return;
     setGeocoding(true);
     try {
-      const res = await fetch("/api/admin/geocode", {
+      const res  = await fetch("/api/admin/geocode", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ address: street, city }),
@@ -589,10 +695,10 @@ export default function AdminCampsPage() {
     setGeocoding(false);
   };
 
-  const updateField = (key: string, value: unknown) => setEditForm((prev) => ({ ...prev, [key]: value }));
+  const updateField = (key: string, value: unknown) =>
+    setEditForm((prev) => ({ ...prev, [key]: value }));
 
-  const inputClass = "w-full px-2 py-1.5 rounded-md border border-border text-[12px] bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30";
-  const labelClass = "block text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1";
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div className="container-page py-8">
@@ -657,8 +763,7 @@ export default function AdminCampsPage() {
                         const isEditing = editing === camp.id;
                         const effectiveStatus = getEffectiveStatus(camp);
                         const isDraft = effectiveStatus !== "published";
-                        const campRow = camp as unknown as Record<string, unknown>;
-                        const externalUrl = (camp.source_url || campRow.facebook_url) as string | null;
+                        const externalUrl = camp.source_url || camp.facebook_url;
                         return (
                           <div key={camp.id} className={cn("rounded-lg border border-border/70", isDraft ? "bg-stone-100 opacity-70" : "bg-white")}>
                             <div className="flex items-center gap-2.5 px-3 py-2.5">
@@ -674,8 +779,7 @@ export default function AdminCampsPage() {
                               <div className="flex-1 min-w-0">
                                 <p className="text-[13px] font-medium text-foreground truncate">{camp.title}</p>
                                 <div className="flex items-center gap-1.5 text-[11px] text-muted mt-0.5 flex-wrap">
-                                  {camp.organizer && <span className="truncate max-w-[140px]">{camp.organizer}</span>}
-                                  {camp.organizer && <span className="opacity-40">·</span>}
+                                  {camp.organizer && <><span className="truncate max-w-[140px]">{camp.organizer}</span><span className="opacity-40">·</span></>}
                                   <span>{formatDateShort(camp.date_start)}{camp.date_end ? ` – ${formatDateShort(camp.date_end)}` : ""}</span>
                                   <span className="opacity-40">·</span>
                                   <span>{formatPrice(camp.price)}</span>
@@ -683,9 +787,7 @@ export default function AdminCampsPage() {
                                 </div>
                               </div>
 
-                              <button onClick={() => startEditing(camp)} className="p-1 rounded hover:bg-accent text-muted transition-colors" title="Edytuj">
-                                <Pencil size={13} />
-                              </button>
+                              <button onClick={() => startEditing(camp)} className="p-1 rounded hover:bg-accent text-muted transition-colors" title="Edytuj"><Pencil size={13} /></button>
                               <button onClick={() => toggleFeatured(camp)} className={cn("p-1 rounded transition-colors", camp.is_featured ? "text-amber-500 hover:bg-amber-50" : "text-muted hover:bg-accent")} title="Wyróżnij">
                                 <Star size={13} fill={camp.is_featured ? "currentColor" : "none"} />
                               </button>
@@ -711,10 +813,19 @@ export default function AdminCampsPage() {
 
                             {isEditing && (
                               <div className="px-3 pb-3 pt-2 border-t border-border/50">
-                                <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
-                                  <div className="md:col-span-3">
+                                <div className="grid grid-cols-1 md:grid-cols-6 gap-3 mb-4">
+                                  <div className="md:col-span-4">
                                     <label className={labelClass}>Tytuł</label>
                                     <input className={inputClass} value={(editForm.title as string) || ""} onChange={(e) => updateField("title", e.target.value)} />
+                                  </div>
+                                  <div>
+                                    <label className={labelClass}>Kategoria</label>
+                                    <select className={inputClass} value={(editForm.category as string) || ""} onChange={(e) => updateField("category", e.target.value || null)}>
+                                      <option value="">— brak —</option>
+                                      {(Object.entries(CAMP_CATEGORY_LABELS) as [string, string][]).map(([val, label]) => (
+                                        <option key={val} value={val}>{label}</option>
+                                      ))}
+                                    </select>
                                   </div>
                                   <div>
                                     <label className={labelClass}>Typ</label>
@@ -725,11 +836,11 @@ export default function AdminCampsPage() {
                                     </select>
                                   </div>
 
-                                  <div className="md:col-span-4">
+                                  <div className="md:col-span-6">
                                     <label className={labelClass}>Krótki opis</label>
                                     <textarea rows={2} className={inputClass} value={(editForm.description_short as string) || ""} onChange={(e) => updateField("description_short", e.target.value)} />
                                   </div>
-                                  <div className="md:col-span-4">
+                                  <div className="md:col-span-6">
                                     <label className={labelClass}>Długi opis</label>
                                     <textarea rows={5} className={inputClass} value={(editForm.description_long as string) || ""} onChange={(e) => updateField("description_long", e.target.value)} />
                                   </div>
@@ -744,20 +855,20 @@ export default function AdminCampsPage() {
                                   </div>
                                   <div>
                                     <label className={labelClass}>Wiek od</label>
-                                    <input type="number" min={0} max={18} className={inputClass} value={editForm.age_min === null ? "" : String(editForm.age_min ?? "")} onChange={(e) => updateField("age_min", e.target.value ? Number(e.target.value) : null)} />
+                                    <input type="number" min={0} max={18} className={inputClass} value={editForm.age_min == null ? "" : String(editForm.age_min)} onChange={(e) => updateField("age_min", e.target.value ? Number(e.target.value) : null)} />
                                   </div>
                                   <div>
                                     <label className={labelClass}>Wiek do</label>
-                                    <input type="number" min={0} max={18} className={inputClass} value={editForm.age_max === null ? "" : String(editForm.age_max ?? "")} onChange={(e) => updateField("age_max", e.target.value ? Number(e.target.value) : null)} />
+                                    <input type="number" min={0} max={18} className={inputClass} value={editForm.age_max == null ? "" : String(editForm.age_max)} onChange={(e) => updateField("age_max", e.target.value ? Number(e.target.value) : null)} />
                                   </div>
 
                                   <div>
                                     <label className={labelClass}>Cena od (zł)</label>
-                                    <input type="number" min={0} className={inputClass} value={editForm.price_from === null ? "" : String(editForm.price_from ?? "")} onChange={(e) => updateField("price_from", e.target.value ? Number(e.target.value) : null)} />
+                                    <input type="number" min={0} className={inputClass} value={editForm.price_from == null ? "" : String(editForm.price_from)} onChange={(e) => updateField("price_from", e.target.value ? Number(e.target.value) : null)} />
                                   </div>
                                   <div>
                                     <label className={labelClass}>Cena do (zł)</label>
-                                    <input type="number" min={0} className={inputClass} value={editForm.price_to === null ? "" : String(editForm.price_to ?? "")} onChange={(e) => updateField("price_to", e.target.value ? Number(e.target.value) : null)} />
+                                    <input type="number" min={0} className={inputClass} value={editForm.price_to == null ? "" : String(editForm.price_to)} onChange={(e) => updateField("price_to", e.target.value ? Number(e.target.value) : null)} />
                                   </div>
                                   <div className="flex items-center gap-4 pt-5">
                                     <label className="flex items-center gap-2 text-[12px] cursor-pointer">
@@ -775,16 +886,16 @@ export default function AdminCampsPage() {
                                   </div>
                                   <div />
 
-                                  <div className="md:col-span-2">
+                                  <div className="md:col-span-3">
                                     <label className={labelClass}>URL źródła</label>
                                     <input className={inputClass} value={(editForm.source_url as string) || ""} onChange={(e) => updateField("source_url", e.target.value)} placeholder="https://..." />
                                   </div>
-                                  <div className="md:col-span-2">
+                                  <div className="md:col-span-3">
                                     <label className={labelClass}>Facebook</label>
                                     <input className={inputClass} value={(editForm.facebook_url as string) || ""} onChange={(e) => updateField("facebook_url", e.target.value)} placeholder="https://facebook.com/..." />
                                   </div>
 
-                                  <div className="md:col-span-4">
+                                  <div className="md:col-span-6">
                                     <label className={labelClass}>Organizator</label>
                                     <select
                                       className={inputClass}
@@ -813,26 +924,16 @@ export default function AdminCampsPage() {
                                           className={inputClass}
                                           value={(editForm.street as string) || ""}
                                           placeholder="np. ul. Skarbowa 2"
-                                          onChange={(e) => {
-                                            updateField("street", e.target.value);
-                                            updateField("lat", null);
-                                            updateField("lng", null);
-                                          }}
+                                          onChange={(e) => { updateField("street", e.target.value); updateField("lat", null); updateField("lng", null); }}
                                           onBlur={geocodeAddress}
                                         />
-                                        {geocoding && (
-                                          <Loader2 size={12} className="animate-spin text-muted absolute right-2 top-1/2 -translate-y-1/2" />
-                                        )}
+                                        {geocoding && <Loader2 size={12} className="animate-spin text-muted absolute right-2 top-1/2 -translate-y-1/2" />}
                                       </div>
                                     </div>
                                     <div className="grid grid-cols-2 gap-2">
                                       <div>
                                         <label className={labelClass}>Miasto</label>
-                                        <input
-                                          className={inputClass}
-                                          value={(editForm.city as string) || "Kraków"}
-                                          onChange={(e) => updateField("city", e.target.value)}
-                                        />
+                                        <input className={inputClass} value={(editForm.city as string) || "Kraków"} onChange={(e) => updateField("city", e.target.value)} />
                                       </div>
                                       <div>
                                         <label className={labelClass}>Dzielnica</label>
@@ -844,11 +945,11 @@ export default function AdminCampsPage() {
                                     <div className="grid grid-cols-2 gap-2">
                                       <div>
                                         <label className={labelClass}>Lat</label>
-                                        <input type="number" step="any" className={inputClass} value={(editForm.lat as number) ?? ""} onChange={(e) => updateField("lat", e.target.value ? Number(e.target.value) : null)} placeholder="—" />
+                                        <input readOnly className={cn(inputClass, "bg-accent/40 text-muted cursor-default")} value={typeof editForm.lat === "number" ? String(editForm.lat) : "—"} />
                                       </div>
                                       <div>
                                         <label className={labelClass}>Lng</label>
-                                        <input type="number" step="any" className={inputClass} value={(editForm.lng as number) ?? ""} onChange={(e) => updateField("lng", e.target.value ? Number(e.target.value) : null)} placeholder="—" />
+                                        <input readOnly className={cn(inputClass, "bg-accent/40 text-muted cursor-default")} value={typeof editForm.lng === "number" ? String(editForm.lng) : "—"} />
                                       </div>
                                     </div>
                                     {typeof editForm.lat === "number" && typeof editForm.lng === "number" && (
@@ -872,14 +973,12 @@ export default function AdminCampsPage() {
                                         )}
                                       </div>
                                     )}
-                                    <div className="flex items-center gap-2">
-                                      <label className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-muted border border-border rounded hover:text-foreground hover:border-primary/30 transition-colors cursor-pointer">
-                                        <ImagePlus size={11} />
-                                        {pendingPreview ? "Zmień plik" : "Wgraj plik"}
-                                        <input type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleFileSelect(file); e.target.value = ""; }} />
-                                      </label>
-                                    </div>
-                                    {pendingPreview && <span className="text-[10px] text-primary font-medium">Nowy plik — zapisz aby wgrać</span>}
+                                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-muted border border-border rounded hover:text-foreground hover:border-primary/30 transition-colors cursor-pointer">
+                                      <ImagePlus size={11} />
+                                      {pendingPreview ? "Zmień plik" : "Wgraj plik"}
+                                      <input type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleFileSelect(file); e.target.value = ""; }} />
+                                    </label>
+                                    {pendingPreview && <p className="text-[10px] text-primary font-medium">Nowy plik — zapisz aby wgrać</p>}
                                   </div>
                                 </div>
 
@@ -932,7 +1031,7 @@ export default function AdminCampsPage() {
                       const field = resolveField(h);
                       return (
                         <span key={h} className={cn("px-2 py-0.5 rounded-full text-[10px] font-medium", field ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700")}>
-                          {h} {field ? `-> ${field}` : "(pominięta)"}
+                          {h}{field ? ` -> ${field}` : " (pominięta)"}
                         </span>
                       );
                     })}
@@ -968,7 +1067,7 @@ export default function AdminCampsPage() {
             <div className="px-5 py-4 border-t border-border flex items-center justify-between">
               <p className="text-[11px] text-muted">Kolonie zostaną dodane jako Draft.</p>
               <div className="flex items-center gap-2">
-                {importing && <span className="text-[11px] text-muted">{importProgress.done}/{importProgress.total}</span>}
+                {importing && <span className="text-[11px] text-muted">{importProgress.done}/{importProgress.total} — tworzenie + geokodowanie + zdjęcia...</span>}
                 <button onClick={() => { setPasteModal(false); setPasteText(""); setPasteHeaders([]); setPastePreview([]); }} className="px-3 py-1.5 text-[12px] font-medium text-muted border border-border rounded-lg hover:text-foreground transition-colors">Anuluj</button>
                 <button
                   onClick={runPasteImport}

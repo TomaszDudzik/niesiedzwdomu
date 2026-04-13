@@ -35,6 +35,8 @@ export type EventCategory =
 
 export type CampType = "kolonie" | "polkolonie" | "warsztaty_wakacyjne";
 
+export type CampCategory = "sportowa" | "edukacyjna" | "integracyjna" | "przygodowa" | "artystyczna";
+
 export type CampSeason = "lato" | "zima" | "ferie_zimowe" | "ferie_wiosenne" | "caly_rok";
 
 export type ActivityType =
@@ -122,6 +124,7 @@ export interface Camp {
   date_start: string;
   date_end: string;
   camp_type: CampType;
+  category: CampCategory | null;
   season: CampSeason;
   duration_days: number;
   meals_included: boolean;
@@ -133,6 +136,8 @@ export interface Camp {
   district: District;
   venue_name: string;
   venue_address: string;
+  lat: number | null;
+  lng: number | null;
   organizer: string;
   organizer_id?: string | null;
   organizer_data?: Organizer | null;

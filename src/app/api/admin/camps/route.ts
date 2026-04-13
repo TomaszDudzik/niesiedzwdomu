@@ -31,6 +31,7 @@ function pickCampFields(input: Record<string, unknown>) {
     date_start: input.date_start,
     date_end: input.date_end,
     camp_type: input.camp_type,
+    category: input.category ?? null,
     season: input.season,
     duration_days: input.duration_days,
     meals_included: input.meals_included,
@@ -97,6 +98,20 @@ export async function PATCH(request: NextRequest) {
   revalidatePath("/kolonie");
 
   return NextResponse.json({ ok: true, updated: data[0] });
+}
+
+// Used after bulk import to apply geocoded lat/lng/district without touching other fields
+export async function PUT(request: NextRequest) {
+  const db = getDb();
+  const body = (await request.json()) as { id: string; lat: number; lng: number; district: string };
+  const { id, lat, lng, district } = body;
+
+  if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
+
+  const { error } = await db.from("camps").update({ lat, lng, district }).eq("id", id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  return NextResponse.json({ ok: true });
 }
 
 export async function DELETE(request: NextRequest) {
