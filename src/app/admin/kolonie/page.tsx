@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { CAMP_TYPE_ICONS, CAMP_TYPE_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
 import { cn, formatDateShort, formatPrice } from "@/lib/utils";
-import type { Camp } from "@/types/database";
+import type { Camp, Organizer } from "@/types/database";
 
 const MiniMapLazy = lazy(() => import("../miejsca/mini-map").then((m) => ({ default: m.MiniMap })));
 
@@ -40,6 +40,8 @@ export default function AdminCampsPage() {
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingPreview, setPendingPreview] = useState<string | null>(null);
   const [geocoding, setGeocoding] = useState(false);
+
+  const [organizers, setOrganizers] = useState<Organizer[]>([]);
 
   const [pasteModal, setPasteModal] = useState(false);
   const [pasteText, setPasteText] = useState("");
@@ -69,6 +71,12 @@ export default function AdminCampsPage() {
   }, []);
 
   useEffect(() => { fetchCamps(); }, [fetchCamps]);
+
+  useEffect(() => {
+    fetch("/api/admin/organizers")
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data)) setOrganizers(data); });
+  }, []);
 
   const getEffectiveStatus = useCallback((camp: Camp): DerivedCampStatus => {
     const today = new Date().toISOString().slice(0, 10);
@@ -366,6 +374,7 @@ export default function AdminCampsPage() {
       price_from: row.price_from ?? camp.price,
       price_to: row.price_to ?? null,
       organizer: camp.organizer,
+      organizer_id: camp.organizer_id ?? null,
       source_url: camp.source_url,
       facebook_url: camp.facebook_url ?? "",
       venue_name: camp.venue_name,
@@ -419,6 +428,7 @@ export default function AdminCampsPage() {
       price_from: editForm.price_from === "" || editForm.price_from === null ? null : Number(editForm.price_from),
       price_to: editForm.price_to === "" || editForm.price_to === null ? null : Number(editForm.price_to),
       organizer: String(editForm.organizer || ""),
+      organizer_id: editForm.organizer_id || null,
       source_url: editForm.source_url ? String(editForm.source_url) : null,
       facebook_url: editForm.facebook_url ? String(editForm.facebook_url) : null,
       venue_name: String(editForm.venue_name || ""),
@@ -763,7 +773,32 @@ export default function AdminCampsPage() {
 
                                   <div className="md:col-span-2">
                                     <label className={labelClass}>Organizator</label>
-                                    <input className={inputClass} value={(editForm.organizer as string) || ""} onChange={(e) => updateField("organizer", e.target.value)} />
+                                    {organizers.length > 0 ? (
+                                      <div className="space-y-1.5">
+                                        <select
+                                          className={inputClass}
+                                          value={(editForm.organizer_id as string) || ""}
+                                          onChange={(e) => {
+                                            const org = organizers.find((o) => o.id === e.target.value);
+                                            updateField("organizer_id", e.target.value || null);
+                                            if (org) updateField("organizer", org.name);
+                                          }}
+                                        >
+                                          <option value="">— brak / wpisz ręcznie —</option>
+                                          {organizers.map((o) => (
+                                            <option key={o.id} value={o.id}>{o.name}</option>
+                                          ))}
+                                        </select>
+                                        <input
+                                          className={inputClass}
+                                          placeholder="lub wpisz nazwę ręcznie"
+                                          value={(editForm.organizer as string) || ""}
+                                          onChange={(e) => { updateField("organizer", e.target.value); updateField("organizer_id", null); }}
+                                        />
+                                      </div>
+                                    ) : (
+                                      <input className={inputClass} value={(editForm.organizer as string) || ""} onChange={(e) => updateField("organizer", e.target.value)} />
+                                    )}
                                   </div>
                                   <div className="md:col-span-2">
                                     <label className={labelClass}>URL źródła</label>

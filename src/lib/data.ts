@@ -143,7 +143,7 @@ export async function getPublishedCamps(limit = 80): Promise<Camp[]> {
   const today = new Date().toISOString().slice(0, 10);
   const { data } = await db
     .from("camps")
-    .select("*")
+    .select("*, organizer_data:organizer_id(*)")
     .eq("status", "published")
     .or(`date_start.gte.${today},date_end.gte.${today}`)
     .order("date_start", { ascending: true })
@@ -155,7 +155,7 @@ export async function getCampBySlug(slug: string): Promise<Camp | null> {
   const db = getDb();
   const { data } = await db
     .from("camps")
-    .select("*")
+    .select("*, organizer_data:organizer_id(*)")
     .eq("slug", slug)
     .eq("status", "published")
     .single();

@@ -44,6 +44,7 @@ function pickCampFields(input: Record<string, unknown>) {
     venue_name: input.venue_name,
     venue_address: input.venue_address,
     organizer: input.organizer,
+    organizer_id: input.organizer_id ?? null,
     source_url: input.source_url,
     facebook_url: input.facebook_url,
     is_featured: input.is_featured,
@@ -55,7 +56,10 @@ function pickCampFields(input: Record<string, unknown>) {
 
 export async function GET() {
   const db = getDb();
-  const { data, error } = await db.from("camps").select("*").order("date_start", { ascending: true });
+  const { data, error } = await db
+    .from("camps")
+    .select("*, organizer_data:organizer_id(*)")
+    .order("date_start", { ascending: true });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);

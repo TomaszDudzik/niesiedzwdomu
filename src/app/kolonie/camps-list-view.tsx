@@ -290,8 +290,12 @@ export function CampsListView({ camps }: CampsListViewProps) {
       [...typeCamps]
         .sort((a, b) => new Date(a.date_start).getTime() - new Date(b.date_start).getTime())
         .forEach((camp) => {
-          const organizerName = getOrganizerName(camp);
-          const organizerKey = organizerName.toLowerCase();
+          // If camp has organizer_data, use its id as key so all sessions with same
+          // organizer_id are grouped together regardless of organizer text field.
+          const organizerKey = camp.organizer_id
+            ? `id:${camp.organizer_id}`
+            : getOrganizerName(camp).toLowerCase();
+          const organizerName = camp.organizer_data?.name ?? getOrganizerName(camp);
           const existing = organizerMap.get(organizerKey);
 
           if (!existing) {
@@ -308,7 +312,11 @@ export function CampsListView({ camps }: CampsListViewProps) {
 
           const leadCampDate = new Date(existing.leadCamp.date_start).getTime();
           const currentDate = new Date(camp.date_start).getTime();
-          if (currentDate < leadCampDate || (!existing.leadCamp.image_url && camp.image_url)) {
+          // Prefer camp with organizer_data image; otherwise earliest date with image
+          const leadHasOrgImage = !!existing.leadCamp.organizer_data?.image_url;
+          const campHasOrgImage = !!camp.organizer_data?.image_url;
+          if ((!leadHasOrgImage && campHasOrgImage) ||
+              (currentDate < leadCampDate && !(!leadHasOrgImage && !campHasOrgImage))) {
             existing.leadCamp = camp;
           }
         });
@@ -986,18 +994,21 @@ export function CampsListView({ camps }: CampsListViewProps) {
                               href={`/kolonie/${organizer.leadCamp.slug}`}
                               className="relative aspect-video w-full shrink-0 bg-accent sm:aspect-auto sm:h-auto sm:w-[210px] sm:self-stretch"
                             >
-                              {organizer.leadCamp.image_url ? (
-                                <ImageWithFallback
-                                  src={organizer.leadCamp.image_url}
-                                  alt={organizer.organizerName}
-                                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                                  loading="lazy"
-                                />
-                              ) : (
-                                <div className="flex h-full w-full items-center justify-center text-3xl text-muted-foreground/30">
-                                  {group.icon}
-                                </div>
-                              )}
+                              {(() => {
+                                const imgSrc = organizer.leadCamp.organizer_data?.image_url ?? organizer.leadCamp.image_url;
+                                return imgSrc ? (
+                                  <ImageWithFallback
+                                    src={imgSrc}
+                                    alt={organizer.organizerName}
+                                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                                    loading="lazy"
+                                  />
+                                ) : (
+                                  <div className="flex h-full w-full items-center justify-center text-3xl text-muted-foreground/30">
+                                    {group.icon}
+                                  </div>
+                                );
+                              })()}
                             </Link>
 
                             <div className="flex-1 min-w-0 p-3">
@@ -1010,11 +1021,12 @@ export function CampsListView({ camps }: CampsListViewProps) {
                                     >
                                       {organizer.organizerName}
                                     </Link>
-                                    {organizer.leadCamp.description_short && (
-                                      <p className="mt-1 text-[11px] text-muted leading-relaxed line-clamp-2">
-                                        {organizer.leadCamp.description_short}
-                                      </p>
-                                    )}
+                                    {(() => {
+                                      const desc = organizer.leadCamp.organizer_data?.description_short ?? organizer.leadCamp.description_short;
+                                      return desc ? (
+                                        <p className="mt-1 text-[11px] text-muted leading-relaxed line-clamp-2">{desc}</p>
+                                      ) : null;
+                                    })()}
                                   </div>
                                   <span className="shrink-0 rounded-full border border-border bg-background px-2 py-0.5 text-[9px] font-semibold text-muted">
                                     {getSessionLabel(organizer.camps.length)}
