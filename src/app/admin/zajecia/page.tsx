@@ -462,7 +462,32 @@ export default function AdminActivitiesPage() {
         if (!response.ok) {
           throw new Error(typeof data?.error === "string" ? data.error : "Nie udało się zaimportować wiersza");
         }
-        if (data?.id) imported.push(mapActivityRow(data));
+        if (data?.id) {
+          imported.push(mapActivityRow(data));
+
+          // Geocode address to get accurate district
+          if (venueAddress && venueAddress !== "Krakow") {
+            try {
+              if (index > 0) await new Promise((r) => setTimeout(r, 1100));
+              const geoRes = await fetch("/api/admin/geocode", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ address: venueAddress, city: "Kraków" }),
+              });
+              const geo = await geoRes.json();
+              const district = geo.district || detectDistrict(venueAddress);
+              if (district && district !== "Inne") {
+                await fetch("/api/admin/activities", {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ id: data.id, district }),
+                });
+                const idx = imported.findIndex((a) => a.id === data.id);
+                if (idx !== -1) imported[idx] = { ...imported[idx], district: district as Activity["district"] };
+              }
+            } catch { /* geocoding is best-effort */ }
+          }
+        }
       } catch {
         // skip invalid row
       }

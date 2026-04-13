@@ -158,8 +158,15 @@ export default async function PlaceDetailPage({ params }: PageProps) {
           )}
           <div className="space-y-3">
             <AiLearnMoreLink
-              title={place.title}
-              topicHint={`${PLACE_TYPE_LABELS[place.place_type] || place.place_type} miejsce dla dzieci`}
+              queryParts={[
+                place.title,
+                "Kraków",
+                `${PLACE_TYPE_LABELS[place.place_type] || place.place_type} miejsce dla dzieci`,
+                "najważniejsze informacje",
+                "dla kogo",
+                "cennik",
+                "praktyczne wskazówki",
+              ]}
             />
             {place.description_long && place.description_long !== place.description_short && place.description_long.split("\n").filter(p => p.trim()).map((p, i) => (
               <p key={i} className="text-[13px] text-foreground/80 leading-relaxed mb-2 last:mb-0">{p}</p>

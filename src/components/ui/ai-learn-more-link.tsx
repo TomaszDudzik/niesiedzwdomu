@@ -1,23 +1,11 @@
 import { ExternalLink, Sparkles } from "lucide-react";
 
 interface AiLearnMoreLinkProps {
-  title: string;
-  topicHint?: string;
+  queryParts: (string | null | undefined)[];
 }
 
-export function AiLearnMoreLink({ title, topicHint }: AiLearnMoreLinkProps) {
-  const query = [
-    title,
-    "Kraków",
-    topicHint || "",
-    "najważniejsze informacje",
-    "dla kogo",
-    "cennik",
-    "praktyczne wskazówki",
-  ]
-    .filter(Boolean)
-    .join(" ");
-
+export function AiLearnMoreLink({ queryParts }: AiLearnMoreLinkProps) {
+  const query = queryParts.filter(Boolean).join(" ");
   const href = `https://www.google.com/search?q=${encodeURIComponent(query)}&udm=50`;
 
   return (

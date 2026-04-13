@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, Banknote, Calendar, ExternalLink, Globe, MapPin, Users } from "lucide-react";
-import { CAMP_SEASON_LABELS, CAMP_TYPE_ICONS, CAMP_TYPE_LABELS } from "@/lib/mock-data";
+import { CAMP_CATEGORY_LABELS, CAMP_SEASON_LABELS, CAMP_TYPE_ICONS, CAMP_TYPE_LABELS } from "@/lib/mock-data";
 import { formatAgeRange, formatDate, formatPrice } from "@/lib/utils";
 import { AiLearnMoreLink } from "@/components/ui/ai-learn-more-link";
 import { FeedbackButtons } from "@/components/ui/feedback-buttons";
@@ -164,8 +164,16 @@ export default async function CampDetailPage({ params }: PageProps) {
           )}
           <div className="space-y-3">
             <AiLearnMoreLink
-              title={camp.title}
-              topicHint={`${CAMP_TYPE_LABELS[camp.camp_type]} dla dzieci`}
+              queryParts={[
+                camp.organizer,
+                CAMP_TYPE_LABELS[camp.camp_type],
+                camp.category ? CAMP_CATEGORY_LABELS[camp.category as keyof typeof CAMP_CATEGORY_LABELS] : null,
+                camp.title,
+                "Kraków",
+                camp.price ? `cena ${formatPrice(camp.price)}` : null,
+                "praktyczne informacje",
+                "dla kogo",
+              ]}
             />
             {camp.description_long && camp.description_long.split("\n").filter(p => p.trim()).map((p, i) => (
               <p key={i} className="text-[13px] text-foreground/80 leading-relaxed mb-2 last:mb-0">{p}</p>

@@ -283,7 +283,34 @@ function AdminCanonicalEventsPanel() {
           body: JSON.stringify(payload),
         });
         const data = await res.json();
-        if (data?.id) imported.push({ ...data, content_type: "event" } as Event);
+        if (data?.id) {
+          imported.push({ ...data, content_type: "event" } as Event);
+
+          // Geocode address to fill lat/lng/district
+          const venueAddress = mapped.venue_address?.trim();
+          if (venueAddress && venueAddress !== "Kraków") {
+            try {
+              if (index > 0) await new Promise((r) => setTimeout(r, 1100));
+              const geoRes = await fetch("/api/admin/geocode", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ address: venueAddress, city: "Kraków" }),
+              });
+              const geo = await geoRes.json();
+              if (geo.lat && geo.lng) {
+                const patch: Record<string, unknown> = { id: data.id, lat: geo.lat, lng: geo.lng };
+                if (geo.district) patch.district = geo.district;
+                await fetch("/api/admin/events", {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(patch),
+                });
+                const idx = imported.findIndex((e) => e.id === data.id);
+                if (idx !== -1) imported[idx] = { ...imported[idx], lat: geo.lat, lng: geo.lng, ...(geo.district ? { district: geo.district } : {}) } as Event;
+              }
+            } catch { /* geocoding is best-effort */ }
+          }
+        }
       } catch {
         // skip broken row
       }

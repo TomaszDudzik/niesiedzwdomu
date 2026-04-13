@@ -1041,7 +1041,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                                         <col className="w-[30%]" />
                                         <col className="w-[14%]" />
                                       </colgroup>
-                                      <thead>
+                                      <thead className="hidden sm:table-header-group">
                                         <tr className="border-b border-border/70 text-muted">
                                           <th className="py-1 pr-2 text-left font-semibold uppercase tracking-wider">Turnus</th>
                                           <th className="px-2 py-1 text-left font-semibold uppercase tracking-wider">Termin</th>
@@ -1082,7 +1082,8 @@ export function CampsListView({ camps }: CampsListViewProps) {
                                                   href={`/kolonie/${camp.slug}`}
                                                   className="font-medium text-primary hover:text-primary-hover transition-colors"
                                                 >
-                                                  Zobacz
+                                                  <span className="hidden sm:inline">Zobacz</span>
+                                                  <svg className="sm:hidden" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                                                 </Link>
                                               </td>
                                             </tr>

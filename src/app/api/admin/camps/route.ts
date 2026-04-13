@@ -83,6 +83,15 @@ export async function POST(request: NextRequest) {
   return NextResponse.json(data);
 }
 
+const ALLOWED_CAMP_FIELDS = new Set([
+  "title", "description_short", "description_long", "image_url",
+  "date_start", "date_end", "camp_type", "category", "season",
+  "duration_days", "meals_included", "transport_included",
+  "age_min", "age_max", "price_from", "price_to", "is_free",
+  "district", "venue_name", "venue_address", "organizer", "organizer_id",
+  "source_url", "facebook_url", "is_featured", "status", "likes", "dislikes",
+]);
+
 export async function PATCH(request: NextRequest) {
   const db = getDb();
   const body = (await request.json()) as Record<string, unknown>;
@@ -90,7 +99,12 @@ export async function PATCH(request: NextRequest) {
 
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
-  const { data, error } = await db.from("camps").update(pickCampFields(updates)).eq("id", id).select();
+  // Only update fields explicitly present in the request — never overwrite with undefined → null
+  const patch = Object.fromEntries(
+    Object.entries(updates).filter(([k, v]) => ALLOWED_CAMP_FIELDS.has(k) && v !== undefined)
+  );
+
+  const { data, error } = await db.from("camps").update(patch).eq("id", id).select();
   if (error) return NextResponse.json({ error: error.message, details: error }, { status: 500 });
   if (!data || data.length === 0) return NextResponse.json({ error: "No rows updated - check id or RLS" }, { status: 404 });
 

@@ -171,8 +171,15 @@ export default async function EventDetailPage({ params }: PageProps) {
           )}
           <div className="space-y-3">
             <AiLearnMoreLink
-              title={event.title}
-              topicHint={`${CATEGORY_LABELS[event.category]} wydarzenie dla dzieci`}
+              queryParts={[
+                event.title,
+                "Kraków",
+                `${CATEGORY_LABELS[event.category]} wydarzenie dla dzieci`,
+                "najważniejsze informacje",
+                "dla kogo",
+                "cennik",
+                "praktyczne wskazówki",
+              ]}
             />
             {event.description_long && event.description_long.split("\n").filter(p => p.trim()).map((p, i) => (
               <p key={i} className="text-[13px] text-foreground/80 leading-relaxed mb-2 last:mb-0">{p}</p>

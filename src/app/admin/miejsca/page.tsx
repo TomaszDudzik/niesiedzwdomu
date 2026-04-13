@@ -168,7 +168,35 @@ export default function AdminPlacesPage() {
           body: JSON.stringify(place),
         });
         const data = await res.json();
-        if (data.id) imported.push({ ...data, content_type: "place" } as Place);
+        if (data.id) {
+          imported.push({ ...data, content_type: "place" } as Place);
+
+          // Geocode street to fill lat/lng/district
+          const street = String(place.street || "").trim();
+          const city = String(place.city || "Kraków").trim();
+          if (street && !place.lat) {
+            try {
+              if (i > 0) await new Promise((r) => setTimeout(r, 1100));
+              const geoRes = await fetch("/api/admin/geocode", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ address: street, city }),
+              });
+              const geo = await geoRes.json();
+              if (geo.lat && geo.lng) {
+                const patch: Record<string, unknown> = { id: data.id, lat: geo.lat, lng: geo.lng };
+                if (geo.district) patch.district = geo.district;
+                await fetch("/api/admin/places", {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(patch),
+                });
+                const idx = imported.findIndex((p) => p.id === data.id);
+                if (idx !== -1) imported[idx] = { ...imported[idx], lat: geo.lat, lng: geo.lng, ...(geo.district ? { district: geo.district } : {}) } as Place;
+              }
+            } catch { /* geocoding is best-effort */ }
+          }
+        }
       } catch { /* skip */ }
       setImportProgress({ done: i + 1, total: pastePreview.length });
     }

@@ -84,6 +84,15 @@ export async function POST(request: NextRequest) {
   return NextResponse.json(data);
 }
 
+const ALLOWED_ACTIVITY_FIELDS = new Set([
+  "title", "description_short", "description_long", "image_url",
+  "activity_type", "schedule_summary", "days_of_week",
+  "date_start", "date_end", "time_start", "time_end",
+  "age_min", "age_max", "price_from", "price_to", "is_free",
+  "district", "venue_name", "venue_address", "organizer",
+  "source_url", "facebook_url", "is_featured", "status", "likes", "dislikes",
+]);
+
 export async function PATCH(request: NextRequest) {
   const db = getDb();
   const body = (await request.json()) as Record<string, unknown>;
@@ -91,7 +100,11 @@ export async function PATCH(request: NextRequest) {
 
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
-  const { data, error } = await db.from("activities").update(pickActivityFields(updates)).eq("id", id).select();
+  const patch = Object.fromEntries(
+    Object.entries(updates).filter(([k, v]) => ALLOWED_ACTIVITY_FIELDS.has(k) && v !== undefined)
+  );
+
+  const { data, error } = await db.from("activities").update(patch).eq("id", id).select();
   if (error) return NextResponse.json({ error: error.message, details: error }, { status: 500 });
   if (!data || data.length === 0) return NextResponse.json({ error: "No rows updated - check id or RLS" }, { status: 404 });
 

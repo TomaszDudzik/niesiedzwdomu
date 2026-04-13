@@ -137,6 +137,7 @@ export default function AdminCampsPage() {
   const [camps, setCamps] = useState<Camp[]>([]);
   const [loading, setLoading] = useState(true);
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
+  const [collapsedOrganizers, setCollapsedOrganizers] = useState<Record<string, boolean>>({});
   const [statusFilter, setStatusFilter] = useState<CampListFilter>("all");
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
 
@@ -192,15 +193,20 @@ export default function AdminCampsPage() {
 
   const groupedByType = useMemo(() => {
     const order: Camp["camp_type"][] = ["polkolonie", "kolonie", "warsztaty_wakacyjne"];
-    return order.map((type) => ({
-      type,
-      items: filteredCamps
-        .filter((c) => c.camp_type === type)
-        .sort((a, b) => {
-          const sd = STATUS_ORDER[getEffectiveStatus(a)] - STATUS_ORDER[getEffectiveStatus(b)];
-          return sd !== 0 ? sd : a.title.localeCompare(b.title, "pl");
-        }),
-    }));
+    return order.map((type) => {
+      const typeItems = filteredCamps.filter((c) => c.camp_type === type);
+      const organizerNames = [...new Set(typeItems.map((c) => c.organizer || "Brak organizatora"))].sort((a, b) => a.localeCompare(b, "pl"));
+      const byOrganizer = organizerNames.map((organizer) => ({
+        organizer,
+        items: typeItems
+          .filter((c) => (c.organizer || "Brak organizatora") === organizer)
+          .sort((a, b) => {
+            const sd = STATUS_ORDER[getEffectiveStatus(a)] - STATUS_ORDER[getEffectiveStatus(b)];
+            return sd !== 0 ? sd : a.title.localeCompare(b.title, "pl");
+          }),
+      }));
+      return { type, byOrganizer };
+    });
   }, [filteredCamps, getEffectiveStatus]);
 
   const publishedCount = useMemo(() => camps.filter((c) => getEffectiveStatus(c) === "published").length, [camps, getEffectiveStatus]);
@@ -223,6 +229,8 @@ export default function AdminCampsPage() {
     () => groupedByType.filter(({ type }) => !typeFilter || type === typeFilter).map(({ type }) => type),
     [groupedByType, typeFilter]
   );
+  const toggleOrganizer = (key: string) =>
+    setCollapsedOrganizers((prev) => ({ ...prev, [key]: !prev[key] }));
   const hasExpandedCategories = useMemo(
     () => displayedTypeKeys.some((t) => !collapsedCategories[t]),
     [displayedTypeKeys, collapsedCategories]
@@ -416,8 +424,9 @@ export default function AdminCampsPage() {
                 body: JSON.stringify({ address: street, city }),
               });
               const geo = await geoRes.json();
+              const district = (geo.district || detectDistrict(venueAddress)) as Camp["district"];
               if (geo.lat && geo.lng) {
-                const district = (geo.district || detectDistrict(venueAddress)) as Camp["district"];
+                // Full update: lat + lng + district via PUT
                 await fetch("/api/admin/camps", {
                   method: "PUT",
                   headers: { "Content-Type": "application/json" },
@@ -425,6 +434,15 @@ export default function AdminCampsPage() {
                 });
                 const idx = imported.findIndex((c) => c.id === data.id);
                 if (idx !== -1) imported[idx] = { ...imported[idx], lat: geo.lat, lng: geo.lng, district };
+              } else if (district && district !== "Inne") {
+                // Geocoding failed for coords but we can still set district
+                await fetch("/api/admin/camps", {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ id: data.id, district }),
+                });
+                const idx = imported.findIndex((c) => c.id === data.id);
+                if (idx !== -1) imported[idx] = { ...imported[idx], district };
               }
             }
           } catch { /* geocoding is best-effort */ }
@@ -733,9 +751,10 @@ export default function AdminCampsPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          {groupedByType.filter(({ type }) => !typeFilter || type === typeFilter).map(({ type, items }) => {
+          {groupedByType.filter(({ type }) => !typeFilter || type === typeFilter).map(({ type, byOrganizer }) => {
             const expanded = !collapsedCategories[type];
             const stats = sectionStats[type] ?? { all: 0, published: 0, draft: 0, outdated: 0 };
+            const allItems = byOrganizer.flatMap((g) => g.items);
             return (
               <div key={type}>
                 <div className="w-full flex items-center gap-2 mb-2 rounded-md px-1.5 py-1 hover:bg-accent/50 transition-colors">
@@ -753,13 +772,29 @@ export default function AdminCampsPage() {
                 </div>
 
                 {expanded && (
-                  items.length === 0 ? (
+                  allItems.length === 0 ? (
                     <div className="rounded-lg border border-dashed border-border/70 bg-white px-3 py-4 text-[12px] text-muted">
                       Brak rekordów dla tego filtra.
                     </div>
                   ) : (
-                    <div className="space-y-1.5">
-                      {items.map((camp, index) => {
+                    <div className="space-y-3">
+                      {byOrganizer.filter((g) => g.items.length > 0).map(({ organizer, items }) => {
+                        const orgKey = `${type}::${organizer}`;
+                        const orgExpanded = !collapsedOrganizers[orgKey];
+                        return (
+                          <div key={orgKey}>
+                            <button
+                              type="button"
+                              onClick={() => toggleOrganizer(orgKey)}
+                              className="flex items-center gap-1.5 w-full text-left px-1.5 py-0.5 rounded hover:bg-accent/40 transition-colors mb-1"
+                            >
+                              {orgExpanded ? <ChevronDown size={12} className="text-muted-foreground shrink-0" /> : <ChevronUp size={12} className="text-muted-foreground shrink-0 rotate-180" />}
+                              <span className="text-[11px] font-semibold text-muted-foreground truncate">{organizer}</span>
+                              <span className="ml-auto text-[10px] text-muted shrink-0">{items.length}</span>
+                            </button>
+                            {orgExpanded && (
+                              <div className="space-y-1.5 pl-3 border-l border-border/40 ml-1.5">
+                                {items.map((camp, index) => {
                         const isEditing = editing === camp.id;
                         const effectiveStatus = getEffectiveStatus(camp);
                         const isDraft = effectiveStatus !== "published";
@@ -991,6 +1026,11 @@ export default function AdminCampsPage() {
                                     <X size={11} /> Anuluj
                                   </button>
                                 </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                               </div>
                             )}
                           </div>
