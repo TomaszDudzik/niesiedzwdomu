@@ -812,14 +812,6 @@ export default function AdminCampsPage() {
                                     <label className={labelClass}>Facebook</label>
                                     <input className={inputClass} value={(editForm.facebook_url as string) || ""} onChange={(e) => updateField("facebook_url", e.target.value)} placeholder="https://facebook.com/..." />
                                   </div>
-                                  <div className="md:col-span-2">
-                                    <label className={labelClass}>Status</label>
-                                    <select className={inputClass} value={(editForm.status as string) || "draft"} onChange={(e) => updateField("status", e.target.value)}>
-                                      <option value="draft">Draft</option>
-                                      <option value="published">Published</option>
-                                      <option value="cancelled">Cancelled</option>
-                                    </select>
-                                  </div>
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
