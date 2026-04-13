@@ -8,7 +8,6 @@ import {
   ExternalLink,
   ImagePlus,
   Loader2,
-  MapPin,
   Pencil,
   Plus,
   RefreshCw,
@@ -379,6 +378,14 @@ export default function AdminCampsPage() {
       facebook_url: camp.facebook_url ?? "",
       venue_name: camp.venue_name,
       venue_address: camp.venue_address,
+      street: (() => {
+        const parts = (camp.venue_address || "").split(",").map((p) => p.trim()).filter(Boolean);
+        return parts.length >= 2 ? parts.slice(0, -1).join(", ") : parts[0] || "";
+      })(),
+      city: (() => {
+        const parts = (camp.venue_address || "").split(",").map((p) => p.trim()).filter(Boolean);
+        return parts.length >= 2 ? parts[parts.length - 1] : "Kraków";
+      })(),
       district: camp.district,
       is_free: camp.is_free,
       is_featured: camp.is_featured,
@@ -432,7 +439,7 @@ export default function AdminCampsPage() {
       source_url: editForm.source_url ? String(editForm.source_url) : null,
       facebook_url: editForm.facebook_url ? String(editForm.facebook_url) : null,
       venue_name: String(editForm.venue_name || ""),
-      venue_address: String(editForm.venue_address || ""),
+      venue_address: [String(editForm.street || "").trim(), String(editForm.city || "Kraków").trim()].filter(Boolean).join(", "),
       district: editForm.district,
       is_featured: Boolean(editForm.is_featured),
       is_free: Boolean(editForm.is_free),
@@ -559,14 +566,15 @@ export default function AdminCampsPage() {
   };
 
   const geocodeAddress = async () => {
-    const address = String(editForm.venue_address || "").trim();
-    if (!address) { alert("Wpisz adres"); return; }
+    const street = String(editForm.street || "").trim();
+    const city = String(editForm.city || "Kraków").trim() || "Kraków";
+    if (!street) return;
     setGeocoding(true);
     try {
       const res = await fetch("/api/admin/geocode", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address, city: "Kraków" }),
+        body: JSON.stringify({ address: street, city }),
       });
       const data = await res.json();
       if (data.lat && data.lng) {
@@ -576,12 +584,8 @@ export default function AdminCampsPage() {
           lng: data.lng,
           ...(data.district ? { district: data.district } : {}),
         }));
-      } else {
-        alert(data.error || "Nie znaleziono lokalizacji");
       }
-    } catch {
-      alert("Błąd połączenia");
-    }
+    } catch { /* silent */ }
     setGeocoding(false);
   };
 
@@ -819,37 +823,45 @@ export default function AdminCampsPage() {
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
-                                  <div className="rounded-lg border border-border/50 p-3 space-y-3">
+                                  <div className="rounded-lg border border-border/50 p-3 space-y-2">
                                     <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Lokalizacja</p>
-                                    <div className="grid grid-cols-2 gap-3">
-                                      <div className="col-span-2">
-                                        <label className={labelClass}>Adres / Miejsce</label>
-                                        <input className={inputClass} value={(editForm.venue_address as string) || ""} onChange={(e) => updateField("venue_address", e.target.value)} placeholder="np. ul. Skarbowa 2, Kraków" />
+                                    <div>
+                                      <label className={labelClass}>Ulica</label>
+                                      <div className="relative">
+                                        <input
+                                          className={inputClass}
+                                          value={(editForm.street as string) || ""}
+                                          placeholder="np. ul. Skarbowa 2"
+                                          onChange={(e) => {
+                                            updateField("street", e.target.value);
+                                            updateField("lat", null);
+                                            updateField("lng", null);
+                                          }}
+                                          onBlur={geocodeAddress}
+                                        />
+                                        {geocoding && (
+                                          <Loader2 size={12} className="animate-spin text-muted absolute right-2 top-1/2 -translate-y-1/2" />
+                                        )}
                                       </div>
-                                      <div className="col-span-2">
-                                        <label className={labelClass}>Nazwa miejsca</label>
-                                        <input className={inputClass} value={(editForm.venue_name as string) || ""} onChange={(e) => updateField("venue_name", e.target.value)} />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <div>
+                                        <label className={labelClass}>Miasto</label>
+                                        <input
+                                          className={inputClass}
+                                          value={(editForm.city as string) || "Kraków"}
+                                          onChange={(e) => updateField("city", e.target.value)}
+                                        />
                                       </div>
-                                      <div className="col-span-2">
+                                      <div>
                                         <label className={labelClass}>Dzielnica</label>
                                         <select className={inputClass} value={(editForm.district as string) || "Inne"} onChange={(e) => updateField("district", e.target.value)}>
                                           {DISTRICT_LIST.slice(1).map((d) => <option key={d} value={d}>{d}</option>)}
                                         </select>
                                       </div>
-                                      <div className="col-span-2">
-                                        <label className={labelClass}>Współrzędne</label>
-                                        <div className="flex items-center gap-2">
-                                          <input type="number" step="any" className={inputClass} value={(editForm.lat as number) ?? ""} onChange={(e) => updateField("lat", e.target.value ? Number(e.target.value) : null)} placeholder="Lat" />
-                                          <input type="number" step="any" className={inputClass} value={(editForm.lng as number) ?? ""} onChange={(e) => updateField("lng", e.target.value ? Number(e.target.value) : null)} placeholder="Lng" />
-                                          <button onClick={geocodeAddress} disabled={geocoding} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-muted border border-border rounded hover:text-foreground hover:border-primary/30 transition-colors shrink-0 disabled:opacity-50">
-                                            {geocoding ? <Loader2 size={11} className="animate-spin" /> : <MapPin size={11} />}
-                                            {geocoding ? "Szukam..." : "Znajdź"}
-                                          </button>
-                                        </div>
-                                      </div>
                                     </div>
                                     {typeof editForm.lat === "number" && typeof editForm.lng === "number" && (
-                                      <div className="rounded-lg overflow-hidden border border-border" style={{ height: 180 }}>
+                                      <div className="rounded-lg overflow-hidden border border-border" style={{ height: 160 }}>
                                         <Suspense fallback={<div className="w-full h-full flex items-center justify-center bg-accent/20 text-[11px] text-muted">Ładowanie mapy...</div>}>
                                           <MiniMapLazy lat={editForm.lat as number} lng={editForm.lng as number} />
                                         </Suspense>
