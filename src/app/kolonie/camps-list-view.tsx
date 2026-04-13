@@ -984,7 +984,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                           <div className="group flex flex-col overflow-hidden sm:min-h-[180px] sm:flex-row">
                             <Link
                               href={`/kolonie/${organizer.leadCamp.slug}`}
-                              className="relative h-[220px] w-full shrink-0 bg-accent sm:h-auto sm:w-[210px] sm:self-stretch"
+                              className="relative aspect-video w-full shrink-0 bg-accent sm:aspect-auto sm:h-auto sm:w-[210px] sm:self-stretch"
                             >
                               {organizer.leadCamp.image_url ? (
                                 <ImageWithFallback
