@@ -265,7 +265,29 @@ export default async function CampDetailPage({ params }: PageProps) {
           <h2 className="text-[15px] font-semibold text-foreground mb-4">
             Inne turnusy tego organizatora
           </h2>
-          <div className="overflow-x-auto rounded-xl border border-border bg-card">
+
+          {/* Mobile: karty */}
+          <div className="flex flex-col gap-2 md:hidden">
+            {sessions.map((s) => (
+              <div key={s.id} className="rounded-xl border border-border bg-card px-4 py-3 flex flex-col gap-1.5">
+                <p className="text-[13px] font-medium text-foreground">
+                  {formatDate(s.date_start)}{s.date_end && s.date_end !== s.date_start ? ` – ${formatDate(s.date_end)}` : ""}
+                  {s.duration_days ? <span className="text-muted font-normal"> · {s.duration_days} dni</span> : null}
+                </p>
+                <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[12px] text-muted">
+                  {(s.venue_name || s.venue_address) && <span>{s.venue_name || s.venue_address}</span>}
+                  <span>{formatAgeRange(s.age_min, s.age_max)}</span>
+                  <span>{formatPrice(s.price)}</span>
+                </div>
+                <Link href={`/kolonie/${s.slug}`} className="text-[12px] text-primary hover:underline self-start">
+                  Szczegóły →
+                </Link>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop: tabela */}
+          <div className="hidden md:block overflow-x-auto rounded-xl border border-border bg-card">
             <table className="w-full text-[13px]">
               <thead>
                 <tr className="border-b border-border bg-accent/40">

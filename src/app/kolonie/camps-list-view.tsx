@@ -981,10 +981,10 @@ export function CampsListView({ camps }: CampsListViewProps) {
                           key={organizer.organizerKey}
                           className="rounded-xl border border-border bg-card shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5 transition-all duration-200 overflow-hidden"
                         >
-                          <div className="group flex min-h-[180px] overflow-hidden">
+                          <div className="group flex flex-col overflow-hidden sm:min-h-[180px] sm:flex-row">
                             <Link
                               href={`/kolonie/${organizer.leadCamp.slug}`}
-                              className="w-[210px] shrink-0 relative self-stretch bg-accent"
+                              className="relative h-[220px] w-full shrink-0 bg-accent sm:h-auto sm:w-[210px] sm:self-stretch"
                             >
                               {organizer.leadCamp.image_url ? (
                                 <ImageWithFallback
