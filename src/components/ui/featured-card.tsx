@@ -8,6 +8,20 @@ interface FeaturedCardProps {
   item: DiscoveryItem;
 }
 
+function getFeaturedPriceText(item: DiscoveryItem): string {
+  if (item.content_type === "activity") {
+    if (item.is_free) return "Bezpłatnie";
+    if (item.price_from !== null && item.price_to !== null && item.price_from !== item.price_to) {
+      return `${item.price_from}-${item.price_to} zł`;
+    }
+    if (item.price_from !== null) return `${item.price_from} zł`;
+    if (item.price_to !== null) return `do ${item.price_to} zł`;
+    return "Cena do sprawdzenia";
+  }
+
+  return formatPrice(item.price);
+}
+
 export function FeaturedCard({ item }: FeaturedCardProps) {
   const isPlace = item.content_type === "place";
   const likesCount = typeof item.likes === "number" ? item.likes : 0;
@@ -64,7 +78,7 @@ export function FeaturedCard({ item }: FeaturedCardProps) {
           </div>
 
           <div className="flex items-center justify-between">
-            <span className="text-lg font-semibold text-foreground">{formatPrice(item.price)}</span>
+            <span className="text-lg font-semibold text-foreground">{getFeaturedPriceText(item)}</span>
             <span className="flex items-center gap-1.5 text-[13px] font-medium text-primary group-hover:text-primary-hover transition-colors duration-200">
               Szczegóły
               <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform duration-200" />

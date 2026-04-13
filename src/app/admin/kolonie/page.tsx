@@ -948,6 +948,12 @@ export default function AdminCampsPage() {
                       const orgExpanded = !collapsedOrganizers[orgKey];
                       const proto = sessions[0];
                       const protoRow = proto as unknown as Record<string, unknown>;
+                      const organizerExternalUrl =
+                        typeof protoRow.source_url === "string" && protoRow.source_url.trim()
+                          ? protoRow.source_url
+                          : typeof protoRow.facebook_url === "string" && protoRow.facebook_url.trim()
+                            ? protoRow.facebook_url
+                            : null;
                       const isEditingOrg = editingOrganizer === orgKey;
                       return (
                         <div key={orgKey} className="rounded-xl border border-border bg-white overflow-hidden">
@@ -974,8 +980,8 @@ export default function AdminCampsPage() {
                             <button onClick={() => openAddTurnus(orgKey)} className="p-1 rounded hover:bg-accent text-muted transition-colors shrink-0" title="Dodaj turnus">
                               <Plus size={13} />
                             </button>
-                            {(proto.source_url || protoRow.facebook_url) && (
-                              <a href={(proto.source_url || protoRow.facebook_url as string) ?? ""} target="_blank" rel="noopener" className="p-1 rounded hover:bg-accent text-muted transition-colors shrink-0">
+                            {organizerExternalUrl && (
+                              <a href={organizerExternalUrl} target="_blank" rel="noopener" className="p-1 rounded hover:bg-accent text-muted transition-colors shrink-0">
                                 <ExternalLink size={13} />
                               </a>
                             )}
