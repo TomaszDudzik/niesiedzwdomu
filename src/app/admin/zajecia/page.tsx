@@ -517,20 +517,25 @@ export default function AdminActivitiesPage() {
   };
 
   const geocodeAddress = async () => {
-    const address = `${editForm.venue_address || ""}, Kraków`;
-    if (!address.trim()) return;
+    const address = String(editForm.venue_address || "").trim();
+    if (!address) return;
     setGeocoding(true);
     try {
       const res = await fetch("/api/admin/geocode", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address }),
+        body: JSON.stringify({ address, city: "Kraków" }),
       });
       const data = await res.json();
       if (data.lat && data.lng) {
-        setEditForm((prev) => ({ ...prev, lat: data.lat, lng: data.lng }));
+        setEditForm((prev) => ({
+          ...prev,
+          lat: data.lat,
+          lng: data.lng,
+          ...(data.district ? { district: data.district } : {}),
+        }));
       }
-    } catch { /* ignore */ }
+    } catch { /* silent */ }
     setGeocoding(false);
   };
 
@@ -903,7 +908,18 @@ export default function AdminActivitiesPage() {
                                       </div>
                                       <div className="col-span-2">
                                         <label className={labelClass}>Adres</label>
-                                        <input className={inputClass} value={(editForm.venue_address as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, venue_address: event.target.value }))} />
+                                        <div className="relative">
+                                          <input
+                                            className={inputClass}
+                                            value={(editForm.venue_address as string) || ""}
+                                            placeholder="np. ul. Skarbowa 2, Kraków"
+                                            onChange={(event) => setEditForm((current) => ({ ...current, venue_address: event.target.value, lat: null, lng: null }))}
+                                            onBlur={geocodeAddress}
+                                          />
+                                          {geocoding && (
+                                            <Loader2 size={12} className="animate-spin text-muted absolute right-2 top-1/2 -translate-y-1/2" />
+                                          )}
+                                        </div>
                                       </div>
                                       <div className="col-span-2">
                                         <label className={labelClass}>Współrzędne</label>

@@ -433,15 +433,15 @@ export default function AdminPlacesPage() {
   };
 
   const geocodeAddress = async () => {
-    const street = editForm.street as string;
-    const city = editForm.city as string;
-    if (!street) { alert("Wpisz ulicę"); return; }
+    const street = String(editForm.street || "").trim();
+    const city = String(editForm.city || "Kraków").trim() || "Kraków";
+    if (!street) return;
     setGeocoding(true);
     try {
       const res = await fetch("/api/admin/geocode", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: street, city: city || "Kraków" }),
+        body: JSON.stringify({ address: street, city }),
       });
       const data = await res.json();
       if (data.lat && data.lng) {
@@ -452,10 +452,8 @@ export default function AdminPlacesPage() {
           ...(data.district ? { district: data.district } : {}),
           ...(data.city ? { city: data.city } : {}),
         }));
-      } else {
-        alert(data.error || "Nie znaleziono lokalizacji");
       }
-    } catch { alert("Błąd połączenia"); }
+    } catch { /* silent */ }
     setGeocoding(false);
   };
 
@@ -732,7 +730,22 @@ export default function AdminPlacesPage() {
                         <div className="grid grid-cols-2 gap-3">
                           <div className="col-span-2">
                             <label className={labelClass}>Ulica</label>
-                            <input className={inputClass} value={(editForm.street as string) || ""} onChange={(e) => updateField("street", e.target.value)} placeholder="np. ul. Floriańska 15" />
+                            <div className="relative">
+                              <input
+                                className={inputClass}
+                                value={(editForm.street as string) || ""}
+                                placeholder="np. ul. Floriańska 15"
+                                onChange={(e) => {
+                                  updateField("street", e.target.value);
+                                  updateField("lat", null);
+                                  updateField("lng", null);
+                                }}
+                                onBlur={geocodeAddress}
+                              />
+                              {geocoding && (
+                                <Loader2 size={12} className="animate-spin text-muted absolute right-2 top-1/2 -translate-y-1/2" />
+                              )}
+                            </div>
                           </div>
                           <div>
                             <label className={labelClass}>Miasto</label>
