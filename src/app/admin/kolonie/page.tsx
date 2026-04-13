@@ -775,6 +775,15 @@ export default function AdminCampsPage() {
                                   </div>
                                   <div />
 
+                                  <div>
+                                    <label className={labelClass}>URL źródła</label>
+                                    <input className={inputClass} value={(editForm.source_url as string) || ""} onChange={(e) => updateField("source_url", e.target.value)} placeholder="https://..." />
+                                  </div>
+                                  <div>
+                                    <label className={labelClass}>Facebook</label>
+                                    <input className={inputClass} value={(editForm.facebook_url as string) || ""} onChange={(e) => updateField("facebook_url", e.target.value)} placeholder="https://facebook.com/..." />
+                                  </div>
+
                                   <div className="md:col-span-2">
                                     <label className={labelClass}>Organizator</label>
                                     {organizers.length > 0 ? (
@@ -803,14 +812,6 @@ export default function AdminCampsPage() {
                                     ) : (
                                       <input className={inputClass} value={(editForm.organizer as string) || ""} onChange={(e) => updateField("organizer", e.target.value)} />
                                     )}
-                                  </div>
-                                  <div className="md:col-span-2">
-                                    <label className={labelClass}>URL źródła</label>
-                                    <input className={inputClass} value={(editForm.source_url as string) || ""} onChange={(e) => updateField("source_url", e.target.value)} />
-                                  </div>
-                                  <div className="md:col-span-2">
-                                    <label className={labelClass}>Facebook</label>
-                                    <input className={inputClass} value={(editForm.facebook_url as string) || ""} onChange={(e) => updateField("facebook_url", e.target.value)} placeholder="https://facebook.com/..." />
                                   </div>
                                 </div>
 
