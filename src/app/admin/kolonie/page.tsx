@@ -775,16 +775,16 @@ export default function AdminCampsPage() {
                                   </div>
                                   <div />
 
-                                  <div>
+                                  <div className="md:col-span-2">
                                     <label className={labelClass}>URL źródła</label>
                                     <input className={inputClass} value={(editForm.source_url as string) || ""} onChange={(e) => updateField("source_url", e.target.value)} placeholder="https://..." />
                                   </div>
-                                  <div>
+                                  <div className="md:col-span-2">
                                     <label className={labelClass}>Facebook</label>
                                     <input className={inputClass} value={(editForm.facebook_url as string) || ""} onChange={(e) => updateField("facebook_url", e.target.value)} placeholder="https://facebook.com/..." />
                                   </div>
 
-                                  <div className="md:col-span-2">
+                                  <div className="md:col-span-4">
                                     <label className={labelClass}>Organizator</label>
                                     {organizers.length > 0 ? (
                                       <div className="space-y-1.5">
