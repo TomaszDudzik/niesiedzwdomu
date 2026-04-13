@@ -2,7 +2,7 @@
 // Enums
 // ============================================
 
-export type ContentType = "event" | "camp" | "place";
+export type ContentType = "event" | "camp" | "place" | "activity";
 
 export type ContentStatus = "draft" | "published" | "cancelled" | "deleted";
 
@@ -198,7 +198,7 @@ export interface Place {
 }
 
 // Union type for mixed-content displays (homepage, search)
-export type DiscoveryItem = Event | Camp | Place;
+export type DiscoveryItem = Event | Camp | Place | Activity;
 
 // ============================================
 // Scrape source (pipeline config)

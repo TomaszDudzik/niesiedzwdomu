@@ -2,11 +2,51 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { Search, ArrowRight, SlidersHorizontal, X } from "lucide-react";
+import { Search, ArrowRight, SlidersHorizontal, X, MapPin, Users } from "lucide-react";
 import { ContentCard } from "@/components/ui/content-card";
+import { ImageWithFallback } from "@/components/ui/image-with-fallback";
 import { CATEGORY_LABELS, CATEGORY_ICONS, PLACE_TYPE_LABELS, PLACE_TYPE_ICONS } from "@/lib/mock-data";
-import { cn } from "@/lib/utils";
-import type { Event, Place, EventCategory, PlaceType } from "@/types/database";
+import { cn, formatDateShort, formatAgeRange } from "@/lib/utils";
+import type { Event, Place, Camp, Activity, EventCategory, PlaceType } from "@/types/database";
+
+const DAYS_PL = ["Nd", "Pn", "Wt", "Śr", "Cz", "Pt", "So"];
+
+interface OrganizerTile {
+  key: string;
+  name: string;
+  leadCamp: Camp;
+  camps: Camp[];
+}
+
+function getOrganizerName(camp: Camp): string {
+  return camp.organizer?.trim() || camp.venue_name?.trim() || camp.title;
+}
+
+function getSessionLabel(count: number): string {
+  if (count === 1) return "1 turnus";
+  if (count < 5) return `${count} turnusy`;
+  return `${count} turnusów`;
+}
+
+function getOrganizerDistrictSummary(camps: Camp[]): string {
+  return Array.from(new Set(camps.map((c) => c.district))).join(" • ");
+}
+
+function getOrganizerAgeSummary(camps: Camp[]): string {
+  const mins = camps.map((c) => c.age_min).filter((a): a is number => a !== null);
+  const maxes = camps.map((c) => c.age_max).filter((a): a is number => a !== null);
+  const min = mins.length > 0 ? Math.min(...mins) : null;
+  const max = maxes.length > 0 ? Math.max(...maxes) : null;
+  return formatAgeRange(min, max);
+}
+
+function getDateChipLabel(camp: Camp): string {
+  const start = new Date(camp.date_start + "T00:00:00");
+  const end = new Date(camp.date_end + "T00:00:00");
+  const startLabel = `${DAYS_PL[start.getDay()]} ${formatDateShort(camp.date_start)}`;
+  if (camp.date_start === camp.date_end) return startLabel;
+  return `${startLabel} – ${DAYS_PL[end.getDay()]} ${formatDateShort(camp.date_end)}`;
+}
 
 function SectionLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
@@ -31,9 +71,11 @@ const AGE_GROUPS = [
 interface HomeFilteredViewProps {
   events: Event[];
   places: Place[];
+  camps: Camp[];
+  activities: Activity[];
 }
 
-export function HomeFilteredView({ events, places }: HomeFilteredViewProps) {
+export function HomeFilteredView({ events, places, camps, activities }: HomeFilteredViewProps) {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<EventCategory | null>(null);
   const [activePlaceType, setActivePlaceType] = useState<PlaceType | null>(null);
@@ -101,6 +143,24 @@ export function HomeFilteredView({ events, places }: HomeFilteredViewProps) {
     setActivePlaceType(null);
     setActiveAgeGroup(null);
   }
+
+  const organizers = useMemo<OrganizerTile[]>(() => {
+    const map = new Map<string, OrganizerTile>();
+    [...camps]
+      .sort((a, b) => new Date(a.date_start).getTime() - new Date(b.date_start).getTime())
+      .forEach((camp) => {
+        const name = getOrganizerName(camp);
+        const key = name.toLowerCase();
+        const existing = map.get(key);
+        if (!existing) {
+          map.set(key, { key, name, leadCamp: camp, camps: [camp] });
+        } else {
+          existing.camps.push(camp);
+          if (!existing.leadCamp.image_url && camp.image_url) existing.leadCamp = camp;
+        }
+      });
+    return Array.from(map.values()).slice(0, 8);
+  }, [camps]);
 
   const visiblePlaces = hasPlaceFilters ? filteredPlaces : filteredPlaces.slice(0, 8);
   const visibleEvents = hasEventFilters ? filteredEvents : filteredEvents.slice(0, 8);
@@ -286,8 +346,10 @@ export function HomeFilteredView({ events, places }: HomeFilteredViewProps) {
                 <SectionLink href="/miejsca">Wszystkie</SectionLink>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {visiblePlaces.map((place) => (
-                  <ContentCard key={place.id} item={place} />
+                {visiblePlaces.map((place, idx) => (
+                  <div key={place.id} className={!hasPlaceFilters && idx >= 4 ? "hidden sm:block" : ""}>
+                    <ContentCard item={place} />
+                  </div>
                 ))}
               </div>
             </section>
@@ -304,8 +366,94 @@ export function HomeFilteredView({ events, places }: HomeFilteredViewProps) {
                 <SectionLink href="/wydarzenia">Wszystkie</SectionLink>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {visibleEvents.map((event) => (
-                  <ContentCard key={event.id} item={event} />
+                {visibleEvents.map((event, idx) => (
+                  <div key={event.id} className={!hasEventFilters && idx >= 4 ? "hidden sm:block" : ""}>
+                    <ContentCard item={event} />
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Camps section */}
+          {!hasActiveFilters && organizers.length > 0 && (
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-[15px] font-semibold text-foreground">Kolonie dla dzieci</h2>
+                <SectionLink href="/kolonie">Wszystkie</SectionLink>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {organizers.map((organizer, idx) => (
+                  <div key={organizer.key} className={idx >= 4 ? "hidden sm:block" : ""}>
+                    <article className="rounded-xl border border-border bg-card shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5 transition-all duration-200 overflow-hidden">
+                      <Link href={`/kolonie/${organizer.leadCamp.slug}`} className="group flex overflow-hidden h-[160px]">
+                        <div className="w-[160px] shrink-0 relative self-stretch bg-accent">
+                          {organizer.leadCamp.image_url ? (
+                            <ImageWithFallback
+                              src={organizer.leadCamp.image_url}
+                              alt={organizer.name}
+                              className="h-full w-full object-contain bg-accent/30 transition-transform duration-300 group-hover:scale-[1.03]"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center text-3xl text-muted-foreground/30">⛺</div>
+                          )}
+                          <span className="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full bg-white px-2 py-1 text-[10px] font-semibold text-foreground shadow-[var(--shadow-soft)] border border-border/70">
+                            {getSessionLabel(organizer.camps.length)}
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0 p-3 flex flex-col gap-1.5">
+                          <h3 className="font-semibold text-[13px] text-foreground leading-snug group-hover:text-primary transition-colors duration-200 line-clamp-2">
+                            {organizer.name}
+                          </h3>
+                          {organizer.leadCamp.description_short && (
+                            <p className="text-[11px] text-muted leading-relaxed line-clamp-2">
+                              {organizer.leadCamp.description_short}
+                            </p>
+                          )}
+                          <div className="mt-auto space-y-0.5">
+                            <div className="flex items-center gap-1 text-[10px] text-muted">
+                              <MapPin size={9} className="text-secondary/60 shrink-0" />
+                              <span className="truncate">{getOrganizerDistrictSummary(organizer.camps)}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-[10px] text-muted">
+                              <Users size={9} className="text-secondary/60 shrink-0" />
+                              <span className="truncate">{getOrganizerAgeSummary(organizer.camps)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                      <div className="border-t border-border/70 bg-background/40 px-3 py-2.5">
+                        <div className="flex flex-wrap gap-1.5">
+                          {organizer.camps.map((camp) => (
+                            <span
+                              key={camp.id}
+                              className="inline-flex items-center rounded-full border border-border/80 bg-background px-2 py-0.5 text-[9px] font-medium text-foreground"
+                            >
+                              {getDateChipLabel(camp)}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </article>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Activities section */}
+          {!hasActiveFilters && activities.length > 0 && (
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-[15px] font-semibold text-foreground">Zajęcia pozaszkolne</h2>
+                <SectionLink href="/zajecia">Wszystkie</SectionLink>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {activities.map((activity, idx) => (
+                  <div key={activity.id} className={idx >= 4 ? "hidden sm:block" : ""}>
+                    <ContentCard item={activity} />
+                  </div>
                 ))}
               </div>
             </section>

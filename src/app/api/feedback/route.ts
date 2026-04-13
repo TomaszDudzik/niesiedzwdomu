@@ -9,15 +9,6 @@ function getDb() {
   );
 }
 
-async function adjustCount(db: ReturnType<typeof getDb>, table: string, id: string, field: "likes" | "dislikes", delta: number) {
-  // Fetch current value, then update
-  const { data } = await db.from(table).select(field).eq("id", id).single();
-  if (data) {
-    const current = (data as Record<string, number>)[field] || 0;
-    await db.from(table).update({ [field]: Math.max(0, current + delta) }).eq("id", id);
-  }
-}
-
 function resolveTargets(contentType: string) {
   const table = contentType === "event" ? "events" : contentType === "place" ? "places" : contentType === "camp" ? "camps" : null;
   const fkColumn = contentType === "event" ? "event_id" : contentType === "place" ? "place_id" : contentType === "camp" ? "camp_id" : null;
@@ -93,49 +84,47 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid content_type" }, { status: 400 });
   }
 
-  // Check if this session already voted on this item
-  const { data: existing, error: existingError } = await findExistingVote(db, content_type, item_id, session_id, fkColumn);
+  // Read current counts + existing vote in parallel
+  const [{ data: existing, error: existingError }, { data: current }] = await Promise.all([
+    findExistingVote(db, content_type, item_id, session_id, fkColumn),
+    db.from(table).select("likes, dislikes").eq("id", item_id).single(),
+  ]);
+
   if (existingError) {
     return NextResponse.json({ error: existingError.message }, { status: 500 });
   }
 
+  // Compute new counts locally — avoids stale re-read after write
+  let likes: number = current?.likes ?? 0;
+  let dislikes: number = current?.dislikes ?? 0;
+  let removed = false;
+
   if (existing) {
     if (existing.is_positive === is_positive) {
-      // Same vote clicked again - remove vote (toggle off)
+      // Toggle off same vote
       await db.from("feedback").delete().eq("id", existing.id);
-      await adjustCount(db, table, item_id, is_positive ? "likes" : "dislikes", -1);
-
-      const { data: updatedAfterToggle } = await db.from(table).select("likes, dislikes").eq("id", item_id).single();
-
-      revalidatePath("/");
-      revalidatePath(content_type === "event" ? "/wydarzenia" : content_type === "place" ? "/miejsca" : "/kolonie");
-
-      return NextResponse.json({
-        ok: true,
-        changed: true,
-        removed: true,
-        likes: updatedAfterToggle?.likes ?? 0,
-        dislikes: updatedAfterToggle?.dislikes ?? 0,
-      });
+      if (is_positive) likes = Math.max(0, likes - 1);
+      else dislikes = Math.max(0, dislikes - 1);
+      removed = true;
+    } else {
+      // Change vote: remove old, add new
+      await db.from("feedback").delete().eq("id", existing.id);
+      if (existing.is_positive) likes = Math.max(0, likes - 1);
+      else dislikes = Math.max(0, dislikes - 1);
     }
-
-    // Change vote: delete old, adjust counters
-    await db.from("feedback").delete().eq("id", existing.id);
-    await adjustCount(db, table, item_id, existing.is_positive ? "likes" : "dislikes", -1);
   }
 
-  // Insert new vote
-  const { error: insertError } = await insertVote(db, content_type, item_id, is_positive, session_id, fkColumn);
-
-  if (insertError) {
-    return NextResponse.json({ error: insertError.message }, { status: 500 });
+  if (!removed) {
+    const { error: insertError } = await insertVote(db, content_type, item_id, is_positive, session_id, fkColumn);
+    if (insertError) {
+      return NextResponse.json({ error: insertError.message }, { status: 500 });
+    }
+    if (is_positive) likes += 1;
+    else dislikes += 1;
   }
 
-  // Increment new counter
-  await adjustCount(db, table, item_id, is_positive ? "likes" : "dislikes", 1);
-
-  // Return updated counts
-  const { data: updated } = await db.from(table).select("likes, dislikes").eq("id", item_id).single();
+  // Single write with computed values — no second read needed
+  await db.from(table).update({ likes, dislikes }).eq("id", item_id);
 
   revalidatePath("/");
   revalidatePath(content_type === "event" ? "/wydarzenia" : content_type === "place" ? "/miejsca" : "/kolonie");
@@ -143,8 +132,9 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({
     ok: true,
     changed: true,
-    likes: updated?.likes ?? 0,
-    dislikes: updated?.dislikes ?? 0,
+    removed,
+    likes,
+    dislikes,
   });
 }
 

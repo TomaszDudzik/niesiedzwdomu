@@ -1,5 +1,5 @@
 import type { DiscoveryItem, ContentType } from "@/types/database";
-import { CONTENT_TYPE_LABELS, CONTENT_TYPE_ICONS, CONTENT_TYPE_COLORS, CATEGORY_LABELS, CATEGORY_ICONS, CAMP_TYPE_LABELS, CAMP_TYPE_ICONS, PLACE_TYPE_LABELS, PLACE_TYPE_ICONS } from "./mock-data";
+import { CONTENT_TYPE_LABELS, CONTENT_TYPE_ICONS, CONTENT_TYPE_COLORS, CATEGORY_LABELS, CATEGORY_ICONS, CAMP_TYPE_LABELS, CAMP_TYPE_ICONS, PLACE_TYPE_LABELS, PLACE_TYPE_ICONS, ACTIVITY_TYPE_LABELS, ACTIVITY_TYPE_ICONS } from "./mock-data";
 import { formatDateShort, formatPrice, formatAgeRange } from "./utils";
 
 /** Get the URL path for a discovery item */
@@ -8,6 +8,7 @@ export function getItemHref(item: DiscoveryItem): string {
     case "event": return `/wydarzenia/${item.slug}`;
     case "camp": return `/kolonie/${item.slug}`;
     case "place": return `/miejsca/${item.slug}`;
+    case "activity": return `/zajecia/${item.slug}`;
   }
 }
 
@@ -32,6 +33,7 @@ export function getSubcategoryLabel(item: DiscoveryItem): string {
     case "event": return CATEGORY_LABELS[item.category];
     case "camp": return CAMP_TYPE_LABELS[item.camp_type];
     case "place": return PLACE_TYPE_LABELS[item.place_type];
+    case "activity": return ACTIVITY_TYPE_LABELS[item.activity_type];
   }
 }
 
@@ -41,6 +43,7 @@ export function getSubcategoryIcon(item: DiscoveryItem): string {
     case "event": return CATEGORY_ICONS[item.category];
     case "camp": return CAMP_TYPE_ICONS[item.camp_type];
     case "place": return PLACE_TYPE_ICONS[item.place_type];
+    case "activity": return ACTIVITY_TYPE_ICONS[item.activity_type];
   }
 }
 
@@ -50,6 +53,7 @@ export function getLocationText(item: DiscoveryItem): string {
     case "event": return item.venue_name;
     case "camp": return item.venue_name;
     case "place": return [item.street, item.city].filter(Boolean).join(", ");
+    case "activity": return item.venue_name;
   }
 }
 
@@ -70,6 +74,9 @@ export function getDateText(item: DiscoveryItem): string {
     case "place": {
       return item.opening_hours || "Sprawdź godziny";
     }
+    case "activity": {
+      return item.schedule_summary || item.days_of_week.join(", ") || "Sprawdź harmonogram";
+    }
   }
 }
 
@@ -80,6 +87,8 @@ export function getSecondaryInfo(item: DiscoveryItem): string | null {
       return `${item.duration_days} dni` + (item.meals_included ? " · wyżywienie" : "");
     case "place":
       return item.is_indoor ? "Wewnątrz" : "Na zewnątrz";
+    case "activity":
+      return item.price_from != null ? `od ${item.price_from} zł/mies.` : null;
     default:
       return null;
   }

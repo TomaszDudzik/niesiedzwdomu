@@ -421,18 +421,21 @@ export const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
   event: "Wydarzenie",
   camp: "Kolonie",
   place: "Miejsce",
+  activity: "Zajęcia",
 };
 
 export const CONTENT_TYPE_ICONS: Record<ContentType, string> = {
-  event: "��",
+  event: "🎪",
   camp: "⛺",
-  place: "��",
+  place: "📍",
+  activity: "🎯",
 };
 
 export const CONTENT_TYPE_COLORS: Record<ContentType, { bg: string; text: string; border: string }> = {
   event: { bg: "bg-[#FFF5F2]", text: "text-[#E8573A]", border: "border-[#FFE8E0]" },
   camp: { bg: "bg-blue-50", text: "text-[#2E7DBA]", border: "border-blue-200" },
   place: { bg: "bg-[#F2F7F2]", text: "text-[#4A7C59]", border: "border-[#DCE8DC]" },
+  activity: { bg: "bg-purple-50", text: "text-[#7B5EA7]", border: "border-purple-200" },
 };
 
 // Event categories

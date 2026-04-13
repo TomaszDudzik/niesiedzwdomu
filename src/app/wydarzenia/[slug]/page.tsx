@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, Calendar, Clock, MapPin, Users, ExternalLink, Globe } from "lucide-react";
 import { CATEGORY_LABELS } from "@/lib/mock-data";
-import { formatDate, formatPrice, formatAgeRange } from "@/lib/utils";
+import { formatDate, formatAgeRange } from "@/lib/utils";
 import { FeedbackButtons } from "@/components/ui/feedback-buttons";
 import { ContentCard } from "@/components/ui/content-card";
 import { AiLearnMoreLink } from "@/components/ui/ai-learn-more-link";
@@ -68,30 +68,17 @@ export default async function EventDetailPage({ params }: PageProps) {
       ? `${event.date_end}T${event.time_end}`
       : event.date_end
     : undefined;
+
   const breadcrumbSchema = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      {
-        "@type": "ListItem",
-        position: 1,
-        name: "Strona glowna",
-        item: SITE_URL,
-      },
-      {
-        "@type": "ListItem",
-        position: 2,
-        name: "Wydarzenia",
-        item: `${SITE_URL}/wydarzenia`,
-      },
-      {
-        "@type": "ListItem",
-        position: 3,
-        name: event.title,
-        item: eventUrl,
-      },
+      { "@type": "ListItem", position: 1, name: "Strona glowna", item: SITE_URL },
+      { "@type": "ListItem", position: 2, name: "Wydarzenia", item: `${SITE_URL}/wydarzenia` },
+      { "@type": "ListItem", position: 3, name: event.title, item: eventUrl },
     ],
   };
+
   const eventSchema = {
     "@context": "https://schema.org",
     "@type": "Event",
@@ -112,25 +99,13 @@ export default async function EventDetailPage({ params }: PageProps) {
         addressLocality: "Krakow",
         addressCountry: "PL",
       },
-      geo:
-        event.lat !== null && event.lng !== null
-          ? {
-              "@type": "GeoCoordinates",
-              latitude: event.lat,
-              longitude: event.lng,
-            }
-          : undefined,
+      geo: event.lat !== null && event.lng !== null
+        ? { "@type": "GeoCoordinates", latitude: event.lat, longitude: event.lng }
+        : undefined,
     },
     organizer: event.organizer
-      ? {
-          "@type": "Organization",
-          name: event.organizer,
-        }
-      : {
-          "@type": "Organization",
-          name: "NieSiedzWDomu",
-          url: SITE_URL,
-        },
+      ? { "@type": "Organization", name: event.organizer }
+      : { "@type": "Organization", name: "NieSiedzWDomu", url: SITE_URL },
     offers: hasOfferPrice
       ? {
           "@type": "Offer",
@@ -142,158 +117,162 @@ export default async function EventDetailPage({ params }: PageProps) {
         }
       : undefined,
     keywords: [CATEGORY_LABELS[event.category], event.district, "wydarzenia dla dzieci", "Krakow"].join(", "),
-    audience:
-      event.age_min !== null || event.age_max !== null
-        ? {
-            "@type": "PeopleAudience",
-            suggestedMinAge: event.age_min ?? undefined,
-            suggestedMaxAge: event.age_max ?? undefined,
-          }
-        : undefined,
+    audience: event.age_min !== null || event.age_max !== null
+      ? { "@type": "PeopleAudience", suggestedMinAge: event.age_min ?? undefined, suggestedMaxAge: event.age_max ?? undefined }
+      : undefined,
     isAccessibleForFree: event.is_free,
     inLanguage: "pl-PL",
-    areaServed: {
-      "@type": "City",
-      name: "Krakow",
-    },
+    areaServed: { "@type": "City", name: "Krakow" },
   };
 
   return (
-    <div className="container-page py-8">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(eventSchema) }}
-      />
+    <div className="container-page py-5 lg:py-8">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(eventSchema) }} />
 
-      <Link href="/wydarzenia" className="inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-primary transition-colors duration-200 mb-8">
+      <Link href="/wydarzenia" className="inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-primary transition-colors duration-200 mb-6">
         <ArrowLeft size={13} /> Wydarzenia
       </Link>
 
-      <div className="grid lg:grid-cols-3 gap-10">
-        <div className="lg:col-span-2">
-          {event.image_url && (
-            <div className="relative rounded-xl overflow-hidden mb-4 aspect-[15/8] bg-accent">
-              <img src={event.image_url} alt={event.title} className="w-full h-full object-cover" />
+      {/* Tytuł + short desc — nad gridem */}
+      <div className="mb-5">
+        <div className="flex items-center gap-1.5 mb-2 text-[11px] uppercase tracking-wider font-medium">
+          <span className="text-primary">Wydarzenie</span>
+          <span className="text-muted-foreground/30">·</span>
+          <span className="text-muted-foreground">{CATEGORY_LABELS[event.category]}</span>
+          <span className="text-muted-foreground/30">·</span>
+          <span className="text-muted-foreground">{event.district}</span>
+        </div>
+        <h1 className="text-xl lg:text-2xl font-bold text-foreground leading-tight tracking-[-0.02em] mb-2">
+          {event.title}
+        </h1>
+        {event.description_short && (
+          <p className="text-[14px] text-muted leading-relaxed max-w-2xl">{event.description_short}</p>
+        )}
+      </div>
+
+      {/* Outer grid: content | panel */}
+      <div className="grid lg:grid-cols-[1fr_360px] gap-5 lg:gap-6 items-start">
+
+        {/* Lewa strona: image + opis (inner grid) + AI link */}
+        <div className="space-y-4">
+          <div className="grid lg:grid-cols-[288px_1fr] gap-5 items-start">
+            {event.image_url && (
+              <div className="relative rounded-xl overflow-hidden bg-accent min-h-[259px]">
+                <img src={event.image_url} alt={event.title} className="absolute inset-0 w-full h-full object-cover" />
+                <FeedbackButtons
+                  contentType="event"
+                  itemId={event.id}
+                  initialLikes={event.likes}
+                  initialDislikes={event.dislikes}
+                  showLabel={false}
+                  className="absolute bottom-3 right-3 z-10"
+                />
+              </div>
+            )}
+            <div className="space-y-3">
+              {event.description_long && event.description_long.split("\n").map((p, i) => (
+                <p key={i} className="text-[14px] text-foreground/80 leading-relaxed">{p}</p>
+              ))}
+            </div>
+          </div>
+          <AiLearnMoreLink
+            title={event.title}
+            topicHint={`${CATEGORY_LABELS[event.category]} wydarzenie dla dzieci`}
+          />
+        </div>
+
+        {/* Prawa kolumna: info card — sticky na desktop */}
+        <div className="lg:sticky lg:top-20 self-start">
+          <div className="rounded-xl border border-border bg-card shadow-[var(--shadow-card)] overflow-hidden">
+            <div className="px-4 py-4 space-y-3">
+
+              <div className="flex items-center gap-2.5">
+                <Calendar size={14} className="text-secondary/60 shrink-0" />
+                <div>
+                  <p className="text-[10px] text-muted uppercase tracking-wider leading-none mb-0.5">Termin</p>
+                  <p className="text-[13px] font-medium text-foreground">
+                    {formatDate(event.date_start)}
+                    {event.date_end && event.date_end !== event.date_start && ` – ${formatDate(event.date_end)}`}
+                  </p>
+                </div>
+              </div>
+
+              {event.time_start && (
+                <div className="flex items-center gap-2.5">
+                  <Clock size={14} className="text-secondary/60 shrink-0" />
+                  <div>
+                    <p className="text-[10px] text-muted uppercase tracking-wider leading-none mb-0.5">Godzina</p>
+                    <p className="text-[13px] font-medium text-foreground">
+                      {event.time_start}{event.time_end && ` – ${event.time_end}`}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {event.venue_name && (
+                <div className="flex items-start gap-2.5">
+                  <MapPin size={14} className="text-secondary/60 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-[10px] text-muted uppercase tracking-wider leading-none mb-0.5">Miejsce</p>
+                    <p className="text-[13px] font-medium text-foreground">{event.venue_name}</p>
+                    {event.venue_address && (
+                      <p className="text-[11px] text-muted mt-0.5">{event.venue_address}</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center gap-2.5">
+                <Users size={14} className="text-secondary/60 shrink-0" />
+                <div>
+                  <p className="text-[10px] text-muted uppercase tracking-wider leading-none mb-0.5">Wiek</p>
+                  <p className="text-[13px] font-medium text-foreground">{formatAgeRange(event.age_min, event.age_max)}</p>
+                </div>
+              </div>
+
+              {event.organizer && (
+                <div className="flex items-center gap-2.5">
+                  <Globe size={14} className="text-secondary/60 shrink-0" />
+                  <div>
+                    <p className="text-[10px] text-muted uppercase tracking-wider leading-none mb-0.5">Organizator</p>
+                    <p className="text-[13px] font-medium text-foreground">{event.organizer}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {event.source_url && (
+              <div className="px-4 py-3 border-t border-border">
+                <a
+                  href={event.source_url}
+                  target="_blank"
+                  rel="noopener"
+                  className="flex items-center gap-2 text-[13px] text-foreground hover:text-primary transition-colors group"
+                >
+                  <Globe size={13} className="text-secondary/60 group-hover:text-primary shrink-0" />
+                  <span className="font-medium">Strona organizatora</span>
+                  <ExternalLink size={11} className="text-muted shrink-0 ml-auto" />
+                </a>
+              </div>
+            )}
+
+            <div className="px-4 py-3 border-t border-border">
               <FeedbackButtons
                 contentType="event"
                 itemId={event.id}
                 initialLikes={event.likes}
                 initialDislikes={event.dislikes}
-                showLabel={false}
-                className="absolute bottom-3 right-3 z-10"
               />
-            </div>
-          )}
-
-          <div className="mb-8">
-            <AiLearnMoreLink
-              title={event.title}
-              topicHint={`${CATEGORY_LABELS[event.category]} wydarzenie dla dzieci`}
-            />
-          </div>
-
-          <div className="flex items-center gap-1.5 mb-3 text-[11px] uppercase tracking-wider font-medium">
-            <span className="text-primary">Wydarzenie</span>
-            <span className="text-muted-foreground/30">·</span>
-            <span className="text-muted-foreground">{CATEGORY_LABELS[event.category]}</span>
-            <span className="text-muted-foreground/30">·</span>
-            <span className="text-muted-foreground">{event.district}</span>
-          </div>
-
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground leading-tight tracking-[-0.02em] mb-3">{event.title}</h1>
-          <p className="text-[15px] text-muted leading-relaxed mb-8">{event.description_short}</p>
-
-          {event.description_long && (
-            <div className="space-y-4">
-              {event.description_long.split("\n").map((p, i) => (
-                <p key={i} className="text-[15px] text-foreground/80 leading-relaxed">{p}</p>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="lg:col-span-1">
-          <div className="sticky top-20 space-y-5">
-            <div className="rounded-xl border border-border bg-card shadow-[var(--shadow-card)] overflow-hidden">
-              <div className="px-5 pt-5 pb-4 border-b border-border">
-                <h2 className="text-[15px] font-bold text-foreground leading-snug">{event.title}</h2>
-                <p className="text-[11px] text-muted mt-1 uppercase tracking-wider font-medium">
-                  {CATEGORY_LABELS[event.category]} · {event.district}
-                </p>
-              </div>
-
-              <div className="px-5 py-4 space-y-3.5 text-[13px]">
-                <div className="flex items-start gap-2.5">
-                  <Calendar size={15} className="text-secondary/60 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-[11px] text-muted uppercase tracking-wider mb-0.5">Data</p>
-                    <p className="font-medium text-foreground">{formatDate(event.date_start)}</p>
-                    {event.date_end && event.date_end !== event.date_start && <p className="text-muted">do {formatDate(event.date_end)}</p>}
-                  </div>
-                </div>
-
-                {event.time_start && (
-                  <div className="flex items-start gap-2.5">
-                    <Clock size={15} className="text-secondary/60 shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-[11px] text-muted uppercase tracking-wider mb-0.5">Godzina</p>
-                      <p className="font-medium text-foreground">{event.time_start}{event.time_end && ` – ${event.time_end}`}</p>
-                    </div>
-                  </div>
-                )}
-
-                {event.venue_name && (
-                  <div className="flex items-start gap-2.5">
-                    <MapPin size={15} className="text-secondary/60 shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-[11px] text-muted uppercase tracking-wider mb-0.5">Miejsce</p>
-                      <p className="font-medium text-foreground">{event.venue_name}</p>
-                      <p className="text-muted">{event.venue_address}</p>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex items-start gap-2.5">
-                  <Users size={15} className="text-secondary/60 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-[11px] text-muted uppercase tracking-wider mb-0.5">Wiek</p>
-                    <p className="font-medium text-foreground">{formatAgeRange(event.age_min, event.age_max)}</p>
-                  </div>
-                </div>
-              </div>
-
-              {(event.source_url || event.organizer) && (
-                <div className="px-5 py-4 border-t border-border space-y-2.5">
-                  {event.source_url && (
-                    <a
-                      href={event.source_url}
-                      target="_blank"
-                      rel="noopener"
-                      className="flex items-center gap-2.5 text-[13px] text-foreground hover:text-primary transition-colors duration-200 group"
-                    >
-                      <Globe size={15} className="text-secondary/60 group-hover:text-primary shrink-0" />
-                      <span className="font-medium truncate">Strona organizatora</span>
-                      <ExternalLink size={11} className="text-muted shrink-0 ml-auto" />
-                    </a>
-                  )}
-                  {event.organizer && (
-                    <p className="text-[12px] text-muted">Organizator: {event.organizer}</p>
-                  )}
-                </div>
-              )}
             </div>
           </div>
         </div>
       </div>
 
       {related.length > 0 && (
-        <section className="mt-16 pt-10 border-t border-border">
-          <h2 className="text-[15px] font-semibold text-foreground mb-5">Podobne wydarzenia</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <section className="mt-12 pt-8 border-t border-border">
+          <h2 className="text-[15px] font-semibold text-foreground mb-4">Podobne wydarzenia</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {related.map((e) => <ContentCard key={e.id} item={e} />)}
           </div>
         </section>

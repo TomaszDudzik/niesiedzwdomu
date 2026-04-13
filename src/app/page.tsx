@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { getPublishedEvents, getPublishedPlaces } from "@/lib/data";
+import { getPublishedEvents, getPublishedPlaces, getPublishedCamps, getPublishedActivities } from "@/lib/data";
 import { HomeFilteredView } from "./home-filtered-view";
 
 export const revalidate = 60;
@@ -17,9 +17,11 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const [upcomingEvents, places] = await Promise.all([
+  const [upcomingEvents, places, camps, activities] = await Promise.all([
     getPublishedEvents(200),
     getPublishedPlaces(200),
+    getPublishedCamps(40),
+    getPublishedActivities(8),
   ]);
 
   const organizationSchema = {
@@ -62,41 +64,7 @@ export default async function HomePage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
       />
 
-      <HomeFilteredView events={upcomingEvents} places={places} />
-
-      <section className="container-page mt-14 opacity-40 pointer-events-none">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-[15px] font-semibold text-foreground">Kolonie dla dzieci</h2>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-          {[1,2,3,4].map((i) => (
-            <div key={i} className="rounded-xl border border-border bg-card">
-              <div className="aspect-[3/2] rounded-t-xl bg-accent" />
-              <div className="p-3 space-y-2">
-                <div className="h-3 bg-accent rounded w-3/4" />
-                <div className="h-2 bg-accent rounded w-1/2" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="container-page mt-14 opacity-40 pointer-events-none">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-[15px] font-semibold text-foreground">Zajęcia pozaszkolne</h2>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-          {[1,2,3,4].map((i) => (
-            <div key={i} className="rounded-xl border border-border bg-card">
-              <div className="aspect-[3/2] rounded-t-xl bg-accent" />
-              <div className="p-3 space-y-2">
-                <div className="h-3 bg-accent rounded w-3/4" />
-                <div className="h-2 bg-accent rounded w-1/2" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+      <HomeFilteredView events={upcomingEvents} places={places} camps={camps} activities={activities} />
 
       <section className="container-page mt-14 mb-8">
         <h2 className="text-[15px] font-semibold text-foreground mb-5">Przewodniki</h2>
