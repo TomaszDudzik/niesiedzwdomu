@@ -162,6 +162,18 @@ export async function getCampBySlug(slug: string): Promise<Camp | null> {
   return data ? toCamp(data) : null;
 }
 
+export async function getCampSessionsByOrganizer(organizer: string, excludeId: string): Promise<Camp[]> {
+  const db = getDb();
+  const { data } = await db
+    .from("camps")
+    .select("*")
+    .eq("organizer", organizer)
+    .eq("status", "published")
+    .neq("id", excludeId)
+    .order("date_start", { ascending: true });
+  return (data || []).map(toCamp);
+}
+
 // ── Activities ──
 
 export async function getPublishedActivities(limit = 120): Promise<Activity[]> {

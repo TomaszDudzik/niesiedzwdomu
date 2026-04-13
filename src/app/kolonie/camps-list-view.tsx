@@ -137,19 +137,6 @@ function getSessionLabel(count: number): string {
   return `${count} turnusów`;
 }
 
-function getOrganizerDistrictSummary(camps: Camp[]): string {
-  return Array.from(new Set(camps.map((camp) => camp.district))).join(" • ");
-}
-
-function getOrganizerAgeSummary(camps: Camp[]): string {
-  const mins = camps.map((camp) => camp.age_min).filter((age): age is number => age !== null);
-  const maxes = camps.map((camp) => camp.age_max).filter((age): age is number => age !== null);
-
-  const min = mins.length > 0 ? Math.min(...mins) : null;
-  const max = maxes.length > 0 ? Math.max(...maxes) : null;
-  return formatAgeRange(min, max);
-}
-
 function getDateChipLabel(camp: Camp): string {
   const start = parseDateOnly(camp.date_start);
   const end = parseDateOnly(camp.date_end);
@@ -162,6 +149,21 @@ function getDateChipLabel(camp: Camp): string {
   }
 
   return `${startLabel} - ${DAYS_PL[end.getDay()]} ${formatDateShort(end)}`;
+}
+
+function sortCampsByNearest(camps: Camp[], today: Date): Camp[] {
+  return [...camps].sort((a, b) => {
+    const aEnd = parseDateOnly(a.date_end) || parseDateOnly(a.date_start);
+    const bEnd = parseDateOnly(b.date_end) || parseDateOnly(b.date_start);
+    const aIsUpcoming = !!aEnd && toEndOfDay(aEnd) >= today;
+    const bIsUpcoming = !!bEnd && toEndOfDay(bEnd) >= today;
+
+    if (aIsUpcoming !== bIsUpcoming) {
+      return aIsUpcoming ? -1 : 1;
+    }
+
+    return new Date(a.date_start).getTime() - new Date(b.date_start).getTime();
+  });
 }
 
 export function CampsListView({ camps }: CampsListViewProps) {
@@ -181,6 +183,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [currentMonth, setCurrentMonth] = useState(() => today.getMonth());
   const [currentYear, setCurrentYear] = useState(() => today.getFullYear());
+  const [expandedOrganizers, setExpandedOrganizers] = useState<Record<string, boolean>>({});
 
   const ageGroups = useMemo(
     () => AGE_GROUPS.filter((group) => activeAgeGroups.includes(group.key)),
@@ -310,11 +313,13 @@ export function CampsListView({ camps }: CampsListViewProps) {
           }
         });
 
+      const organizers = Array.from(organizerMap.values()).sort((a, b) => a.organizerName.localeCompare(b.organizerName, "pl"));
+
       return {
         type,
         label: CAMP_TYPE_LABELS[type] || type,
         icon: CAMP_TYPE_ICONS[type] || "🏕️",
-        organizers: Array.from(organizerMap.values()).sort((a, b) => a.organizerName.localeCompare(b.organizerName, "pl")),
+        organizers,
       } satisfies CampTypeGroup;
     });
   }, [dateFiltered]);
@@ -493,6 +498,10 @@ export function CampsListView({ camps }: CampsListViewProps) {
     }
 
     focusCalendar();
+  }
+
+  function toggleOrganizerSessions(organizerKey: string) {
+    setExpandedOrganizers((prev) => ({ ...prev, [organizerKey]: !prev[organizerKey] }));
   }
 
   return (
@@ -960,75 +969,140 @@ export function CampsListView({ camps }: CampsListViewProps) {
                     <h2 className="text-[15px] font-semibold text-foreground">{group.label}</h2>
                     <span className="text-[12px] text-muted-foreground">({group.organizers.length})</span>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {group.organizers.map((organizer) => (
-                      <article
-                        key={organizer.organizerKey}
-                        className="rounded-xl border border-border bg-card shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5 transition-all duration-200 overflow-hidden"
-                      >
-                        <Link
-                          href={`/kolonie/${organizer.leadCamp.slug}`}
-                          className="group flex overflow-hidden h-[160px]"
+                  <div className="space-y-4">
+                    {group.organizers.map((organizer) => {
+                      const sortedCamps = sortCampsByNearest(organizer.camps, today);
+                      const expanded = !!expandedOrganizers[organizer.organizerKey];
+                      const visibleCamps = expanded ? sortedCamps : sortedCamps.slice(0, 3);
+                      const hiddenCount = Math.max(organizer.camps.length - visibleCamps.length, 0);
+
+                      return (
+                        <article
+                          key={organizer.organizerKey}
+                          className="rounded-xl border border-border bg-card shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5 transition-all duration-200 overflow-hidden"
                         >
-                          <div className="w-[160px] shrink-0 relative self-stretch bg-accent">
-                            {organizer.leadCamp.image_url ? (
-                              <ImageWithFallback
-                                src={organizer.leadCamp.image_url}
-                                alt={organizer.organizerName}
-                                className="h-full w-full object-contain bg-accent/30 transition-transform duration-300 group-hover:scale-[1.03]"
-                                loading="lazy"
-                              />
-                            ) : (
-                              <div className="flex h-full w-full items-center justify-center text-3xl text-muted-foreground/30">
-                                {group.icon}
-                              </div>
-                            )}
-                            <span className="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full bg-white px-2 py-1 text-[10px] font-semibold text-foreground shadow-[var(--shadow-soft)] border border-border/70">
-                              {getSessionLabel(organizer.camps.length)}
-                            </span>
-                          </div>
+                          <div className="group flex min-h-[180px] overflow-hidden">
+                            <Link
+                              href={`/kolonie/${organizer.leadCamp.slug}`}
+                              className="w-[210px] shrink-0 relative self-stretch bg-accent"
+                            >
+                              {organizer.leadCamp.image_url ? (
+                                <ImageWithFallback
+                                  src={organizer.leadCamp.image_url}
+                                  alt={organizer.organizerName}
+                                  className="h-full w-full object-contain bg-accent/30 transition-transform duration-300 group-hover:scale-[1.03]"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center text-3xl text-muted-foreground/30">
+                                  {group.icon}
+                                </div>
+                              )}
+                            </Link>
 
-                          <div className="flex-1 min-w-0 p-3 flex flex-col gap-1.5">
-                            <h3 className="font-semibold text-[13px] text-foreground leading-snug group-hover:text-primary transition-colors duration-200 line-clamp-2">
-                              {organizer.organizerName}
-                            </h3>
+                            <div className="flex-1 min-w-0 p-3">
+                              <div className="flex h-full min-w-0 flex-col gap-2.5">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="min-w-0">
+                                    <Link
+                                      href={`/kolonie/${organizer.leadCamp.slug}`}
+                                      className="font-semibold text-[13px] text-foreground leading-snug group-hover:text-primary transition-colors duration-200 line-clamp-2"
+                                    >
+                                      {organizer.organizerName}
+                                    </Link>
+                                    {organizer.leadCamp.description_short && (
+                                      <p className="mt-1 text-[11px] text-muted leading-relaxed line-clamp-2">
+                                        {organizer.leadCamp.description_short}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <span className="shrink-0 rounded-full border border-border bg-background px-2 py-0.5 text-[9px] font-semibold text-muted">
+                                    {getSessionLabel(organizer.camps.length)}
+                                  </span>
+                                </div>
 
-                            {organizer.leadCamp.description_short && (
-                              <p className="text-[11px] text-muted leading-relaxed line-clamp-2">
-                                {organizer.leadCamp.description_short}
-                              </p>
-                            )}
+                                <div className="min-w-0 rounded-lg border border-border/70 bg-background/40 px-3 py-2.5">
+                                  <div className="min-w-0">
+                                    <table className="w-full table-fixed text-[10px]">
+                                      <colgroup>
+                                        <col className="w-[44%]" />
+                                        <col className="w-[18%]" />
+                                        <col className="w-[24%]" />
+                                        <col className="w-[14%]" />
+                                      </colgroup>
+                                      <thead>
+                                        <tr className="border-b border-border/70 text-muted">
+                                          <th className="py-1 pr-2 text-left font-semibold uppercase tracking-wider">Turnus</th>
+                                          <th className="px-2 py-1 text-left font-semibold uppercase tracking-wider">Wiek</th>
+                                          <th className="px-2 py-1 text-left font-semibold uppercase tracking-wider">Termin</th>
+                                          <th className="px-2 py-1 text-left font-semibold uppercase tracking-wider">Szczegóły</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {visibleCamps.map((camp) => {
+                                          return (
+                                            <tr
+                                              key={camp.id}
+                                              className="border-b border-border/40 last:border-0"
+                                            >
+                                              <td className="py-1.5 pr-2 text-foreground align-top">
+                                                <div className="min-w-0">
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => applyCampDatesToCalendar(camp)}
+                                                    className="block w-full truncate whitespace-nowrap text-left font-medium hover:text-primary transition-colors"
+                                                    title={camp.title}
+                                                  >
+                                                    {camp.title}
+                                                  </button>
+                                                </div>
+                                              </td>
+                                              <td className="px-2 py-1.5 text-muted align-top whitespace-nowrap">
+                                                {formatAgeRange(camp.age_min, camp.age_max)}
+                                              </td>
+                                              <td className="px-2 py-1.5 text-muted align-top whitespace-nowrap">
+                                                <button
+                                                  type="button"
+                                                  onClick={() => applyCampDatesToCalendar(camp)}
+                                                  className="hover:text-primary transition-colors text-left"
+                                                  title="Pokaż w kalendarzu"
+                                                >
+                                                  {getDateChipLabel(camp)}
+                                                </button>
+                                              </td>
+                                              <td className="px-2 py-1.5 align-top whitespace-nowrap">
+                                                <Link
+                                                  href={`/kolonie/${camp.slug}`}
+                                                  className="font-medium text-primary hover:text-primary-hover transition-colors"
+                                                >
+                                                  Zobacz
+                                                </Link>
+                                              </td>
+                                            </tr>
+                                          );
+                                        })}
+                                      </tbody>
+                                    </table>
+                                  </div>
 
-                            <div className="mt-auto space-y-0.5">
-                              <div className="flex items-center gap-1 text-[10px] text-muted">
-                                <MapPin size={9} className="text-secondary/60 shrink-0" />
-                                <span className="truncate">{getOrganizerDistrictSummary(organizer.camps)}</span>
-                              </div>
-                              <div className="flex items-center gap-1 text-[10px] text-muted">
-                                <Users size={9} className="text-secondary/60 shrink-0" />
-                                <span className="truncate">{getOrganizerAgeSummary(organizer.camps)}</span>
+                                  {organizer.camps.length > 3 && (
+                                    <div className="mt-2 flex justify-end">
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleOrganizerSessions(organizer.organizerKey)}
+                                        className="text-[10px] font-medium text-primary hover:text-primary-hover transition-colors"
+                                      >
+                                        {expanded ? "Pokaż mniej" : `Pokaż wszystkie (${organizer.camps.length})`}
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </Link>
-
-                        <div className="border-t border-border/70 bg-background/40 px-3 py-2.5">
-                          <div className="flex flex-wrap gap-1.5">
-                            {organizer.camps.map((camp) => (
-                              <button
-                                key={camp.id}
-                                type="button"
-                                onClick={() => applyCampDatesToCalendar(camp)}
-                                className="inline-flex items-center rounded-full border border-border/80 bg-background px-2 py-0.5 text-[9px] font-medium text-foreground hover:bg-card hover:border-primary/20 transition-colors"
-                                title="Pokaż ten termin w kalendarzu"
-                              >
-                                {getDateChipLabel(camp)}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </article>
-                    ))}
+                        </article>
+                      );
+                    })}
                   </div>
                 </section>
               ))}

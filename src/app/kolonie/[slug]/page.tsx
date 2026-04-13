@@ -1,12 +1,12 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, Calendar, ExternalLink, Globe, MapPin, Users } from "lucide-react";
+import { ArrowLeft, Banknote, Calendar, ExternalLink, Globe, MapPin, Users } from "lucide-react";
 import { CAMP_SEASON_LABELS, CAMP_TYPE_ICONS, CAMP_TYPE_LABELS } from "@/lib/mock-data";
 import { formatAgeRange, formatDate, formatPrice } from "@/lib/utils";
 import { AiLearnMoreLink } from "@/components/ui/ai-learn-more-link";
 import { FeedbackButtons } from "@/components/ui/feedback-buttons";
-import { getCampBySlug } from "@/lib/data";
+import { getCampBySlug, getCampSessionsByOrganizer } from "@/lib/data";
 
 export const revalidate = 60;
 
@@ -54,6 +54,10 @@ export default async function CampDetailPage({ params }: PageProps) {
   const { slug } = await params;
   const camp = await getCampBySlug(slug);
   if (!camp) notFound();
+
+  const sessions = camp.organizer
+    ? await getCampSessionsByOrganizer(camp.organizer, camp.id)
+    : [];
 
   const campUrl = `${SITE_URL}/kolonie/${camp.slug}`;
   const breadcrumbSchema = {
@@ -114,19 +118,40 @@ export default async function CampDetailPage({ params }: PageProps) {
   };
 
   return (
-    <div className="container-page py-8">
+    <div className="container-page py-5 lg:py-8">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(campSchema) }} />
 
-      <Link href="/kolonie" className="inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-primary transition-colors duration-200 mb-8">
-        <ArrowLeft size={13} /> Kolonie
-      </Link>
+      {/* Tytuł + short desc — nad gridem */}
+      <div className="mb-5">
+        <div className="flex items-center gap-1.5 mb-2 text-[11px] uppercase tracking-wider font-medium">
+          <Link href="/kolonie" className="inline-flex items-center gap-1 text-muted hover:text-primary transition-colors duration-200">
+            <ArrowLeft size={11} /> Kolonie
+          </Link>
+          <span className="text-muted-foreground/30">·</span>
+          <span className="text-lg mr-0.5">{CAMP_TYPE_ICONS[camp.camp_type] || "🏕️"}</span>
+          <span className="text-primary">{CAMP_TYPE_LABELS[camp.camp_type]}</span>
+          <span className="text-muted-foreground/30">·</span>
+          <span className="text-muted-foreground">{CAMP_SEASON_LABELS[camp.season]}</span>
+          <span className="text-muted-foreground/30">·</span>
+          <span className="text-muted-foreground">{camp.district}</span>
+        </div>
+        <h1 className="text-xl lg:text-2xl font-bold text-foreground leading-tight tracking-[-0.02em] mb-2">
+          {camp.title}
+        </h1>
+        {camp.description_short && (
+          <p className="text-[14px] text-muted leading-relaxed max-w-2xl">{camp.description_short}</p>
+        )}
+      </div>
 
-      <div className="grid lg:grid-cols-3 gap-10">
-        <div className="lg:col-span-2">
+      {/* Outer grid: content | panel */}
+      <div className="grid lg:grid-cols-[1fr_360px] gap-5 lg:gap-6 items-start">
+
+        {/* Lewa strona: image (lewo) + AI link i long desc (środek) */}
+        <div className="grid lg:grid-cols-[288px_1fr] gap-5 items-start">
           {camp.image_url && (
-            <div className="relative rounded-xl overflow-hidden mb-4 aspect-[15/8] bg-accent">
-              <img src={camp.image_url} alt={camp.title} className="w-full h-full object-cover" />
+            <div className="relative rounded-xl overflow-hidden bg-accent min-h-[337px]">
+              <img src={camp.image_url} alt={camp.title} className="absolute inset-0 w-full h-full object-cover" />
               <FeedbackButtons
                 contentType="camp"
                 itemId={camp.id}
@@ -137,119 +162,154 @@ export default async function CampDetailPage({ params }: PageProps) {
               />
             </div>
           )}
-
-          <div className="mb-8">
+          <div className="space-y-3">
             <AiLearnMoreLink
               title={camp.title}
               topicHint={`${CAMP_TYPE_LABELS[camp.camp_type]} dla dzieci`}
             />
+            {camp.description_long && camp.description_long.split("\n").filter(p => p.trim()).map((p, i) => (
+              <p key={i} className="text-[13px] text-foreground/80 leading-relaxed mb-2 last:mb-0">{p}</p>
+            ))}
           </div>
-
-          <div className="flex items-center gap-1.5 mb-3 text-[11px] uppercase tracking-wider font-medium">
-            <span className="text-lg mr-0.5">{CAMP_TYPE_ICONS[camp.camp_type] || "🏕️"}</span>
-            <span className="text-primary">{CAMP_TYPE_LABELS[camp.camp_type]}</span>
-            <span className="text-muted-foreground/30">·</span>
-            <span className="text-muted-foreground">{CAMP_SEASON_LABELS[camp.season]}</span>
-            <span className="text-muted-foreground/30">·</span>
-            <span className="text-muted-foreground">{CAMP_TYPE_LABELS[camp.camp_type]}</span>
-            <span className="text-muted-foreground/30">·</span>
-            <span className="text-muted-foreground">{camp.district}</span>
-          </div>
-
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground leading-tight tracking-[-0.02em] mb-3">{camp.title}</h1>
-          <p className="text-[15px] text-muted leading-relaxed mb-8">{camp.description_short}</p>
-
-          {camp.description_long && (
-            <div className="space-y-4">
-              {camp.description_long.split("\n").map((p, i) => (
-                <p key={i} className="text-[15px] text-foreground/80 leading-relaxed">{p}</p>
-              ))}
-            </div>
-          )}
         </div>
 
-        <div className="lg:col-span-1">
-          <div className="sticky top-20 space-y-5">
-            <div className="rounded-xl border border-border bg-card shadow-[var(--shadow-card)] overflow-hidden">
-              <div className="px-5 pt-5 pb-4 border-b border-border">
-                <h2 className="text-[15px] font-bold text-foreground leading-snug">{camp.title}</h2>
-                <p className="text-[11px] text-muted mt-1 uppercase tracking-wider font-medium">
-                  {CAMP_TYPE_LABELS[camp.camp_type]} · {camp.district}
-                </p>
+        {/* Prawa kolumna: info card — sticky na desktop */}
+        <div className="lg:sticky lg:top-20 self-start">
+          <div className="rounded-xl border border-border bg-card shadow-[var(--shadow-card)] overflow-hidden">
+            <div className="px-4 py-4 space-y-3">
+
+              <div className="flex items-start gap-2.5">
+                <Calendar size={14} className="text-secondary/60 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-[10px] text-muted uppercase tracking-wider leading-none mb-0.5">Termin</p>
+                  <p className="text-[13px] font-medium text-foreground">
+                    {formatDate(camp.date_start)}{camp.date_end ? ` – ${formatDate(camp.date_end)}` : ""}
+                  </p>
+                </div>
               </div>
 
-              <div className="px-5 py-4 space-y-3.5 text-[13px]">
-                <div className="flex items-start gap-2.5">
-                  <Calendar size={15} className="text-secondary/60 shrink-0 mt-0.5" />
+              {(camp.venue_name || camp.venue_address) && (
+                <a
+                  href={camp.venue_address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(camp.venue_address)}` : undefined}
+                  target="_blank"
+                  rel="noopener"
+                  className="flex items-start gap-2.5 group"
+                >
+                  <MapPin size={14} className="text-secondary/60 group-hover:text-primary shrink-0 mt-0.5 transition-colors" />
                   <div>
-                    <p className="text-[11px] text-muted uppercase tracking-wider mb-0.5">Termin</p>
-                    <p className="font-medium text-foreground">{formatDate(camp.date_start)}{camp.date_end ? ` - ${formatDate(camp.date_end)}` : ""}</p>
-                    <p className="text-muted">{camp.duration_days} dni · {CAMP_SEASON_LABELS[camp.season]}</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2.5">
-                  <MapPin size={15} className="text-secondary/60 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-[11px] text-muted uppercase tracking-wider mb-0.5">Miejsce</p>
-                    <p className="font-medium text-foreground">{camp.venue_name}</p>
-                    <p className="text-muted">{camp.venue_address}</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2.5">
-                  <Users size={15} className="text-secondary/60 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-[11px] text-muted uppercase tracking-wider mb-0.5">Wiek</p>
-                    <p className="font-medium text-foreground">{formatAgeRange(camp.age_min, camp.age_max)}</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2.5">
-                  <Calendar size={15} className="text-secondary/60 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-[11px] text-muted uppercase tracking-wider mb-0.5">Cena</p>
-                    <p className="font-medium text-foreground">{formatPrice(camp.price)}</p>
-                    <p className="text-muted">
-                      {camp.meals_included ? "Wyżywienie w cenie" : "Bez wyżywienia"}
-                      {camp.transport_included ? " · transport w cenie" : " · bez transportu"}
+                    <p className="text-[10px] text-muted uppercase tracking-wider leading-none mb-0.5">Adres</p>
+                    <p className="text-[13px] font-medium text-foreground group-hover:text-primary transition-colors">
+                      {camp.venue_address || camp.venue_name}
                     </p>
                   </div>
+                </a>
+              )}
+
+              <div className="flex items-center gap-2.5">
+                <Users size={14} className="text-secondary/60 shrink-0" />
+                <div>
+                  <p className="text-[10px] text-muted uppercase tracking-wider leading-none mb-0.5">Wiek</p>
+                  <p className="text-[13px] font-medium text-foreground">{formatAgeRange(camp.age_min, camp.age_max)}</p>
                 </div>
               </div>
 
-              {(camp.source_url || camp.organizer || camp.facebook_url) && (
-                <div className="px-5 py-4 border-t border-border space-y-2.5">
-                  {camp.source_url && (
-                    <a
-                      href={camp.source_url}
-                      target="_blank"
-                      rel="noopener"
-                      className="flex items-center gap-2.5 text-[13px] text-foreground hover:text-primary transition-colors duration-200 group"
-                    >
-                      <Globe size={15} className="text-secondary/60 group-hover:text-primary shrink-0" />
-                      <span className="font-medium truncate">Strona organizatora</span>
-                      <ExternalLink size={11} className="text-muted shrink-0 ml-auto" />
-                    </a>
-                  )}
-                  {camp.facebook_url && (
-                    <a
-                      href={camp.facebook_url}
-                      target="_blank"
-                      rel="noopener"
-                      className="flex items-center gap-2.5 text-[13px] text-foreground hover:text-primary transition-colors duration-200 group"
-                    >
-                      <Globe size={15} className="text-secondary/60 group-hover:text-primary shrink-0" />
-                      <span className="font-medium truncate">Facebook</span>
-                      <ExternalLink size={11} className="text-muted shrink-0 ml-auto" />
-                    </a>
-                  )}
-                  {camp.organizer && (
-                    <p className="text-[12px] text-muted">Organizator: {camp.organizer}</p>
-                  )}
+              <div className="flex items-start gap-2.5">
+                <Banknote size={14} className="text-secondary/60 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-[10px] text-muted uppercase tracking-wider leading-none mb-0.5">Cena</p>
+                  <p className="text-[13px] font-medium text-foreground">{formatPrice(camp.price)}</p>
+                  <p className="text-[11px] text-muted">
+                    {camp.meals_included ? "Wyżywienie w cenie" : "Bez wyżywienia"}
+                    {camp.transport_included ? " · transport w cenie" : " · bez transportu"}
+                  </p>
+                </div>
+              </div>
+
+              {camp.organizer && (
+                <div className="flex items-center gap-2.5">
+                  <Globe size={14} className="text-secondary/60 shrink-0" />
+                  <div>
+                    <p className="text-[10px] text-muted uppercase tracking-wider leading-none mb-0.5">Organizator</p>
+                    <p className="text-[13px] font-medium text-foreground">{camp.organizer}</p>
+                  </div>
                 </div>
               )}
             </div>
+
+            {(camp.source_url || camp.facebook_url) && (
+              <div className="px-4 py-3 border-t border-border space-y-2">
+                {camp.source_url && (
+                  <a href={camp.source_url} target="_blank" rel="noopener"
+                    className="flex items-center gap-2 text-[13px] text-foreground hover:text-primary transition-colors group">
+                    <Globe size={13} className="text-secondary/60 group-hover:text-primary shrink-0" />
+                    <span className="font-medium">Strona organizatora</span>
+                    <ExternalLink size={11} className="text-muted shrink-0 ml-auto" />
+                  </a>
+                )}
+                {camp.facebook_url && (
+                  <a href={camp.facebook_url} target="_blank" rel="noopener"
+                    className="flex items-center gap-2 text-[13px] text-foreground hover:text-primary transition-colors group">
+                    <Globe size={13} className="text-secondary/60 group-hover:text-primary shrink-0" />
+                    <span className="font-medium">Facebook</span>
+                    <ExternalLink size={11} className="text-muted shrink-0 ml-auto" />
+                  </a>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
+
+      {sessions.length > 0 && (
+        <section className="mt-10 pt-8 border-t border-border">
+          <h2 className="text-[15px] font-semibold text-foreground mb-4">
+            Inne turnusy tego organizatora
+          </h2>
+          <div className="overflow-x-auto rounded-xl border border-border bg-card">
+            <table className="w-full text-[13px]">
+              <thead>
+                <tr className="border-b border-border bg-accent/40">
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-muted uppercase tracking-wider">Termin</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-muted uppercase tracking-wider">Czas trwania</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-muted uppercase tracking-wider">Miejsce</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-muted uppercase tracking-wider">Wiek</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-muted uppercase tracking-wider">Cena</th>
+                  <th className="px-4 py-2.5" />
+                </tr>
+              </thead>
+              <tbody>
+                {sessions.map((s) => (
+                  <tr key={s.id} className="border-b border-border/60 last:border-0 hover:bg-accent/30 transition-colors">
+                    <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">
+                      {formatDate(s.date_start)}{s.date_end && s.date_end !== s.date_start ? ` – ${formatDate(s.date_end)}` : ""}
+                    </td>
+                    <td className="px-4 py-3 text-muted whitespace-nowrap">
+                      {s.duration_days ? `${s.duration_days} dni` : "—"}
+                    </td>
+                    <td className="px-4 py-3 text-muted">
+                      {s.venue_name || s.venue_address || "—"}
+                    </td>
+                    <td className="px-4 py-3 text-muted whitespace-nowrap">
+                      {formatAgeRange(s.age_min, s.age_max)}
+                    </td>
+                    <td className="px-4 py-3 text-muted whitespace-nowrap">
+                      {formatPrice(s.price)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Link
+                        href={`/kolonie/${s.slug}`}
+                        className="text-[12px] text-primary hover:underline whitespace-nowrap"
+                      >
+                        Szczegóły →
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

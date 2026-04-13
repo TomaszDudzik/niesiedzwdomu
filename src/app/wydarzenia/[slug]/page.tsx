@@ -130,13 +130,13 @@ export default async function EventDetailPage({ params }: PageProps) {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(eventSchema) }} />
 
-      <Link href="/wydarzenia" className="inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-primary transition-colors duration-200 mb-6">
-        <ArrowLeft size={13} /> Wydarzenia
-      </Link>
-
       {/* Tytuł + short desc — nad gridem */}
       <div className="mb-5">
         <div className="flex items-center gap-1.5 mb-2 text-[11px] uppercase tracking-wider font-medium">
+          <Link href="/wydarzenia" className="inline-flex items-center gap-1 text-muted hover:text-primary transition-colors duration-200">
+            <ArrowLeft size={11} /> Wydarzenia
+          </Link>
+          <span className="text-muted-foreground/30">·</span>
           <span className="text-primary">Wydarzenie</span>
           <span className="text-muted-foreground/30">·</span>
           <span className="text-muted-foreground">{CATEGORY_LABELS[event.category]}</span>
@@ -154,32 +154,30 @@ export default async function EventDetailPage({ params }: PageProps) {
       {/* Outer grid: content | panel */}
       <div className="grid lg:grid-cols-[1fr_360px] gap-5 lg:gap-6 items-start">
 
-        {/* Lewa strona: image + opis (inner grid) + AI link */}
-        <div className="space-y-4">
-          <div className="grid lg:grid-cols-[288px_1fr] gap-5 items-start">
-            {event.image_url && (
-              <div className="relative rounded-xl overflow-hidden bg-accent min-h-[259px]">
-                <img src={event.image_url} alt={event.title} className="absolute inset-0 w-full h-full object-cover" />
-                <FeedbackButtons
-                  contentType="event"
-                  itemId={event.id}
-                  initialLikes={event.likes}
-                  initialDislikes={event.dislikes}
-                  showLabel={false}
-                  className="absolute bottom-3 right-3 z-10"
-                />
-              </div>
-            )}
-            <div className="space-y-3">
-              {event.description_long && event.description_long.split("\n").map((p, i) => (
-                <p key={i} className="text-[14px] text-foreground/80 leading-relaxed">{p}</p>
-              ))}
+        {/* Lewa strona: image (lewo) + AI link i long desc (środek) */}
+        <div className="grid lg:grid-cols-[288px_1fr] gap-5 items-start">
+          {event.image_url && (
+            <div className="relative rounded-xl overflow-hidden bg-accent min-h-[337px]">
+              <img src={event.image_url} alt={event.title} className="absolute inset-0 w-full h-full object-cover" />
+              <FeedbackButtons
+                contentType="event"
+                itemId={event.id}
+                initialLikes={event.likes}
+                initialDislikes={event.dislikes}
+                showLabel={false}
+                className="absolute bottom-3 right-3 z-10"
+              />
             </div>
+          )}
+          <div className="space-y-3">
+            <AiLearnMoreLink
+              title={event.title}
+              topicHint={`${CATEGORY_LABELS[event.category]} wydarzenie dla dzieci`}
+            />
+            {event.description_long && event.description_long.split("\n").filter(p => p.trim()).map((p, i) => (
+              <p key={i} className="text-[13px] text-foreground/80 leading-relaxed mb-2 last:mb-0">{p}</p>
+            ))}
           </div>
-          <AiLearnMoreLink
-            title={event.title}
-            topicHint={`${CATEGORY_LABELS[event.category]} wydarzenie dla dzieci`}
-          />
         </div>
 
         {/* Prawa kolumna: info card — sticky na desktop */}
@@ -210,17 +208,19 @@ export default async function EventDetailPage({ params }: PageProps) {
                 </div>
               )}
 
-              {event.venue_name && (
-                <div className="flex items-start gap-2.5">
-                  <MapPin size={14} className="text-secondary/60 shrink-0 mt-0.5" />
+              {event.venue_address && (
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.venue_address)}`}
+                  target="_blank"
+                  rel="noopener"
+                  className="flex items-start gap-2.5 group"
+                >
+                  <MapPin size={14} className="text-secondary/60 group-hover:text-primary shrink-0 mt-0.5 transition-colors" />
                   <div>
-                    <p className="text-[10px] text-muted uppercase tracking-wider leading-none mb-0.5">Miejsce</p>
-                    <p className="text-[13px] font-medium text-foreground">{event.venue_name}</p>
-                    {event.venue_address && (
-                      <p className="text-[11px] text-muted mt-0.5">{event.venue_address}</p>
-                    )}
+                    <p className="text-[10px] text-muted uppercase tracking-wider leading-none mb-0.5">Adres</p>
+                    <p className="text-[13px] font-medium text-foreground group-hover:text-primary transition-colors">{event.venue_address}</p>
                   </div>
-                </div>
+                </a>
               )}
 
               <div className="flex items-center gap-2.5">
@@ -257,14 +257,6 @@ export default async function EventDetailPage({ params }: PageProps) {
               </div>
             )}
 
-            <div className="px-4 py-3 border-t border-border">
-              <FeedbackButtons
-                contentType="event"
-                itemId={event.id}
-                initialLikes={event.likes}
-                initialDislikes={event.dislikes}
-              />
-            </div>
           </div>
         </div>
       </div>

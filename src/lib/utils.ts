@@ -33,7 +33,7 @@ export function formatPrice(price: number | null): string {
 }
 
 export function formatAgeRange(min: number | null, max: number | null): string {
-  if (min === null && max === null) return "Wszystkie grupy wiekowe";
+  if (min === null && max === null) return "Wszyscy";
   if (min !== null && max !== null) return `${min}–${max} lat`;
   if (min !== null) return `od ${min} lat`;
   return `do ${max} lat`;

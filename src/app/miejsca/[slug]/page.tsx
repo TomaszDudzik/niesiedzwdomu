@@ -116,13 +116,13 @@ export default async function PlaceDetailPage({ params }: PageProps) {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(placeSchema) }} />
 
-      <Link href="/miejsca" className="inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-primary transition-colors duration-200 mb-6">
-        <ArrowLeft size={13} /> Miejsca
-      </Link>
-
       {/* Tytuł + short desc — nad gridem */}
       <div className="mb-5">
         <div className="flex items-center gap-1.5 mb-2 text-[11px] uppercase tracking-wider font-medium">
+          <Link href="/miejsca" className="inline-flex items-center gap-1 text-muted hover:text-primary transition-colors duration-200">
+            <ArrowLeft size={11} /> Miejsca
+          </Link>
+          <span className="text-muted-foreground/30">·</span>
           <span className="text-lg mr-0.5">{PLACE_TYPE_ICONS[place.place_type] || "📍"}</span>
           <span className="text-primary">{PLACE_TYPE_LABELS[place.place_type] || "Miejsce"}</span>
           <span className="text-muted-foreground/30">·</span>
@@ -141,32 +141,30 @@ export default async function PlaceDetailPage({ params }: PageProps) {
       {/* Outer grid: content | panel */}
       <div className="grid lg:grid-cols-[1fr_360px] gap-5 lg:gap-6 items-start">
 
-        {/* Lewa strona: image + opis (inner grid) + AI link */}
-        <div className="space-y-4">
-          <div className="grid lg:grid-cols-[288px_1fr] gap-5 items-start">
-            {place.image_url && (
-              <div className="relative rounded-xl overflow-hidden bg-accent min-h-[259px]">
-                <img src={place.image_url} alt={place.title} className="absolute inset-0 w-full h-full object-cover" />
-                <FeedbackButtons
-                  contentType="place"
-                  itemId={place.id}
-                  initialLikes={place.likes}
-                  initialDislikes={place.dislikes}
-                  showLabel={false}
-                  className="absolute bottom-3 right-3 z-10"
-                />
-              </div>
-            )}
-            <div className="space-y-3">
-              {place.description_long && place.description_long !== place.description_short && place.description_long.split("\n").map((p, i) => (
-                <p key={i} className="text-[14px] text-foreground/80 leading-relaxed">{p}</p>
-              ))}
+        {/* Lewa strona: image (lewo) + AI link i long desc (środek) */}
+        <div className="grid lg:grid-cols-[288px_1fr] gap-5 items-start">
+          {place.image_url && (
+            <div className="relative rounded-xl overflow-hidden bg-accent min-h-[337px]">
+              <img src={place.image_url} alt={place.title} className="absolute inset-0 w-full h-full object-cover" />
+              <FeedbackButtons
+                contentType="place"
+                itemId={place.id}
+                initialLikes={place.likes}
+                initialDislikes={place.dislikes}
+                showLabel={false}
+                className="absolute bottom-3 right-3 z-10"
+              />
             </div>
+          )}
+          <div className="space-y-3">
+            <AiLearnMoreLink
+              title={place.title}
+              topicHint={`${PLACE_TYPE_LABELS[place.place_type] || place.place_type} miejsce dla dzieci`}
+            />
+            {place.description_long && place.description_long !== place.description_short && place.description_long.split("\n").filter(p => p.trim()).map((p, i) => (
+              <p key={i} className="text-[13px] text-foreground/80 leading-relaxed mb-2 last:mb-0">{p}</p>
+            ))}
           </div>
-          <AiLearnMoreLink
-            title={place.title}
-            topicHint={`${PLACE_TYPE_LABELS[place.place_type] || place.place_type} miejsce dla dzieci`}
-          />
         </div>
 
         {/* Prawa kolumna: info card — sticky na desktop */}
@@ -234,14 +232,6 @@ export default async function PlaceDetailPage({ params }: PageProps) {
               </div>
             )}
 
-            <div className="px-4 py-3 border-t border-border">
-              <FeedbackButtons
-                contentType="place"
-                itemId={place.id}
-                initialLikes={place.likes}
-                initialDislikes={place.dislikes}
-              />
-            </div>
           </div>
         </div>
       </div>
