@@ -30,8 +30,9 @@ function pickCampFields(input: Record<string, unknown>) {
     image_url: input.image_url,
     date_start: input.date_start,
     date_end: input.date_end,
-    camp_type: input.camp_type,
+    main_category: input.main_category,
     category: input.category ?? null,
+    subcategory: input.subcategory ?? null,
     season: input.season,
     duration_days: input.duration_days,
     meals_included: input.meals_included,
@@ -84,8 +85,9 @@ export async function POST(request: NextRequest) {
 }
 
 const ALLOWED_CAMP_FIELDS = new Set([
-  "title", "description_short", "description_long", "image_url",
-  "date_start", "date_end", "camp_type", "category", "season",
+  "title", "description_short", "description_long",
+  "image_url", "image_cover", "image_thumb", "image_set",
+  "date_start", "date_end", "main_category", "category", "subcategory", "season",
   "duration_days", "meals_included", "transport_included",
   "age_min", "age_max", "price_from", "price_to", "is_free",
   "district", "venue_name", "venue_address", "organizer", "organizer_id",

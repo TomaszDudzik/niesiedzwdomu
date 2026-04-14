@@ -37,7 +37,7 @@ const DISTRICT_COORDS: Record<string, [number, number]> = {
   "Prądnik Czerwony": [50.087, 19.955],
   "Prądnik Biały": [50.095, 19.92],
   "Czyżyny": [50.072, 20.005],
-  "Bieżanów": [50.015, 20.005],
+  "Bieżanów-Prokocim": [50.015, 20.005],
 };
 
 const DISTRICT_ICONS: Partial<Record<District, string>> = {
@@ -52,7 +52,7 @@ const DISTRICT_ICONS: Partial<Record<District, string>> = {
   "Prądnik Czerwony": "🌳",
   "Prądnik Biały": "🍃",
   "Czyżyny": "✈️",
-  "Bieżanów": "🚋",
+  "Bieżanów-Prokocim": "🚋",
 };
 
 interface MarkerGroup {

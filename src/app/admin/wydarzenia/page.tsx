@@ -10,6 +10,7 @@ import {
 import { CATEGORY_ICONS, CATEGORY_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
 import { cn, formatDateShort, formatPrice, slugify } from "@/lib/utils";
 import type { Event } from "@/types/database";
+import { ImageSection } from "@/components/admin/image-section";
 
 type DerivedEventStatus = Event["status"] | "outdated";
 type EventListFilter = "all" | "published" | "draft" | "outdated";
@@ -497,6 +498,8 @@ function AdminCanonicalEventsPanel() {
       organizer: event.organizer,
       source_url: event.source_url,
       facebook_url: event.facebook_url ?? "",
+      main_category: event.main_category ?? null,
+      subcategory: event.subcategory ?? null,
       is_featured: event.is_featured,
       status: event.status,
       likes: event.likes,
@@ -667,6 +670,8 @@ function AdminCanonicalEventsPanel() {
       organizer: editForm.organizer ? String(editForm.organizer) : null,
       source_url: editForm.source_url ? String(editForm.source_url) : null,
       facebook_url: editForm.facebook_url ? String(editForm.facebook_url) : null,
+      main_category: editForm.main_category ? String(editForm.main_category) : null,
+      subcategory: editForm.subcategory ? String(editForm.subcategory) : null,
       is_featured: Boolean(editForm.is_featured),
       status: editForm.status,
       likes: Number(editForm.likes) || 0,
@@ -844,28 +849,18 @@ function AdminCanonicalEventsPanel() {
 
                           {isEditing && (
                             <div className="px-3 pb-3 pt-2 border-t border-border/50">
-                              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
-                                <div className="md:col-span-3">
+                              <div className="grid grid-cols-1 md:grid-cols-6 gap-3 mb-4">
+                                <div className="md:col-span-6">
                                   <label className={labelClass}>Tytuł</label>
                                   <input className={inputClass} value={(editForm.title as string) || ""} onChange={(e) => updateField("title", e.target.value)} />
                                 </div>
-                                <div>
-                                  <label className={labelClass}>Kategoria</label>
-                                  <select className={inputClass} value={(editForm.category as string) || "inne"} onChange={(e) => updateField("category", e.target.value)}>
-                                    {Object.entries(CATEGORY_LABELS).map(([key, labelValue]) => (
-                                      <option key={key} value={key}>{labelValue}</option>
-                                    ))}
-                                  </select>
-                                </div>
-                                <div className="hidden md:block" />
-
-                                <div className="md:col-span-4">
+                                <div className="md:col-span-6">
                                   <label className={labelClass}>Krótki opis</label>
                                   <textarea rows={2} className={inputClass} value={(editForm.description_short as string) || ""} onChange={(e) => updateField("description_short", e.target.value)} />
                                 </div>
-                                <div className="md:col-span-4">
+                                <div className="md:col-span-6">
                                   <label className={labelClass}>Długi opis</label>
-                                  <textarea rows={6} className={inputClass} value={(editForm.description_long as string) || ""} onChange={(e) => updateField("description_long", e.target.value)} />
+                                  <textarea rows={5} className={inputClass} value={(editForm.description_long as string) || ""} onChange={(e) => updateField("description_long", e.target.value)} />
                                 </div>
 
                                 <div>
@@ -884,7 +879,6 @@ function AdminCanonicalEventsPanel() {
                                   <label className={labelClass}>Godzina do</label>
                                   <input type="time" className={inputClass} value={(editForm.time_end as string) || ""} onChange={(e) => updateField("time_end", e.target.value || null)} />
                                 </div>
-
                                 <div>
                                   <label className={labelClass}>Wiek od</label>
                                   <input type="number" min={0} max={18} className={inputClass} value={editForm.age_min === null ? "" : String(editForm.age_min ?? "")} onChange={(e) => updateField("age_min", e.target.value ? Number(e.target.value) : null)} />
@@ -893,6 +887,7 @@ function AdminCanonicalEventsPanel() {
                                   <label className={labelClass}>Wiek do</label>
                                   <input type="number" min={0} max={18} className={inputClass} value={editForm.age_max === null ? "" : String(editForm.age_max ?? "")} onChange={(e) => updateField("age_max", e.target.value ? Number(e.target.value) : null)} />
                                 </div>
+
                                 <div>
                                   <label className={labelClass}>Cena</label>
                                   <input type="number" min={0} className={inputClass} value={editForm.price === null ? "" : String(editForm.price ?? "")} onChange={(e) => {
@@ -901,35 +896,59 @@ function AdminCanonicalEventsPanel() {
                                     updateField("is_free", value === null || value === 0);
                                   }} />
                                 </div>
-                                <div className="flex items-center gap-2 pt-5">
-                                  <input type="checkbox" id={`free-${event.id}`} checked={Boolean(editForm.is_free)} onChange={(e) => updateField("is_free", e.target.checked)} className="rounded border-border" />
-                                  <label htmlFor={`free-${event.id}`} className="text-[12px] text-foreground">Bezpłatne</label>
+                                <div>
+                                  <label className={labelClass}>Kategoria</label>
+                                  <select className={inputClass} value={(editForm.category as string) || "inne"} onChange={(e) => updateField("category", e.target.value)}>
+                                    {Object.entries(CATEGORY_LABELS).map(([key, labelValue]) => (
+                                      <option key={key} value={key}>{labelValue}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div className="md:col-span-4 flex items-center gap-4 pt-5">
+                                  <label className="flex items-center gap-2 text-[12px] cursor-pointer">
+                                    <input type="checkbox" checked={Boolean(editForm.is_free)} onChange={(e) => updateField("is_free", e.target.checked)} className="rounded border-border" />
+                                    Bezpłatne
+                                  </label>
+                                  <label className="flex items-center gap-2 text-[12px] cursor-pointer">
+                                    <input type="checkbox" checked={Boolean(editForm.is_featured)} onChange={(e) => updateField("is_featured", e.target.checked)} className="rounded border-border" />
+                                    Wyróżnione
+                                  </label>
                                 </div>
 
-                                <div className="md:col-span-2">
-                                  <label className={labelClass}>URL</label>
-                                  <input className={inputClass} value={(editForm.source_url as string) || ""} onChange={(e) => updateField("source_url", e.target.value)} />
+                                <div className="md:col-span-3">
+                                  <label className={labelClass}>URL źródła</label>
+                                  <input className={inputClass} value={(editForm.source_url as string) || ""} onChange={(e) => updateField("source_url", e.target.value)} placeholder="https://..." />
                                 </div>
-                                <div className="md:col-span-2">
+                                <div className="md:col-span-3">
                                   <label className={labelClass}>Facebook</label>
                                   <input className={inputClass} value={(editForm.facebook_url as string) || ""} onChange={(e) => updateField("facebook_url", e.target.value)} placeholder="https://facebook.com/..." />
                                 </div>
+
                                 <div className="md:col-span-2">
+                                  <label className={labelClass}>Main category</label>
+                                  <input className={inputClass} value={String(editForm.main_category || "")} onChange={(e) => updateField("main_category", e.target.value || null)} placeholder="np. wydarzenia" />
+                                </div>
+                                <div className="md:col-span-2">
+                                  <label className={labelClass}>Category</label>
+                                  <input className={inputClass} value={String(editForm.img_category || editForm.category || "")} onChange={(e) => updateField("img_category", e.target.value || null)} />
+                                </div>
+                                <div className="md:col-span-2">
+                                  <label className={labelClass}>Subcategory</label>
+                                  <input className={inputClass} value={String(editForm.subcategory || "")} onChange={(e) => updateField("subcategory", e.target.value || null)} placeholder="np. teatr" />
+                                </div>
+
+                                <div className="md:col-span-4">
                                   <label className={labelClass}>Organizator</label>
                                   <input className={inputClass} value={(editForm.organizer as string) || ""} onChange={(e) => updateField("organizer", e.target.value)} />
                                 </div>
-                                <div className="md:col-span-2 grid grid-cols-2 gap-3">
-                                  <div>
-                                    <label className={labelClass}>👍 Likes</label>
-                                    <input type="number" min={0} className={inputClass} value={(editForm.likes as number) ?? 0} onChange={(e) => updateField("likes", Number(e.target.value) || 0)} />
-                                  </div>
-                                  <div>
-                                    <label className={labelClass}>👎 Dislikes</label>
-                                    <input type="number" min={0} className={inputClass} value={(editForm.dislikes as number) ?? 0} onChange={(e) => updateField("dislikes", Number(e.target.value) || 0)} />
-                                  </div>
+                                <div>
+                                  <label className={labelClass}>Likes</label>
+                                  <input type="number" min={0} className={inputClass} value={(editForm.likes as number) ?? 0} onChange={(e) => updateField("likes", Number(e.target.value) || 0)} />
                                 </div>
-                                <div className="hidden md:block" />
-                                <div className="hidden md:block" />
+                                <div>
+                                  <label className={labelClass}>Dislikes</label>
+                                  <input type="number" min={0} className={inputClass} value={(editForm.dislikes as number) ?? 0} onChange={(e) => updateField("dislikes", Number(e.target.value) || 0)} />
+                                </div>
                               </div>
 
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
@@ -988,27 +1007,19 @@ function AdminCanonicalEventsPanel() {
                                   )}
                                 </div>
 
-                                <div className="rounded-lg border border-border/50 p-3 space-y-3">
-                                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Obrazek</p>
-                                  {(pendingPreview || event.image_url) && (
-                                    <div className="relative">
-                                      <img src={pendingPreview || event.image_url || ""} alt="" className={cn("w-full aspect-[3/2] rounded-lg object-cover border border-border", pendingPreview && "ring-2 ring-primary/40")} />
-                                      {pendingPreview && (
-                                        <button onClick={clearPendingFile} className="absolute top-1.5 right-1.5 bg-white rounded-full shadow-sm border border-border p-0.5 hover:bg-red-50 transition-colors" title="Usuń">
-                                          <X size={14} className="text-red-500" />
-                                        </button>
-                                      )}
-                                    </div>
-                                  )}
-                                  <div className="flex items-center gap-2">
-                                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-muted border border-border rounded hover:text-foreground hover:border-primary/30 transition-colors cursor-pointer">
-                                      <Plus size={11} />
-                                      {pendingPreview ? "Zmień plik" : "Wgraj plik"}
-                                      <input type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleFileSelect(file); e.target.value = ""; }} />
-                                    </label>
-                                  </div>
-                                  {pendingPreview && <span className="text-[10px] text-primary font-medium">Nowy plik — zapisz aby wgrać</span>}
-                                </div>
+                                <ImageSection
+                                  imageUrl={event.image_url}
+                                  imageThumb={event.image_thumb}
+                                  pendingPreview={pendingPreview}
+                                  onFileSelect={handleFileSelect}
+                                  onClearPending={clearPendingFile}
+                                  table="events"
+                                  itemId={event.id}
+                                  mainCategory={String(editForm.main_category || event.main_category || "")}
+                                  category={String(editForm.category || event.category || "")}
+                                  subcategory={String(editForm.subcategory || event.subcategory || "")}
+                                  onRandomPhoto={(url, thumb) => setEvents((prev) => prev.map((e) => e.id === event.id ? { ...e, image_url: url, image_thumb: thumb } : e))}
+                                />
                               </div>
 
                               <div className="flex gap-2">

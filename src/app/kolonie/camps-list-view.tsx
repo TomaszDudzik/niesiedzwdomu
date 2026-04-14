@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 import { Search, SlidersHorizontal, X, MapPin, Check, Tags, Users, CalendarDays } from "lucide-react";
-import { CAMP_TYPE_ICONS, CAMP_TYPE_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
-import { cn, formatDateShort, toLocalDateKey } from "@/lib/utils";
+import { CAMP_MAIN_CATEGORY_ICONS, CAMP_MAIN_CATEGORY_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
+import { cn, formatDateShort, toLocalDateKey, thumbUrl } from "@/lib/utils";
 import { ImageWithFallback } from "@/components/ui/image-with-fallback";
-import type { Camp, CampType, District } from "@/types/database";
+import type { Camp, CampMainCategory, District } from "@/types/database";
 
-const campTypes = Object.keys(CAMP_TYPE_LABELS) as CampType[];
+const campTypes = Object.keys(CAMP_MAIN_CATEGORY_LABELS) as CampMainCategory[];
 
 const AGE_GROUPS = [
   { key: "0-5", label: "0-5 lat", icon: "👶", min: 0, max: 5 },
@@ -35,7 +35,7 @@ const DISTRICT_ICONS: Partial<Record<District, string>> = {
   "Prądnik Czerwony": "🌳",
   "Prądnik Biały": "🍃",
   "Czyżyny": "✈️",
-  "Bieżanów": "🚋",
+  "Bieżanów-Prokocim": "🚋",
 };
 
 interface DateRange {
@@ -50,8 +50,8 @@ interface OrganizerTile {
   camps: Camp[];
 }
 
-interface CampTypeGroup {
-  type: CampType;
+interface CampMainCategoryGroup {
+  type: CampMainCategory;
   label: string;
   icon: string;
   organizers: OrganizerTile[];
@@ -173,7 +173,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
   const calendarRef = useRef<HTMLDivElement | null>(null);
 
   const [search, setSearch] = useState("");
-  const [activeTypes, setActiveTypes] = useState<CampType[]>([]);
+  const [activeTypes, setActiveTypes] = useState<CampMainCategory[]>([]);
   const [activeDistricts, setActiveDistricts] = useState<District[]>([]);
   const [activeAgeGroups, setActiveAgeGroups] = useState<string[]>([]);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -208,7 +208,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
     }
 
     if (activeTypes.length > 0) {
-      result = result.filter((camp) => activeTypes.includes(camp.camp_type));
+      result = result.filter((camp) => activeTypes.includes(camp.main_category));
     }
 
     if (activeDistricts.length > 0) {
@@ -276,12 +276,12 @@ export function CampsListView({ camps }: CampsListViewProps) {
   }, [filtered, monthDays]);
 
   const grouped = useMemo(() => {
-    const groupedByType = new Map<CampType, Camp[]>();
+    const groupedByType = new Map<CampMainCategory, Camp[]>();
 
     for (const camp of dateFiltered) {
-      const current = groupedByType.get(camp.camp_type) || [];
+      const current = groupedByType.get(camp.main_category) || [];
       current.push(camp);
-      groupedByType.set(camp.camp_type, current);
+      groupedByType.set(camp.main_category, current);
     }
 
     return Array.from(groupedByType.entries()).map(([type, typeCamps]) => {
@@ -325,10 +325,10 @@ export function CampsListView({ camps }: CampsListViewProps) {
 
       return {
         type,
-        label: CAMP_TYPE_LABELS[type] || type,
-        icon: CAMP_TYPE_ICONS[type] || "🏕️",
+        label: CAMP_MAIN_CATEGORY_LABELS[type] || type,
+        icon: CAMP_MAIN_CATEGORY_ICONS[type] || "🏕️",
         organizers,
-      } satisfies CampTypeGroup;
+      } satisfies CampMainCategoryGroup;
     });
   }, [dateFiltered]);
 
@@ -339,9 +339,9 @@ export function CampsListView({ camps }: CampsListViewProps) {
   }, [camps]);
 
   const typeCounts = useMemo(() => {
-    const counts = new Map<CampType, number>();
+    const counts = new Map<CampMainCategory, number>();
     camps.forEach((camp) => {
-      counts.set(camp.camp_type, (counts.get(camp.camp_type) || 0) + 1);
+      counts.set(camp.main_category, (counts.get(camp.main_category) || 0) + 1);
     });
     return counts;
   }, [camps]);
@@ -364,7 +364,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
     activeTypes.forEach((type) => {
       badges.push({
         id: `type-${type}`,
-        label: `Typ: ${CAMP_TYPE_LABELS[type]}`,
+        label: `Typ: ${CAMP_MAIN_CATEGORY_LABELS[type]}`,
         onRemove: () => setActiveTypes((prev) => prev.filter((item) => item !== type)),
       });
     });
@@ -425,7 +425,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
     setSelectedDate(null);
   }
 
-  function toggleType(type: CampType) {
+  function toggleType(type: CampMainCategory) {
     setActiveTypes((prev) =>
       prev.includes(type) ? prev.filter((item) => item !== type) : [...prev, type]
     );
@@ -607,8 +607,8 @@ export function CampsListView({ camps }: CampsListViewProps) {
                         : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground"
                     )}
                   >
-                    <span>{CAMP_TYPE_ICONS[type]}</span>
-                    <span>{CAMP_TYPE_LABELS[type]}</span>
+                    <span>{CAMP_MAIN_CATEGORY_ICONS[type]}</span>
+                    <span>{CAMP_MAIN_CATEGORY_LABELS[type]}</span>
                     <span className="text-[10px] opacity-60">{count}</span>
                     {selected && <Check size={11} />}
                   </button>
@@ -762,8 +762,8 @@ export function CampsListView({ camps }: CampsListViewProps) {
                         selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent"
                       )}
                     >
-                      <span>{CAMP_TYPE_ICONS[type]}</span>
-                      <span className="flex-1">{CAMP_TYPE_LABELS[type]}</span>
+                      <span>{CAMP_MAIN_CATEGORY_ICONS[type]}</span>
+                      <span className="flex-1">{CAMP_MAIN_CATEGORY_LABELS[type]}</span>
                       {selected && <Check size={10} />}
                       <span className="text-[8px] opacity-40">{count}</span>
                     </button>
@@ -998,7 +998,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                                 const imgSrc = organizer.leadCamp.organizer_data?.image_url ?? organizer.leadCamp.image_url;
                                 return imgSrc ? (
                                   <ImageWithFallback
-                                    src={imgSrc}
+                                    src={thumbUrl(organizer.leadCamp.image_thumb, imgSrc) || imgSrc}
                                     alt={organizer.organizerName}
                                     className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
                                     loading="lazy"

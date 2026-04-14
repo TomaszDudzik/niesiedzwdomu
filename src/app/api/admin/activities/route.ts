@@ -85,7 +85,9 @@ export async function POST(request: NextRequest) {
 }
 
 const ALLOWED_ACTIVITY_FIELDS = new Set([
-  "title", "description_short", "description_long", "image_url",
+  "title", "description_short", "description_long",
+  "image_url", "image_cover", "image_thumb", "image_set",
+  "main_category", "category", "subcategory",
   "activity_type", "schedule_summary", "days_of_week",
   "date_start", "date_end", "time_start", "time_end",
   "age_min", "age_max", "price_from", "price_to", "is_free",

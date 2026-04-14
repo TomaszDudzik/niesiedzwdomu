@@ -1,6 +1,6 @@
 import type {
   Event, Camp, Place, DiscoveryItem,
-  EventCategory, CampType, CampCategory, CampSeason, PlaceType, ContentType, ActivityType,
+  EventCategory, CampMainCategory, CampCategory, CampSeason, PlaceType, ContentType, ActivityType,
 } from "@/types/database";
 
 // ============================================
@@ -177,12 +177,12 @@ export const mockCamps: Camp[] = [
     description_long: "Obóz Odkrywców to dwa tygodnie pełne przygód w malowniczych okolicach Krakowa.\n\nProgram:\n- Zajęcia survivalowe\n- Rozpoznawanie roślin i zwierząt\n- Ogniska i nocne obserwacje gwiazd\n- Kajakowanie i wspinaczka\n- Integracja i gry zespołowe\n\nCałodzienne wyżywienie (3 posiłki + przekąski). Transport z centrum Krakowa w cenie.",
     image_url: "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?w=800&h=500&fit=crop",
     date_start: futureDate(30), date_end: futureDate(44),
-    camp_type: "kolonie", season: "lato", duration_days: 14,
+    main_category: "kolonie", season: "lato", duration_days: 14,
     meals_included: true, transport_included: true,
     age_min: 8, age_max: 14, price: 2800, is_free: false,
     district: "Inne", venue_name: "Ośrodek Przygoda", venue_address: "Pcim, okolice Krakowa",
     organizer: "Fundacja AktywniRodzice", source_url: null, facebook_url: null,
-    category: "przygodowa", lat: null, lng: null,
+    category: "przygodowe", subcategory: null, lat: null, lng: null,
     is_featured: true, status: "published", likes: 42, dislikes: 1,
     created_at: "2024-02-01T10:00:00Z", updated_at: "2024-02-01T10:00:00Z",
   },
@@ -194,12 +194,12 @@ export const mockCamps: Camp[] = [
     description_long: "Półkolonie Artystyczne to 5 dni kreatywnej zabawy w sercu Kazimierza!\n\nKażdy dzień to inna technika:\n- Poniedziałek: malarstwo akrylowe\n- Wtorek: rzeźba z gliny\n- Środa: collage i mixed media\n- Czwartek: animacja poklatkowa\n- Piątek: wernisaż prac!\n\nZajęcia 9:00-14:00. Drugie śniadanie zapewnione.",
     image_url: "https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=800&h=500&fit=crop",
     date_start: futureDate(20), date_end: futureDate(25),
-    camp_type: "polkolonie", season: "lato", duration_days: 5,
+    main_category: "polkolonie", season: "lato", duration_days: 5,
     meals_included: true, transport_included: false,
     age_min: 5, age_max: 10, price: 650, is_free: false,
     district: "Kazimierz", venue_name: "Pracownia ArtKids", venue_address: "ul. Józefa 24, Kraków",
     organizer: "ArtKids Kraków", source_url: null, facebook_url: null,
-    category: "artystyczna", lat: null, lng: null,
+    category: "artystyczne", subcategory: null, lat: null, lng: null,
     is_featured: true, status: "published", likes: 35, dislikes: 0,
     created_at: "2024-02-05T10:00:00Z", updated_at: "2024-02-05T10:00:00Z",
   },
@@ -211,12 +211,12 @@ export const mockCamps: Camp[] = [
     description_long: "Laboratorium Przyszłości to półkolonie dla ciekawskich dzieci, które kochają naukę.\n\n- Budowanie robotów z LEGO Mindstorms\n- Podstawy programowania (Scratch)\n- Eksperymenty chemiczne\n- Fizyka w kuchni\n- Wirtualna rzeczywistość\n\nZajęcia 8:30-15:00. Obiad i przekąski w cenie.",
     image_url: "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&h=500&fit=crop",
     date_start: futureDate(14), date_end: futureDate(19),
-    camp_type: "polkolonie", season: "lato", duration_days: 5,
+    main_category: "polkolonie", season: "lato", duration_days: 5,
     meals_included: true, transport_included: false,
     age_min: 7, age_max: 12, price: 750, is_free: false,
     district: "Krowodrza", venue_name: "Centrum Nauki FunLab", venue_address: "ul. Lea 12, Kraków",
     organizer: "FunLab Edukacja", source_url: null, facebook_url: null,
-    category: "edukacyjna", lat: null, lng: null,
+    category: "edukacyjne", subcategory: null, lat: null, lng: null,
     is_featured: false, status: "published", likes: 28, dislikes: 2,
     created_at: "2024-02-03T10:00:00Z", updated_at: "2024-02-03T10:00:00Z",
   },
@@ -228,12 +228,12 @@ export const mockCamps: Camp[] = [
     description_long: "Akademia Młodych Orłów zaprasza na letni obóz piłkarski!\n\n- Treningi 2x dziennie\n- Turniej na zakończenie\n- Analiza wideo\n- Zajęcia z koordynacji\n- Gry i zabawy integracyjne\n\nKażdy uczestnik otrzyma koszulkę i piłkę. Zajęcia 9:00-16:00.",
     image_url: "https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?w=800&h=500&fit=crop",
     date_start: futureDate(25), date_end: futureDate(30),
-    camp_type: "polkolonie", season: "lato", duration_days: 5,
+    main_category: "polkolonie", season: "lato", duration_days: 5,
     meals_included: true, transport_included: false,
     age_min: 6, age_max: 13, price: 800, is_free: false,
     district: "Nowa Huta", venue_name: "Stadion Hutnika", venue_address: "ul. Ptaszyckiego 4, Kraków",
     organizer: "Akademia Młodych Orłów", source_url: null, facebook_url: null,
-    category: "sportowa", lat: null, lng: null,
+    category: "sportowe", subcategory: null, lat: null, lng: null,
     is_featured: false, status: "published", likes: 19, dislikes: 0,
     created_at: "2024-02-04T10:00:00Z", updated_at: "2024-02-04T10:00:00Z",
   },
@@ -245,12 +245,12 @@ export const mockCamps: Camp[] = [
     description_long: "Warsztaty Teatr i Drama to 3 dni pełne ekspresji i zabawy.\n\n- Improwizacja i gry dramatyczne\n- Praca z ciałem i głosem\n- Tworzenie własnych scenek\n- Pokaz dla rodziców w piątek o 15:00\n\nZajęcia prowadzi aktorka Teatru STU. Godziny: 10:00-14:00.",
     image_url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&h=500&fit=crop",
     date_start: futureDate(18), date_end: futureDate(21),
-    camp_type: "warsztaty_wakacyjne", season: "lato", duration_days: 3,
+    main_category: "warsztaty_wakacyjne", season: "lato", duration_days: 3,
     meals_included: false, transport_included: false,
     age_min: 8, age_max: 14, price: 350, is_free: false,
     district: "Stare Miasto", venue_name: "Centrum Kultury Rotunda", venue_address: "ul. Oleandry 1, Kraków",
     organizer: "Teatr Młodych", source_url: null, facebook_url: null,
-    category: "artystyczna", lat: null, lng: null,
+    category: "artystyczne", subcategory: null, lat: null, lng: null,
     is_featured: false, status: "published", likes: 14, dislikes: 0,
     created_at: "2024-02-06T10:00:00Z", updated_at: "2024-02-06T10:00:00Z",
   },
@@ -262,12 +262,12 @@ export const mockCamps: Camp[] = [
     description_long: "Nie wiesz co robić z dzieckiem w ferie? Mamy rozwiązanie!\n\n- Poniedziałek: eksperymenty naukowe\n- Wtorek: warsztaty kulinarne\n- Środa: wycieczka do muzeum\n- Czwartek: gry planszowe i escape room\n- Piątek: olimpiada sportowa\n\nZajęcia 8:00-16:00. Pełne wyżywienie.",
     image_url: "https://images.unsplash.com/photo-1491013516836-7db643ee125a?w=800&h=500&fit=crop",
     date_start: futureDate(60), date_end: futureDate(65),
-    camp_type: "polkolonie", season: "ferie_zimowe", duration_days: 5,
+    main_category: "polkolonie", season: "ferie_zimowe", duration_days: 5,
     meals_included: true, transport_included: false,
     age_min: 6, age_max: 11, price: 600, is_free: false,
     district: "Stare Miasto", venue_name: "Dom Kultury Pod Lipami", venue_address: "ul. Krupnicza 8, Kraków",
     organizer: "EduFun Kraków", source_url: null, facebook_url: null,
-    category: "edukacyjna", lat: null, lng: null,
+    category: "edukacyjne", subcategory: null, lat: null, lng: null,
     is_featured: false, status: "published", likes: 8, dislikes: 0,
     created_at: "2024-02-07T10:00:00Z", updated_at: "2024-02-07T10:00:00Z",
   },
@@ -458,21 +458,21 @@ export const CATEGORY_ICONS: Record<EventCategory, string> = {
 };
 
 // Camp type labels
-export const CAMP_TYPE_LABELS: Record<CampType, string> = {
+export const CAMP_MAIN_CATEGORY_LABELS: Record<CampMainCategory, string> = {
   kolonie: "Kolonie", polkolonie: "Półkolonie", warsztaty_wakacyjne: "Warsztaty wakacyjne",
 };
 
 export const CAMP_CATEGORY_LABELS: Record<CampCategory, string> = {
-  sportowa: "Sportowa", edukacyjna: "Edukacyjna", integracyjna: "Integracyjna",
-  przygodowa: "Przygodowa", artystyczna: "Artystyczna",
+  sportowe: "Sportowe", edukacyjne: "Edukacyjne", integracyjne: "Integracyjne",
+  przygodowe: "Przygodowe", artystyczne: "Artystyczne",
 };
 
 export const CAMP_CATEGORY_ICONS: Record<CampCategory, string> = {
-  sportowa: "⚽", edukacyjna: "📚", integracyjna: "🤝", przygodowa: "🏕️", artystyczna: "🎨",
+  sportowe: "⚽", edukacyjne: "📚", integracyjne: "🤝", przygodowe: "🏕️", artystyczne: "🎨",
 };
 
-export const CAMP_TYPE_ICONS: Record<CampType, string> = {
-  kolonie: "��️", polkolonie: "☀️", warsztaty_wakacyjne: "��",
+export const CAMP_MAIN_CATEGORY_ICONS: Record<CampMainCategory, string> = {
+  kolonie: "🏕️", polkolonie: "☀️", warsztaty_wakacyjne: "🎨",
 };
 
 export const CAMP_SEASON_LABELS: Record<CampSeason, string> = {
@@ -528,9 +528,11 @@ export const PLACE_TYPE_ICONS: Record<PlaceType, string> = {
 
 // Shared constants
 export const DISTRICT_LIST = [
-  "Stare Miasto", "Kazimierz", "Podgórze", "Nowa Huta", "Krowodrza",
-  "Bronowice", "Zwierzyniec", "Dębniki", "Prądnik Czerwony",
-  "Prądnik Biały", "Czyżyny", "Bieżanów", "Inne",
+  "Stare Miasto", "Grzegórzki", "Prądnik Czerwony", "Prądnik Biały",
+  "Krowodrza", "Bronowice", "Zwierzyniec", "Dębniki", "Łagiewniki-Borek Fałęcki",
+  "Swoszowice", "Podgórze", "Bieżanów-Prokocim", "Czyżyny",
+  "Mistrzejowice", "Wzgórza Krzesławickie", "Nowa Huta",
+  "Kazimierz", "Inne",
 ] as const;
 
 export const AGE_GROUPS = [

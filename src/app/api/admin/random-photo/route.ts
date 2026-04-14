@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { readdir, readFile } from "fs/promises";
-import path from "path";
 
-const BUCKET = "event-images";
-// Photos live one level above the Next.js project root
-const PHOTOS_BASE = path.join(process.cwd(), "..", "photos", "kolonie");
+const BUCKET = "event-library";
+const ALLOWED_TABLES = new Set(["camps", "events", "activities", "places"]);
 
 function getDb() {
   return createClient(
@@ -15,54 +12,58 @@ function getDb() {
 }
 
 export async function POST(request: NextRequest) {
-  const { id, category } = await request.json();
+  const { id, main_category, category, subcategory, table = "camps" } = await request.json();
 
-  if (!id || !category) {
-    return NextResponse.json({ error: "id and category required" }, { status: 400 });
+  if (!id) {
+    return NextResponse.json({ error: "id required" }, { status: 400 });
+  }
+  if (!ALLOWED_TABLES.has(table)) {
+    return NextResponse.json({ error: "invalid table" }, { status: 400 });
   }
 
-  const folderPath = path.join(PHOTOS_BASE, category);
-
-  let files: string[];
-  try {
-    const entries = await readdir(folderPath);
-    files = entries.filter((f) => /\.(png|jpg|jpeg|webp)$/i.test(f));
-  } catch {
-    return NextResponse.json({ error: `No photos folder for: ${category}` }, { status: 404 });
-  }
-
-  if (files.length === 0) {
-    return NextResponse.json({ error: "No photos in folder" }, { status: 404 });
-  }
-
-  const randomFile = files[Math.floor(Math.random() * files.length)];
-  const ext = path.extname(randomFile).slice(1).toLowerCase();
-  const storagePath = `events/${id}.${ext}`;
-  const contentType = ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
-
-  const bytes = await readFile(path.join(folderPath, randomFile));
   const db = getDb();
 
-  await db.storage.from(BUCKET).remove([
-    `events/${id}.png`, `events/${id}.jpg`, `events/${id}.jpeg`, `events/${id}.webp`,
-  ]);
+  const pathParts = [main_category, category, subcategory].filter(Boolean);
+  if (pathParts.length === 0) {
+    return NextResponse.json({ error: "At least main_category is required" }, { status: 400 });
+  }
+  const folderPath = pathParts.join("/");
 
-  const { error: uploadError } = await db.storage.from(BUCKET).upload(storagePath, bytes, {
-    contentType,
-    upsert: true,
-  });
+  const { data: files, error: listError } = await db.storage
+    .from(BUCKET)
+    .list(folderPath, { limit: 200 });
 
-  if (uploadError) {
-    return NextResponse.json({ error: uploadError.message }, { status: 500 });
+  if (listError || !files) {
+    return NextResponse.json({ error: `Cannot list folder: ${folderPath}` }, { status: 404 });
   }
 
-  const { data: urlData } = db.storage.from(BUCKET).getPublicUrl(storagePath);
-  const imageUrl = urlData.publicUrl;
+  const coverFiles = files.filter((f) => f.name.endsWith("-cover.webp"));
+  if (coverFiles.length === 0) {
+    return NextResponse.json({ error: `No cover images in: ${folderPath}` }, { status: 404 });
+  }
 
-  const { error: dbError } = await db.from("camps").update({ image_url: imageUrl }).eq("id", id);
+  const randomCover = coverFiles[Math.floor(Math.random() * coverFiles.length)];
+  const setId = randomCover.name.replace("-cover.webp", "");
+
+  const coverPath = `${folderPath}/${setId}-cover.webp`;
+  const thumbPath = `${folderPath}/${setId}-thumb.webp`;
+
+  const coverUrl = db.storage.from(BUCKET).getPublicUrl(coverPath).data.publicUrl;
+  const thumbUrl = db.storage.from(BUCKET).getPublicUrl(thumbPath).data.publicUrl;
+
+  const { error: dbError } = await db
+    .from(table)
+    .update({
+      image_url: coverUrl,
+      image_cover: coverUrl,
+      image_thumb: thumbUrl,
+      image_set: setId,
+    })
+    .eq("id", id);
+
   if (dbError) {
     return NextResponse.json({ error: dbError.message }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, image_url: imageUrl });
+  return NextResponse.json({ ok: true, image_url: coverUrl, thumb_url: thumbUrl, set_id: setId });
 }

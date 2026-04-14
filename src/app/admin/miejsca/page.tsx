@@ -8,6 +8,7 @@ import {
 import { PLACE_TYPE_LABELS, PLACE_TYPE_ICONS, DISTRICT_LIST } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import type { Place } from "@/types/database";
+import { ImageSection } from "@/components/admin/image-section";
 
 const MiniMapLazy = lazy(() => import("./mini-map").then((m) => ({ default: m.MiniMap })));
 type PlaceListFilter = "all" | "published" | "draft";
@@ -662,12 +663,20 @@ export default function AdminPlacesPage() {
                 {/* Edit form */}
                 {isEditing && (
                   <div className="px-3 pb-3 pt-1 border-t border-border/50">
-                    {/* Top fields */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
-                      <div className="md:col-span-2">
+                    <div className="grid grid-cols-1 md:grid-cols-6 gap-3 mb-4">
+                      <div className="md:col-span-6">
                         <label className={labelClass}>Tytuł</label>
                         <input className={inputClass} value={(editForm.title as string) || ""} onChange={(e) => updateField("title", e.target.value)} />
                       </div>
+                      <div className="md:col-span-6">
+                        <label className={labelClass}>Krótki opis</label>
+                        <textarea className={inputClass} rows={2} value={(editForm.description_short as string) || ""} onChange={(e) => updateField("description_short", e.target.value)} />
+                      </div>
+                      <div className="md:col-span-6">
+                        <label className={labelClass}>Długi opis</label>
+                        <textarea className={inputClass} rows={5} value={(editForm.description_long as string) || ""} onChange={(e) => updateField("description_long", e.target.value)} />
+                      </div>
+
                       <div>
                         <label className={labelClass}>Wiek od</label>
                         <input type="number" min={0} max={18} className={inputClass} value={(editForm.age_min as number) ?? ""} onChange={(e) => updateField("age_min", e.target.value ? Number(e.target.value) : null)} />
@@ -675,14 +684,6 @@ export default function AdminPlacesPage() {
                       <div>
                         <label className={labelClass}>Wiek do</label>
                         <input type="number" min={0} max={18} className={inputClass} value={(editForm.age_max as number) ?? ""} onChange={(e) => updateField("age_max", e.target.value ? Number(e.target.value) : null)} />
-                      </div>
-                      <div className="md:col-span-2">
-                        <label className={labelClass}>URL źródła</label>
-                        <input className={inputClass} value={(editForm.source_url as string) || ""} onChange={(e) => updateField("source_url", e.target.value)} />
-                      </div>
-                      <div className="md:col-span-2">
-                        <label className={labelClass}>Facebook</label>
-                        <input className={inputClass} value={(editForm.facebook_url as string) || ""} onChange={(e) => updateField("facebook_url", e.target.value)} placeholder="https://facebook.com/..." />
                       </div>
                       <div>
                         <label className={labelClass}>Typ</label>
@@ -692,35 +693,60 @@ export default function AdminPlacesPage() {
                           ))}
                         </select>
                       </div>
+                      <div className="md:col-span-3 flex items-center gap-4 pt-5">
+                        <label className="flex items-center gap-2 text-[12px] cursor-pointer">
+                          <input type="checkbox" checked={Boolean(editForm.is_free)} onChange={(e) => updateField("is_free", e.target.checked)} className="rounded border-border" />
+                          Bezpłatne
+                        </label>
+                        <label className="flex items-center gap-2 text-[12px] cursor-pointer">
+                          <input type="checkbox" checked={Boolean(editForm.is_featured)} onChange={(e) => updateField("is_featured", e.target.checked)} className="rounded border-border" />
+                          Wyróżnione
+                        </label>
+                        <div className="flex gap-1.5">
+                          <button type="button" onClick={() => updateField("is_indoor", true)}
+                            className={cn("px-2.5 py-1 rounded text-[11px] font-medium border transition-colors cursor-pointer", (editForm.is_indoor as boolean) ? "bg-primary text-white border-primary" : "border-border text-muted hover:border-primary/30")}>
+                            Wewnątrz
+                          </button>
+                          <button type="button" onClick={() => updateField("is_indoor", false)}
+                            className={cn("px-2.5 py-1 rounded text-[11px] font-medium border transition-colors cursor-pointer", !(editForm.is_indoor as boolean) ? "bg-primary text-white border-primary" : "border-border text-muted hover:border-primary/30")}>
+                            Na zewnątrz
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="md:col-span-3">
+                        <label className={labelClass}>URL źródła</label>
+                        <input className={inputClass} value={(editForm.source_url as string) || ""} onChange={(e) => updateField("source_url", e.target.value)} placeholder="https://..." />
+                      </div>
+                      <div className="md:col-span-3">
+                        <label className={labelClass}>Facebook</label>
+                        <input className={inputClass} value={(editForm.facebook_url as string) || ""} onChange={(e) => updateField("facebook_url", e.target.value)} placeholder="https://facebook.com/..." />
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <label className={labelClass}>Main category</label>
+                        <input className={inputClass} value={String(editForm.main_category || "")} onChange={(e) => updateField("main_category", e.target.value || null)} placeholder="np. miejsca" />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className={labelClass}>Category</label>
+                        <input className={inputClass} value={String(editForm.img_category || "")} onChange={(e) => updateField("img_category", e.target.value || null)} />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className={labelClass}>Subcategory</label>
+                        <input className={inputClass} value={String(editForm.subcategory || "")} onChange={(e) => updateField("subcategory", e.target.value || null)} />
+                      </div>
+
+                      <div className="md:col-span-4">
+                        <label className={labelClass}>Organizator</label>
+                        <input className={inputClass} value={(editForm.organizer as string) || ""} onChange={(e) => updateField("organizer", e.target.value)} />
+                      </div>
                       <div>
-                        <label className={labelClass}>👍 Likes</label>
+                        <label className={labelClass}>Likes</label>
                         <input type="number" min={0} className={inputClass} value={(editForm.likes as number) ?? 0} onChange={(e) => updateField("likes", Number(e.target.value) || 0)} />
                       </div>
                       <div>
-                        <label className={labelClass}>👎 Dislikes</label>
+                        <label className={labelClass}>Dislikes</label>
                         <input type="number" min={0} className={inputClass} value={(editForm.dislikes as number) ?? 0} onChange={(e) => updateField("dislikes", Number(e.target.value) || 0)} />
-                      </div>
-                      <div className="flex gap-1.5 items-end">
-                        <button type="button" onClick={() => updateField("is_indoor", true)}
-                          className={cn(inputClass, "!w-auto px-3 py-1.5 text-center cursor-pointer", (editForm.is_indoor as boolean) ? "!bg-primary !text-white !border-primary" : "")}>
-                          Wewnątrz
-                        </button>
-                        <button type="button" onClick={() => updateField("is_indoor", false)}
-                          className={cn(inputClass, "!w-auto px-3 py-1.5 text-center cursor-pointer", !(editForm.is_indoor as boolean) ? "!bg-primary !text-white !border-primary" : "")}>
-                          Na zewnątrz
-                        </button>
-                      </div>
-                      <div className="flex items-center gap-2 pt-5">
-                        <input type="checkbox" id={`featured-place-${place.id}`} checked={Boolean(editForm.is_featured)} onChange={(e) => updateField("is_featured", e.target.checked)} className="rounded border-border" />
-                        <label htmlFor={`featured-place-${place.id}`} className="text-[12px] text-foreground">Wyróżnij</label>
-                      </div>
-                      <div className="md:col-span-4">
-                        <label className={labelClass}>Krótki opis</label>
-                        <textarea className={inputClass} rows={2} value={(editForm.description_short as string) || ""} onChange={(e) => updateField("description_short", e.target.value)} />
-                      </div>
-                      <div className="md:col-span-4">
-                        <label className={labelClass}>Długi opis</label>
-                        <textarea className={inputClass} rows={6} value={(editForm.description_long as string) || ""} onChange={(e) => updateField("description_long", e.target.value)} />
                       </div>
                     </div>
 
@@ -784,36 +810,19 @@ export default function AdminPlacesPage() {
                       </div>
 
                       {/* Right: Image */}
-                      <div className="rounded-lg border border-border/50 p-3 space-y-3">
-                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Obrazek</p>
-                        {(pendingPreview || place.image_url) && (
-                          <div className="relative">
-                            <img
-                              src={pendingPreview || place.image_url!}
-                              alt=""
-                              className={cn("w-full aspect-[3/2] rounded-lg object-cover border border-border", pendingPreview && "ring-2 ring-primary/40")}
-                            />
-                            {pendingPreview && (
-                              <button onClick={clearPendingFile}
-                                className="absolute top-1.5 right-1.5 bg-white rounded-full shadow-sm border border-border p-0.5 hover:bg-red-50 transition-colors"
-                                title="Usuń">
-                                <XCircle size={14} className="text-red-500" />
-                              </button>
-                            )}
-                          </div>
-                        )}
-                        <div className="flex items-center gap-2">
-                          <label className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-muted border border-border rounded hover:text-foreground hover:border-primary/30 transition-colors cursor-pointer">
-                            <Upload size={11} />
-                            {pendingPreview ? "Zmień plik" : "Wgraj plik"}
-                            <input type="file" accept="image/*" className="hidden"
-                              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); e.target.value = ""; }} />
-                          </label>
-                        </div>
-                        {pendingPreview && (
-                          <span className="text-[10px] text-primary font-medium">Nowy plik — zapisz aby wgrać</span>
-                        )}
-                      </div>
+                      <ImageSection
+                        imageUrl={place.image_url}
+                        imageThumb={place.image_thumb}
+                        pendingPreview={pendingPreview}
+                        onFileSelect={handleFileSelect}
+                        onClearPending={clearPendingFile}
+                        table="places"
+                        itemId={place.id}
+                        mainCategory={String(editForm.main_category || place.main_category || "")}
+                        category={String(editForm.img_category || place.category || "")}
+                        subcategory={String(editForm.subcategory || place.subcategory || "")}
+                        onRandomPhoto={(url, thumb) => setPlaces((prev) => prev.map((p) => p.id === place.id ? { ...p, image_url: url, image_thumb: thumb } : p))}
+                      />
                     </div>
 
                     <div className="flex gap-2">

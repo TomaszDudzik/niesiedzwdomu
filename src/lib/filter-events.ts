@@ -81,7 +81,7 @@ export function filterEvents(events: Event[], filters: EventFilters): Event[] {
 export function filterCamps(camps: Camp[], filters: CampFilters): Camp[] {
   return camps.filter((camp) => {
     if (camp.status !== "published") return false;
-    if (filters.campType && camp.camp_type !== filters.campType) return false;
+    if (filters.mainCategory && camp.main_category !== filters.mainCategory) return false;
     if (filters.season && camp.season !== filters.season) return false;
     if (filters.district && camp.district !== filters.district) return false;
     if (filters.isFree && !camp.is_free) return false;

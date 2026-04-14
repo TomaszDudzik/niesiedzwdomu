@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, Banknote, Calendar, ExternalLink, Globe, MapPin, Users } from "lucide-react";
-import { CAMP_CATEGORY_LABELS, CAMP_SEASON_LABELS, CAMP_TYPE_ICONS, CAMP_TYPE_LABELS } from "@/lib/mock-data";
+import { CAMP_CATEGORY_LABELS, CAMP_SEASON_LABELS, CAMP_MAIN_CATEGORY_ICONS, CAMP_MAIN_CATEGORY_LABELS } from "@/lib/mock-data";
 import { formatAgeRange, formatDate, formatPrice } from "@/lib/utils";
 import { AiLearnMoreLink } from "@/components/ui/ai-learn-more-link";
 import { FeedbackButtons } from "@/components/ui/feedback-buttons";
@@ -103,7 +103,7 @@ export default async function CampDetailPage({ params }: PageProps) {
           validFrom: camp.created_at,
         }
       : undefined,
-    keywords: [CAMP_TYPE_LABELS[camp.camp_type], camp.district, CAMP_SEASON_LABELS[camp.season], "kolonie dla dzieci", "Krakow"].join(", "),
+    keywords: [CAMP_MAIN_CATEGORY_LABELS[camp.main_category], camp.district, CAMP_SEASON_LABELS[camp.season], "kolonie dla dzieci", "Krakow"].join(", "),
     audience:
       camp.age_min !== null || camp.age_max !== null
         ? {
@@ -129,8 +129,8 @@ export default async function CampDetailPage({ params }: PageProps) {
             <ArrowLeft size={11} /> Kolonie
           </Link>
           <span className="text-muted-foreground/30">·</span>
-          <span className="text-lg mr-0.5">{CAMP_TYPE_ICONS[camp.camp_type] || "🏕️"}</span>
-          <span className="text-primary">{CAMP_TYPE_LABELS[camp.camp_type]}</span>
+          <span className="text-lg mr-0.5">{CAMP_MAIN_CATEGORY_ICONS[camp.main_category] || "🏕️"}</span>
+          <span className="text-primary">{CAMP_MAIN_CATEGORY_LABELS[camp.main_category]}</span>
           <span className="text-muted-foreground/30">·</span>
           <span className="text-muted-foreground">{CAMP_SEASON_LABELS[camp.season]}</span>
           <span className="text-muted-foreground/30">·</span>
@@ -166,7 +166,7 @@ export default async function CampDetailPage({ params }: PageProps) {
             <AiLearnMoreLink
               queryParts={[
                 camp.organizer,
-                CAMP_TYPE_LABELS[camp.camp_type],
+                CAMP_MAIN_CATEGORY_LABELS[camp.main_category],
                 camp.category ? CAMP_CATEGORY_LABELS[camp.category as keyof typeof CAMP_CATEGORY_LABELS] : null,
                 camp.title,
                 "Kraków",

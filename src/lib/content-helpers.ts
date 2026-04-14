@@ -1,5 +1,5 @@
 import type { DiscoveryItem, ContentType } from "@/types/database";
-import { CONTENT_TYPE_LABELS, CONTENT_TYPE_ICONS, CONTENT_TYPE_COLORS, CATEGORY_LABELS, CATEGORY_ICONS, CAMP_TYPE_LABELS, CAMP_TYPE_ICONS, PLACE_TYPE_LABELS, PLACE_TYPE_ICONS, ACTIVITY_TYPE_LABELS, ACTIVITY_TYPE_ICONS } from "./mock-data";
+import { CONTENT_TYPE_LABELS, CONTENT_TYPE_ICONS, CONTENT_TYPE_COLORS, CATEGORY_LABELS, CATEGORY_ICONS, CAMP_MAIN_CATEGORY_LABELS, CAMP_MAIN_CATEGORY_ICONS, PLACE_TYPE_LABELS, PLACE_TYPE_ICONS, ACTIVITY_TYPE_LABELS, ACTIVITY_TYPE_ICONS } from "./mock-data";
 import { formatDateShort, formatPrice, formatAgeRange } from "./utils";
 
 /** Get the URL path for a discovery item */
@@ -31,7 +31,7 @@ export function getTypeBadgeColors(type: ContentType) {
 export function getSubcategoryLabel(item: DiscoveryItem): string {
   switch (item.content_type) {
     case "event": return CATEGORY_LABELS[item.category];
-    case "camp": return CAMP_TYPE_LABELS[item.camp_type];
+    case "camp": return CAMP_MAIN_CATEGORY_LABELS[item.main_category];
     case "place": return PLACE_TYPE_LABELS[item.place_type];
     case "activity": return ACTIVITY_TYPE_LABELS[item.activity_type];
   }
@@ -41,7 +41,7 @@ export function getSubcategoryLabel(item: DiscoveryItem): string {
 export function getSubcategoryIcon(item: DiscoveryItem): string {
   switch (item.content_type) {
     case "event": return CATEGORY_ICONS[item.category];
-    case "camp": return CAMP_TYPE_ICONS[item.camp_type];
+    case "camp": return CAMP_MAIN_CATEGORY_ICONS[item.main_category];
     case "place": return PLACE_TYPE_ICONS[item.place_type];
     case "activity": return ACTIVITY_TYPE_ICONS[item.activity_type];
   }

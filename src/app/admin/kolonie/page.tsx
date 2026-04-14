@@ -17,9 +17,10 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { CAMP_CATEGORY_LABELS, CAMP_TYPE_ICONS, CAMP_TYPE_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
+import { CAMP_CATEGORY_LABELS, CAMP_MAIN_CATEGORY_ICONS, CAMP_MAIN_CATEGORY_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
 import { cn, formatDateShort, formatPrice } from "@/lib/utils";
 import type { Camp, Organizer } from "@/types/database";
+import { ImageSection } from "@/components/admin/image-section";
 
 const MiniMapLazy = lazy(() => import("../miejsca/mini-map").then((m) => ({ default: m.MiniMap })));
 
@@ -39,8 +40,9 @@ const FIELD_ALIASES: Record<string, string[]> = {
   title:               ["title", "tytul", "tytuł", "nazwa", "nazwa turnusu", "nazwa_polkolonii"],
   description_short:   ["description_short", "krotki opis", "krótki opis", "tematyka", "temat", "program"],
   description_long:    ["description_long", "dlugi opis", "długi opis"],
-  camp_type:           ["camp_type", "typ", "rodzaj", "typ_oferty", "type"],
+  main_category:       ["main_category", "camp_type", "typ", "rodzaj", "typ_oferty", "type"],
   category:            ["category", "kategoria", "kategoria_obozu", "camp_subtype", "podtyp"],
+  subcategory:         ["subcategory", "podkategoria", "sub_category", "dyscyplina"],
   date_start:          ["date_start", "termin_od", "data od", "od"],
   date_end:            ["date_end", "termin_do", "data do", "do"],
   duration_days:       ["duration_days", "dni", "liczba dni", "czas trwania"],
@@ -63,11 +65,11 @@ const FIELD_ALIASES: Record<string, string[]> = {
 };
 
 const CATEGORY_ALIASES: Record<string, Camp["category"]> = {
-  sport: "sportowa", sportowa: "sportowa", sportowy: "sportowa",
-  edukacja: "edukacyjna", edukacyjna: "edukacyjna", edukacyjny: "edukacyjna",
-  integracja: "integracyjna", integracyjna: "integracyjna", integracyjny: "integracyjna",
-  przygoda: "przygodowa", przygodowa: "przygodowa", przygodowy: "przygodowa",
-  artystyczna: "artystyczna", artystyczny: "artystyczna", art: "artystyczna", sztuka: "artystyczna",
+  sport: "sportowe", sportowa: "sportowe", sportowy: "sportowe", sportowe: "sportowe",
+  edukacja: "edukacyjne", edukacyjna: "edukacyjne", edukacyjny: "edukacyjne", edukacyjne: "edukacyjne",
+  integracja: "integracyjne", integracyjna: "integracyjne", integracyjny: "integracyjne", integracyjne: "integracyjne",
+  przygoda: "przygodowe", przygodowa: "przygodowe", przygodowy: "przygodowe", przygodowe: "przygodowe",
+  artystyczna: "artystyczne", artystyczny: "artystyczne", art: "artystyczne", sztuka: "artystyczne", artystyczne: "artystyczne",
 };
 
 function resolveField(header: string): string | null {
@@ -95,7 +97,7 @@ function inferCategory(raw: string | undefined): Camp["category"] {
   return CATEGORY_ALIASES[raw.toLowerCase().trim()] ?? null;
 }
 
-function inferCampType(mappedType: string | undefined, title: string): Camp["camp_type"] {
+function inferMainCategory(mappedType: string | undefined, title: string): Camp["main_category"] {
   const t = (mappedType || "").toLowerCase();
   const n = title.toLowerCase();
   if (t.includes("warsztat") || n.includes("warsztat")) return "warsztaty_wakacyjne";
@@ -185,16 +187,16 @@ export default function AdminCampsPage() {
   }, []);
 
   const filteredCamps = useMemo(() => {
-    const scoped = typeFilter ? camps.filter((c) => c.camp_type === typeFilter) : camps;
+    const scoped = typeFilter ? camps.filter((c) => c.main_category === typeFilter) : camps;
     if (statusFilter === "all") return scoped;
     if (statusFilter === "draft") return scoped.filter((c) => { const s = getEffectiveStatus(c); return s === "draft" || s === "cancelled"; });
     return scoped.filter((c) => getEffectiveStatus(c) === statusFilter);
   }, [camps, typeFilter, statusFilter, getEffectiveStatus]);
 
   const groupedByType = useMemo(() => {
-    const order: Camp["camp_type"][] = ["polkolonie", "kolonie", "warsztaty_wakacyjne"];
+    const order: Camp["main_category"][] = ["polkolonie", "kolonie", "warsztaty_wakacyjne"];
     return order.map((type) => {
-      const typeItems = filteredCamps.filter((c) => c.camp_type === type);
+      const typeItems = filteredCamps.filter((c) => c.main_category === type);
       const organizerNames = [...new Set(typeItems.map((c) => c.organizer || "Brak organizatora"))].sort((a, b) => a.localeCompare(b, "pl"));
       const byOrganizer = organizerNames.map((organizer) => ({
         organizer,
@@ -214,8 +216,8 @@ export default function AdminCampsPage() {
   const outdatedCount = useMemo(() => camps.filter((c) => getEffectiveStatus(c) === "outdated").length, [camps, getEffectiveStatus]);
 
   const sectionStats = useMemo(() => Object.fromEntries(
-    Object.keys(CAMP_TYPE_LABELS).map((type) => {
-      const tc = camps.filter((c) => c.camp_type === type);
+    Object.keys(CAMP_MAIN_CATEGORY_LABELS).map((type) => {
+      const tc = camps.filter((c) => c.main_category === type);
       return [type, {
         all:      tc.length,
         published: tc.filter((c) => getEffectiveStatus(c) === "published").length,
@@ -251,10 +253,10 @@ export default function AdminCampsPage() {
     setTypeFilter(null);
     setStatusFilter(next);
     setCollapsedCategories(Object.fromEntries(
-      Object.keys(CAMP_TYPE_LABELS).map((type) => [
+      Object.keys(CAMP_MAIN_CATEGORY_LABELS).map((type) => [
         type,
         camps.filter((c) => {
-          if (c.camp_type !== type) return false;
+          if (c.main_category !== type) return false;
           if (next === "all") return true;
           if (next === "draft") { const s = getEffectiveStatus(c); return s === "draft" || s === "cancelled"; }
           return getEffectiveStatus(c) === next;
@@ -387,8 +389,9 @@ export default function AdminCampsPage() {
             description_long:  longDesc,
             date_start:        dateStart,
             date_end:          dateEnd,
-            camp_type:         inferCampType(mapped.camp_type, mapped.title),
+            main_category:     inferMainCategory(mapped.main_category, mapped.title),
             category:          inferCategory(mapped.category),
+            subcategory:       mapped.subcategory?.trim() || null,
             season:            inferSeason(dateStart),
             duration_days:     asNumber(mapped.duration_days) || calcDurationDays(dateStart, dateEnd),
             meals_included:    ["tak", "true", "1"].includes((mapped.meals_included || "").toLowerCase()),
@@ -448,14 +451,20 @@ export default function AdminCampsPage() {
           } catch { /* geocoding is best-effort */ }
         }
 
-        // Step 3 — pick a random photo from the category folder
+        // Step 3 — pick a random photo from the category folder in Supabase storage
+        const campMainCat = inferMainCategory(mapped.main_category, mapped.title);
         const campCategory = inferCategory(mapped.category);
-        if (campCategory) {
+        if (campMainCat) {
           try {
             const photoRes = await fetch("/api/admin/random-photo", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ id: data.id, category: campCategory }),
+              body: JSON.stringify({
+                id: data.id,
+                main_category: campMainCat,
+                category: campCategory,
+                subcategory: mapped.subcategory?.trim() || null,
+              }),
             });
             const photo = await photoRes.json();
             if (photo.image_url) {
@@ -491,8 +500,9 @@ export default function AdminCampsPage() {
       title:              camp.title,
       description_short:  camp.description_short,
       description_long:   camp.description_long,
-      camp_type:          camp.camp_type,
+      main_category:      camp.main_category,
       category:           camp.category ?? null,
+      subcategory:        camp.subcategory ?? null,
       season:             camp.season,
       date_start:         camp.date_start,
       date_end:           camp.date_end,
@@ -549,8 +559,9 @@ export default function AdminCampsPage() {
       title:              String(editForm.title || ""),
       description_short:  String(editForm.description_short || ""),
       description_long:   String(editForm.description_long || ""),
-      camp_type:          editForm.camp_type,
+      main_category:      editForm.main_category,
       category:           editForm.category ?? null,
+      subcategory:        editForm.subcategory ?? null,
       season:             editForm.season,
       date_start:         dateStart,
       date_end:           dateEnd,
@@ -616,7 +627,7 @@ export default function AdminCampsPage() {
         description_long:   "",
         date_start:         today,
         date_end:           today,
-        camp_type:          "polkolonie",
+        main_category:      "polkolonie",
         season:             "lato",
         duration_days:      5,
         meals_included:     false,
@@ -760,8 +771,8 @@ export default function AdminCampsPage() {
                 <div className="w-full flex items-center gap-2 mb-2 rounded-md px-1.5 py-1 hover:bg-accent/50 transition-colors">
                   <button type="button" onClick={() => toggleCategory(type)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
                     {expanded ? <ChevronDown size={14} className="text-muted-foreground" /> : <ChevronUp size={14} className="text-muted-foreground rotate-180" />}
-                    <span className="text-lg">{CAMP_TYPE_ICONS[type]}</span>
-                    <h2 className="text-[13px] font-semibold text-foreground">{CAMP_TYPE_LABELS[type]}</h2>
+                    <span className="text-lg">{CAMP_MAIN_CATEGORY_ICONS[type]}</span>
+                    <h2 className="text-[13px] font-semibold text-foreground">{CAMP_MAIN_CATEGORY_LABELS[type]}</h2>
                   </button>
                   <div className="flex flex-wrap items-center gap-1 text-[10px]">
                     <button type="button" onClick={() => toggleTypeStatusFilter(type, "all")} className={cn("px-1.5 py-0.5 rounded-full font-medium transition-colors", typeFilter === type && statusFilter === "all" ? "bg-sky-200 text-sky-800" : "bg-sky-100 text-sky-700 hover:bg-sky-200")}>{stats.all} all</button>
@@ -803,7 +814,7 @@ export default function AdminCampsPage() {
                           <div key={camp.id} className={cn("rounded-lg border border-border/70", isDraft ? "bg-stone-100 opacity-70" : "bg-white")}>
                             <div className="flex items-center gap-2.5 px-3 py-2.5">
                               <span className="shrink-0 w-6 text-center text-[11px] font-mono text-muted-foreground">{index + 1}</span>
-                              <span className="shrink-0 text-lg">{CAMP_TYPE_ICONS[camp.camp_type] || "🏕️"}</span>
+                              <span className="shrink-0 text-lg">{CAMP_MAIN_CATEGORY_ICONS[camp.main_category] || "🏕️"}</span>
 
                               {camp.image_url ? (
                                 <img src={camp.image_url} alt="" className="w-8 h-8 rounded object-cover shrink-0" />
@@ -849,26 +860,9 @@ export default function AdminCampsPage() {
                             {isEditing && (
                               <div className="px-3 pb-3 pt-2 border-t border-border/50">
                                 <div className="grid grid-cols-1 md:grid-cols-6 gap-3 mb-4">
-                                  <div className="md:col-span-4">
+                                  <div className="md:col-span-6">
                                     <label className={labelClass}>Tytuł</label>
                                     <input className={inputClass} value={(editForm.title as string) || ""} onChange={(e) => updateField("title", e.target.value)} />
-                                  </div>
-                                  <div>
-                                    <label className={labelClass}>Kategoria</label>
-                                    <select className={inputClass} value={(editForm.category as string) || ""} onChange={(e) => updateField("category", e.target.value || null)}>
-                                      <option value="">— brak —</option>
-                                      {(Object.entries(CAMP_CATEGORY_LABELS) as [string, string][]).map(([val, label]) => (
-                                        <option key={val} value={val}>{label}</option>
-                                      ))}
-                                    </select>
-                                  </div>
-                                  <div>
-                                    <label className={labelClass}>Typ</label>
-                                    <select className={inputClass} value={(editForm.camp_type as string) || "polkolonie"} onChange={(e) => updateField("camp_type", e.target.value)}>
-                                      <option value="polkolonie">Półkolonie</option>
-                                      <option value="kolonie">Kolonie</option>
-                                      <option value="warsztaty_wakacyjne">Warsztaty wakacyjne</option>
-                                    </select>
                                   </div>
 
                                   <div className="md:col-span-6">
@@ -905,7 +899,7 @@ export default function AdminCampsPage() {
                                     <label className={labelClass}>Cena do (zł)</label>
                                     <input type="number" min={0} className={inputClass} value={editForm.price_to == null ? "" : String(editForm.price_to)} onChange={(e) => updateField("price_to", e.target.value ? Number(e.target.value) : null)} />
                                   </div>
-                                  <div className="flex items-center gap-4 pt-5">
+                                  <div className="md:col-span-4 flex items-center gap-4 pt-5">
                                     <label className="flex items-center gap-2 text-[12px] cursor-pointer">
                                       <input type="checkbox" checked={Boolean(editForm.is_free)} onChange={(e) => updateField("is_free", e.target.checked)} className="rounded border-border" />
                                       Bezpłatne
@@ -919,7 +913,6 @@ export default function AdminCampsPage() {
                                       Transport
                                     </label>
                                   </div>
-                                  <div />
 
                                   <div className="md:col-span-3">
                                     <label className={labelClass}>URL źródła</label>
@@ -930,7 +923,29 @@ export default function AdminCampsPage() {
                                     <input className={inputClass} value={(editForm.facebook_url as string) || ""} onChange={(e) => updateField("facebook_url", e.target.value)} placeholder="https://facebook.com/..." />
                                   </div>
 
-                                  <div className="md:col-span-6">
+                                  <div className="md:col-span-2">
+                                    <label className={labelClass}>Main category</label>
+                                    <select className={inputClass} value={(editForm.main_category as string) || "polkolonie"} onChange={(e) => updateField("main_category", e.target.value)}>
+                                      <option value="polkolonie">Półkolonie</option>
+                                      <option value="kolonie">Kolonie</option>
+                                      <option value="warsztaty_wakacyjne">Warsztaty wakacyjne</option>
+                                    </select>
+                                  </div>
+                                  <div className="md:col-span-2">
+                                    <label className={labelClass}>Category</label>
+                                    <select className={inputClass} value={(editForm.category as string) || ""} onChange={(e) => updateField("category", e.target.value || null)}>
+                                      <option value="">— brak —</option>
+                                      {(Object.entries(CAMP_CATEGORY_LABELS) as [string, string][]).map(([val, label]) => (
+                                        <option key={val} value={val}>{label}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  <div className="md:col-span-2">
+                                    <label className={labelClass}>Subcategory</label>
+                                    <input className={inputClass} value={(editForm.subcategory as string) || ""} onChange={(e) => updateField("subcategory", e.target.value || null)} placeholder="np. pilka_nozna" />
+                                  </div>
+
+                                  <div className="md:col-span-4">
                                     <label className={labelClass}>Organizator</label>
                                     <select
                                       className={inputClass}
@@ -946,6 +961,14 @@ export default function AdminCampsPage() {
                                         <option key={o.id} value={o.id}>{o.name}</option>
                                       ))}
                                     </select>
+                                  </div>
+                                  <div>
+                                    <label className={labelClass}>Likes</label>
+                                    <input type="number" min={0} className={inputClass} value={(editForm.likes as number) ?? 0} onChange={(e) => updateField("likes", Number(e.target.value) || 0)} />
+                                  </div>
+                                  <div>
+                                    <label className={labelClass}>Dislikes</label>
+                                    <input type="number" min={0} className={inputClass} value={(editForm.dislikes as number) ?? 0} onChange={(e) => updateField("dislikes", Number(e.target.value) || 0)} />
                                   </div>
                                 </div>
 
@@ -996,25 +1019,19 @@ export default function AdminCampsPage() {
                                     )}
                                   </div>
 
-                                  <div className="rounded-lg border border-border/50 p-3 space-y-3">
-                                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Obrazek</p>
-                                    {(pendingPreview || camp.image_url) && (
-                                      <div className="relative">
-                                        <img src={pendingPreview || camp.image_url || ""} alt="" className={cn("w-full aspect-[3/2] rounded-lg object-cover border border-border", pendingPreview && "ring-2 ring-primary/40")} />
-                                        {pendingPreview && (
-                                          <button onClick={clearPendingFile} className="absolute top-1.5 right-1.5 bg-white rounded-full shadow-sm border border-border p-0.5 hover:bg-red-50 transition-colors" title="Usuń">
-                                            <X size={14} className="text-red-500" />
-                                          </button>
-                                        )}
-                                      </div>
-                                    )}
-                                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-muted border border-border rounded hover:text-foreground hover:border-primary/30 transition-colors cursor-pointer">
-                                      <ImagePlus size={11} />
-                                      {pendingPreview ? "Zmień plik" : "Wgraj plik"}
-                                      <input type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleFileSelect(file); e.target.value = ""; }} />
-                                    </label>
-                                    {pendingPreview && <p className="text-[10px] text-primary font-medium">Nowy plik — zapisz aby wgrać</p>}
-                                  </div>
+                                  <ImageSection
+                                    imageUrl={camp.image_url}
+                                    imageThumb={camp.image_thumb}
+                                    pendingPreview={pendingPreview}
+                                    onFileSelect={handleFileSelect}
+                                    onClearPending={clearPendingFile}
+                                    table="camps"
+                                    itemId={camp.id}
+                                    mainCategory={String(editForm.main_category || camp.main_category || "")}
+                                    category={String(editForm.category || camp.category || "")}
+                                    subcategory={String(editForm.subcategory || camp.subcategory || "")}
+                                    onRandomPhoto={(url, thumb) => setCamps((prev) => prev.map((c) => c.id === camp.id ? { ...c, image_url: url, image_thumb: thumb } : c))}
+                                  />
                                 </div>
 
                                 <div className="flex gap-2">

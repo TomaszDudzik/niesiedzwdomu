@@ -8,17 +8,22 @@ export type ContentStatus = "draft" | "published" | "cancelled" | "deleted";
 
 export type District =
   | "Stare Miasto"
-  | "Kazimierz"
-  | "Podgórze"
-  | "Nowa Huta"
+  | "Grzegórzki"
+  | "Prądnik Czerwony"
+  | "Prądnik Biały"
   | "Krowodrza"
   | "Bronowice"
   | "Zwierzyniec"
   | "Dębniki"
-  | "Prądnik Czerwony"
-  | "Prądnik Biały"
+  | "Łagiewniki-Borek Fałęcki"
+  | "Swoszowice"
+  | "Podgórze"
+  | "Bieżanów-Prokocim"
   | "Czyżyny"
-  | "Bieżanów"
+  | "Mistrzejowice"
+  | "Wzgórza Krzesławickie"
+  | "Nowa Huta"
+  | "Kazimierz"
   | "Inne";
 
 export type EventCategory =
@@ -33,9 +38,9 @@ export type EventCategory =
   | "wystawa"
   | "inne";
 
-export type CampType = "kolonie" | "polkolonie" | "warsztaty_wakacyjne";
+export type CampMainCategory = "kolonie" | "polkolonie" | "warsztaty_wakacyjne";
 
-export type CampCategory = "sportowa" | "edukacyjna" | "integracyjna" | "przygodowa" | "artystyczna";
+export type CampCategory = "sportowe" | "edukacyjne" | "integracyjne" | "przygodowe" | "artystyczne";
 
 export type CampSeason = "lato" | "zima" | "ferie_zimowe" | "ferie_wiosenne" | "caly_rok";
 
@@ -72,6 +77,11 @@ export interface Event {
   description_short: string;
   description_long: string;
   image_url: string | null;
+  image_cover?: string | null;
+  image_thumb?: string | null;
+  image_set?: string | null;
+  main_category?: string | null;
+  subcategory?: string | null;
   date_start: string;
   date_end: string | null;
   time_start: string | null;
@@ -121,10 +131,14 @@ export interface Camp {
   description_short: string;
   description_long: string;
   image_url: string | null;
+  image_cover?: string | null;
+  image_thumb?: string | null;
+  image_set?: string | null;
   date_start: string;
   date_end: string;
-  camp_type: CampType;
+  main_category: CampMainCategory;
   category: CampCategory | null;
+  subcategory: string | null;
   season: CampSeason;
   duration_days: number;
   meals_included: boolean;
@@ -159,6 +173,12 @@ export interface Activity {
   description_short: string;
   description_long: string;
   image_url: string | null;
+  image_cover?: string | null;
+  image_thumb?: string | null;
+  image_set?: string | null;
+  main_category?: string | null;
+  category?: string | null;
+  subcategory?: string | null;
   activity_type: ActivityType;
   schedule_summary: string | null;
   days_of_week: string[];
@@ -193,6 +213,12 @@ export interface Place {
   description_short: string;
   description_long: string;
   image_url: string | null;
+  image_cover?: string | null;
+  image_thumb?: string | null;
+  image_set?: string | null;
+  main_category?: string | null;
+  category?: string | null;
+  subcategory?: string | null;
   place_type: PlaceType;
   is_indoor: boolean;
   street: string;
@@ -261,7 +287,7 @@ export interface EventFilters extends SharedFilters {
 }
 
 export interface CampFilters extends SharedFilters {
-  campType?: CampType;
+  mainCategory?: CampMainCategory;
   season?: CampSeason;
   dateRange?: "week" | "month" | "summer" | "winter";
   mealsIncluded?: boolean;

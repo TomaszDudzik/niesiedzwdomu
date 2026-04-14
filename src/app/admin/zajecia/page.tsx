@@ -22,6 +22,7 @@ const MiniMapLazy = lazy(() => import("../miejsca/mini-map").then((module) => ({
 import { ACTIVITY_TYPE_ICONS, ACTIVITY_TYPE_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
 import { cn, formatDateShort } from "@/lib/utils";
 import type { Activity } from "@/types/database";
+import { ImageSection } from "@/components/admin/image-section";
 
 type DerivedActivityStatus = Activity["status"] | "outdated";
 type ActivityListFilter = "all" | "published" | "draft" | "outdated";
@@ -563,6 +564,9 @@ export default function AdminActivitiesPage() {
       organizer: activity.organizer,
       source_url: activity.source_url,
       facebook_url: activity.facebook_url || "",
+      main_category: activity.main_category ?? null,
+      img_category: activity.category ?? null,
+      subcategory: activity.subcategory ?? null,
       venue_name: activity.venue_name,
       venue_address: activity.venue_address,
       district: activity.district,
@@ -606,6 +610,9 @@ export default function AdminActivitiesPage() {
       organizer: String(editForm.organizer || ""),
       source_url: editForm.source_url ? String(editForm.source_url) : null,
       facebook_url: editForm.facebook_url ? String(editForm.facebook_url) : null,
+      main_category: editForm.main_category ? String(editForm.main_category) : null,
+      category: editForm.img_category ? String(editForm.img_category) : null,
+      subcategory: editForm.subcategory ? String(editForm.subcategory) : null,
       venue_name: String(editForm.venue_name || ""),
       venue_address: String(editForm.venue_address || ""),
       district: editForm.district,
@@ -837,10 +844,52 @@ export default function AdminActivitiesPage() {
 
                             {isEditing && (
                               <div className="px-3 pb-3 pt-2 border-t border-border/50">
-                                <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
-                                  <div className="md:col-span-2">
-                                    <label className={labelClass}>Tytul</label>
+                                <div className="grid grid-cols-1 md:grid-cols-6 gap-3 mb-3">
+                                  <div className="md:col-span-6">
+                                    <label className={labelClass}>Tytuł</label>
                                     <input className={inputClass} value={(editForm.title as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, title: event.target.value }))} />
+                                  </div>
+                                  <div className="md:col-span-6">
+                                    <label className={labelClass}>Krótki opis</label>
+                                    <textarea rows={2} className={inputClass} value={(editForm.description_short as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, description_short: event.target.value }))} />
+                                  </div>
+                                  <div className="md:col-span-6">
+                                    <label className={labelClass}>Długi opis</label>
+                                    <textarea rows={5} className={inputClass} value={(editForm.description_long as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, description_long: event.target.value }))} />
+                                  </div>
+
+                                  <div>
+                                    <label className={labelClass}>Data od</label>
+                                    <input type="date" className={inputClass} value={(editForm.date_start as string) || ""} onChange={(e) => setEditForm((c) => ({ ...c, date_start: e.target.value }))} />
+                                  </div>
+                                  <div>
+                                    <label className={labelClass}>Data do</label>
+                                    <input type="date" className={inputClass} value={(editForm.date_end as string) || ""} onChange={(e) => setEditForm((c) => ({ ...c, date_end: e.target.value || null }))} />
+                                  </div>
+                                  <div>
+                                    <label className={labelClass}>Godzina od</label>
+                                    <input type="time" className={inputClass} value={(editForm.time_start as string) || ""} onChange={(e) => setEditForm((c) => ({ ...c, time_start: e.target.value || null }))} />
+                                  </div>
+                                  <div>
+                                    <label className={labelClass}>Godzina do</label>
+                                    <input type="time" className={inputClass} value={(editForm.time_end as string) || ""} onChange={(e) => setEditForm((c) => ({ ...c, time_end: e.target.value || null }))} />
+                                  </div>
+                                  <div>
+                                    <label className={labelClass}>Wiek od</label>
+                                    <input type="number" min={0} max={18} className={inputClass} value={editForm.age_min === null ? "" : String(editForm.age_min ?? "")} onChange={(event) => setEditForm((current) => ({ ...current, age_min: event.target.value ? Number(event.target.value) : null }))} />
+                                  </div>
+                                  <div>
+                                    <label className={labelClass}>Wiek do</label>
+                                    <input type="number" min={0} max={18} className={inputClass} value={editForm.age_max === null ? "" : String(editForm.age_max ?? "")} onChange={(event) => setEditForm((current) => ({ ...current, age_max: event.target.value ? Number(event.target.value) : null }))} />
+                                  </div>
+
+                                  <div>
+                                    <label className={labelClass}>Cena od</label>
+                                    <input type="number" min={0} className={inputClass} value={editForm.price_from === null ? "" : String(editForm.price_from ?? "")} onChange={(event) => setEditForm((current) => ({ ...current, price_from: event.target.value ? Number(event.target.value) : null }))} />
+                                  </div>
+                                  <div>
+                                    <label className={labelClass}>Cena do</label>
+                                    <input type="number" min={0} className={inputClass} value={editForm.price_to === null ? "" : String(editForm.price_to ?? "")} onChange={(event) => setEditForm((current) => ({ ...current, price_to: event.target.value ? Number(event.target.value) : null }))} />
                                   </div>
                                   <div>
                                     <label className={labelClass}>Typ</label>
@@ -850,55 +899,50 @@ export default function AdminActivitiesPage() {
                                       ))}
                                     </select>
                                   </div>
-                                  <div className="md:col-span-4">
-                                    <label className={labelClass}>Krotki opis</label>
-                                    <textarea rows={2} className={inputClass} value={(editForm.description_short as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, description_short: event.target.value }))} />
-                                  </div>
-                                  <div className="md:col-span-4">
-                                    <label className={labelClass}>Dlugi opis</label>
-                                    <textarea rows={6} className={inputClass} value={(editForm.description_long as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, description_long: event.target.value }))} />
-                                  </div>
-
-                                  <div>
-                                    <label className={labelClass}>Wiek od</label>
-                                    <input type="number" min={0} max={18} className={inputClass} value={editForm.age_min === null ? "" : String(editForm.age_min ?? "")} onChange={(event) => setEditForm((current) => ({ ...current, age_min: event.target.value ? Number(event.target.value) : null }))} />
-                                  </div>
-                                  <div>
-                                    <label className={labelClass}>Wiek do</label>
-                                    <input type="number" min={0} max={18} className={inputClass} value={editForm.age_max === null ? "" : String(editForm.age_max ?? "")} onChange={(event) => setEditForm((current) => ({ ...current, age_max: event.target.value ? Number(event.target.value) : null }))} />
-                                  </div>
-                                  <div>
-                                    <label className={labelClass}>Cena od</label>
-                                    <input type="number" min={0} className={inputClass} value={editForm.price_from === null ? "" : String(editForm.price_from ?? "")} onChange={(event) => setEditForm((current) => ({ ...current, price_from: event.target.value ? Number(event.target.value) : null }))} />
-                                  </div>
-                                  <div>
-                                    <label className={labelClass}>Cena do</label>
-                                    <input type="number" min={0} className={inputClass} value={editForm.price_to === null ? "" : String(editForm.price_to ?? "")} onChange={(event) => setEditForm((current) => ({ ...current, price_to: event.target.value ? Number(event.target.value) : null }))} />
+                                  <div className="md:col-span-3 flex items-center gap-4 pt-5">
+                                    <label className="flex items-center gap-2 text-[12px] cursor-pointer">
+                                      <input type="checkbox" checked={Boolean(editForm.is_free)} onChange={(e) => setEditForm((c) => ({ ...c, is_free: e.target.checked }))} className="rounded border-border" />
+                                      Bezpłatne
+                                    </label>
+                                    <label className="flex items-center gap-2 text-[12px] cursor-pointer">
+                                      <input type="checkbox" checked={Boolean(editForm.is_featured)} onChange={(e) => setEditForm((c) => ({ ...c, is_featured: e.target.checked }))} className="rounded border-border" />
+                                      Wyróżnione
+                                    </label>
                                   </div>
 
-                                  <div className="md:col-span-4 flex items-center gap-3">
-                                    <button
-                                      type="button"
-                                      onClick={() => setEditForm((current) => ({ ...current, is_free: !current.is_free }))}
-                                      className={cn("inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-semibold border-2 transition-all duration-200",
-                                        editForm.is_free ? "bg-emerald-50 text-emerald-700 border-emerald-400" : "bg-background text-muted-foreground border-border hover:border-emerald-300"
-                                      )}
-                                    >
-                                      {editForm.is_free ? "✓ Bezpłatne" : "Bezpłatne"}
-                                    </button>
+                                  <div className="md:col-span-3">
+                                    <label className={labelClass}>URL źródła</label>
+                                    <input className={inputClass} value={(editForm.source_url as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, source_url: event.target.value }))} placeholder="https://..." />
+                                  </div>
+                                  <div className="md:col-span-3">
+                                    <label className={labelClass}>Facebook</label>
+                                    <input className={inputClass} value={(editForm.facebook_url as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, facebook_url: event.target.value }))} placeholder="https://facebook.com/..." />
                                   </div>
 
                                   <div className="md:col-span-2">
+                                    <label className={labelClass}>Main category</label>
+                                    <input className={inputClass} value={String(editForm.main_category || "")} onChange={(e) => setEditForm((c) => ({ ...c, main_category: e.target.value || null }))} placeholder="np. zajecia" />
+                                  </div>
+                                  <div className="md:col-span-2">
+                                    <label className={labelClass}>Category</label>
+                                    <input className={inputClass} value={String(editForm.img_category || "")} onChange={(e) => setEditForm((c) => ({ ...c, img_category: e.target.value || null }))} />
+                                  </div>
+                                  <div className="md:col-span-2">
+                                    <label className={labelClass}>Subcategory</label>
+                                    <input className={inputClass} value={String(editForm.subcategory || "")} onChange={(e) => setEditForm((c) => ({ ...c, subcategory: e.target.value || null }))} />
+                                  </div>
+
+                                  <div className="md:col-span-4">
                                     <label className={labelClass}>Organizator</label>
                                     <input className={inputClass} value={(editForm.organizer as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, organizer: event.target.value }))} />
                                   </div>
-                                  <div className="md:col-span-2">
-                                    <label className={labelClass}>URL zrodla</label>
-                                    <input className={inputClass} value={(editForm.source_url as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, source_url: event.target.value }))} />
+                                  <div>
+                                    <label className={labelClass}>Likes</label>
+                                    <input type="number" min={0} className={inputClass} value={(editForm.likes as number) ?? 0} onChange={(e) => setEditForm((c) => ({ ...c, likes: Number(e.target.value) || 0 }))} />
                                   </div>
-                                  <div className="md:col-span-2">
-                                    <label className={labelClass}>Facebook</label>
-                                    <input className={inputClass} value={(editForm.facebook_url as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, facebook_url: event.target.value }))} placeholder="https://facebook.com/..." />
+                                  <div>
+                                    <label className={labelClass}>Dislikes</label>
+                                    <input type="number" min={0} className={inputClass} value={(editForm.dislikes as number) ?? 0} onChange={(e) => setEditForm((c) => ({ ...c, dislikes: Number(e.target.value) || 0 }))} />
                                   </div>
                                 </div>
 
@@ -954,27 +998,19 @@ export default function AdminActivitiesPage() {
                                     )}
                                   </div>
 
-                                  <div className="rounded-lg border border-border/50 p-3 space-y-3">
-                                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Zdjęcie</p>
-                                    {(pendingPreview || activity.image_url) && (
-                                      <div className="relative">
-                                        <img src={pendingPreview || activity.image_url || ""} alt="" className={cn("w-full aspect-[3/2] rounded-lg object-cover border border-border", pendingPreview && "ring-2 ring-primary/40")} />
-                                        {pendingPreview && (
-                                          <button onClick={clearPendingFile} className="absolute top-1.5 right-1.5 bg-white rounded-full shadow-sm border border-border p-0.5 hover:bg-red-50 transition-colors" title="Usuń">
-                                            <X size={14} className="text-red-500" />
-                                          </button>
-                                        )}
-                                      </div>
-                                    )}
-                                    <div className="flex items-center gap-2">
-                                      <label className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-muted border border-border rounded hover:text-foreground hover:border-primary/30 transition-colors cursor-pointer">
-                                        <Plus size={11} />
-                                        {pendingPreview ? "Zmień plik" : "Wgraj plik"}
-                                        <input type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleFileSelect(file); e.target.value = ""; }} />
-                                      </label>
-                                    </div>
-                                    {pendingPreview && <span className="text-[10px] text-primary font-medium">Nowy plik — zapisz aby wgrać</span>}
-                                  </div>
+                                  <ImageSection
+                                    imageUrl={activity.image_url}
+                                    imageThumb={activity.image_thumb}
+                                    pendingPreview={pendingPreview}
+                                    onFileSelect={handleFileSelect}
+                                    onClearPending={clearPendingFile}
+                                    table="activities"
+                                    itemId={activity.id}
+                                    mainCategory={String(editForm.main_category || activity.main_category || "")}
+                                    category={String(editForm.img_category || activity.category || "")}
+                                    subcategory={String(editForm.subcategory || activity.subcategory || "")}
+                                    onRandomPhoto={(url, thumb) => setActivities((prev) => prev.map((a) => a.id === activity.id ? { ...a, image_url: url, image_thumb: thumb } : a))}
+                                  />
                                 </div>
 
                                 <div className="flex items-center gap-2">

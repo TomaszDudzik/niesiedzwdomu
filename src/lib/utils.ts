@@ -72,6 +72,13 @@ export function getNextWeekend(): { start: Date; end: Date } {
   return { start: saturday, end: sunday };
 }
 
+/** Get the thumbnail image URL. Prefers image_thumb, falls back to deriving from image_url. */
+export function thumbUrl(imageThumb: string | null | undefined, imageUrl: string | null | undefined): string | null {
+  if (imageThumb) return imageThumb;
+  if (imageUrl?.includes("-cover.webp")) return imageUrl.replace("-cover.webp", "-thumb.webp");
+  return imageUrl || null;
+}
+
 export function toLocalDateKey(date: Date): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");

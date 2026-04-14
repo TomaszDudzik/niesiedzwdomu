@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Calendar, MapPin, ThumbsUp } from "lucide-react";
 import type { DiscoveryItem } from "@/types/database";
 import { getItemHref, getDateText, getLocationText, getPlaceholderIcon } from "@/lib/content-helpers";
+import { thumbUrl } from "@/lib/utils";
 
 interface ContentCardProps {
   item: DiscoveryItem;
@@ -22,7 +23,7 @@ export function ContentCard({ item }: ContentCardProps) {
       <div className="w-[160px] shrink-0 relative self-stretch">
         {item.image_url ? (
           <img
-            src={item.image_url}
+            src={thumbUrl(item.image_thumb, item.image_url) || item.image_url}
             alt={item.title}
             className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300"
           />

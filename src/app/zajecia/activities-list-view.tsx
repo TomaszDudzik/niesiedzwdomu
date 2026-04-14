@@ -28,7 +28,7 @@ const DISTRICT_ICONS: Partial<Record<District, string>> = {
   "Prądnik Czerwony": "🌳",
   "Prądnik Biały": "🍃",
   "Czyżyny": "✈️",
-  "Bieżanów": "🚋",
+  "Bieżanów-Prokocim": "🚋",
 };
 
 type ViewMode = "list" | "map";

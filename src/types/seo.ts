@@ -1,4 +1,4 @@
-import type { ContentType, EventCategory, CampType, PlaceType } from "./database";
+import type { ContentType, EventCategory, CampMainCategory, PlaceType } from "./database";
 
 export interface FaqItem {
   question: string;
@@ -21,7 +21,7 @@ export interface SeoListingConfig {
   contentType: ContentType | "mixed";
   /** Optional: filter by specific category/type */
   filterCategory?: EventCategory;
-  filterCampType?: CampType;
+  filterCampType?: CampMainCategory;
   filterPlaceType?: PlaceType;
   /** Only show free items */
   filterFree?: boolean;

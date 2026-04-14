@@ -6,7 +6,7 @@ import { Search, ArrowRight, SlidersHorizontal, X, MapPin, Users } from "lucide-
 import { ContentCard } from "@/components/ui/content-card";
 import { ImageWithFallback } from "@/components/ui/image-with-fallback";
 import { CATEGORY_LABELS, CATEGORY_ICONS, PLACE_TYPE_LABELS, PLACE_TYPE_ICONS } from "@/lib/mock-data";
-import { cn, formatDateShort, formatAgeRange } from "@/lib/utils";
+import { cn, formatDateShort, formatAgeRange, thumbUrl } from "@/lib/utils";
 import type { Event, Place, Camp, Activity, EventCategory, PlaceType } from "@/types/database";
 
 const DAYS_PL = ["Nd", "Pn", "Wt", "Śr", "Cz", "Pt", "So"];
@@ -390,7 +390,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
                         <div className="w-[160px] shrink-0 relative self-stretch bg-accent">
                           {organizer.leadCamp.image_url ? (
                             <ImageWithFallback
-                              src={organizer.leadCamp.image_url}
+                              src={thumbUrl(organizer.leadCamp.image_thumb, organizer.leadCamp.image_url) || organizer.leadCamp.image_url}
                               alt={organizer.name}
                               className="h-full w-full object-contain bg-accent/30 transition-transform duration-300 group-hover:scale-[1.03]"
                               loading="lazy"

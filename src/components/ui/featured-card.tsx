@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Calendar, MapPin, ArrowRight, Clock, ThumbsUp } from "lucide-react";
 import type { DiscoveryItem } from "@/types/database";
-import { formatPrice, formatAgeRange, cn } from "@/lib/utils";
+import { formatPrice, formatAgeRange, cn, thumbUrl } from "@/lib/utils";
 import { getItemHref, getTypeBadgeLabel, getSubcategoryLabel, getDateText, getLocationText, getPlaceholderIcon } from "@/lib/content-helpers";
 
 interface FeaturedCardProps {
@@ -34,7 +34,7 @@ export function FeaturedCard({ item }: FeaturedCardProps) {
       <div className="grid md:grid-cols-2 gap-0">
         <div className="relative aspect-[15/8] md:aspect-auto overflow-hidden rounded-t-xl md:rounded-l-xl md:rounded-tr-none bg-accent">
           {item.image_url ? (
-            <img src={item.image_url} alt={item.title} className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300" />
+            <img src={thumbUrl(item.image_thumb, item.image_url) || item.image_url} alt={item.title} className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300" />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-5xl text-muted-foreground/20">
               {getPlaceholderIcon(item)}

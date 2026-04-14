@@ -26,7 +26,7 @@ export function resolveListingItems(config: SeoListingConfig): DiscoveryItem[] {
 
   if (config.contentType === "camp") {
     let items = mockCamps.filter((c) => c.status === "published");
-    if (config.filterCampType) items = items.filter((c) => c.camp_type === config.filterCampType);
+    if (config.filterCampType) items = items.filter((c) => c.main_category === config.filterCampType);
     if (config.filterFree) items = items.filter((c) => c.is_free);
     return items.slice(0, limit);
   }

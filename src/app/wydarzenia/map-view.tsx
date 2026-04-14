@@ -21,7 +21,7 @@ const DISTRICT_COORDS: Record<string, [number, number]> = {
   "Prądnik Czerwony": [50.0870, 19.9550],
   "Prądnik Biały": [50.0950, 19.9200],
   "Czyżyny": [50.0720, 20.0050],
-  "Bieżanów": [50.0150, 20.0050],
+  "Bieżanów-Prokocim": [50.0150, 20.0050],
 };
 
 function getEventCoords(event: Event): [number, number] {

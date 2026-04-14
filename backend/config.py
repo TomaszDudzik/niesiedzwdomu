@@ -41,9 +41,11 @@ class Config:
     ])
 
     krakow_districts: list[str] = field(default_factory=lambda: [
-        "Stare Miasto", "Kazimierz", "Podgórze", "Nowa Huta",
+        "Stare Miasto", "Grzegórzki", "Prądnik Czerwony", "Prądnik Biały",
         "Krowodrza", "Bronowice", "Zwierzyniec", "Dębniki",
-        "Prądnik Czerwony", "Prądnik Biały", "Czyżyny", "Bieżanów", "Inne",
+        "Łagiewniki-Borek Fałęcki", "Swoszowice", "Podgórze",
+        "Bieżanów-Prokocim", "Czyżyny", "Mistrzejowice",
+        "Wzgórza Krzesławickie", "Nowa Huta", "Kazimierz", "Inne",
     ])
 
 
