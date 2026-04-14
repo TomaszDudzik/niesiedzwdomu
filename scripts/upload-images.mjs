@@ -16,6 +16,7 @@
  */
 
 import fs from 'fs/promises'
+import { existsSync } from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import sharp from 'sharp'
@@ -25,15 +26,27 @@ import dotenv from 'dotenv'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const PROJECT_ROOT = path.resolve(__dirname, '..')
 
-dotenv.config({ path: path.join(PROJECT_ROOT, '.env.local') })
+for (const envName of ['.env.local', '.env']) {
+  const envPath = path.join(PROJECT_ROOT, envName)
+  if (existsSync(envPath)) {
+    dotenv.config({ path: envPath, override: false })
+  }
+}
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-)
+const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+if (!supabaseUrl) throw new Error('Missing SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL in environment')
+if (!supabaseServiceRoleKey) throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY in environment')
+
+const supabase = createClient(supabaseUrl, supabaseServiceRoleKey)
 
 const BUCKET = 'event-library'
-const PHOTO_DIR = path.resolve(PROJECT_ROOT, '..', 'photo')
+const PHOTO_DIR_CANDIDATES = [
+  path.resolve(PROJECT_ROOT, '..', 'photos'),
+  path.resolve(PROJECT_ROOT, '..', 'photo'),
+]
+const PHOTO_DIR = PHOTO_DIR_CANDIDATES.find((candidate) => existsSync(candidate)) || PHOTO_DIR_CANDIDATES[0]
 
 const IMAGE_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.tiff', '.avif'])
 

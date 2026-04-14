@@ -991,7 +991,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                           <div className="group flex flex-col overflow-hidden sm:min-h-[180px] sm:flex-row">
                             <Link
                               href={`/kolonie/${organizer.leadCamp.slug}`}
-                              className="relative aspect-video w-full shrink-0 bg-accent sm:aspect-auto sm:h-auto sm:w-[210px] sm:self-stretch"
+                              className="relative aspect-[20/9] w-full shrink-0 bg-accent sm:aspect-auto sm:h-auto sm:w-[210px] sm:self-stretch"
                             >
                               {(() => {
                                 const imgSrc = organizer.leadCamp.image_url;
@@ -1052,20 +1052,20 @@ export function CampsListView({ camps }: CampsListViewProps) {
                                           return (
                                             <tr
                                               key={camp.id}
-                                              className="group border-b border-border/40 last:border-0 cursor-pointer"
+                                              className="group border-b border-border/40 last:border-0 cursor-pointer hover:bg-stone-100 transition-colors"
                                               onClick={() => window.location.href = `/kolonie/${camp.slug}`}
                                             >
-                                              <td className="py-1.5 pr-2 text-foreground align-top group-hover:bg-stone-100 transition-colors rounded-l">
+                                              <td className="py-1.5 pr-2 text-foreground align-top rounded-l">
                                                 <div className="min-w-0">
                                                   <span className="block truncate whitespace-nowrap font-medium group-hover:text-primary transition-colors" title={camp.title}>
                                                     {camp.title}
                                                   </span>
                                                 </div>
                                               </td>
-                                              <td className="px-2 py-1.5 text-muted align-top whitespace-nowrap group-hover:bg-stone-100 transition-colors">
+                                              <td className="px-2 py-1.5 text-muted align-top whitespace-nowrap">
                                                 {getDateChipLabel(camp)}
                                               </td>
-                                              <td className="px-2 py-1.5 align-top whitespace-nowrap group-hover:bg-stone-100 transition-colors rounded-r">
+                                              <td className="px-2 py-1.5 align-top whitespace-nowrap rounded-r">
                                                 <span className="font-medium text-primary">
                                                   <span className="hidden sm:inline">Zobacz</span>
                                                   <svg className="sm:hidden" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>

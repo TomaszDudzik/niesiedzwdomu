@@ -70,6 +70,8 @@ const CATEGORY_ALIASES: Record<string, Camp["category"]> = {
   integracja: "integracyjne", integracyjna: "integracyjne", integracyjny: "integracyjne", integracyjne: "integracyjne",
   przygoda: "przygodowe", przygodowa: "przygodowe", przygodowy: "przygodowe", przygodowe: "przygodowe",
   artystyczna: "artystyczne", artystyczny: "artystyczne", art: "artystyczne", sztuka: "artystyczne", artystyczne: "artystyczne",
+  kulinarne: "kulinarne", kulinarna: "kulinarne", kulinaria: "kulinarne", kuchnia: "kulinarne", gotowanie: "kulinarne",
+  przyrodnicze: "przyrodnicze", przyrodnicza: "przyrodnicze", przyrodniczy: "przyrodnicze", przyroda: "przyrodnicze", natura: "przyrodnicze",
 };
 
 function resolveField(header: string): string | null {

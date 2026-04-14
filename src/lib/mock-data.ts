@@ -464,11 +464,11 @@ export const CAMP_MAIN_CATEGORY_LABELS: Record<CampMainCategory, string> = {
 
 export const CAMP_CATEGORY_LABELS: Record<CampCategory, string> = {
   sportowe: "Sportowe", edukacyjne: "Edukacyjne", integracyjne: "Integracyjne",
-  przygodowe: "Przygodowe", artystyczne: "Artystyczne",
+  przygodowe: "Przygodowe", artystyczne: "Artystyczne", kulinarne: "Kulinarne", przyrodnicze: "Przyrodnicze",
 };
 
 export const CAMP_CATEGORY_ICONS: Record<CampCategory, string> = {
-  sportowe: "⚽", edukacyjne: "📚", integracyjne: "🤝", przygodowe: "🏕️", artystyczne: "🎨",
+  sportowe: "⚽", edukacyjne: "📚", integracyjne: "🤝", przygodowe: "🏕️", artystyczne: "🎨", kulinarne: "🍳", przyrodnicze: "🌿",
 };
 
 export const CAMP_MAIN_CATEGORY_ICONS: Record<CampMainCategory, string> = {

@@ -40,7 +40,7 @@ export type EventCategory =
 
 export type CampMainCategory = "kolonie" | "polkolonie" | "warsztaty_wakacyjne";
 
-export type CampCategory = "sportowe" | "edukacyjne" | "integracyjne" | "przygodowe" | "artystyczne";
+export type CampCategory = "sportowe" | "edukacyjne" | "integracyjne" | "przygodowe" | "artystyczne" | "kulinarne" | "przyrodnicze";
 
 export type CampSeason = "lato" | "zima" | "ferie_zimowe" | "ferie_wiosenne" | "caly_rok";
 
