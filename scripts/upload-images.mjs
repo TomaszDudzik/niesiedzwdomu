@@ -8,7 +8,8 @@
  *   → bucket: kolonie/sportowe/pilka_nozna/img1-thumb.webp
  *
  * Usage:
- *   node scripts/upload-images.mjs
+ *   node scripts/upload-images.mjs                          # all folders
+ *   node scripts/upload-images.mjs kolonie/sportowe/rolki   # specific subfolder only
  *
  * Install deps first:
  *   npm install sharp dotenv
@@ -104,16 +105,19 @@ async function walk(dir) {
 }
 
 async function main() {
+  const subFolder = process.argv[2]
+  const scanDir = subFolder ? path.join(PHOTO_DIR, subFolder) : PHOTO_DIR
+
   try {
-    await fs.access(PHOTO_DIR)
+    await fs.access(scanDir)
   } catch {
-    console.error(`Photo directory not found: ${PHOTO_DIR}`)
+    console.error(`Directory not found: ${scanDir}`)
     process.exit(1)
   }
 
   await ensureBucket()
-  console.log(`Scanning: ${PHOTO_DIR}`)
-  const total = await walk(PHOTO_DIR)
+  console.log(`Scanning: ${scanDir}`)
+  const total = await walk(scanDir)
   console.log(`\nDone. Processed ${total} images.`)
 }
 
