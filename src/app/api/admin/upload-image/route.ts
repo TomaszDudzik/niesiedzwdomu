@@ -26,7 +26,6 @@ export async function POST(request: NextRequest) {
   if (!ALLOWED_TABLES.has(target)) {
     return NextResponse.json({ error: "invalid target" }, { status: 400 });
   }
-
   const ext = file.name.split(".").pop()?.toLowerCase() || "png";
   const filePath = variant === "thumb"
     ? `${target}/${id}-thumb.${ext}`

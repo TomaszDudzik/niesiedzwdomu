@@ -156,9 +156,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
           map.set(key, { key, name, leadCamp: camp, camps: [camp] });
         } else {
           existing.camps.push(camp);
-          const existingHasOrgImage = !!existing.leadCamp.organizer_data?.image_url;
-          const nextHasOrgImage = !!camp.organizer_data?.image_url;
-          if ((!existingHasOrgImage && nextHasOrgImage) || (!existing.leadCamp.image_url && camp.image_url)) {
+          if (!existing.leadCamp.image_url && camp.image_url) {
             existing.leadCamp = camp;
           }
         }

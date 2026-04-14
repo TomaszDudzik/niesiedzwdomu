@@ -312,11 +312,10 @@ export function CampsListView({ camps }: CampsListViewProps) {
 
           const leadCampDate = new Date(existing.leadCamp.date_start).getTime();
           const currentDate = new Date(camp.date_start).getTime();
-          // Prefer camp with organizer_data image; otherwise earliest date with image
-          const leadHasOrgImage = !!existing.leadCamp.organizer_data?.image_url;
-          const campHasOrgImage = !!camp.organizer_data?.image_url;
-          if ((!leadHasOrgImage && campHasOrgImage) ||
-              (currentDate < leadCampDate && !(!leadHasOrgImage && !campHasOrgImage))) {
+          const leadHasImage = !!existing.leadCamp.image_url;
+          const campHasImage = !!camp.image_url;
+          if ((!leadHasImage && campHasImage) ||
+              (currentDate < leadCampDate && !(!leadHasImage && !campHasImage))) {
             existing.leadCamp = camp;
           }
         });
@@ -995,7 +994,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                               className="relative aspect-video w-full shrink-0 bg-accent sm:aspect-auto sm:h-auto sm:w-[210px] sm:self-stretch"
                             >
                               {(() => {
-                                const imgSrc = organizer.leadCamp.organizer_data?.image_url ?? organizer.leadCamp.image_url;
+                                const imgSrc = organizer.leadCamp.image_url;
                                 return imgSrc ? (
                                   <ImageWithFallback
                                     src={thumbUrl(organizer.leadCamp.image_thumb, imgSrc) || imgSrc}
@@ -1053,38 +1052,24 @@ export function CampsListView({ camps }: CampsListViewProps) {
                                           return (
                                             <tr
                                               key={camp.id}
-                                              className="border-b border-border/40 last:border-0"
+                                              className="group border-b border-border/40 last:border-0 cursor-pointer"
+                                              onClick={() => window.location.href = `/kolonie/${camp.slug}`}
                                             >
-                                              <td className="py-1.5 pr-2 text-foreground align-top">
+                                              <td className="py-1.5 pr-2 text-foreground align-top group-hover:bg-stone-100 transition-colors rounded-l">
                                                 <div className="min-w-0">
-                                                  <button
-                                                    type="button"
-                                                    onClick={() => applyCampDatesToCalendar(camp)}
-                                                    className="block w-full truncate whitespace-nowrap text-left font-medium hover:text-primary transition-colors"
-                                                    title={camp.title}
-                                                  >
+                                                  <span className="block truncate whitespace-nowrap font-medium group-hover:text-primary transition-colors" title={camp.title}>
                                                     {camp.title}
-                                                  </button>
+                                                  </span>
                                                 </div>
                                               </td>
-                                              <td className="px-2 py-1.5 text-muted align-top whitespace-nowrap">
-                                                <button
-                                                  type="button"
-                                                  onClick={() => applyCampDatesToCalendar(camp)}
-                                                  className="hover:text-primary transition-colors text-left"
-                                                  title="Pokaż w kalendarzu"
-                                                >
-                                                  {getDateChipLabel(camp)}
-                                                </button>
+                                              <td className="px-2 py-1.5 text-muted align-top whitespace-nowrap group-hover:bg-stone-100 transition-colors">
+                                                {getDateChipLabel(camp)}
                                               </td>
-                                              <td className="px-2 py-1.5 align-top whitespace-nowrap">
-                                                <Link
-                                                  href={`/kolonie/${camp.slug}`}
-                                                  className="font-medium text-primary hover:text-primary-hover transition-colors"
-                                                >
+                                              <td className="px-2 py-1.5 align-top whitespace-nowrap group-hover:bg-stone-100 transition-colors rounded-r">
+                                                <span className="font-medium text-primary">
                                                   <span className="hidden sm:inline">Zobacz</span>
                                                   <svg className="sm:hidden" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                                                </Link>
+                                                </span>
                                               </td>
                                             </tr>
                                           );
