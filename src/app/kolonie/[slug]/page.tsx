@@ -56,7 +56,7 @@ export default async function CampDetailPage({ params }: PageProps) {
   if (!camp) notFound();
 
   const sessions = camp.organizer
-    ? await getCampSessionsByOrganizer(camp.organizer, camp.id)
+    ? await getCampSessionsByOrganizer(camp.organizer_id, camp.organizer, camp.id)
     : [];
 
   const campUrl = `${SITE_URL}/kolonie/${camp.slug}`;

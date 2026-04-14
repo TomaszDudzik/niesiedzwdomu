@@ -26,9 +26,13 @@ function toPlace(row: Record<string, unknown>): Place {
 function toCamp(row: Record<string, unknown>): Camp {
   const priceFrom = typeof row.price_from === "number" ? row.price_from : null;
   const priceSingle = typeof row.price === "number" ? row.price : null;
+  const organizerData = row.organizer_data as Record<string, unknown> | null | undefined;
   return {
     ...row,
     content_type: "camp",
+    organizer: typeof organizerData?.name === "string" && organizerData.name.trim().length > 0
+      ? organizerData.name
+      : String(row.organizer || ""),
     price: priceFrom ?? priceSingle ?? null,
   } as Camp;
 }
@@ -162,15 +166,18 @@ export async function getCampBySlug(slug: string): Promise<Camp | null> {
   return data ? toCamp(data) : null;
 }
 
-export async function getCampSessionsByOrganizer(organizer: string, excludeId: string): Promise<Camp[]> {
+export async function getCampSessionsByOrganizer(organizerId: string | null | undefined, organizer: string, excludeId: string): Promise<Camp[]> {
   const db = getDb();
-  const { data } = await db
+  let query = db
     .from("camps")
-    .select("*")
-    .eq("organizer", organizer)
+    .select("*, organizer_data:organizer_id(*)")
     .eq("status", "published")
     .neq("id", excludeId)
     .order("date_start", { ascending: true });
+
+  query = organizerId ? query.eq("organizer_id", organizerId) : query.eq("organizer", organizer);
+
+  const { data } = await query;
   return (data || []).map(toCamp);
 }
 

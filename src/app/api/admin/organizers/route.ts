@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { revalidatePath } from "next/cache";
 
 function getDb() {
   return createClient(
@@ -8,15 +9,15 @@ function getDb() {
   );
 }
 
+const ALLOWED_FIELDS = new Set([
+  "name", "description_short", "description_long",
+  "source_url", "facebook_url", "status", "content_types",
+]);
+
 function pickFields(input: Record<string, unknown>) {
-  return {
-    name: input.name,
-    description_short: input.description_short,
-    description_long: input.description_long,
-    image_url: input.image_url,
-    source_url: input.source_url,
-    facebook_url: input.facebook_url,
-  };
+  return Object.fromEntries(
+    Object.entries(input).filter(([k, v]) => ALLOWED_FIELDS.has(k) && v !== undefined)
+  );
 }
 
 export async function GET() {
@@ -32,9 +33,13 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const db = getDb();
   const body = (await request.json()) as Record<string, unknown>;
+  const payload = pickFields(body);
+  if (!payload.status) payload.status = "draft";
+  if (!payload.content_types) payload.content_types = [];
+
   const { data, error } = await db
     .from("organizers")
-    .insert(pickFields(body))
+    .insert(payload)
     .select()
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -46,13 +51,17 @@ export async function PATCH(request: NextRequest) {
   const body = (await request.json()) as Record<string, unknown>;
   const { id, ...updates } = body;
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
+
+  const patch = pickFields(updates);
   const { data, error } = await db
     .from("organizers")
-    .update(pickFields(updates))
+    .update(patch)
     .eq("id", id)
     .select()
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  revalidatePath("/admin/organizatorzy");
   return NextResponse.json({ ok: true, updated: data });
 }
 

@@ -111,14 +111,17 @@ export interface Event {
 // Camp & Place — frontend types (DB tables TBD)
 // ============================================
 
+export type OrganizerContentType = "miejsca" | "wydarzenia" | "kolonie" | "zajecia";
+
 export interface Organizer {
   id: string;
   name: string;
   description_short: string | null;
   description_long: string | null;
-  image_url: string | null;
   source_url: string | null;
   facebook_url: string | null;
+  status: "draft" | "published";
+  content_types: OrganizerContentType[];
   created_at: string;
   updated_at: string;
 }

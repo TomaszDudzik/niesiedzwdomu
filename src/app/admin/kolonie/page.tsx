@@ -83,7 +83,15 @@ function resolveField(header: string): string | null {
 function mapCampRow(row: Record<string, unknown>): Camp {
   const priceFrom = typeof row.price_from === "number" ? row.price_from : null;
   const priceSingle = typeof row.price === "number" ? row.price : null;
-  return { ...row, content_type: "camp", price: priceFrom ?? priceSingle ?? null } as Camp;
+  const organizerData = row.organizer_data as Record<string, unknown> | null | undefined;
+  return {
+    ...row,
+    content_type: "camp",
+    organizer: typeof organizerData?.name === "string" && organizerData.name.trim().length > 0
+      ? organizerData.name
+      : String(row.organizer || ""),
+    price: priceFrom ?? priceSingle ?? null,
+  } as Camp;
 }
 
 function asNumber(v?: string): number | null {
@@ -197,16 +205,28 @@ export default function AdminCampsPage() {
     const order: Camp["main_category"][] = ["polkolonie", "kolonie", "warsztaty_wakacyjne"];
     return order.map((type) => {
       const typeItems = filteredCamps.filter((c) => c.main_category === type);
-      const organizerNames = [...new Set(typeItems.map((c) => c.organizer || "Brak organizatora"))].sort((a, b) => a.localeCompare(b, "pl"));
-      const byOrganizer = organizerNames.map((organizer) => ({
-        organizer,
-        items: typeItems
-          .filter((c) => (c.organizer || "Brak organizatora") === organizer)
-          .sort((a, b) => {
+      const organizerGroups = new Map<string, { organizer: string; items: Camp[] }>();
+
+      typeItems.forEach((camp) => {
+        const organizer = (camp.organizer_data?.name ?? camp.organizer) || "Brak organizatora";
+        const key = camp.organizer_id ? `id:${camp.organizer_id}` : organizer.toLowerCase();
+        const existing = organizerGroups.get(key);
+        if (existing) {
+          existing.items.push(camp);
+          return;
+        }
+        organizerGroups.set(key, { organizer, items: [camp] });
+      });
+
+      const byOrganizer = Array.from(organizerGroups.values())
+        .sort((a, b) => a.organizer.localeCompare(b.organizer, "pl"))
+        .map((group) => ({
+          organizer: group.organizer,
+          items: group.items.sort((a, b) => {
             const sd = STATUS_ORDER[getEffectiveStatus(a)] - STATUS_ORDER[getEffectiveStatus(b)];
             return sd !== 0 ? sd : a.title.localeCompare(b.title, "pl");
           }),
-      }));
+        }));
       return { type, byOrganizer };
     });
   }, [filteredCamps, getEffectiveStatus]);

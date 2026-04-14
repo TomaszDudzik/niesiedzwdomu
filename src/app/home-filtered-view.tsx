@@ -149,14 +149,18 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
     [...camps]
       .sort((a, b) => new Date(a.date_start).getTime() - new Date(b.date_start).getTime())
       .forEach((camp) => {
-        const name = getOrganizerName(camp);
-        const key = name.toLowerCase();
+        const name = camp.organizer_data?.name ?? getOrganizerName(camp);
+        const key = camp.organizer_id ? `id:${camp.organizer_id}` : name.toLowerCase();
         const existing = map.get(key);
         if (!existing) {
           map.set(key, { key, name, leadCamp: camp, camps: [camp] });
         } else {
           existing.camps.push(camp);
-          if (!existing.leadCamp.image_url && camp.image_url) existing.leadCamp = camp;
+          const existingHasOrgImage = !!existing.leadCamp.organizer_data?.image_url;
+          const nextHasOrgImage = !!camp.organizer_data?.image_url;
+          if ((!existingHasOrgImage && nextHasOrgImage) || (!existing.leadCamp.image_url && camp.image_url)) {
+            existing.leadCamp = camp;
+          }
         }
       });
     return Array.from(map.values()).slice(0, 8);
