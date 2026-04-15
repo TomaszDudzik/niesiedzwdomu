@@ -1,7 +1,52 @@
 interface TaxonomyOption {
   value: string;
   label: string;
+  icon: string;
   count: number;
+}
+
+function normalizeTaxonomyValue(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+export function getTaxonomyIcon(value: string): string {
+  const normalized = normalizeTaxonomyValue(value);
+
+  if (normalized.includes("sport") || normalized.includes("pilka") || normalized.includes("ninja")) return "⚽";
+  if (normalized.includes("plyw")) return "🏊";
+  if (normalized.includes("rolk")) return "🛼";
+  if (normalized.includes("art") || normalized.includes("sztuk") || normalized.includes("kreat")) return "🎨";
+  if (normalized.includes("muzyk")) return "🎵";
+  if (normalized.includes("taniec") || normalized.includes("tanec")) return "💃";
+  if (normalized.includes("jezyk")) return "🗣️";
+  if (normalized.includes("sensory")) return "🧩";
+  if (normalized.includes("eduk") || normalized.includes("nauk") || normalized.includes("eksperyment")) return "📚";
+  if (normalized.includes("kosmos")) return "🚀";
+  if (normalized.includes("natur") || normalized.includes("przyrod") || normalized.includes("relaks")) return "🌿";
+  if (normalized.includes("integr")) return "🤝";
+  if (normalized.includes("przygod")) return "🏕️";
+  if (normalized.includes("kulin")) return "🍳";
+  if (normalized.includes("pirat")) return "🏴‍☠️";
+  if (normalized.includes("superbohat")) return "🦸";
+  if (normalized.includes("kolonie")) return "🏕️";
+  if (normalized.includes("polkolonie")) return "☀️";
+  if (normalized.includes("warsztaty_wakacyjne") || normalized.includes("warsztaty wakacyjne")) return "🖍️";
+  if (normalized.includes("warsztat")) return "✂️";
+  if (normalized.includes("spektakl") || normalized.includes("teatr")) return "🎭";
+  if (normalized.includes("kino") || normalized.includes("film")) return "🎬";
+  if (normalized.includes("festyn")) return "🎉";
+  if (normalized.includes("wystaw")) return "🖼️";
+  if (normalized.includes("sala zabaw")) return "🧸";
+  if (normalized.includes("plac zabaw")) return "🛝";
+  if (normalized.includes("kultura") || normalized.includes("oglada")) return "🎭";
+  if (normalized.includes("atrakc") || normalized.includes("rozrywk")) return "🎢";
+  if (normalized.includes("ogolne") || normalized.includes("ogolny") || normalized.includes("inne")) return "✨";
+
+  return "🏷️";
 }
 
 function defaultTaxonomyLabel(value: string): string {
@@ -32,6 +77,7 @@ export function getTaxonomyOptions<T>(
     .map(([value, count]) => ({
       value,
       label: labelMap?.[value] || defaultTaxonomyLabel(value),
+      icon: getTaxonomyIcon(value),
       count,
     }))
     .sort((left, right) => left.label.localeCompare(right.label, "pl"));

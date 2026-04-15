@@ -50,7 +50,6 @@ export function PlacesListView({ places }: PlacesListViewProps) {
   const [search, setSearch] = useState("");
   const [activeMainCategories, setActiveMainCategories] = useState<string[]>([]);
   const [activeCategories, setActiveCategories] = useState<string[]>([]);
-  const [activeSubcategories, setActiveSubcategories] = useState<string[]>([]);
   const [activeTypes, setActiveTypes] = useState<PlaceType[]>([]);
   const [activeDistricts, setActiveDistricts] = useState<District[]>([]);
   const [activeAgeGroups, setActiveAgeGroups] = useState<string[]>([]);
@@ -63,7 +62,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
     [activeAgeGroups]
   );
   const hasActiveFilters =
-    !!search || activeMainCategories.length > 0 || activeCategories.length > 0 || activeSubcategories.length > 0 || activeTypes.length > 0 || activeDistricts.length > 0 || activeAgeGroups.length > 0;
+    !!search || activeMainCategories.length > 0 || activeCategories.length > 0 || activeTypes.length > 0 || activeDistricts.length > 0 || activeAgeGroups.length > 0;
 
   // Lazy load map component
   useEffect(() => {
@@ -88,9 +87,6 @@ export function PlacesListView({ places }: PlacesListViewProps) {
     if (activeCategories.length > 0) {
       result = result.filter((place) => matchesTaxonomyFilter(place.category, activeCategories));
     }
-    if (activeSubcategories.length > 0) {
-      result = result.filter((place) => matchesTaxonomyFilter(place.subcategory, activeSubcategories));
-    }
     if (activeTypes.length > 0) {
       result = result.filter((p) => activeTypes.includes(p.place_type));
     }
@@ -106,7 +102,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
       );
     }
     return result;
-  }, [places, search, activeMainCategories, activeCategories, activeSubcategories, activeTypes, activeDistricts, ageGroups]);
+  }, [places, search, activeMainCategories, activeCategories, activeTypes, activeDistricts, ageGroups]);
 
   // Group by place_type preserving order
   const grouped = useMemo(() => {
@@ -172,11 +168,6 @@ export function PlacesListView({ places }: PlacesListViewProps) {
     [places]
   );
 
-  const subcategoryOptions = useMemo(
-    () => getTaxonomyOptions(places, (place) => place.subcategory),
-    [places]
-  );
-
   const districtCounts = useMemo(() => {
     const counts = new Map<District, number>();
     places.forEach((place) => {
@@ -196,7 +187,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
       const option = mainCategoryOptions.find((item) => item.value === mainCategory);
       badges.push({
         id: `main-${mainCategory}`,
-        label: `Main category: ${option?.label || mainCategory}`,
+        label: `Typ: ${option?.label || mainCategory}`,
         onRemove: () => setActiveMainCategories((prev) => prev.filter((item) => item !== mainCategory)),
       });
     });
@@ -205,17 +196,8 @@ export function PlacesListView({ places }: PlacesListViewProps) {
       const option = categoryOptions.find((item) => item.value === category);
       badges.push({
         id: `category-${category}`,
-        label: `Category: ${option?.label || category}`,
+        label: `Kategoria: ${option?.label || category}`,
         onRemove: () => setActiveCategories((prev) => prev.filter((item) => item !== category)),
-      });
-    });
-
-    activeSubcategories.forEach((subcategory) => {
-      const option = subcategoryOptions.find((item) => item.value === subcategory);
-      badges.push({
-        id: `subcategory-${subcategory}`,
-        label: `Subcategory: ${option?.label || subcategory}`,
-        onRemove: () => setActiveSubcategories((prev) => prev.filter((item) => item !== subcategory)),
       });
     });
 
@@ -247,13 +229,12 @@ export function PlacesListView({ places }: PlacesListViewProps) {
     });
 
     return badges;
-  }, [search, activeMainCategories, mainCategoryOptions, activeCategories, categoryOptions, activeSubcategories, subcategoryOptions, activeTypes, activeAgeGroups, activeDistricts]);
+  }, [search, activeMainCategories, mainCategoryOptions, activeCategories, categoryOptions, activeTypes, activeAgeGroups, activeDistricts]);
 
   function clearFilters() {
     setSearch("");
     setActiveMainCategories([]);
     setActiveCategories([]);
-    setActiveSubcategories([]);
     setActiveTypes([]);
     setActiveDistricts([]);
     setActiveAgeGroups([]);
@@ -268,12 +249,6 @@ export function PlacesListView({ places }: PlacesListViewProps) {
   function toggleCategory(category: string) {
     setActiveCategories((prev) =>
       prev.includes(category) ? prev.filter((item) => item !== category) : [...prev, category]
-    );
-  }
-
-  function toggleSubcategory(subcategory: string) {
-    setActiveSubcategories((prev) =>
-      prev.includes(subcategory) ? prev.filter((item) => item !== subcategory) : [...prev, subcategory]
     );
   }
 
@@ -337,7 +312,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
             </button>
           </div>
 
-          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Main category</span>}>
+          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Typ</span>}>
             <div className="flex flex-wrap gap-1">
               {mainCategoryOptions.map((option) => {
                 const selected = activeMainCategories.includes(option.value);
@@ -345,6 +320,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
                   <button key={option.value} onClick={() => toggleMainCategory(option.value)}
                     className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
                       selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
+                    <span>{option.icon}</span>
                     <span>{option.label}</span>
                     <span className="text-[10px] opacity-60">{option.count}</span>
                     {selected && <Check size={11} />}
@@ -354,7 +330,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
             </div>
           </FilterSection>
 
-          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Category</span>}>
+          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Kategoria</span>}>
             <div className="flex flex-wrap gap-1">
               {categoryOptions.map((option) => {
                 const selected = activeCategories.includes(option.value);
@@ -362,23 +338,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
                   <button key={option.value} onClick={() => toggleCategory(option.value)}
                     className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
                       selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
-                    <span>{option.label}</span>
-                    <span className="text-[10px] opacity-60">{option.count}</span>
-                    {selected && <Check size={11} />}
-                  </button>
-                );
-              })}
-            </div>
-          </FilterSection>
-
-          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Subcategory</span>}>
-            <div className="flex flex-wrap gap-1">
-              {subcategoryOptions.map((option) => {
-                const selected = activeSubcategories.includes(option.value);
-                return (
-                  <button key={option.value} onClick={() => toggleSubcategory(option.value)}
-                    className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
-                      selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
+                    <span>{option.icon}</span>
                     <span>{option.label}</span>
                     <span className="text-[10px] opacity-60">{option.count}</span>
                     {selected && <Check size={11} />}
@@ -486,7 +446,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
                 className="w-full pl-7 pr-2 py-1 rounded-lg border border-border bg-background text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-200" />
             </div>
 
-            <FilterSection title={<span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Main category</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
+            <FilterSection title={<span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Typ</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
               <div className="flex flex-col gap-0.5">
                 {mainCategoryOptions.map((option) => {
                   const selected = activeMainCategories.includes(option.value);
@@ -494,6 +454,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
                     <button key={option.value} onClick={() => toggleMainCategory(option.value)}
                       className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
                         selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
+                      <span>{option.icon}</span>
                       <span className="flex-1">{option.label}</span>
                       {selected && <Check size={10} />}
                       <span className="text-[8px] opacity-40">{option.count}</span>
@@ -503,7 +464,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Category</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
+            <FilterSection title={<span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Kategoria</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
               <div className="flex flex-col gap-0.5">
                 {categoryOptions.map((option) => {
                   const selected = activeCategories.includes(option.value);
@@ -511,23 +472,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
                     <button key={option.value} onClick={() => toggleCategory(option.value)}
                       className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
                         selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
-                      <span className="flex-1">{option.label}</span>
-                      {selected && <Check size={10} />}
-                      <span className="text-[8px] opacity-40">{option.count}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </FilterSection>
-
-            <FilterSection title={<span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Subcategory</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
-              <div className="flex flex-col gap-0.5">
-                {subcategoryOptions.map((option) => {
-                  const selected = activeSubcategories.includes(option.value);
-                  return (
-                    <button key={option.value} onClick={() => toggleSubcategory(option.value)}
-                      className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
-                        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
+                      <span>{option.icon}</span>
                       <span className="flex-1">{option.label}</span>
                       {selected && <Check size={10} />}
                       <span className="text-[8px] opacity-40">{option.count}</span>

@@ -84,14 +84,13 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
   const [activeEventSubcategories, setActiveEventSubcategories] = useState<string[]>([]);
   const [activePlaceMainCategories, setActivePlaceMainCategories] = useState<string[]>([]);
   const [activePlaceCategories, setActivePlaceCategories] = useState<string[]>([]);
-  const [activePlaceSubcategories, setActivePlaceSubcategories] = useState<string[]>([]);
   const [activePlaceType, setActivePlaceType] = useState<PlaceType | null>(null);
   const [activeAgeGroup, setActiveAgeGroup] = useState<string | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const ageGroup = AGE_GROUPS.find((g) => g.key === activeAgeGroup) ?? null;
   const hasEventOnlyFilters = activeEventMainCategories.length > 0 || activeEventCategories.length > 0 || activeEventSubcategories.length > 0;
-  const hasPlaceOnlyFilters = activePlaceMainCategories.length > 0 || activePlaceCategories.length > 0 || activePlaceSubcategories.length > 0 || !!activePlaceType;
+  const hasPlaceOnlyFilters = activePlaceMainCategories.length > 0 || activePlaceCategories.length > 0 || !!activePlaceType;
   const hasActiveFilters = !!(search || hasEventOnlyFilters || hasPlaceOnlyFilters || activeAgeGroup !== null);
   const hasEventFilters = !!(search || hasEventOnlyFilters || activeAgeGroup !== null);
   const hasPlaceFilters = !!(search || hasPlaceOnlyFilters || activeAgeGroup !== null);
@@ -113,11 +112,6 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
 
   const placeCategoryOptions = useMemo(
     () => getTaxonomyOptions(places, (place) => place.category),
-    [places]
-  );
-
-  const placeSubcategoryOptions = useMemo(
-    () => getTaxonomyOptions(places, (place) => place.subcategory),
     [places]
   );
 
@@ -161,9 +155,6 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
     if (activePlaceCategories.length > 0) {
       result = result.filter((place) => matchesTaxonomyFilter(place.category, activePlaceCategories));
     }
-    if (activePlaceSubcategories.length > 0) {
-      result = result.filter((place) => matchesTaxonomyFilter(place.subcategory, activePlaceSubcategories));
-    }
     if (activePlaceType) result = result.filter((p) => p.place_type === activePlaceType);
     if (ageGroup) {
       result = result.filter((p) =>
@@ -172,7 +163,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
       );
     }
     return [...result].sort((a, b) => b.likes - a.likes);
-  }, [places, search, activePlaceMainCategories, activePlaceCategories, activePlaceSubcategories, activePlaceType, ageGroup]);
+  }, [places, search, activePlaceMainCategories, activePlaceCategories, activePlaceType, ageGroup]);
 
   function toggleEventMainCategory(nextMainCategory: string) {
     setActiveEventMainCategories((prev) =>
@@ -204,12 +195,6 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
     );
   }
 
-  function togglePlaceSubcategory(nextSubcategory: string) {
-    setActivePlaceSubcategories((prev) =>
-      prev.includes(nextSubcategory) ? prev.filter((item) => item !== nextSubcategory) : [...prev, nextSubcategory]
-    );
-  }
-
   function togglePlaceTypeFilter(nextPlaceType: PlaceType) {
     setActivePlaceType(activePlaceType === nextPlaceType ? null : nextPlaceType);
   }
@@ -221,7 +206,6 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
     setActiveEventSubcategories([]);
     setActivePlaceMainCategories([]);
     setActivePlaceCategories([]);
-    setActivePlaceSubcategories([]);
     setActivePlaceType(null);
     setActiveAgeGroup(null);
   }
@@ -290,7 +274,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
             </button>
           </div>
 
-          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Main category wydarzeń</span>}>
+          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Typ wydarzeń</span>}>
             <div className="flex flex-wrap gap-1">
               {eventMainCategoryOptions.map((option) => {
                 const selected = activeEventMainCategories.includes(option.value);
@@ -298,6 +282,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
                   <button key={option.value} onClick={() => toggleEventMainCategory(option.value)}
                     className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
                       selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
+                    <span>{option.icon}</span>
                     <span>{option.label}</span>
                     <span className="text-[10px] opacity-60">{option.count}</span>
                     {selected && <Check size={11} />}
@@ -307,7 +292,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
             </div>
           </FilterSection>
 
-          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Category wydarzeń</span>}>
+          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Kategoria wydarzeń</span>}>
             <div className="flex flex-wrap gap-1.5">
               {categoryKeys.map((key) => {
                 const count = events.filter((event) => event.category === key).length;
@@ -327,7 +312,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
             </div>
           </FilterSection>
 
-          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Subcategory wydarzeń</span>}>
+          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Tematyka wydarzeń</span>}>
             <div className="flex flex-wrap gap-1">
               {eventSubcategoryOptions.map((option) => {
                 const selected = activeEventSubcategories.includes(option.value);
@@ -335,6 +320,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
                   <button key={option.value} onClick={() => toggleEventSubcategory(option.value)}
                     className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
                       selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
+                    <span>{option.icon}</span>
                     <span>{option.label}</span>
                     <span className="text-[10px] opacity-60">{option.count}</span>
                     {selected && <Check size={11} />}
@@ -344,7 +330,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
             </div>
           </FilterSection>
 
-          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Main category miejsc</span>}>
+          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Typ miejsc</span>}>
             <div className="flex flex-wrap gap-1">
               {placeMainCategoryOptions.map((option) => {
                 const selected = activePlaceMainCategories.includes(option.value);
@@ -352,6 +338,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
                   <button key={option.value} onClick={() => togglePlaceMainCategory(option.value)}
                     className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
                       selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
+                    <span>{option.icon}</span>
                     <span>{option.label}</span>
                     <span className="text-[10px] opacity-60">{option.count}</span>
                     {selected && <Check size={11} />}
@@ -361,7 +348,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
             </div>
           </FilterSection>
 
-          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Category miejsc</span>}>
+          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Kategoria miejsc</span>}>
             <div className="flex flex-wrap gap-1">
               {placeCategoryOptions.map((option) => {
                 const selected = activePlaceCategories.includes(option.value);
@@ -369,23 +356,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
                   <button key={option.value} onClick={() => togglePlaceCategory(option.value)}
                     className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
                       selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
-                    <span>{option.label}</span>
-                    <span className="text-[10px] opacity-60">{option.count}</span>
-                    {selected && <Check size={11} />}
-                  </button>
-                );
-              })}
-            </div>
-          </FilterSection>
-
-          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Subcategory miejsc</span>}>
-            <div className="flex flex-wrap gap-1">
-              {placeSubcategoryOptions.map((option) => {
-                const selected = activePlaceSubcategories.includes(option.value);
-                return (
-                  <button key={option.value} onClick={() => togglePlaceSubcategory(option.value)}
-                    className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
-                      selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
+                    <span>{option.icon}</span>
                     <span>{option.label}</span>
                     <span className="text-[10px] opacity-60">{option.count}</span>
                     {selected && <Check size={11} />}
@@ -477,7 +448,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
 
             <div className="border-t border-border" />
 
-            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Main category wydarzeń</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
+            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Typ wydarzeń</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
               <div className="flex flex-col gap-0.5">
                 {eventMainCategoryOptions.map((option) => {
                   const selected = activeEventMainCategories.includes(option.value);
@@ -485,6 +456,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
                     <button key={option.value} onClick={() => toggleEventMainCategory(option.value)}
                       className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium text-left transition-all duration-200",
                         selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
+                      <span>{option.icon}</span>
                       <span className="flex-1">{option.label}</span>
                       {selected && <Check size={10} />}
                       <span className="text-[9px] opacity-40">{option.count}</span>
@@ -494,7 +466,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
               </div>
             </FilterSection>
 
-            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Category wydarzeń</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
+            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Kategoria wydarzeń</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
               <div className="flex flex-col gap-0.5">
                 {categoryKeys.map((key) => {
                   const count = events.filter((e) => e.category === key).length;
@@ -513,7 +485,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
               </div>
             </FilterSection>
 
-            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Subcategory wydarzeń</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
+            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Tematyka wydarzeń</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
               <div className="flex flex-col gap-0.5">
                 {eventSubcategoryOptions.map((option) => {
                   const selected = activeEventSubcategories.includes(option.value);
@@ -521,6 +493,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
                     <button key={option.value} onClick={() => toggleEventSubcategory(option.value)}
                       className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium text-left transition-all duration-200",
                         selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
+                      <span>{option.icon}</span>
                       <span className="flex-1">{option.label}</span>
                       {selected && <Check size={10} />}
                       <span className="text-[9px] opacity-40">{option.count}</span>
@@ -530,7 +503,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
               </div>
             </FilterSection>
 
-            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Main category miejsc</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
+            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Typ miejsc</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
               <div className="flex flex-col gap-0.5">
                 {placeMainCategoryOptions.map((option) => {
                   const selected = activePlaceMainCategories.includes(option.value);
@@ -538,6 +511,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
                     <button key={option.value} onClick={() => togglePlaceMainCategory(option.value)}
                       className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium text-left transition-all duration-200",
                         selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
+                      <span>{option.icon}</span>
                       <span className="flex-1">{option.label}</span>
                       {selected && <Check size={10} />}
                       <span className="text-[9px] opacity-40">{option.count}</span>
@@ -547,7 +521,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
               </div>
             </FilterSection>
 
-            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Category miejsc</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
+            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Kategoria miejsc</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
               <div className="flex flex-col gap-0.5">
                 {placeCategoryOptions.map((option) => {
                   const selected = activePlaceCategories.includes(option.value);
@@ -555,23 +529,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
                     <button key={option.value} onClick={() => togglePlaceCategory(option.value)}
                       className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium text-left transition-all duration-200",
                         selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
-                      <span className="flex-1">{option.label}</span>
-                      {selected && <Check size={10} />}
-                      <span className="text-[9px] opacity-40">{option.count}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </FilterSection>
-
-            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Subcategory miejsc</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
-              <div className="flex flex-col gap-0.5">
-                {placeSubcategoryOptions.map((option) => {
-                  const selected = activePlaceSubcategories.includes(option.value);
-                  return (
-                    <button key={option.value} onClick={() => togglePlaceSubcategory(option.value)}
-                      className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium text-left transition-all duration-200",
-                        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
+                      <span>{option.icon}</span>
                       <span className="flex-1">{option.label}</span>
                       {selected && <Check size={10} />}
                       <span className="text-[9px] opacity-40">{option.count}</span>

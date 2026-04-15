@@ -313,7 +313,7 @@ export function EventsListView({ events }: EventsListViewProps) {
       const option = mainCategoryOptions.find((item) => item.value === mainCategory);
       badges.push({
         id: `main-${mainCategory}`,
-        label: `Main category: ${option?.label || mainCategory}`,
+        label: `Typ: ${option?.label || mainCategory}`,
         onRemove: () => setActiveMainCategories((prev) => prev.filter((item) => item !== mainCategory)),
       });
     });
@@ -329,7 +329,7 @@ export function EventsListView({ events }: EventsListViewProps) {
       const option = subcategoryOptions.find((item) => item.value === subcategory);
       badges.push({
         id: `subcategory-${subcategory}`,
-        label: `Subcategory: ${option?.label || subcategory}`,
+        label: `Tematyka: ${option?.label || subcategory}`,
         onRemove: () => setActiveSubcategories((prev) => prev.filter((item) => item !== subcategory)),
       });
     });
@@ -560,7 +560,7 @@ export function EventsListView({ events }: EventsListViewProps) {
             </div>
           </FilterSection>
 
-          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Main category</span>}>
+          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Typ</span>}>
             <div className="flex flex-wrap gap-1">
               {mainCategoryOptions.map((option) => {
                 const selected = activeMainCategories.includes(option.value);
@@ -573,6 +573,7 @@ export function EventsListView({ events }: EventsListViewProps) {
                       selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground"
                     )}
                   >
+                    <span>{option.icon}</span>
                     <span>{option.label}</span>
                     <span className="text-[10px] opacity-60">{option.count}</span>
                     {selected && <Check size={11} />}
@@ -602,7 +603,7 @@ export function EventsListView({ events }: EventsListViewProps) {
             </div>
           </FilterSection>
 
-          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Subcategory</span>}>
+          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Tematyka</span>}>
             <div className="flex flex-wrap gap-1">
               {subcategoryOptions.map((option) => {
                 const selected = activeSubcategories.includes(option.value);
@@ -615,6 +616,7 @@ export function EventsListView({ events }: EventsListViewProps) {
                       selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground"
                     )}
                   >
+                    <span>{option.icon}</span>
                     <span>{option.label}</span>
                     <span className="text-[10px] opacity-60">{option.count}</span>
                     {selected && <Check size={11} />}
@@ -747,7 +749,7 @@ export function EventsListView({ events }: EventsListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Main category</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
+            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Typ</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
               <div className="flex flex-col gap-0.5">
                 {mainCategoryOptions.map((option) => {
                   const selected = activeMainCategories.includes(option.value);
@@ -760,6 +762,7 @@ export function EventsListView({ events }: EventsListViewProps) {
                         selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent"
                       )}
                     >
+                      <span>{option.icon}</span>
                       <span className="flex-1">{option.label}</span>
                       <span className="text-[8px] opacity-40">{option.count}</span>
                       {selected && <Check size={10} />}
@@ -789,7 +792,7 @@ export function EventsListView({ events }: EventsListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Subcategory</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
+            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Tematyka</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
               <div className="flex flex-col gap-0.5">
                 {subcategoryOptions.map((option) => {
                   const selected = activeSubcategories.includes(option.value);
@@ -802,6 +805,7 @@ export function EventsListView({ events }: EventsListViewProps) {
                         selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent"
                       )}
                     >
+                      <span>{option.icon}</span>
                       <span className="flex-1">{option.label}</span>
                       <span className="text-[8px] opacity-40">{option.count}</span>
                       {selected && <Check size={10} />}

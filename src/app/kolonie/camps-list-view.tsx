@@ -393,7 +393,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
     activeCategories.forEach((category) => {
       badges.push({
         id: `category-${category}`,
-        label: `Category: ${CAMP_CATEGORY_LABELS[category]}`,
+        label: `Kategoria: ${CAMP_CATEGORY_LABELS[category]}`,
         onRemove: () => setActiveCategories((prev) => prev.filter((item) => item !== category)),
       });
     });
@@ -402,7 +402,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
       const option = subcategoryOptions.find((item) => item.value === subcategory);
       badges.push({
         id: `subcategory-${subcategory}`,
-        label: `Subcategory: ${option?.label || subcategory}`,
+        label: `Tematyka: ${option?.label || subcategory}`,
         onRemove: () => setActiveSubcategories((prev) => prev.filter((item) => item !== subcategory)),
       });
     });
@@ -663,7 +663,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
             </div>
           </FilterSection>
 
-          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Category</span>}>
+          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Kategoria</span>}>
             <div className="flex flex-wrap gap-1">
               {categoryOptions.map((option) => {
                 const selected = activeCategories.includes(option.value as CampCategory);
@@ -678,6 +678,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                         : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground"
                     )}
                   >
+                    <span>{option.icon}</span>
                     <span>{option.label}</span>
                     <span className="text-[10px] opacity-60">{option.count}</span>
                     {selected && <Check size={11} />}
@@ -687,7 +688,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
             </div>
           </FilterSection>
 
-          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Subcategory</span>}>
+          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Tematyka</span>}>
             <div className="flex flex-wrap gap-1">
               {subcategoryOptions.map((option) => {
                 const selected = activeSubcategories.includes(option.value);
@@ -702,6 +703,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                         : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground"
                     )}
                   >
+                    <span>{option.icon}</span>
                     <span>{option.label}</span>
                     <span className="text-[10px] opacity-60">{option.count}</span>
                     {selected && <Check size={11} />}
@@ -854,7 +856,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Category</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
+            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Kategoria</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
               <div className="flex flex-col gap-0.5">
                 {categoryOptions.map((option) => {
                   const selected = activeCategories.includes(option.value as CampCategory);
@@ -867,6 +869,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                         selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent"
                       )}
                     >
+                      <span>{option.icon}</span>
                       <span className="flex-1">{option.label}</span>
                       {selected && <Check size={10} />}
                       <span className="text-[8px] opacity-40">{option.count}</span>
@@ -876,7 +879,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Subcategory</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
+            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Tematyka</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
               <div className="flex flex-col gap-0.5">
                 {subcategoryOptions.map((option) => {
                   const selected = activeSubcategories.includes(option.value);
@@ -889,6 +892,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                         selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent"
                       )}
                     >
+                      <span>{option.icon}</span>
                       <span className="flex-1">{option.label}</span>
                       {selected && <Check size={10} />}
                       <span className="text-[8px] opacity-40">{option.count}</span>
