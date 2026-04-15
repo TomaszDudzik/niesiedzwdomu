@@ -80,8 +80,10 @@ export interface Event {
   image_cover?: string | null;
   image_thumb?: string | null;
   image_set?: string | null;
-  main_category?: string | null;
-  subcategory?: string | null;
+  type_lvl_1_id?: string | null;
+  type_lvl_2_id?: string | null;
+  category_lvl_1?: string | null;
+  category_lvl_3?: string | null;
   date_start: string;
   date_end: string | null;
   time_start: string | null;
@@ -90,7 +92,7 @@ export interface Event {
   age_max: number | null;
   price: number | null;
   is_free: boolean;
-  category: EventCategory;
+  category_lvl_2?: EventCategory;
   district: District;
   venue_name: string;
   venue_address: string;
@@ -105,6 +107,11 @@ export interface Event {
   dislikes: number;
   created_at: string;
   updated_at: string;
+  type_id?: string | null;
+  subtype_id?: string | null;
+  main_category?: string | null;
+  category: EventCategory;
+  subcategory?: string | null;
 }
 
 // ============================================
@@ -137,11 +144,13 @@ export interface Camp {
   image_cover?: string | null;
   image_thumb?: string | null;
   image_set?: string | null;
+  type_lvl_1_id?: string | null;
+  type_lvl_2_id?: string | null;
   date_start: string;
   date_end: string;
-  main_category: CampMainCategory;
-  category: CampCategory | null;
-  subcategory: string | null;
+  category_lvl_1?: CampMainCategory;
+  category_lvl_2?: CampCategory | null;
+  category_lvl_3?: string | null;
   season: CampSeason;
   duration_days: number;
   meals_included: boolean;
@@ -166,6 +175,11 @@ export interface Camp {
   dislikes: number;
   created_at: string;
   updated_at: string;
+  type_id?: string | null;
+  subtype_id?: string | null;
+  main_category: CampMainCategory;
+  category: CampCategory | null;
+  subcategory: string | null;
 }
 
 export interface Activity {
@@ -179,9 +193,11 @@ export interface Activity {
   image_cover?: string | null;
   image_thumb?: string | null;
   image_set?: string | null;
-  main_category?: string | null;
-  category?: string | null;
-  subcategory?: string | null;
+  type_lvl_1_id?: string | null;
+  type_lvl_2_id?: string | null;
+  category_lvl_1?: string | null;
+  category_lvl_2?: string | null;
+  category_lvl_3?: string | null;
   activity_type: ActivityType;
   schedule_summary: string | null;
   days_of_week: string[];
@@ -206,6 +222,11 @@ export interface Activity {
   dislikes: number;
   created_at: string;
   updated_at: string;
+  type_id?: string | null;
+  subtype_id?: string | null;
+  main_category?: string | null;
+  category?: string | null;
+  subcategory?: string | null;
 }
 
 export interface Place {
@@ -219,9 +240,11 @@ export interface Place {
   image_cover?: string | null;
   image_thumb?: string | null;
   image_set?: string | null;
-  main_category?: string | null;
-  category?: string | null;
-  subcategory?: string | null;
+  type_lvl_1_id?: string | null;
+  type_lvl_2_id?: string | null;
+  category_lvl_1?: string | null;
+  category_lvl_2?: string | null;
+  category_lvl_3?: string | null;
   place_type: PlaceType;
   is_indoor: boolean;
   street: string;
@@ -243,6 +266,11 @@ export interface Place {
   dislikes: number;
   created_at: string;
   updated_at: string;
+  type_id?: string | null;
+  subtype_id?: string | null;
+  main_category?: string | null;
+  category?: string | null;
+  subcategory?: string | null;
 }
 
 // Union type for mixed-content displays (homepage, search)
@@ -317,6 +345,16 @@ export interface Database {
         Row: Activity;
         Insert: Omit<Activity, "id" | "created_at" | "updated_at" | "likes" | "dislikes">;
         Update: Partial<Omit<Activity, "id" | "created_at" | "updated_at">>;
+      };
+      camps: {
+        Row: Camp;
+        Insert: Omit<Camp, "id" | "created_at" | "updated_at" | "likes" | "dislikes">;
+        Update: Partial<Omit<Camp, "id" | "created_at" | "updated_at">>;
+      };
+      places: {
+        Row: Place;
+        Insert: Omit<Place, "id" | "created_at" | "updated_at" | "likes" | "dislikes">;
+        Update: Partial<Omit<Place, "id" | "created_at" | "updated_at">>;
       };
       scrape_sources: {
         Row: ScrapeSource;

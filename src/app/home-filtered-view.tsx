@@ -77,6 +77,26 @@ interface HomeFilteredViewProps {
   activities: Activity[];
 }
 
+function getEventCategoryLvl1(event: Event) {
+  return event.category_lvl_1 ?? event.main_category ?? null;
+}
+
+function getEventCategoryLvl2(event: Event) {
+  return event.category_lvl_2 ?? event.category;
+}
+
+function getEventCategoryLvl3(event: Event) {
+  return event.category_lvl_3 ?? event.subcategory ?? null;
+}
+
+function getPlaceCategoryLvl1(place: Place) {
+  return place.category_lvl_1 ?? place.main_category ?? null;
+}
+
+function getPlaceCategoryLvl2(place: Place) {
+  return place.category_lvl_2 ?? place.category ?? null;
+}
+
 export function HomeFilteredView({ events, places, camps, activities }: HomeFilteredViewProps) {
   const [search, setSearch] = useState("");
   const [activeEventMainCategories, setActiveEventMainCategories] = useState<string[]>([]);
@@ -96,22 +116,22 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
   const hasPlaceFilters = !!(search || hasPlaceOnlyFilters || activeAgeGroup !== null);
 
   const eventMainCategoryOptions = useMemo(
-    () => getTaxonomyOptions(events, (event) => event.main_category),
+    () => getTaxonomyOptions(events, getEventCategoryLvl1),
     [events]
   );
 
   const eventSubcategoryOptions = useMemo(
-    () => getTaxonomyOptions(events, (event) => event.subcategory),
+    () => getTaxonomyOptions(events, getEventCategoryLvl3),
     [events]
   );
 
   const placeMainCategoryOptions = useMemo(
-    () => getTaxonomyOptions(places, (place) => place.main_category),
+    () => getTaxonomyOptions(places, getPlaceCategoryLvl1),
     [places]
   );
 
   const placeCategoryOptions = useMemo(
-    () => getTaxonomyOptions(places, (place) => place.category),
+    () => getTaxonomyOptions(places, getPlaceCategoryLvl2),
     [places]
   );
 
@@ -124,13 +144,13 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
       );
     }
     if (activeEventMainCategories.length > 0) {
-      result = result.filter((event) => matchesTaxonomyFilter(event.main_category, activeEventMainCategories));
+      result = result.filter((event) => matchesTaxonomyFilter(getEventCategoryLvl1(event), activeEventMainCategories));
     }
     if (activeEventCategories.length > 0) {
-      result = result.filter((event) => activeEventCategories.includes(event.category));
+      result = result.filter((event) => activeEventCategories.includes(getEventCategoryLvl2(event)));
     }
     if (activeEventSubcategories.length > 0) {
-      result = result.filter((event) => matchesTaxonomyFilter(event.subcategory, activeEventSubcategories));
+      result = result.filter((event) => matchesTaxonomyFilter(getEventCategoryLvl3(event), activeEventSubcategories));
     }
     if (ageGroup) {
       result = result.filter((e) =>
@@ -150,10 +170,10 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
       );
     }
     if (activePlaceMainCategories.length > 0) {
-      result = result.filter((place) => matchesTaxonomyFilter(place.main_category, activePlaceMainCategories));
+      result = result.filter((place) => matchesTaxonomyFilter(getPlaceCategoryLvl1(place), activePlaceMainCategories));
     }
     if (activePlaceCategories.length > 0) {
-      result = result.filter((place) => matchesTaxonomyFilter(place.category, activePlaceCategories));
+      result = result.filter((place) => matchesTaxonomyFilter(getPlaceCategoryLvl2(place), activePlaceCategories));
     }
     if (activePlaceType) result = result.filter((p) => p.place_type === activePlaceType);
     if (ageGroup) {

@@ -19,14 +19,14 @@ export function resolveListingItems(config: SeoListingConfig): DiscoveryItem[] {
     let items = mockEvents
       .filter((e) => e.status === "published")
       .sort((a, b) => a.date_start.localeCompare(b.date_start));
-    if (config.filterCategory) items = items.filter((e) => e.category === config.filterCategory);
+    if (config.filterCategory) items = items.filter((e) => (e.category_lvl_2 ?? e.category) === config.filterCategory);
     if (config.filterFree) items = items.filter((e) => e.is_free);
     return items.slice(0, limit);
   }
 
   if (config.contentType === "camp") {
     let items = mockCamps.filter((c) => c.status === "published");
-    if (config.filterCampType) items = items.filter((c) => c.main_category === config.filterCampType);
+    if (config.filterCampType) items = items.filter((c) => (c.category_lvl_1 ?? c.main_category) === config.filterCampType);
     if (config.filterFree) items = items.filter((c) => c.is_free);
     return items.slice(0, limit);
   }

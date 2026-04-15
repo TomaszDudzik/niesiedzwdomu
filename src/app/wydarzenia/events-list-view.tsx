@@ -150,6 +150,18 @@ interface EventsListViewProps {
   events: Event[];
 }
 
+function getEventCategoryLvl1(event: Event) {
+  return event.category_lvl_1 ?? event.main_category ?? null;
+}
+
+function getEventCategoryLvl2(event: Event) {
+  return event.category_lvl_2 ?? event.category;
+}
+
+function getEventCategoryLvl3(event: Event) {
+  return event.category_lvl_3 ?? event.subcategory ?? null;
+}
+
 export function EventsListView({ events }: EventsListViewProps) {
   const today = getTodayStart();
   const startYear = today.getFullYear();
@@ -206,13 +218,13 @@ export function EventsListView({ events }: EventsListViewProps) {
       );
     }
     if (activeMainCategories.length > 0) {
-      result = result.filter((event) => matchesTaxonomyFilter(event.main_category, activeMainCategories));
+      result = result.filter((event) => matchesTaxonomyFilter(getEventCategoryLvl1(event), activeMainCategories));
     }
     if (activeCategories.length > 0) {
-      result = result.filter((e) => activeCategories.includes(e.category));
+      result = result.filter((e) => activeCategories.includes(getEventCategoryLvl2(e)));
     }
     if (activeSubcategories.length > 0) {
-      result = result.filter((event) => matchesTaxonomyFilter(event.subcategory, activeSubcategories));
+      result = result.filter((event) => matchesTaxonomyFilter(getEventCategoryLvl3(event), activeSubcategories));
     }
     if (activeDistricts.length > 0) {
       result = result.filter((e) => activeDistricts.includes(e.district));
@@ -283,7 +295,7 @@ export function EventsListView({ events }: EventsListViewProps) {
     const groups: { category: EventCategory; label: string; icon: string; events: Event[] }[] = [];
     const seen = new Set<string>();
     for (const event of listEvents) {
-      const cat = event.category;
+      const cat = getEventCategoryLvl2(event);
       if (!seen.has(cat)) {
         seen.add(cat);
         groups.push({ category: cat, label: CATEGORY_LABELS[cat] || cat, icon: CATEGORY_ICONS[cat] || "✨", events: [] });
@@ -294,12 +306,12 @@ export function EventsListView({ events }: EventsListViewProps) {
   }, [listEvents]);
 
   const mainCategoryOptions = useMemo(
-    () => getTaxonomyOptions(events, (event) => event.main_category),
+    () => getTaxonomyOptions(events, getEventCategoryLvl1),
     [events]
   );
 
   const subcategoryOptions = useMemo(
-    () => getTaxonomyOptions(events, (event) => event.subcategory),
+    () => getTaxonomyOptions(events, getEventCategoryLvl3),
     [events]
   );
 
@@ -385,7 +397,8 @@ export function EventsListView({ events }: EventsListViewProps) {
   const categoryCounts = useMemo(() => {
     const counts = new Map<EventCategory, number>();
     events.forEach((event) => {
-      counts.set(event.category, (counts.get(event.category) || 0) + 1);
+      const category = getEventCategoryLvl2(event);
+      counts.set(category, (counts.get(category) || 0) + 1);
     });
     return counts;
   }, [events]);

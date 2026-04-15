@@ -12,7 +12,7 @@ function getDb() {
 }
 
 export async function POST(request: NextRequest) {
-  const { id, main_category, category, subcategory, table = "camps" } = await request.json();
+  const { id, category_lvl_1, category_lvl_2, category_lvl_3, main_category, category, subcategory, table = "camps" } = await request.json();
 
   if (!id) {
     return NextResponse.json({ error: "id required" }, { status: 400 });
@@ -23,9 +23,9 @@ export async function POST(request: NextRequest) {
 
   const db = getDb();
 
-  const pathParts = [main_category, category, subcategory].filter(Boolean);
+  const pathParts = [category_lvl_1 ?? main_category, category_lvl_2 ?? category, category_lvl_3 ?? subcategory].filter(Boolean);
   if (pathParts.length === 0) {
-    return NextResponse.json({ error: "At least main_category is required" }, { status: 400 });
+    return NextResponse.json({ error: "At least category_lvl_1 is required" }, { status: 400 });
   }
   const folderPath = pathParts.join("/");
 

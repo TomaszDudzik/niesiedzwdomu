@@ -64,7 +64,7 @@ function matchesDateRange(dateStart: string, dateRange?: string): boolean {
 export function filterEvents(events: Event[], filters: EventFilters): Event[] {
   return events.filter((event) => {
     if (event.status !== "published") return false;
-    if (filters.category && event.category !== filters.category) return false;
+    if (filters.category && (event.category_lvl_2 ?? event.category) !== filters.category) return false;
     if (filters.district && event.district !== filters.district) return false;
     if (filters.isFree && !event.is_free) return false;
     if (!matchesAge(event.age_min, event.age_max, filters.ageGroup)) return false;
@@ -81,7 +81,7 @@ export function filterEvents(events: Event[], filters: EventFilters): Event[] {
 export function filterCamps(camps: Camp[], filters: CampFilters): Camp[] {
   return camps.filter((camp) => {
     if (camp.status !== "published") return false;
-    if (filters.mainCategory && camp.main_category !== filters.mainCategory) return false;
+    if (filters.mainCategory && (camp.category_lvl_1 ?? camp.main_category) !== filters.mainCategory) return false;
     if (filters.season && camp.season !== filters.season) return false;
     if (filters.district && camp.district !== filters.district) return false;
     if (filters.isFree && !camp.is_free) return false;

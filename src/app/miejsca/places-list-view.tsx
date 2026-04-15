@@ -46,6 +46,14 @@ interface PlacesListViewProps {
   places: Place[];
 }
 
+function getPlaceCategoryLvl1(place: Place) {
+  return place.category_lvl_1 ?? place.main_category ?? null;
+}
+
+function getPlaceCategoryLvl2(place: Place) {
+  return place.category_lvl_2 ?? place.category ?? null;
+}
+
 export function PlacesListView({ places }: PlacesListViewProps) {
   const [search, setSearch] = useState("");
   const [activeMainCategories, setActiveMainCategories] = useState<string[]>([]);
@@ -82,10 +90,10 @@ export function PlacesListView({ places }: PlacesListViewProps) {
       );
     }
     if (activeMainCategories.length > 0) {
-      result = result.filter((place) => matchesTaxonomyFilter(place.main_category, activeMainCategories));
+      result = result.filter((place) => matchesTaxonomyFilter(getPlaceCategoryLvl1(place), activeMainCategories));
     }
     if (activeCategories.length > 0) {
-      result = result.filter((place) => matchesTaxonomyFilter(place.category, activeCategories));
+      result = result.filter((place) => matchesTaxonomyFilter(getPlaceCategoryLvl2(place), activeCategories));
     }
     if (activeTypes.length > 0) {
       result = result.filter((p) => activeTypes.includes(p.place_type));
@@ -159,12 +167,12 @@ export function PlacesListView({ places }: PlacesListViewProps) {
   }, [places]);
 
   const mainCategoryOptions = useMemo(
-    () => getTaxonomyOptions(places, (place) => place.main_category),
+    () => getTaxonomyOptions(places, getPlaceCategoryLvl1),
     [places]
   );
 
   const categoryOptions = useMemo(
-    () => getTaxonomyOptions(places, (place) => place.category),
+    () => getTaxonomyOptions(places, getPlaceCategoryLvl2),
     [places]
   );
 

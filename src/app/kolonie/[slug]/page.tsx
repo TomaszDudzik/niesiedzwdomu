@@ -58,6 +58,7 @@ export default async function CampDetailPage({ params }: PageProps) {
   const sessions = camp.organizer
     ? await getCampSessionsByOrganizer(camp.organizer_id, camp.organizer, camp.id)
     : [];
+  const campType = camp.category_lvl_1 ?? camp.main_category;
 
   const campUrl = `${SITE_URL}/kolonie/${camp.slug}`;
   const breadcrumbSchema = {
@@ -103,7 +104,7 @@ export default async function CampDetailPage({ params }: PageProps) {
           validFrom: camp.created_at,
         }
       : undefined,
-    keywords: [CAMP_MAIN_CATEGORY_LABELS[camp.main_category], camp.district, CAMP_SEASON_LABELS[camp.season], "kolonie dla dzieci", "Krakow"].join(", "),
+    keywords: [CAMP_MAIN_CATEGORY_LABELS[campType], camp.district, CAMP_SEASON_LABELS[camp.season], "kolonie dla dzieci", "Krakow"].join(", "),
     audience:
       camp.age_min !== null || camp.age_max !== null
         ? {
@@ -129,8 +130,8 @@ export default async function CampDetailPage({ params }: PageProps) {
             <ArrowLeft size={11} /> Kolonie
           </Link>
           <span className="text-muted-foreground/30">·</span>
-          <span className="text-lg mr-0.5">{CAMP_MAIN_CATEGORY_ICONS[camp.main_category] || "🏕️"}</span>
-          <span className="text-primary">{CAMP_MAIN_CATEGORY_LABELS[camp.main_category]}</span>
+          <span className="text-lg mr-0.5">{CAMP_MAIN_CATEGORY_ICONS[campType] || "🏕️"}</span>
+          <span className="text-primary">{CAMP_MAIN_CATEGORY_LABELS[campType]}</span>
           <span className="text-muted-foreground/30">·</span>
           <span className="text-muted-foreground">{CAMP_SEASON_LABELS[camp.season]}</span>
           <span className="text-muted-foreground/30">·</span>
@@ -166,7 +167,7 @@ export default async function CampDetailPage({ params }: PageProps) {
             <AiLearnMoreLink
               queryParts={[
                 camp.organizer,
-                CAMP_MAIN_CATEGORY_LABELS[camp.main_category],
+                CAMP_MAIN_CATEGORY_LABELS[campType],
                 camp.category ? CAMP_CATEGORY_LABELS[camp.category as keyof typeof CAMP_CATEGORY_LABELS] : null,
                 camp.title,
                 "Kraków",

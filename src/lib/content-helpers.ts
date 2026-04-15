@@ -30,8 +30,8 @@ export function getTypeBadgeColors(type: ContentType) {
 /** Get the sub-category label (event category, camp type, place type) */
 export function getSubcategoryLabel(item: DiscoveryItem): string {
   switch (item.content_type) {
-    case "event": return CATEGORY_LABELS[item.category];
-    case "camp": return CAMP_MAIN_CATEGORY_LABELS[item.main_category];
+    case "event": return CATEGORY_LABELS[item.category_lvl_2 ?? item.category];
+    case "camp": return CAMP_MAIN_CATEGORY_LABELS[item.category_lvl_1 ?? item.main_category];
     case "place": return PLACE_TYPE_LABELS[item.place_type];
     case "activity": return ACTIVITY_TYPE_LABELS[item.activity_type];
   }
@@ -40,8 +40,8 @@ export function getSubcategoryLabel(item: DiscoveryItem): string {
 /** Get the sub-category icon */
 export function getSubcategoryIcon(item: DiscoveryItem): string {
   switch (item.content_type) {
-    case "event": return CATEGORY_ICONS[item.category];
-    case "camp": return CAMP_MAIN_CATEGORY_ICONS[item.main_category];
+    case "event": return CATEGORY_ICONS[item.category_lvl_2 ?? item.category];
+    case "camp": return CAMP_MAIN_CATEGORY_ICONS[item.category_lvl_1 ?? item.main_category];
     case "place": return PLACE_TYPE_ICONS[item.place_type];
     case "activity": return ACTIVITY_TYPE_ICONS[item.activity_type];
   }

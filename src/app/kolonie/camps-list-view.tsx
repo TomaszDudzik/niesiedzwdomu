@@ -63,6 +63,18 @@ interface CampsListViewProps {
   camps: Camp[];
 }
 
+function getCampCategoryLvl1(camp: Camp) {
+  return camp.category_lvl_1 ?? camp.main_category;
+}
+
+function getCampCategoryLvl2(camp: Camp) {
+  return camp.category_lvl_2 ?? camp.category;
+}
+
+function getCampCategoryLvl3(camp: Camp) {
+  return camp.category_lvl_3 ?? camp.subcategory;
+}
+
 function getTodayStart(): Date {
   const now = new Date();
   now.setHours(0, 0, 0, 0);
@@ -212,15 +224,18 @@ export function CampsListView({ camps }: CampsListViewProps) {
     }
 
     if (activeTypes.length > 0) {
-      result = result.filter((camp) => activeTypes.includes(camp.main_category));
+      result = result.filter((camp) => activeTypes.includes(getCampCategoryLvl1(camp)));
     }
 
     if (activeCategories.length > 0) {
-      result = result.filter((camp) => !!camp.category && activeCategories.includes(camp.category));
+      result = result.filter((camp) => {
+        const category = getCampCategoryLvl2(camp);
+        return !!category && activeCategories.includes(category);
+      });
     }
 
     if (activeSubcategories.length > 0) {
-      result = result.filter((camp) => matchesTaxonomyFilter(camp.subcategory, activeSubcategories));
+      result = result.filter((camp) => matchesTaxonomyFilter(getCampCategoryLvl3(camp), activeSubcategories));
     }
 
     if (activeDistricts.length > 0) {
@@ -291,9 +306,10 @@ export function CampsListView({ camps }: CampsListViewProps) {
     const groupedByType = new Map<CampMainCategory, Camp[]>();
 
     for (const camp of dateFiltered) {
-      const current = groupedByType.get(camp.main_category) || [];
+      const categoryLvl1 = getCampCategoryLvl1(camp);
+      const current = groupedByType.get(categoryLvl1) || [];
       current.push(camp);
-      groupedByType.set(camp.main_category, current);
+      groupedByType.set(categoryLvl1, current);
     }
 
     return Array.from(groupedByType.entries()).map(([type, typeCamps]) => {
@@ -352,18 +368,19 @@ export function CampsListView({ camps }: CampsListViewProps) {
   const typeCounts = useMemo(() => {
     const counts = new Map<CampMainCategory, number>();
     camps.forEach((camp) => {
-      counts.set(camp.main_category, (counts.get(camp.main_category) || 0) + 1);
+      const categoryLvl1 = getCampCategoryLvl1(camp);
+      counts.set(categoryLvl1, (counts.get(categoryLvl1) || 0) + 1);
     });
     return counts;
   }, [camps]);
 
   const categoryOptions = useMemo(
-    () => getTaxonomyOptions(camps, (camp) => camp.category, CAMP_CATEGORY_LABELS),
+    () => getTaxonomyOptions(camps, getCampCategoryLvl2, CAMP_CATEGORY_LABELS),
     [camps]
   );
 
   const subcategoryOptions = useMemo(
-    () => getTaxonomyOptions(camps, (camp) => camp.subcategory),
+    () => getTaxonomyOptions(camps, getCampCategoryLvl3),
     [camps]
   );
 

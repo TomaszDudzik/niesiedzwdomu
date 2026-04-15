@@ -61,6 +61,7 @@ export default async function EventDetailPage({ params }: PageProps) {
 
   const related = await getRelatedEvents(event, 3);
   const eventUrl = `${SITE_URL}/wydarzenia/${event.slug}`;
+  const eventCategory = event.category_lvl_2 ?? event.category;
   const hasOfferPrice = event.is_free || event.price !== null;
   const eventStart = event.time_start ? `${event.date_start}T${event.time_start}` : event.date_start;
   const eventEnd = event.date_end
@@ -116,7 +117,7 @@ export default async function EventDetailPage({ params }: PageProps) {
           validFrom: event.created_at,
         }
       : undefined,
-    keywords: [CATEGORY_LABELS[event.category], event.district, "wydarzenia dla dzieci", "Krakow"].join(", "),
+    keywords: [CATEGORY_LABELS[eventCategory], event.district, "wydarzenia dla dzieci", "Krakow"].join(", "),
     audience: event.age_min !== null || event.age_max !== null
       ? { "@type": "PeopleAudience", suggestedMinAge: event.age_min ?? undefined, suggestedMaxAge: event.age_max ?? undefined }
       : undefined,
@@ -139,7 +140,7 @@ export default async function EventDetailPage({ params }: PageProps) {
           <span className="text-muted-foreground/30">·</span>
           <span className="text-primary">Wydarzenie</span>
           <span className="text-muted-foreground/30">·</span>
-          <span className="text-muted-foreground">{CATEGORY_LABELS[event.category]}</span>
+          <span className="text-muted-foreground">{CATEGORY_LABELS[eventCategory]}</span>
           <span className="text-muted-foreground/30">·</span>
           <span className="text-muted-foreground">{event.district}</span>
         </div>
@@ -174,7 +175,7 @@ export default async function EventDetailPage({ params }: PageProps) {
               queryParts={[
                 event.title,
                 "Kraków",
-                `${CATEGORY_LABELS[event.category]} wydarzenie dla dzieci`,
+                `${CATEGORY_LABELS[eventCategory]} wydarzenie dla dzieci`,
                 "najważniejsze informacje",
                 "dla kogo",
                 "cennik",

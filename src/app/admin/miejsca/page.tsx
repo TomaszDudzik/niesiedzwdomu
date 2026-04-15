@@ -9,11 +9,14 @@ import { PLACE_TYPE_LABELS, PLACE_TYPE_ICONS, DISTRICT_LIST } from "@/lib/mock-d
 import { cn } from "@/lib/utils";
 import type { Place } from "@/types/database";
 import { ImageSection } from "@/components/admin/image-section";
+import { TaxonomyFields } from "@/components/admin/taxonomy-fields";
+import { useAdminTaxonomy } from "@/lib/use-admin-taxonomy";
 
 const MiniMapLazy = lazy(() => import("./mini-map").then((m) => ({ default: m.MiniMap })));
 type PlaceListFilter = "all" | "published" | "draft";
 
 export default function AdminPlacesPage() {
+  const { typeLevel1Options, typeLevel2Options, categoryLevel1Options, categoryLevel2Options, categoryLevel3Options, loading: taxonomyLoading } = useAdminTaxonomy();
   const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded] = useState<string | null>(null);
@@ -318,6 +321,11 @@ export default function AdminPlacesPage() {
       title: place.title,
       description_short: place.description_short,
       description_long: place.description_long,
+      type_lvl_1_id: place.type_lvl_1_id ?? place.type_id ?? null,
+      type_lvl_2_id: place.type_lvl_2_id ?? place.subtype_id ?? null,
+      category_lvl_1: place.category_lvl_1 ?? place.main_category ?? null,
+      category_lvl_2: place.category_lvl_2 ?? place.category ?? null,
+      category_lvl_3: place.category_lvl_3 ?? place.subcategory ?? null,
       place_type: place.place_type,
       street: place.street,
       city: place.city,
@@ -362,6 +370,11 @@ export default function AdminPlacesPage() {
       title: editForm.title,
       description_short: editForm.description_short,
       description_long: editForm.description_long,
+      type_lvl_1_id: editForm.type_lvl_1_id ? String(editForm.type_lvl_1_id) : null,
+      type_lvl_2_id: editForm.type_lvl_2_id ? String(editForm.type_lvl_2_id) : null,
+      category_lvl_1: editForm.category_lvl_1 ? String(editForm.category_lvl_1) : null,
+      category_lvl_2: editForm.category_lvl_2 ? String(editForm.category_lvl_2) : null,
+      category_lvl_3: editForm.category_lvl_3 ? String(editForm.category_lvl_3) : null,
       place_type: editForm.place_type,
       is_indoor: editForm.is_indoor,
       street: editForm.street || "",
@@ -723,18 +736,26 @@ export default function AdminPlacesPage() {
                         <input className={inputClass} value={(editForm.facebook_url as string) || ""} onChange={(e) => updateField("facebook_url", e.target.value)} placeholder="https://facebook.com/..." />
                       </div>
 
-                      <div className="md:col-span-2">
-                        <label className={labelClass}>Main category</label>
-                        <input className={inputClass} value={String(editForm.main_category || "")} onChange={(e) => updateField("main_category", e.target.value || null)} placeholder="np. miejsca" />
-                      </div>
-                      <div className="md:col-span-2">
-                        <label className={labelClass}>Category</label>
-                        <input className={inputClass} value={String(editForm.img_category || "")} onChange={(e) => updateField("img_category", e.target.value || null)} />
-                      </div>
-                      <div className="md:col-span-2">
-                        <label className={labelClass}>Subcategory</label>
-                        <input className={inputClass} value={String(editForm.subcategory || "")} onChange={(e) => updateField("subcategory", e.target.value || null)} />
-                      </div>
+                      <TaxonomyFields
+                        typeLevel1Options={typeLevel1Options}
+                        typeLevel2Options={typeLevel2Options}
+                        categoryLevel1Options={categoryLevel1Options}
+                        categoryLevel2Options={categoryLevel2Options}
+                        categoryLevel3Options={categoryLevel3Options}
+                        selectedTypeLevel1Id={typeof editForm.type_lvl_1_id === "string" ? editForm.type_lvl_1_id : null}
+                        selectedTypeLevel2Id={typeof editForm.type_lvl_2_id === "string" ? editForm.type_lvl_2_id : null}
+                        selectedCategoryLevel1={typeof editForm.category_lvl_1 === "string" ? editForm.category_lvl_1 : null}
+                        selectedCategoryLevel2={typeof editForm.category_lvl_2 === "string" ? editForm.category_lvl_2 : null}
+                        selectedCategoryLevel3={typeof editForm.category_lvl_3 === "string" ? editForm.category_lvl_3 : null}
+                        loading={taxonomyLoading}
+                        inputClass={inputClass}
+                        labelClass={labelClass}
+                        onTypeLevel1Change={(value) => updateField("type_lvl_1_id", value)}
+                        onTypeLevel2Change={(value) => updateField("type_lvl_2_id", value)}
+                        onCategoryLevel1Change={(value) => updateField("category_lvl_1", value)}
+                        onCategoryLevel2Change={(value) => updateField("category_lvl_2", value)}
+                        onCategoryLevel3Change={(value) => updateField("category_lvl_3", value)}
+                      />
 
                       <div className="md:col-span-4">
                         <label className={labelClass}>Organizator</label>
@@ -818,9 +839,9 @@ export default function AdminPlacesPage() {
                         onClearPending={clearPendingFile}
                         table="places"
                         itemId={place.id}
-                        mainCategory={String(editForm.main_category || place.main_category || "")}
-                        category={String(editForm.img_category || place.category || "")}
-                        subcategory={String(editForm.subcategory || place.subcategory || "")}
+                        categoryLvl1={String(editForm.category_lvl_1 || place.category_lvl_1 || place.main_category || "")}
+                        categoryLvl2={String(editForm.category_lvl_2 || place.category_lvl_2 || place.category || "")}
+                        categoryLvl3={String(editForm.category_lvl_3 || place.category_lvl_3 || place.subcategory || "")}
                         onRandomPhoto={(url, thumb) => setPlaces((prev) => prev.map((p) => p.id === place.id ? { ...p, image_url: url, image_thumb: thumb } : p))}
                       />
                     </div>

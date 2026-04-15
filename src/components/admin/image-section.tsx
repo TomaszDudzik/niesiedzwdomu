@@ -17,9 +17,9 @@ interface ImageSectionProps {
   onClearPending: () => void;
   table: TableName;
   itemId: string;
-  mainCategory: string | null;
-  category: string | null;
-  subcategory: string | null;
+  categoryLvl1: string | null;
+  categoryLvl2: string | null;
+  categoryLvl3: string | null;
   onRandomPhoto: (imageUrl: string, thumbUrl: string) => void;
 }
 
@@ -31,9 +31,9 @@ export function ImageSection({
   onClearPending,
   table,
   itemId,
-  mainCategory,
-  category,
-  subcategory,
+  categoryLvl1,
+  categoryLvl2,
+  categoryLvl3,
   onRandomPhoto,
 }: ImageSectionProps) {
   const [pendingThumbFile, setPendingThumbFile] = useState<File | null>(null);
@@ -79,15 +79,15 @@ export function ImageSection({
   };
 
   const handleRandomPhoto = async () => {
-    if (!mainCategory) {
-      alert("Ustaw main category");
+    if (!categoryLvl1) {
+      alert("Ustaw category lvl 1");
       return;
     }
     try {
       const res = await fetch("/api/admin/random-photo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: itemId, main_category: mainCategory, category, subcategory, table }),
+        body: JSON.stringify({ id: itemId, category_lvl_1: categoryLvl1, category_lvl_2: categoryLvl2, category_lvl_3: categoryLvl3, table }),
       });
       const data = await res.json();
       if (data.image_url) {

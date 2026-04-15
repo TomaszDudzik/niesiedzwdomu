@@ -39,6 +39,18 @@ interface ActivitiesListViewProps {
   activities: Activity[];
 }
 
+function getActivityCategoryLvl1(activity: Activity) {
+  return activity.category_lvl_1 ?? activity.main_category ?? null;
+}
+
+function getActivityCategoryLvl2(activity: Activity) {
+  return activity.category_lvl_2 ?? activity.category ?? null;
+}
+
+function getActivityCategoryLvl3(activity: Activity) {
+  return activity.category_lvl_3 ?? activity.subcategory ?? null;
+}
+
 export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
   const [search, setSearch] = useState("");
   const [activeMainCategories, setActiveMainCategories] = useState<string[]>([]);
@@ -81,17 +93,17 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
   }, [activities]);
 
   const mainCategoryOptions = useMemo(
-    () => getTaxonomyOptions(activities, (activity) => activity.main_category),
+    () => getTaxonomyOptions(activities, getActivityCategoryLvl1),
     [activities]
   );
 
   const categoryOptions = useMemo(
-    () => getTaxonomyOptions(activities, (activity) => activity.category),
+    () => getTaxonomyOptions(activities, getActivityCategoryLvl2),
     [activities]
   );
 
   const subcategoryOptions = useMemo(
-    () => getTaxonomyOptions(activities, (activity) => activity.subcategory),
+    () => getTaxonomyOptions(activities, getActivityCategoryLvl3),
     [activities]
   );
 

@@ -21,6 +21,8 @@ import { CAMP_CATEGORY_LABELS, CAMP_MAIN_CATEGORY_ICONS, CAMP_MAIN_CATEGORY_LABE
 import { cn, formatDateShort, formatPrice } from "@/lib/utils";
 import type { Camp, Organizer } from "@/types/database";
 import { ImageSection } from "@/components/admin/image-section";
+import { TaxonomyFields } from "@/components/admin/taxonomy-fields";
+import { useAdminTaxonomy } from "@/lib/use-admin-taxonomy";
 
 const MiniMapLazy = lazy(() => import("../miejsca/mini-map").then((m) => ({ default: m.MiniMap })));
 
@@ -146,6 +148,7 @@ function splitAddress(venueAddress: string) {
 // ── Component ───────────────────────────────────────────────────────────────
 
 export default function AdminCampsPage() {
+  const { typeLevel1Options, typeLevel2Options, categoryLevel1Options, categoryLevel2Options, categoryLevel3Options, loading: taxonomyLoading } = useAdminTaxonomy();
   const [camps, setCamps] = useState<Camp[]>([]);
   const [loading, setLoading] = useState(true);
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
@@ -522,9 +525,11 @@ export default function AdminCampsPage() {
       title:              camp.title,
       description_short:  camp.description_short,
       description_long:   camp.description_long,
-      main_category:      camp.main_category,
-      category:           camp.category ?? null,
-      subcategory:        camp.subcategory ?? null,
+      type_lvl_1_id:      camp.type_lvl_1_id ?? camp.type_id ?? null,
+      type_lvl_2_id:      camp.type_lvl_2_id ?? camp.subtype_id ?? null,
+      category_lvl_1:     camp.category_lvl_1 ?? camp.main_category,
+      category_lvl_2:     camp.category_lvl_2 ?? camp.category ?? null,
+      category_lvl_3:     camp.category_lvl_3 ?? camp.subcategory ?? null,
       season:             camp.season,
       date_start:         camp.date_start,
       date_end:           camp.date_end,
@@ -581,9 +586,11 @@ export default function AdminCampsPage() {
       title:              String(editForm.title || ""),
       description_short:  String(editForm.description_short || ""),
       description_long:   String(editForm.description_long || ""),
-      main_category:      editForm.main_category,
-      category:           editForm.category ?? null,
-      subcategory:        editForm.subcategory ?? null,
+      type_lvl_1_id:      editForm.type_lvl_1_id ? String(editForm.type_lvl_1_id) : null,
+      type_lvl_2_id:      editForm.type_lvl_2_id ? String(editForm.type_lvl_2_id) : null,
+      category_lvl_1:     editForm.category_lvl_1,
+      category_lvl_2:     editForm.category_lvl_2 ?? null,
+      category_lvl_3:     editForm.category_lvl_3 ?? null,
       season:             editForm.season,
       date_start:         dateStart,
       date_end:           dateEnd,
@@ -945,27 +952,26 @@ export default function AdminCampsPage() {
                                     <input className={inputClass} value={(editForm.facebook_url as string) || ""} onChange={(e) => updateField("facebook_url", e.target.value)} placeholder="https://facebook.com/..." />
                                   </div>
 
-                                  <div className="md:col-span-2">
-                                    <label className={labelClass}>Main category</label>
-                                    <select className={inputClass} value={(editForm.main_category as string) || "polkolonie"} onChange={(e) => updateField("main_category", e.target.value)}>
-                                      <option value="polkolonie">Półkolonie</option>
-                                      <option value="kolonie">Kolonie</option>
-                                      <option value="warsztaty_wakacyjne">Warsztaty wakacyjne</option>
-                                    </select>
-                                  </div>
-                                  <div className="md:col-span-2">
-                                    <label className={labelClass}>Category</label>
-                                    <select className={inputClass} value={(editForm.category as string) || ""} onChange={(e) => updateField("category", e.target.value || null)}>
-                                      <option value="">— brak —</option>
-                                      {(Object.entries(CAMP_CATEGORY_LABELS) as [string, string][]).map(([val, label]) => (
-                                        <option key={val} value={val}>{label}</option>
-                                      ))}
-                                    </select>
-                                  </div>
-                                  <div className="md:col-span-2">
-                                    <label className={labelClass}>Subcategory</label>
-                                    <input className={inputClass} value={(editForm.subcategory as string) || ""} onChange={(e) => updateField("subcategory", e.target.value || null)} placeholder="np. pilka_nozna" />
-                                  </div>
+                                  <TaxonomyFields
+                                    typeLevel1Options={typeLevel1Options}
+                                    typeLevel2Options={typeLevel2Options}
+                                    categoryLevel1Options={categoryLevel1Options}
+                                    categoryLevel2Options={categoryLevel2Options}
+                                    categoryLevel3Options={categoryLevel3Options}
+                                    selectedTypeLevel1Id={typeof editForm.type_lvl_1_id === "string" ? editForm.type_lvl_1_id : null}
+                                    selectedTypeLevel2Id={typeof editForm.type_lvl_2_id === "string" ? editForm.type_lvl_2_id : null}
+                                    selectedCategoryLevel1={typeof editForm.category_lvl_1 === "string" ? editForm.category_lvl_1 : null}
+                                    selectedCategoryLevel2={typeof editForm.category_lvl_2 === "string" ? editForm.category_lvl_2 : null}
+                                    selectedCategoryLevel3={typeof editForm.category_lvl_3 === "string" ? editForm.category_lvl_3 : null}
+                                    loading={taxonomyLoading}
+                                    inputClass={inputClass}
+                                    labelClass={labelClass}
+                                    onTypeLevel1Change={(value) => updateField("type_lvl_1_id", value)}
+                                    onTypeLevel2Change={(value) => updateField("type_lvl_2_id", value)}
+                                    onCategoryLevel1Change={(value) => updateField("category_lvl_1", value)}
+                                    onCategoryLevel2Change={(value) => updateField("category_lvl_2", value)}
+                                    onCategoryLevel3Change={(value) => updateField("category_lvl_3", value)}
+                                  />
 
                                   <div className="md:col-span-4">
                                     <label className={labelClass}>Organizator</label>
@@ -1049,9 +1055,9 @@ export default function AdminCampsPage() {
                                     onClearPending={clearPendingFile}
                                     table="camps"
                                     itemId={camp.id}
-                                    mainCategory={String(editForm.main_category || camp.main_category || "")}
-                                    category={String(editForm.category || camp.category || "")}
-                                    subcategory={String(editForm.subcategory || camp.subcategory || "")}
+                                    categoryLvl1={String(editForm.category_lvl_1 || camp.category_lvl_1 || camp.main_category || "")}
+                                    categoryLvl2={String(editForm.category_lvl_2 || camp.category_lvl_2 || camp.category || "")}
+                                    categoryLvl3={String(editForm.category_lvl_3 || camp.category_lvl_3 || camp.subcategory || "")}
                                     onRandomPhoto={(url, thumb) => setCamps((prev) => prev.map((c) => c.id === camp.id ? { ...c, image_url: url, image_thumb: thumb } : c))}
                                   />
                                 </div>

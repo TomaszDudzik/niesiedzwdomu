@@ -11,6 +11,8 @@ import { CATEGORY_ICONS, CATEGORY_LABELS, DISTRICT_LIST } from "@/lib/mock-data"
 import { cn, formatDateShort, formatPrice, slugify } from "@/lib/utils";
 import type { Event } from "@/types/database";
 import { ImageSection } from "@/components/admin/image-section";
+import { TaxonomyFields } from "@/components/admin/taxonomy-fields";
+import { useAdminTaxonomy } from "@/lib/use-admin-taxonomy";
 
 type DerivedEventStatus = Event["status"] | "outdated";
 type EventListFilter = "all" | "published" | "draft" | "outdated";
@@ -26,6 +28,7 @@ export default function AdminSourcesPage() {
 }
 
 function AdminCanonicalEventsPanel() {
+  const { typeLevel1Options, typeLevel2Options, categoryLevel1Options, categoryLevel2Options, categoryLevel3Options, loading: taxonomyLoading } = useAdminTaxonomy();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
@@ -480,7 +483,9 @@ function AdminCanonicalEventsPanel() {
       title: event.title,
       description_short: event.description_short,
       description_long: event.description_long,
-      category: event.category,
+      type_lvl_1_id: event.type_lvl_1_id ?? event.type_id ?? null,
+      type_lvl_2_id: event.type_lvl_2_id ?? event.subtype_id ?? null,
+      category_lvl_2: event.category_lvl_2 ?? event.category,
       date_start: event.date_start,
       date_end: event.date_end,
       time_start: event.time_start,
@@ -498,8 +503,8 @@ function AdminCanonicalEventsPanel() {
       organizer: event.organizer,
       source_url: event.source_url,
       facebook_url: event.facebook_url ?? "",
-      main_category: event.main_category ?? null,
-      subcategory: event.subcategory ?? null,
+      category_lvl_1: event.category_lvl_1 ?? event.main_category ?? null,
+      category_lvl_3: event.category_lvl_3 ?? event.subcategory ?? null,
       is_featured: event.is_featured,
       status: event.status,
       likes: event.likes,
@@ -653,7 +658,9 @@ function AdminCanonicalEventsPanel() {
       slug: slugify(String(editForm.title || "")),
       description_short: String(editForm.description_short || ""),
       description_long: String(editForm.description_long || ""),
-      category: editForm.category,
+      type_lvl_1_id: editForm.type_lvl_1_id ? String(editForm.type_lvl_1_id) : null,
+      type_lvl_2_id: editForm.type_lvl_2_id ? String(editForm.type_lvl_2_id) : null,
+      category_lvl_2: editForm.category_lvl_2,
       date_start: editForm.date_start,
       date_end: editForm.date_end || null,
       time_start: editForm.time_start || null,
@@ -670,8 +677,8 @@ function AdminCanonicalEventsPanel() {
       organizer: editForm.organizer ? String(editForm.organizer) : null,
       source_url: editForm.source_url ? String(editForm.source_url) : null,
       facebook_url: editForm.facebook_url ? String(editForm.facebook_url) : null,
-      main_category: editForm.main_category ? String(editForm.main_category) : null,
-      subcategory: editForm.subcategory ? String(editForm.subcategory) : null,
+      category_lvl_1: editForm.category_lvl_1 ? String(editForm.category_lvl_1) : null,
+      category_lvl_3: editForm.category_lvl_3 ? String(editForm.category_lvl_3) : null,
       is_featured: Boolean(editForm.is_featured),
       status: editForm.status,
       likes: Number(editForm.likes) || 0,
@@ -898,7 +905,7 @@ function AdminCanonicalEventsPanel() {
                                 </div>
                                 <div>
                                   <label className={labelClass}>Kategoria</label>
-                                  <select className={inputClass} value={(editForm.category as string) || "inne"} onChange={(e) => updateField("category", e.target.value)}>
+                                  <select className={inputClass} value={(editForm.category_lvl_2 as string) || "inne"} onChange={(e) => updateField("category_lvl_2", e.target.value)}>
                                     {Object.entries(CATEGORY_LABELS).map(([key, labelValue]) => (
                                       <option key={key} value={key}>{labelValue}</option>
                                     ))}
@@ -924,18 +931,26 @@ function AdminCanonicalEventsPanel() {
                                   <input className={inputClass} value={(editForm.facebook_url as string) || ""} onChange={(e) => updateField("facebook_url", e.target.value)} placeholder="https://facebook.com/..." />
                                 </div>
 
-                                <div className="md:col-span-2">
-                                  <label className={labelClass}>Main category</label>
-                                  <input className={inputClass} value={String(editForm.main_category || "")} onChange={(e) => updateField("main_category", e.target.value || null)} placeholder="np. wydarzenia" />
-                                </div>
-                                <div className="md:col-span-2">
-                                  <label className={labelClass}>Category</label>
-                                  <input className={inputClass} value={String(editForm.img_category || editForm.category || "")} onChange={(e) => updateField("img_category", e.target.value || null)} />
-                                </div>
-                                <div className="md:col-span-2">
-                                  <label className={labelClass}>Subcategory</label>
-                                  <input className={inputClass} value={String(editForm.subcategory || "")} onChange={(e) => updateField("subcategory", e.target.value || null)} placeholder="np. teatr" />
-                                </div>
+                                <TaxonomyFields
+                                  typeLevel1Options={typeLevel1Options}
+                                  typeLevel2Options={typeLevel2Options}
+                                  categoryLevel1Options={categoryLevel1Options}
+                                  categoryLevel2Options={categoryLevel2Options}
+                                  categoryLevel3Options={categoryLevel3Options}
+                                  selectedTypeLevel1Id={typeof editForm.type_lvl_1_id === "string" ? editForm.type_lvl_1_id : null}
+                                  selectedTypeLevel2Id={typeof editForm.type_lvl_2_id === "string" ? editForm.type_lvl_2_id : null}
+                                  selectedCategoryLevel1={typeof editForm.category_lvl_1 === "string" ? editForm.category_lvl_1 : null}
+                                  selectedCategoryLevel2={typeof editForm.category_lvl_2 === "string" ? editForm.category_lvl_2 : null}
+                                  selectedCategoryLevel3={typeof editForm.category_lvl_3 === "string" ? editForm.category_lvl_3 : null}
+                                  loading={taxonomyLoading}
+                                  inputClass={inputClass}
+                                  labelClass={labelClass}
+                                  onTypeLevel1Change={(value) => updateField("type_lvl_1_id", value)}
+                                  onTypeLevel2Change={(value) => updateField("type_lvl_2_id", value)}
+                                  onCategoryLevel1Change={(value) => updateField("category_lvl_1", value)}
+                                  onCategoryLevel2Change={(value) => updateField("category_lvl_2", value)}
+                                  onCategoryLevel3Change={(value) => updateField("category_lvl_3", value)}
+                                />
 
                                 <div className="md:col-span-4">
                                   <label className={labelClass}>Organizator</label>
@@ -1015,9 +1030,9 @@ function AdminCanonicalEventsPanel() {
                                   onClearPending={clearPendingFile}
                                   table="events"
                                   itemId={event.id}
-                                  mainCategory={String(editForm.main_category || event.main_category || "")}
-                                  category={String(editForm.category || event.category || "")}
-                                  subcategory={String(editForm.subcategory || event.subcategory || "")}
+                                  categoryLvl1={String(editForm.category_lvl_1 || event.category_lvl_1 || event.main_category || "")}
+                                  categoryLvl2={String(editForm.category_lvl_2 || event.category_lvl_2 || event.category || "")}
+                                  categoryLvl3={String(editForm.category_lvl_3 || event.category_lvl_3 || event.subcategory || "")}
                                   onRandomPhoto={(url, thumb) => setEvents((prev) => prev.map((e) => e.id === event.id ? { ...e, image_url: url, image_thumb: thumb } : e))}
                                 />
                               </div>

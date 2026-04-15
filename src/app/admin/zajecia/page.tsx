@@ -23,6 +23,8 @@ import { ACTIVITY_TYPE_ICONS, ACTIVITY_TYPE_LABELS, DISTRICT_LIST } from "@/lib/
 import { cn, formatDateShort } from "@/lib/utils";
 import type { Activity } from "@/types/database";
 import { ImageSection } from "@/components/admin/image-section";
+import { TaxonomyFields } from "@/components/admin/taxonomy-fields";
+import { useAdminTaxonomy } from "@/lib/use-admin-taxonomy";
 
 type DerivedActivityStatus = Activity["status"] | "outdated";
 type ActivityListFilter = "all" | "published" | "draft" | "outdated";
@@ -220,6 +222,7 @@ function parseDelimitedText(text: string) {
 }
 
 export default function AdminActivitiesPage() {
+  const { typeLevel1Options, typeLevel2Options, categoryLevel1Options, categoryLevel2Options, categoryLevel3Options, loading: taxonomyLoading } = useAdminTaxonomy();
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
@@ -550,6 +553,8 @@ export default function AdminActivitiesPage() {
       title: activity.title,
       description_short: activity.description_short,
       description_long: activity.description_long,
+      type_lvl_1_id: activity.type_lvl_1_id ?? activity.type_id ?? null,
+      type_lvl_2_id: activity.type_lvl_2_id ?? activity.subtype_id ?? null,
       activity_type: activity.activity_type,
       schedule_summary: activity.schedule_summary,
       days_of_week: activity.days_of_week.join(", "),
@@ -564,9 +569,9 @@ export default function AdminActivitiesPage() {
       organizer: activity.organizer,
       source_url: activity.source_url,
       facebook_url: activity.facebook_url || "",
-      main_category: activity.main_category ?? null,
-      img_category: activity.category ?? null,
-      subcategory: activity.subcategory ?? null,
+      category_lvl_1: activity.category_lvl_1 ?? activity.main_category ?? null,
+      category_lvl_2: activity.category_lvl_2 ?? activity.category ?? null,
+      category_lvl_3: activity.category_lvl_3 ?? activity.subcategory ?? null,
       venue_name: activity.venue_name,
       venue_address: activity.venue_address,
       district: activity.district,
@@ -596,6 +601,8 @@ export default function AdminActivitiesPage() {
       title: String(editForm.title || ""),
       description_short: String(editForm.description_short || ""),
       description_long: String(editForm.description_long || ""),
+      type_lvl_1_id: editForm.type_lvl_1_id ? String(editForm.type_lvl_1_id) : null,
+      type_lvl_2_id: editForm.type_lvl_2_id ? String(editForm.type_lvl_2_id) : null,
       activity_type: editForm.activity_type,
       schedule_summary: editForm.schedule_summary ? String(editForm.schedule_summary) : null,
       days_of_week: String(editForm.days_of_week || "").split(",").map((part) => part.trim()).filter(Boolean),
@@ -610,9 +617,9 @@ export default function AdminActivitiesPage() {
       organizer: String(editForm.organizer || ""),
       source_url: editForm.source_url ? String(editForm.source_url) : null,
       facebook_url: editForm.facebook_url ? String(editForm.facebook_url) : null,
-      main_category: editForm.main_category ? String(editForm.main_category) : null,
-      category: editForm.img_category ? String(editForm.img_category) : null,
-      subcategory: editForm.subcategory ? String(editForm.subcategory) : null,
+      category_lvl_1: editForm.category_lvl_1 ? String(editForm.category_lvl_1) : null,
+      category_lvl_2: editForm.category_lvl_2 ? String(editForm.category_lvl_2) : null,
+      category_lvl_3: editForm.category_lvl_3 ? String(editForm.category_lvl_3) : null,
       venue_name: String(editForm.venue_name || ""),
       venue_address: String(editForm.venue_address || ""),
       district: editForm.district,
@@ -919,18 +926,26 @@ export default function AdminActivitiesPage() {
                                     <input className={inputClass} value={(editForm.facebook_url as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, facebook_url: event.target.value }))} placeholder="https://facebook.com/..." />
                                   </div>
 
-                                  <div className="md:col-span-2">
-                                    <label className={labelClass}>Main category</label>
-                                    <input className={inputClass} value={String(editForm.main_category || "")} onChange={(e) => setEditForm((c) => ({ ...c, main_category: e.target.value || null }))} placeholder="np. zajecia" />
-                                  </div>
-                                  <div className="md:col-span-2">
-                                    <label className={labelClass}>Category</label>
-                                    <input className={inputClass} value={String(editForm.img_category || "")} onChange={(e) => setEditForm((c) => ({ ...c, img_category: e.target.value || null }))} />
-                                  </div>
-                                  <div className="md:col-span-2">
-                                    <label className={labelClass}>Subcategory</label>
-                                    <input className={inputClass} value={String(editForm.subcategory || "")} onChange={(e) => setEditForm((c) => ({ ...c, subcategory: e.target.value || null }))} />
-                                  </div>
+                                  <TaxonomyFields
+                                    typeLevel1Options={typeLevel1Options}
+                                    typeLevel2Options={typeLevel2Options}
+                                    categoryLevel1Options={categoryLevel1Options}
+                                    categoryLevel2Options={categoryLevel2Options}
+                                    categoryLevel3Options={categoryLevel3Options}
+                                    selectedTypeLevel1Id={typeof editForm.type_lvl_1_id === "string" ? editForm.type_lvl_1_id : null}
+                                    selectedTypeLevel2Id={typeof editForm.type_lvl_2_id === "string" ? editForm.type_lvl_2_id : null}
+                                    selectedCategoryLevel1={typeof editForm.category_lvl_1 === "string" ? editForm.category_lvl_1 : null}
+                                    selectedCategoryLevel2={typeof editForm.category_lvl_2 === "string" ? editForm.category_lvl_2 : null}
+                                    selectedCategoryLevel3={typeof editForm.category_lvl_3 === "string" ? editForm.category_lvl_3 : null}
+                                    loading={taxonomyLoading}
+                                    inputClass={inputClass}
+                                    labelClass={labelClass}
+                                    onTypeLevel1Change={(value) => setEditForm((current) => ({ ...current, type_lvl_1_id: value }))}
+                                    onTypeLevel2Change={(value) => setEditForm((current) => ({ ...current, type_lvl_2_id: value }))}
+                                    onCategoryLevel1Change={(value) => setEditForm((current) => ({ ...current, category_lvl_1: value, category_lvl_2: null, category_lvl_3: null }))}
+                                    onCategoryLevel2Change={(value) => setEditForm((current) => ({ ...current, category_lvl_2: value, category_lvl_3: null }))}
+                                    onCategoryLevel3Change={(value) => setEditForm((current) => ({ ...current, category_lvl_3: value }))}
+                                  />
 
                                   <div className="md:col-span-4">
                                     <label className={labelClass}>Organizator</label>
@@ -1006,9 +1021,9 @@ export default function AdminActivitiesPage() {
                                     onClearPending={clearPendingFile}
                                     table="activities"
                                     itemId={activity.id}
-                                    mainCategory={String(editForm.main_category || activity.main_category || "")}
-                                    category={String(editForm.img_category || activity.category || "")}
-                                    subcategory={String(editForm.subcategory || activity.subcategory || "")}
+                                    categoryLvl1={String(editForm.category_lvl_1 || activity.category_lvl_1 || activity.main_category || "")}
+                                    categoryLvl2={String(editForm.category_lvl_2 || activity.category_lvl_2 || activity.category || "")}
+                                    categoryLvl3={String(editForm.category_lvl_3 || activity.category_lvl_3 || activity.subcategory || "")}
                                     onRandomPhoto={(url, thumb) => setActivities((prev) => prev.map((a) => a.id === activity.id ? { ...a, image_url: url, image_thumb: thumb } : a))}
                                   />
                                 </div>
