@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { Search, LayoutGrid, MapIcon, SlidersHorizontal, X, MapPin, Check } from "lucide-react";
+import { Search, LayoutGrid, MapIcon, SlidersHorizontal, X, MapPin, Check, Tags } from "lucide-react";
 import { PLACE_TYPE_LABELS, PLACE_TYPE_ICONS, DISTRICT_LIST } from "@/lib/mock-data";
+import { getTaxonomyOptions, matchesTaxonomyFilter } from "@/lib/taxonomy-filters";
 import { ContentCard } from "@/components/ui/content-card";
+import { FilterSection } from "@/components/ui/filter-section";
 import { cn } from "@/lib/utils";
 import type { Place, PlaceType, District } from "@/types/database";
 
@@ -46,6 +48,9 @@ interface PlacesListViewProps {
 
 export function PlacesListView({ places }: PlacesListViewProps) {
   const [search, setSearch] = useState("");
+  const [activeMainCategories, setActiveMainCategories] = useState<string[]>([]);
+  const [activeCategories, setActiveCategories] = useState<string[]>([]);
+  const [activeSubcategories, setActiveSubcategories] = useState<string[]>([]);
   const [activeTypes, setActiveTypes] = useState<PlaceType[]>([]);
   const [activeDistricts, setActiveDistricts] = useState<District[]>([]);
   const [activeAgeGroups, setActiveAgeGroups] = useState<string[]>([]);
@@ -57,7 +62,8 @@ export function PlacesListView({ places }: PlacesListViewProps) {
     () => AGE_GROUPS.filter((group) => activeAgeGroups.includes(group.key)),
     [activeAgeGroups]
   );
-  const hasActiveFilters = !!search || activeTypes.length > 0 || activeDistricts.length > 0 || activeAgeGroups.length > 0;
+  const hasActiveFilters =
+    !!search || activeMainCategories.length > 0 || activeCategories.length > 0 || activeSubcategories.length > 0 || activeTypes.length > 0 || activeDistricts.length > 0 || activeAgeGroups.length > 0;
 
   // Lazy load map component
   useEffect(() => {
@@ -76,6 +82,15 @@ export function PlacesListView({ places }: PlacesListViewProps) {
         [p.title, p.description_short, p.street, p.city].join(" ").toLowerCase().includes(q)
       );
     }
+    if (activeMainCategories.length > 0) {
+      result = result.filter((place) => matchesTaxonomyFilter(place.main_category, activeMainCategories));
+    }
+    if (activeCategories.length > 0) {
+      result = result.filter((place) => matchesTaxonomyFilter(place.category, activeCategories));
+    }
+    if (activeSubcategories.length > 0) {
+      result = result.filter((place) => matchesTaxonomyFilter(place.subcategory, activeSubcategories));
+    }
     if (activeTypes.length > 0) {
       result = result.filter((p) => activeTypes.includes(p.place_type));
     }
@@ -91,7 +106,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
       );
     }
     return result;
-  }, [places, search, activeTypes, activeDistricts, ageGroups]);
+  }, [places, search, activeMainCategories, activeCategories, activeSubcategories, activeTypes, activeDistricts, ageGroups]);
 
   // Group by place_type preserving order
   const grouped = useMemo(() => {
@@ -147,6 +162,21 @@ export function PlacesListView({ places }: PlacesListViewProps) {
     return counts;
   }, [places]);
 
+  const mainCategoryOptions = useMemo(
+    () => getTaxonomyOptions(places, (place) => place.main_category),
+    [places]
+  );
+
+  const categoryOptions = useMemo(
+    () => getTaxonomyOptions(places, (place) => place.category),
+    [places]
+  );
+
+  const subcategoryOptions = useMemo(
+    () => getTaxonomyOptions(places, (place) => place.subcategory),
+    [places]
+  );
+
   const districtCounts = useMemo(() => {
     const counts = new Map<District, number>();
     places.forEach((place) => {
@@ -161,6 +191,33 @@ export function PlacesListView({ places }: PlacesListViewProps) {
     if (search.trim()) {
       badges.push({ id: "search", label: `Szukaj: ${search.trim()}`, onRemove: () => setSearch("") });
     }
+
+    activeMainCategories.forEach((mainCategory) => {
+      const option = mainCategoryOptions.find((item) => item.value === mainCategory);
+      badges.push({
+        id: `main-${mainCategory}`,
+        label: `Main category: ${option?.label || mainCategory}`,
+        onRemove: () => setActiveMainCategories((prev) => prev.filter((item) => item !== mainCategory)),
+      });
+    });
+
+    activeCategories.forEach((category) => {
+      const option = categoryOptions.find((item) => item.value === category);
+      badges.push({
+        id: `category-${category}`,
+        label: `Category: ${option?.label || category}`,
+        onRemove: () => setActiveCategories((prev) => prev.filter((item) => item !== category)),
+      });
+    });
+
+    activeSubcategories.forEach((subcategory) => {
+      const option = subcategoryOptions.find((item) => item.value === subcategory);
+      badges.push({
+        id: `subcategory-${subcategory}`,
+        label: `Subcategory: ${option?.label || subcategory}`,
+        onRemove: () => setActiveSubcategories((prev) => prev.filter((item) => item !== subcategory)),
+      });
+    });
 
     activeTypes.forEach((type) => {
       badges.push({
@@ -190,13 +247,34 @@ export function PlacesListView({ places }: PlacesListViewProps) {
     });
 
     return badges;
-  }, [search, activeTypes, activeAgeGroups, activeDistricts]);
+  }, [search, activeMainCategories, mainCategoryOptions, activeCategories, categoryOptions, activeSubcategories, subcategoryOptions, activeTypes, activeAgeGroups, activeDistricts]);
 
   function clearFilters() {
     setSearch("");
+    setActiveMainCategories([]);
+    setActiveCategories([]);
+    setActiveSubcategories([]);
     setActiveTypes([]);
     setActiveDistricts([]);
     setActiveAgeGroups([]);
+  }
+
+  function toggleMainCategory(mainCategory: string) {
+    setActiveMainCategories((prev) =>
+      prev.includes(mainCategory) ? prev.filter((item) => item !== mainCategory) : [...prev, mainCategory]
+    );
+  }
+
+  function toggleCategory(category: string) {
+    setActiveCategories((prev) =>
+      prev.includes(category) ? prev.filter((item) => item !== category) : [...prev, category]
+    );
+  }
+
+  function toggleSubcategory(subcategory: string) {
+    setActiveSubcategories((prev) =>
+      prev.includes(subcategory) ? prev.filter((item) => item !== subcategory) : [...prev, subcategory]
+    );
   }
 
   function toggleType(type: PlaceType) {
@@ -247,9 +325,70 @@ export function PlacesListView({ places }: PlacesListViewProps) {
 
       {/* Mobile filters dropdown */}
       {filtersOpen && (
-        <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 space-y-2.5">
-          <div>
-            <p className="text-[11px] font-medium text-muted-foreground mb-1.5">Typ miejsca</p>
+        <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 space-y-2.5 max-h-[calc(100dvh-8rem)] overflow-y-auto overscroll-contain">
+          <div className="flex items-center justify-between gap-3 pb-1 border-b border-border/70">
+            <p className="text-[11px] font-semibold text-foreground">Filtry miejsc</p>
+            <button
+              type="button"
+              onClick={() => setFiltersOpen(false)}
+              className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-2 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:border-primary/20 transition-colors"
+            >
+              <X size={10} /> Zwiń
+            </button>
+          </div>
+
+          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Main category</span>}>
+            <div className="flex flex-wrap gap-1">
+              {mainCategoryOptions.map((option) => {
+                const selected = activeMainCategories.includes(option.value);
+                return (
+                  <button key={option.value} onClick={() => toggleMainCategory(option.value)}
+                    className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
+                      selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
+                    <span>{option.label}</span>
+                    <span className="text-[10px] opacity-60">{option.count}</span>
+                    {selected && <Check size={11} />}
+                  </button>
+                );
+              })}
+            </div>
+          </FilterSection>
+
+          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Category</span>}>
+            <div className="flex flex-wrap gap-1">
+              {categoryOptions.map((option) => {
+                const selected = activeCategories.includes(option.value);
+                return (
+                  <button key={option.value} onClick={() => toggleCategory(option.value)}
+                    className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
+                      selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
+                    <span>{option.label}</span>
+                    <span className="text-[10px] opacity-60">{option.count}</span>
+                    {selected && <Check size={11} />}
+                  </button>
+                );
+              })}
+            </div>
+          </FilterSection>
+
+          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Subcategory</span>}>
+            <div className="flex flex-wrap gap-1">
+              {subcategoryOptions.map((option) => {
+                const selected = activeSubcategories.includes(option.value);
+                return (
+                  <button key={option.value} onClick={() => toggleSubcategory(option.value)}
+                    className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
+                      selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
+                    <span>{option.label}</span>
+                    <span className="text-[10px] opacity-60">{option.count}</span>
+                    {selected && <Check size={11} />}
+                  </button>
+                );
+              })}
+            </div>
+          </FilterSection>
+
+          <FilterSection title={<span className="text-[11px] font-medium text-muted-foreground">Typ miejsca</span>}>
             <div className="flex flex-wrap gap-1">
               {placeTypes.map((type) => {
                 const count = typeCounts.get(type) || 0;
@@ -267,9 +406,8 @@ export function PlacesListView({ places }: PlacesListViewProps) {
                 );
               })}
             </div>
-          </div>
-          <div>
-            <p className="text-[11px] font-medium text-muted-foreground mb-1.5">Wiek dziecka</p>
+          </FilterSection>
+          <FilterSection title={<span className="text-[11px] font-medium text-muted-foreground">Wiek dziecka</span>}>
             <div className="flex flex-wrap gap-1">
               {AGE_GROUPS.map((group) => {
                 const selected = activeAgeGroups.includes(group.key);
@@ -284,9 +422,8 @@ export function PlacesListView({ places }: PlacesListViewProps) {
                 );
               })}
             </div>
-          </div>
-          <div>
-            <p className="text-[11px] font-medium text-muted-foreground mb-1.5">Dzielnica</p>
+          </FilterSection>
+          <FilterSection title={<span className="text-[11px] font-medium text-muted-foreground">Dzielnica</span>}>
             <div className="flex flex-wrap gap-1">
               {availableDistricts.map((district) => {
                 const selected = activeDistricts.includes(district);
@@ -309,12 +446,20 @@ export function PlacesListView({ places }: PlacesListViewProps) {
                 );
               })}
             </div>
-          </div>
+          </FilterSection>
           {hasActiveFilters && (
             <button onClick={clearFilters} className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors">
               <X size={11} /> Wyczyść filtry
             </button>
           )}
+
+          <button
+            type="button"
+            onClick={() => setFiltersOpen(false)}
+            className="w-full inline-flex items-center justify-center gap-1 rounded-lg border border-border bg-background px-3 py-2 text-[11px] font-semibold text-foreground hover:border-primary/20 hover:bg-accent/40 transition-colors"
+          >
+            Zamknij filtry
+          </button>
         </div>
       )}
 
@@ -323,7 +468,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
 
         {/* Sidebar filters — desktop only, sticky */}
         <aside className="hidden lg:block w-52 shrink-0 sticky top-20">
-          <div className="rounded-xl border border-border bg-card p-2.5 space-y-2.5">
+          <div className="rounded-xl border border-border bg-card p-2.5 space-y-2.5 max-h-[calc(100vh-6rem)] overflow-y-auto overscroll-contain pr-1">
             <div className="flex items-center gap-1 rounded-lg border border-border p-0.5 bg-accent/50">
               <button onClick={() => setView("list")} className={cn("flex-1 inline-flex items-center justify-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all duration-200", view === "list" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
                 <LayoutGrid size={11} /> Lista
@@ -341,8 +486,58 @@ export function PlacesListView({ places }: PlacesListViewProps) {
                 className="w-full pl-7 pr-2 py-1 rounded-lg border border-border bg-background text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-200" />
             </div>
 
-            <div>
-              <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Typ miejsca</p>
+            <FilterSection title={<span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Main category</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
+              <div className="flex flex-col gap-0.5">
+                {mainCategoryOptions.map((option) => {
+                  const selected = activeMainCategories.includes(option.value);
+                  return (
+                    <button key={option.value} onClick={() => toggleMainCategory(option.value)}
+                      className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
+                        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
+                      <span className="flex-1">{option.label}</span>
+                      {selected && <Check size={10} />}
+                      <span className="text-[8px] opacity-40">{option.count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </FilterSection>
+
+            <FilterSection title={<span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Category</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
+              <div className="flex flex-col gap-0.5">
+                {categoryOptions.map((option) => {
+                  const selected = activeCategories.includes(option.value);
+                  return (
+                    <button key={option.value} onClick={() => toggleCategory(option.value)}
+                      className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
+                        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
+                      <span className="flex-1">{option.label}</span>
+                      {selected && <Check size={10} />}
+                      <span className="text-[8px] opacity-40">{option.count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </FilterSection>
+
+            <FilterSection title={<span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Subcategory</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
+              <div className="flex flex-col gap-0.5">
+                {subcategoryOptions.map((option) => {
+                  const selected = activeSubcategories.includes(option.value);
+                  return (
+                    <button key={option.value} onClick={() => toggleSubcategory(option.value)}
+                      className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
+                        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
+                      <span className="flex-1">{option.label}</span>
+                      {selected && <Check size={10} />}
+                      <span className="text-[8px] opacity-40">{option.count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </FilterSection>
+
+            <FilterSection title={<span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Typ miejsca</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
               <div className="flex flex-col gap-0.5">
                 {placeTypes.map((type) => {
                   const count = typeCounts.get(type) || 0;
@@ -360,10 +555,9 @@ export function PlacesListView({ places }: PlacesListViewProps) {
                   );
                 })}
               </div>
-            </div>
+            </FilterSection>
 
-            <div>
-              <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Wiek</p>
+            <FilterSection title={<span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Wiek</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
               <div className="flex flex-col gap-0.5">
                 {AGE_GROUPS.map((group) => {
                   const selected = activeAgeGroups.includes(group.key);
@@ -378,10 +572,9 @@ export function PlacesListView({ places }: PlacesListViewProps) {
                   );
                 })}
               </div>
-            </div>
+            </FilterSection>
 
-            <div>
-              <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Dzielnica</p>
+            <FilterSection title={<span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Dzielnica</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
               <div className="flex flex-col gap-0.5">
                 {availableDistricts.map((district) => {
                   const selected = activeDistricts.includes(district);
@@ -404,7 +597,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
                   );
                 })}
               </div>
-            </div>
+            </FilterSection>
 
             {hasActiveFilters && (
               <button onClick={clearFilters} className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors pt-2 border-t border-border w-full">

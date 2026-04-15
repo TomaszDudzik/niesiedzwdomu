@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 import { Search, SlidersHorizontal, X, MapPin, Check, Tags, Users, CalendarDays } from "lucide-react";
-import { CAMP_MAIN_CATEGORY_ICONS, CAMP_MAIN_CATEGORY_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
+import { CAMP_CATEGORY_LABELS, CAMP_MAIN_CATEGORY_ICONS, CAMP_MAIN_CATEGORY_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
+import { FilterSection } from "@/components/ui/filter-section";
+import { getTaxonomyOptions, matchesTaxonomyFilter } from "@/lib/taxonomy-filters";
 import { cn, formatDateShort, toLocalDateKey, thumbUrl } from "@/lib/utils";
 import { ImageWithFallback } from "@/components/ui/image-with-fallback";
-import type { Camp, CampMainCategory, District } from "@/types/database";
+import type { Camp, CampCategory, CampMainCategory, District } from "@/types/database";
 
 const campTypes = Object.keys(CAMP_MAIN_CATEGORY_LABELS) as CampMainCategory[];
 
@@ -174,6 +176,8 @@ export function CampsListView({ camps }: CampsListViewProps) {
 
   const [search, setSearch] = useState("");
   const [activeTypes, setActiveTypes] = useState<CampMainCategory[]>([]);
+  const [activeCategories, setActiveCategories] = useState<CampCategory[]>([]);
+  const [activeSubcategories, setActiveSubcategories] = useState<string[]>([]);
   const [activeDistricts, setActiveDistricts] = useState<District[]>([]);
   const [activeAgeGroups, setActiveAgeGroups] = useState<string[]>([]);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -192,7 +196,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
 
   const hasDateFilters = !!singleDate || !!rangeFrom || !!rangeTo;
   const hasActiveFilters =
-    !!search || activeTypes.length > 0 || activeDistricts.length > 0 || activeAgeGroups.length > 0 || hasDateFilters;
+    !!search || activeTypes.length > 0 || activeCategories.length > 0 || activeSubcategories.length > 0 || activeDistricts.length > 0 || activeAgeGroups.length > 0 || hasDateFilters;
 
   const filtered = useMemo(() => {
     let result = camps;
@@ -211,6 +215,14 @@ export function CampsListView({ camps }: CampsListViewProps) {
       result = result.filter((camp) => activeTypes.includes(camp.main_category));
     }
 
+    if (activeCategories.length > 0) {
+      result = result.filter((camp) => !!camp.category && activeCategories.includes(camp.category));
+    }
+
+    if (activeSubcategories.length > 0) {
+      result = result.filter((camp) => matchesTaxonomyFilter(camp.subcategory, activeSubcategories));
+    }
+
     if (activeDistricts.length > 0) {
       result = result.filter((camp) => activeDistricts.includes(camp.district));
     }
@@ -226,7 +238,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
     }
 
     return result;
-  }, [camps, search, activeTypes, activeDistricts, ageGroups]);
+  }, [camps, search, activeTypes, activeCategories, activeSubcategories, activeDistricts, ageGroups]);
 
   const dateFiltered = useMemo(() => {
     const fromDate = parseDateOnly(rangeFrom);
@@ -345,6 +357,16 @@ export function CampsListView({ camps }: CampsListViewProps) {
     return counts;
   }, [camps]);
 
+  const categoryOptions = useMemo(
+    () => getTaxonomyOptions(camps, (camp) => camp.category, CAMP_CATEGORY_LABELS),
+    [camps]
+  );
+
+  const subcategoryOptions = useMemo(
+    () => getTaxonomyOptions(camps, (camp) => camp.subcategory),
+    [camps]
+  );
+
   const districtCounts = useMemo(() => {
     const counts = new Map<District, number>();
     camps.forEach((camp) => {
@@ -365,6 +387,23 @@ export function CampsListView({ camps }: CampsListViewProps) {
         id: `type-${type}`,
         label: `Typ: ${CAMP_MAIN_CATEGORY_LABELS[type]}`,
         onRemove: () => setActiveTypes((prev) => prev.filter((item) => item !== type)),
+      });
+    });
+
+    activeCategories.forEach((category) => {
+      badges.push({
+        id: `category-${category}`,
+        label: `Category: ${CAMP_CATEGORY_LABELS[category]}`,
+        onRemove: () => setActiveCategories((prev) => prev.filter((item) => item !== category)),
+      });
+    });
+
+    activeSubcategories.forEach((subcategory) => {
+      const option = subcategoryOptions.find((item) => item.value === subcategory);
+      badges.push({
+        id: `subcategory-${subcategory}`,
+        label: `Subcategory: ${option?.label || subcategory}`,
+        onRemove: () => setActiveSubcategories((prev) => prev.filter((item) => item !== subcategory)),
       });
     });
 
@@ -411,11 +450,13 @@ export function CampsListView({ camps }: CampsListViewProps) {
     }
 
     return badges;
-  }, [search, activeTypes, activeAgeGroups, activeDistricts, singleDate, rangeFrom, rangeTo]);
+  }, [search, activeTypes, activeCategories, activeSubcategories, subcategoryOptions, activeAgeGroups, activeDistricts, singleDate, rangeFrom, rangeTo]);
 
   function clearFilters() {
     setSearch("");
     setActiveTypes([]);
+    setActiveCategories([]);
+    setActiveSubcategories([]);
     setActiveDistricts([]);
     setActiveAgeGroups([]);
     setSingleDate("");
@@ -427,6 +468,18 @@ export function CampsListView({ camps }: CampsListViewProps) {
   function toggleType(type: CampMainCategory) {
     setActiveTypes((prev) =>
       prev.includes(type) ? prev.filter((item) => item !== type) : [...prev, type]
+    );
+  }
+
+  function toggleCategory(category: CampCategory) {
+    setActiveCategories((prev) =>
+      prev.includes(category) ? prev.filter((item) => item !== category) : [...prev, category]
+    );
+  }
+
+  function toggleSubcategory(subcategory: string) {
+    setActiveSubcategories((prev) =>
+      prev.includes(subcategory) ? prev.filter((item) => item !== subcategory) : [...prev, subcategory]
     );
   }
 
@@ -540,11 +593,8 @@ export function CampsListView({ camps }: CampsListViewProps) {
       </div>
 
       {filtersOpen && (
-        <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 space-y-2.5">
-          <div>
-            <p className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground mb-1.5">
-              <CalendarDays size={11} /> Data
-            </p>
+        <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 space-y-2.5 max-h-[calc(100dvh-8rem)] overflow-y-auto overscroll-contain">
+          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><CalendarDays size={11} /> Data</span>}>
             <p className="text-[10px] text-muted-foreground mb-1">Konkretna data</p>
             <input
               type="date"
@@ -584,12 +634,9 @@ export function CampsListView({ camps }: CampsListViewProps) {
                 className="px-2 py-1.5 rounded-lg border border-border bg-background text-[11px] text-foreground"
               />
             </div>
-          </div>
+          </FilterSection>
 
-          <div>
-            <p className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground mb-1.5">
-              <Tags size={11} /> Typ kolonii
-            </p>
+          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Typ kolonii</span>}>
             <div className="flex flex-wrap gap-1">
               {campTypes.map((type) => {
                 const count = typeCounts.get(type) || 0;
@@ -614,12 +661,57 @@ export function CampsListView({ camps }: CampsListViewProps) {
                 );
               })}
             </div>
-          </div>
+          </FilterSection>
 
-          <div>
-            <p className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground mb-1.5">
-              <Users size={11} /> Wiek dziecka
-            </p>
+          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Category</span>}>
+            <div className="flex flex-wrap gap-1">
+              {categoryOptions.map((option) => {
+                const selected = activeCategories.includes(option.value as CampCategory);
+                return (
+                  <button
+                    key={option.value}
+                    onClick={() => toggleCategory(option.value as CampCategory)}
+                    className={cn(
+                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
+                      selected
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground"
+                    )}
+                  >
+                    <span>{option.label}</span>
+                    <span className="text-[10px] opacity-60">{option.count}</span>
+                    {selected && <Check size={11} />}
+                  </button>
+                );
+              })}
+            </div>
+          </FilterSection>
+
+          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Subcategory</span>}>
+            <div className="flex flex-wrap gap-1">
+              {subcategoryOptions.map((option) => {
+                const selected = activeSubcategories.includes(option.value);
+                return (
+                  <button
+                    key={option.value}
+                    onClick={() => toggleSubcategory(option.value)}
+                    className={cn(
+                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
+                      selected
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground"
+                    )}
+                  >
+                    <span>{option.label}</span>
+                    <span className="text-[10px] opacity-60">{option.count}</span>
+                    {selected && <Check size={11} />}
+                  </button>
+                );
+              })}
+            </div>
+          </FilterSection>
+
+          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Users size={11} /> Wiek dziecka</span>}>
             <div className="flex flex-wrap gap-1">
               {AGE_GROUPS.map((group) => {
                 const selected = activeAgeGroups.includes(group.key);
@@ -641,12 +733,9 @@ export function CampsListView({ camps }: CampsListViewProps) {
                 );
               })}
             </div>
-          </div>
+          </FilterSection>
 
-          <div>
-            <p className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground mb-1.5">
-              <MapPin size={11} /> Dzielnica
-            </p>
+          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><MapPin size={11} /> Dzielnica</span>}>
             <div className="flex flex-wrap gap-1">
               {availableDistricts.map((district) => {
                 const selected = activeDistricts.includes(district);
@@ -671,7 +760,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                 );
               })}
             </div>
-          </div>
+          </FilterSection>
 
           {hasActiveFilters && (
             <button
@@ -686,7 +775,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
 
       <div className="lg:flex lg:gap-6 lg:items-start">
         <aside className="hidden lg:block w-52 shrink-0 sticky top-20">
-          <div className="rounded-xl border border-border bg-card p-2.5 space-y-2.5">
+          <div className="rounded-xl border border-border bg-card p-2.5 space-y-2.5 max-h-[calc(100vh-6rem)] overflow-y-auto overscroll-contain pr-1">
             <div className="relative">
               <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
               <input
@@ -698,10 +787,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
               />
             </div>
 
-            <div>
-              <p className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-                <CalendarDays size={10} /> Data
-              </p>
+            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><CalendarDays size={10} /> Data</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
               <p className="text-[10px] text-muted-foreground mb-1">Konkretna data</p>
               <input
                 type="date"
@@ -741,12 +827,9 @@ export function CampsListView({ camps }: CampsListViewProps) {
                   className="px-1.5 py-1 rounded-lg border border-border bg-background text-[9px] text-foreground"
                 />
               </div>
-            </div>
+            </FilterSection>
 
-            <div>
-              <p className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-                <Tags size={10} /> Typ kolonii
-              </p>
+            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Typ kolonii</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
               <div className="flex flex-col gap-0.5">
                 {campTypes.map((type) => {
                   const count = typeCounts.get(type) || 0;
@@ -769,12 +852,53 @@ export function CampsListView({ camps }: CampsListViewProps) {
                   );
                 })}
               </div>
-            </div>
+            </FilterSection>
 
-            <div>
-              <p className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-                <Users size={10} /> Wiek
-              </p>
+            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Category</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
+              <div className="flex flex-col gap-0.5">
+                {categoryOptions.map((option) => {
+                  const selected = activeCategories.includes(option.value as CampCategory);
+                  return (
+                    <button
+                      key={option.value}
+                      onClick={() => toggleCategory(option.value as CampCategory)}
+                      className={cn(
+                        "flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
+                        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent"
+                      )}
+                    >
+                      <span className="flex-1">{option.label}</span>
+                      {selected && <Check size={10} />}
+                      <span className="text-[8px] opacity-40">{option.count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </FilterSection>
+
+            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Subcategory</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
+              <div className="flex flex-col gap-0.5">
+                {subcategoryOptions.map((option) => {
+                  const selected = activeSubcategories.includes(option.value);
+                  return (
+                    <button
+                      key={option.value}
+                      onClick={() => toggleSubcategory(option.value)}
+                      className={cn(
+                        "flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
+                        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent"
+                      )}
+                    >
+                      <span className="flex-1">{option.label}</span>
+                      {selected && <Check size={10} />}
+                      <span className="text-[8px] opacity-40">{option.count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </FilterSection>
+
+            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Users size={10} /> Wiek</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
               <div className="flex flex-col gap-0.5">
                 {AGE_GROUPS.map((group) => {
                   const selected = activeAgeGroups.includes(group.key);
@@ -794,12 +918,9 @@ export function CampsListView({ camps }: CampsListViewProps) {
                   );
                 })}
               </div>
-            </div>
+            </FilterSection>
 
-            <div>
-              <p className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-                <MapPin size={9} className="inline mr-1" /> Dzielnica
-              </p>
+            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><MapPin size={9} className="inline" /> Dzielnica</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
               <div className="flex flex-col gap-0.5">
                 {availableDistricts.map((district) => {
                   const selected = activeDistricts.includes(district);
@@ -822,7 +943,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                   );
                 })}
               </div>
-            </div>
+            </FilterSection>
 
             {hasActiveFilters && (
               <button
