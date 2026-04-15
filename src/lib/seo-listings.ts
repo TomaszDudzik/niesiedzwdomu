@@ -33,7 +33,7 @@ export function resolveListingItems(config: SeoListingConfig): DiscoveryItem[] {
 
   if (config.contentType === "place") {
     let items = mockPlaces.filter((p) => p.status === "published");
-    if (config.filterPlaceType) items = items.filter((p) => p.place_type === config.filterPlaceType);
+    if (config.filterPlaceType) items = items.filter((p) => (p.category_lvl_1 ?? p.main_category ?? p.place_type) === config.filterPlaceType);
     if (config.filterFree) items = items.filter((p) => p.is_free);
     if (config.filterIndoor !== undefined) items = items.filter((p) => p.is_indoor === config.filterIndoor);
     return items.slice(0, limit);

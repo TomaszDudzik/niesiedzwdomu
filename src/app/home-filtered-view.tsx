@@ -6,10 +6,10 @@ import { Search, ArrowRight, SlidersHorizontal, X, MapPin, Users, Check, Tags } 
 import { ContentCard } from "@/components/ui/content-card";
 import { FilterSection } from "@/components/ui/filter-section";
 import { ImageWithFallback } from "@/components/ui/image-with-fallback";
-import { CATEGORY_LABELS, CATEGORY_ICONS, PLACE_TYPE_LABELS, PLACE_TYPE_ICONS } from "@/lib/mock-data";
+import { CATEGORY_LABELS, CATEGORY_ICONS } from "@/lib/mock-data";
 import { getTaxonomyOptions, matchesTaxonomyFilter } from "@/lib/taxonomy-filters";
 import { cn, formatDateShort, formatAgeRange, thumbUrl } from "@/lib/utils";
-import type { Event, Place, Camp, Activity, EventCategory, PlaceType } from "@/types/database";
+import type { Event, Place, Camp, Activity, EventCategory } from "@/types/database";
 
 const DAYS_PL = ["Nd", "Pn", "Wt", "Śr", "Cz", "Pt", "So"];
 
@@ -60,8 +60,6 @@ function SectionLink({ href, children }: { href: string; children: React.ReactNo
 }
 
 const categoryKeys = Object.keys(CATEGORY_LABELS).filter((k) => k !== "inne") as EventCategory[];
-const placeTypeKeys = Object.keys(PLACE_TYPE_LABELS).filter((k) => k !== "inne") as PlaceType[];
-
 const AGE_GROUPS = [
   { key: "0-3", label: "0–3 lata", icon: "👶", min: 0, max: 3 },
   { key: "4-6", label: "4–6 lat", icon: "🧒", min: 4, max: 6 },
@@ -104,13 +102,12 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
   const [activeEventSubcategories, setActiveEventSubcategories] = useState<string[]>([]);
   const [activePlaceMainCategories, setActivePlaceMainCategories] = useState<string[]>([]);
   const [activePlaceCategories, setActivePlaceCategories] = useState<string[]>([]);
-  const [activePlaceType, setActivePlaceType] = useState<PlaceType | null>(null);
   const [activeAgeGroup, setActiveAgeGroup] = useState<string | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const ageGroup = AGE_GROUPS.find((g) => g.key === activeAgeGroup) ?? null;
   const hasEventOnlyFilters = activeEventMainCategories.length > 0 || activeEventCategories.length > 0 || activeEventSubcategories.length > 0;
-  const hasPlaceOnlyFilters = activePlaceMainCategories.length > 0 || activePlaceCategories.length > 0 || !!activePlaceType;
+  const hasPlaceOnlyFilters = activePlaceMainCategories.length > 0 || activePlaceCategories.length > 0;
   const hasActiveFilters = !!(search || hasEventOnlyFilters || hasPlaceOnlyFilters || activeAgeGroup !== null);
   const hasEventFilters = !!(search || hasEventOnlyFilters || activeAgeGroup !== null);
   const hasPlaceFilters = !!(search || hasPlaceOnlyFilters || activeAgeGroup !== null);
@@ -175,7 +172,6 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
     if (activePlaceCategories.length > 0) {
       result = result.filter((place) => matchesTaxonomyFilter(getPlaceCategoryLvl2(place), activePlaceCategories));
     }
-    if (activePlaceType) result = result.filter((p) => p.place_type === activePlaceType);
     if (ageGroup) {
       result = result.filter((p) =>
         (p.age_min === null || p.age_min <= ageGroup.max) &&
@@ -183,7 +179,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
       );
     }
     return [...result].sort((a, b) => b.likes - a.likes);
-  }, [places, search, activePlaceMainCategories, activePlaceCategories, activePlaceType, ageGroup]);
+  }, [places, search, activePlaceMainCategories, activePlaceCategories, ageGroup]);
 
   function toggleEventMainCategory(nextMainCategory: string) {
     setActiveEventMainCategories((prev) =>
@@ -215,10 +211,6 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
     );
   }
 
-  function togglePlaceTypeFilter(nextPlaceType: PlaceType) {
-    setActivePlaceType(activePlaceType === nextPlaceType ? null : nextPlaceType);
-  }
-
   function clearFilters() {
     setSearch("");
     setActiveEventMainCategories([]);
@@ -226,7 +218,6 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
     setActiveEventSubcategories([]);
     setActivePlaceMainCategories([]);
     setActivePlaceCategories([]);
-    setActivePlaceType(null);
     setActiveAgeGroup(null);
   }
 
@@ -386,27 +377,6 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
             </div>
           </FilterSection>
 
-          <FilterSection title={<span className="text-[11px] font-medium text-muted-foreground">Typ miejsca</span>}>
-            <div className="flex flex-wrap gap-1.5">
-              {placeTypeKeys.map((type) => {
-                const count = places.filter((p) => p.place_type === type).length;
-                if (count === 0) return null;
-                return (
-                  <button key={type} onClick={() => togglePlaceTypeFilter(type)}
-                    className={cn("px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-all duration-200",
-                      activePlaceType === type ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
-                    <span className="inline-flex items-center gap-1">
-                      <span>{PLACE_TYPE_ICONS[type]}</span>
-                      <span>{PLACE_TYPE_LABELS[type]}</span>
-                      <span className="text-[10px] opacity-60">{count}</span>
-                      {activePlaceType === type && <Check size={11} />}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </FilterSection>
-
           <FilterSection title={<span className="text-[11px] font-medium text-muted-foreground">Kategoria wydarzeń</span>}>
             <div className="flex flex-wrap gap-1.5">
               {categoryKeys.map((key) => {
@@ -553,24 +523,6 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
                       <span className="flex-1">{option.label}</span>
                       {selected && <Check size={10} />}
                       <span className="text-[9px] opacity-40">{option.count}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </FilterSection>
-
-            <FilterSection title={<span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Typ miejsca</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
-              <div className="flex flex-col gap-0.5">
-                {placeTypeKeys.map((type) => {
-                  const count = places.filter((p) => p.place_type === type).length;
-                  if (count === 0) return null;
-                  return (
-                    <button key={type} onClick={() => togglePlaceTypeFilter(type)}
-                      className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium text-left transition-all duration-200",
-                        activePlaceType === type ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
-                      <span>{PLACE_TYPE_ICONS[type]}</span>
-                      <span className="flex-1">{PLACE_TYPE_LABELS[type]}</span>
-                      <span className="text-[9px] opacity-40">{count}</span>
                     </button>
                   );
                 })}

@@ -16,6 +16,7 @@ import { useAdminTaxonomy } from "@/lib/use-admin-taxonomy";
 
 type DerivedEventStatus = Event["status"] | "outdated";
 type EventListFilter = "all" | "published" | "draft" | "outdated";
+const UNCATEGORIZED_GROUP = "__uncategorized__";
 
 const MiniMapLazy = lazy(() => import("../miejsca/mini-map").then((module) => ({ default: module.MiniMap })));
 
@@ -358,8 +359,38 @@ function AdminCanonicalEventsPanel() {
     deleted: 4,
   };
 
+  const getEventGroupKey = useCallback((event: Partial<Event> | Record<string, unknown>) => {
+    return typeof event.category_lvl_1 === "string"
+      ? event.category_lvl_1
+      : typeof event.main_category === "string"
+        ? event.main_category
+        : typeof event.category_lvl_2 === "string"
+          ? event.category_lvl_2
+          : typeof event.category === "string"
+            ? event.category
+            : UNCATEGORIZED_GROUP;
+  }, []);
+
+  const getEventGroupLabel = useCallback((group: string) => {
+    if (group === UNCATEGORIZED_GROUP) return "Bez kategorii";
+    return CATEGORY_LABELS[group as keyof typeof CATEGORY_LABELS] ?? group;
+  }, []);
+
+  const getEventGroupIcon = useCallback((group: string) => {
+    if (group === UNCATEGORIZED_GROUP) return "📅";
+    return CATEGORY_ICONS[group as keyof typeof CATEGORY_ICONS] ?? "📅";
+  }, []);
+
+  const sortEventGroupKeys = useCallback((keys: string[]) => {
+    return [...keys].sort((left, right) => {
+      if (left === UNCATEGORIZED_GROUP) return 1;
+      if (right === UNCATEGORIZED_GROUP) return -1;
+      return getEventGroupLabel(left).localeCompare(getEventGroupLabel(right), "pl");
+    });
+  }, [getEventGroupLabel]);
+
   const filteredEvents = useMemo(() => {
-    const scopedEvents = categoryFilter ? visibleEvents.filter((event) => event.category === categoryFilter) : visibleEvents;
+    const scopedEvents = categoryFilter ? visibleEvents.filter((event) => getEventGroupKey(event) === categoryFilter) : visibleEvents;
     if (statusFilter === "all") return scopedEvents;
     if (statusFilter === "draft") {
       return scopedEvents.filter((event) => {
@@ -368,14 +399,20 @@ function AdminCanonicalEventsPanel() {
       });
     }
     return scopedEvents.filter((event) => getEffectiveStatus(event) === statusFilter);
-  }, [visibleEvents, categoryFilter, statusFilter, getEffectiveStatus]);
+  }, [visibleEvents, categoryFilter, statusFilter, getEffectiveStatus, getEventGroupKey]);
+
+  const allGroupKeys = useMemo(() => {
+    const groups = new Set<string>();
+    visibleEvents.forEach((event) => groups.add(getEventGroupKey(event)));
+    return sortEventGroupKeys(Array.from(groups));
+  }, [visibleEvents, getEventGroupKey, sortEventGroupKeys]);
 
   const groupedEvents = useMemo(() => (
-    Object.entries(CATEGORY_LABELS).map(([category, label]) => ({
+    allGroupKeys.map((category) => ({
       category,
-      label,
+      label: getEventGroupLabel(category),
       items: filteredEvents
-        .filter((event) => event.category === category)
+        .filter((event) => getEventGroupKey(event) === category)
         .sort((a, b) => {
           const statusDiff = statusOrder[getEffectiveStatus(a)] - statusOrder[getEffectiveStatus(b)];
           if (statusDiff !== 0) return statusDiff;
@@ -386,7 +423,7 @@ function AdminCanonicalEventsPanel() {
           return a.title.localeCompare(b.title, "pl");
         }),
     }))
-  ), [filteredEvents, getEffectiveStatus]);
+  ), [allGroupKeys, filteredEvents, getEffectiveStatus, getEventGroupKey, getEventGroupLabel]);
   const displayedGroups = useMemo(
     () => groupedEvents.filter(({ category }) => !categoryFilter || category === categoryFilter),
     [groupedEvents, categoryFilter]
@@ -396,8 +433,8 @@ function AdminCanonicalEventsPanel() {
   const draftCount = useMemo(() => visibleEvents.filter((event) => getEffectiveStatus(event) === "draft" || getEffectiveStatus(event) === "cancelled").length, [visibleEvents, getEffectiveStatus]);
   const outdatedCount = useMemo(() => visibleEvents.filter((event) => getEffectiveStatus(event) === "outdated").length, [visibleEvents, getEffectiveStatus]);
   const categoryStats = useMemo(() => Object.fromEntries(
-    Object.keys(CATEGORY_LABELS).map((category) => {
-      const categoryEvents = visibleEvents.filter((event) => event.category === category);
+    allGroupKeys.map((category) => {
+      const categoryEvents = visibleEvents.filter((event) => getEventGroupKey(event) === category);
       const published = categoryEvents.filter((event) => getEffectiveStatus(event) === "published").length;
       const draft = categoryEvents.filter((event) => {
         const effectiveStatus = getEffectiveStatus(event);
@@ -406,7 +443,7 @@ function AdminCanonicalEventsPanel() {
       const outdated = categoryEvents.filter((event) => getEffectiveStatus(event) === "outdated").length;
       return [category, { all: categoryEvents.length, published, draft, outdated }];
     })
-  ), [visibleEvents, getEffectiveStatus]);
+  ), [allGroupKeys, visibleEvents, getEffectiveStatus, getEventGroupKey]);
   const visibleCategoryKeys = useMemo(() => displayedGroups.map(({ category }) => category), [displayedGroups]);
   const hasExpandedCategories = useMemo(() => visibleCategoryKeys.some((category) => !collapsedCategories[category]), [visibleCategoryKeys, collapsedCategories]);
 
@@ -426,9 +463,9 @@ function AdminCanonicalEventsPanel() {
     setCategoryFilter(null);
     setStatusFilter(nextFilter);
     const nextCollapsed = Object.fromEntries(
-      Object.keys(CATEGORY_LABELS).map((category) => {
+      allGroupKeys.map((category) => {
         const matchingItems = visibleEvents.filter((event) => {
-          if (event.category !== category) return false;
+          if (getEventGroupKey(event) !== category) return false;
           if (nextFilter === "all") return true;
           if (nextFilter === "draft") {
             const effectiveStatus = getEffectiveStatus(event);
@@ -765,7 +802,7 @@ function AdminCanonicalEventsPanel() {
                 <div className="w-full flex items-center gap-2 mb-2 rounded-md px-1.5 py-1 hover:bg-accent/50 transition-colors">
                   <button type="button" onClick={() => toggleCategory(category)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
                     {expanded ? <ChevronDown size={14} className="text-muted-foreground" /> : <ChevronUp size={14} className="text-muted-foreground rotate-180" />}
-                    <span className="text-lg">{CATEGORY_ICONS[category as keyof typeof CATEGORY_ICONS]}</span>
+                    <span className="text-lg">{getEventGroupIcon(category)}</span>
                     <h2 className="text-[13px] font-semibold text-foreground">{label}</h2>
                   </button>
                   <div className="flex flex-wrap items-center gap-1 text-[10px]">
@@ -1030,6 +1067,8 @@ function AdminCanonicalEventsPanel() {
                                   onClearPending={clearPendingFile}
                                   table="events"
                                   itemId={event.id}
+                                  typeLvl1Id={String(editForm.type_lvl_1_id || event.type_lvl_1_id || event.type_id || "") || null}
+                                  typeLvl2Id={String(editForm.type_lvl_2_id || event.type_lvl_2_id || event.subtype_id || "") || null}
                                   categoryLvl1={String(editForm.category_lvl_1 || event.category_lvl_1 || event.main_category || "")}
                                   categoryLvl2={String(editForm.category_lvl_2 || event.category_lvl_2 || event.category || "")}
                                   categoryLvl3={String(editForm.category_lvl_3 || event.category_lvl_3 || event.subcategory || "")}

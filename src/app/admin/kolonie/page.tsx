@@ -30,6 +30,7 @@ const MiniMapLazy = lazy(() => import("../miejsca/mini-map").then((m) => ({ defa
 
 type DerivedCampStatus = Camp["status"] | "outdated";
 type CampListFilter = "all" | "published" | "draft" | "outdated";
+const UNCATEGORIZED_GROUP = "__uncategorized__";
 
 const STATUS_ORDER: Record<DerivedCampStatus, number> = {
   draft: 0, published: 1, outdated: 2, cancelled: 3, deleted: 4,
@@ -118,6 +119,32 @@ function inferMainCategory(mappedType: string | undefined, title: string): Camp[
   return "polkolonie";
 }
 
+function getCampGroupKey(camp: Partial<Camp> | Record<string, unknown>) {
+  return typeof camp.category_lvl_1 === "string"
+    ? camp.category_lvl_1
+    : typeof camp.main_category === "string"
+      ? camp.main_category
+      : UNCATEGORIZED_GROUP;
+}
+
+function getCampGroupLabel(group: string) {
+  if (group === UNCATEGORIZED_GROUP) return "Bez kategorii";
+  return CAMP_MAIN_CATEGORY_LABELS[group as keyof typeof CAMP_MAIN_CATEGORY_LABELS] ?? group;
+}
+
+function getCampGroupIcon(group: string) {
+  if (group === UNCATEGORIZED_GROUP) return "🏕️";
+  return CAMP_MAIN_CATEGORY_ICONS[group as keyof typeof CAMP_MAIN_CATEGORY_ICONS] ?? "🏕️";
+}
+
+function sortCampGroupKeys(keys: string[]) {
+  return [...keys].sort((left, right) => {
+    if (left === UNCATEGORIZED_GROUP) return 1;
+    if (right === UNCATEGORIZED_GROUP) return -1;
+    return getCampGroupLabel(left).localeCompare(getCampGroupLabel(right), "pl");
+  });
+}
+
 function inferSeason(dateStart?: string): Camp["season"] {
   if (!dateStart) return "caly_rok";
   const m = new Date(dateStart).getMonth() + 1;
@@ -200,16 +227,21 @@ export default function AdminCampsPage() {
   }, []);
 
   const filteredCamps = useMemo(() => {
-    const scoped = typeFilter ? camps.filter((c) => c.main_category === typeFilter) : camps;
+    const scoped = typeFilter ? camps.filter((c) => getCampGroupKey(c) === typeFilter) : camps;
     if (statusFilter === "all") return scoped;
     if (statusFilter === "draft") return scoped.filter((c) => { const s = getEffectiveStatus(c); return s === "draft" || s === "cancelled"; });
     return scoped.filter((c) => getEffectiveStatus(c) === statusFilter);
   }, [camps, typeFilter, statusFilter, getEffectiveStatus]);
 
+  const allGroupKeys = useMemo(() => {
+    const groups = new Set<string>();
+    camps.forEach((camp) => groups.add(getCampGroupKey(camp)));
+    return sortCampGroupKeys(Array.from(groups));
+  }, [camps]);
+
   const groupedByType = useMemo(() => {
-    const order: Camp["main_category"][] = ["polkolonie", "kolonie", "warsztaty_wakacyjne"];
-    return order.map((type) => {
-      const typeItems = filteredCamps.filter((c) => c.main_category === type);
+    return allGroupKeys.map((type) => {
+      const typeItems = filteredCamps.filter((c) => getCampGroupKey(c) === type);
       const organizerGroups = new Map<string, { organizer: string; items: Camp[] }>();
 
       typeItems.forEach((camp) => {
@@ -234,15 +266,15 @@ export default function AdminCampsPage() {
         }));
       return { type, byOrganizer };
     });
-  }, [filteredCamps, getEffectiveStatus]);
+  }, [allGroupKeys, filteredCamps, getEffectiveStatus]);
 
   const publishedCount = useMemo(() => camps.filter((c) => getEffectiveStatus(c) === "published").length, [camps, getEffectiveStatus]);
   const draftCount    = useMemo(() => camps.filter((c) => { const s = getEffectiveStatus(c); return s === "draft" || s === "cancelled"; }).length, [camps, getEffectiveStatus]);
   const outdatedCount = useMemo(() => camps.filter((c) => getEffectiveStatus(c) === "outdated").length, [camps, getEffectiveStatus]);
 
   const sectionStats = useMemo(() => Object.fromEntries(
-    Object.keys(CAMP_MAIN_CATEGORY_LABELS).map((type) => {
-      const tc = camps.filter((c) => c.main_category === type);
+    allGroupKeys.map((type) => {
+      const tc = camps.filter((c) => getCampGroupKey(c) === type);
       return [type, {
         all:      tc.length,
         published: tc.filter((c) => getEffectiveStatus(c) === "published").length,
@@ -250,7 +282,7 @@ export default function AdminCampsPage() {
         outdated: tc.filter((c) => getEffectiveStatus(c) === "outdated").length,
       }];
     })
-  ), [camps, getEffectiveStatus]);
+  ), [allGroupKeys, camps, getEffectiveStatus]);
 
   const displayedTypeKeys = useMemo(
     () => groupedByType.filter(({ type }) => !typeFilter || type === typeFilter).map(({ type }) => type),
@@ -278,10 +310,10 @@ export default function AdminCampsPage() {
     setTypeFilter(null);
     setStatusFilter(next);
     setCollapsedCategories(Object.fromEntries(
-      Object.keys(CAMP_MAIN_CATEGORY_LABELS).map((type) => [
+      allGroupKeys.map((type) => [
         type,
         camps.filter((c) => {
-          if (c.main_category !== type) return false;
+          if (getCampGroupKey(c) !== type) return false;
           if (next === "all") return true;
           if (next === "draft") { const s = getEffectiveStatus(c); return s === "draft" || s === "cancelled"; }
           return getEffectiveStatus(c) === next;
@@ -800,8 +832,8 @@ export default function AdminCampsPage() {
                 <div className="w-full flex items-center gap-2 mb-2 rounded-md px-1.5 py-1 hover:bg-accent/50 transition-colors">
                   <button type="button" onClick={() => toggleCategory(type)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
                     {expanded ? <ChevronDown size={14} className="text-muted-foreground" /> : <ChevronUp size={14} className="text-muted-foreground rotate-180" />}
-                    <span className="text-lg">{CAMP_MAIN_CATEGORY_ICONS[type]}</span>
-                    <h2 className="text-[13px] font-semibold text-foreground">{CAMP_MAIN_CATEGORY_LABELS[type]}</h2>
+                    <span className="text-lg">{getCampGroupIcon(type)}</span>
+                    <h2 className="text-[13px] font-semibold text-foreground">{getCampGroupLabel(type)}</h2>
                   </button>
                   <div className="flex flex-wrap items-center gap-1 text-[10px]">
                     <button type="button" onClick={() => toggleTypeStatusFilter(type, "all")} className={cn("px-1.5 py-0.5 rounded-full font-medium transition-colors", typeFilter === type && statusFilter === "all" ? "bg-sky-200 text-sky-800" : "bg-sky-100 text-sky-700 hover:bg-sky-200")}>{stats.all} all</button>
@@ -843,7 +875,7 @@ export default function AdminCampsPage() {
                           <div key={camp.id} className={cn("rounded-lg border border-border/70", isDraft ? "bg-stone-100 opacity-70" : "bg-white")}>
                             <div className="flex items-center gap-2.5 px-3 py-2.5">
                               <span className="shrink-0 w-6 text-center text-[11px] font-mono text-muted-foreground">{index + 1}</span>
-                              <span className="shrink-0 text-lg">{CAMP_MAIN_CATEGORY_ICONS[camp.main_category] || "🏕️"}</span>
+                              <span className="shrink-0 text-lg">{getCampGroupIcon(getCampGroupKey(camp))}</span>
 
                               {camp.image_url ? (
                                 <img src={camp.image_url} alt="" className="w-8 h-8 rounded object-cover shrink-0" />
@@ -1055,6 +1087,8 @@ export default function AdminCampsPage() {
                                     onClearPending={clearPendingFile}
                                     table="camps"
                                     itemId={camp.id}
+                                    typeLvl1Id={String(editForm.type_lvl_1_id || camp.type_lvl_1_id || camp.type_id || "") || null}
+                                    typeLvl2Id={String(editForm.type_lvl_2_id || camp.type_lvl_2_id || camp.subtype_id || "") || null}
                                     categoryLvl1={String(editForm.category_lvl_1 || camp.category_lvl_1 || camp.main_category || "")}
                                     categoryLvl2={String(editForm.category_lvl_2 || camp.category_lvl_2 || camp.category || "")}
                                     categoryLvl3={String(editForm.category_lvl_3 || camp.category_lvl_3 || camp.subcategory || "")}

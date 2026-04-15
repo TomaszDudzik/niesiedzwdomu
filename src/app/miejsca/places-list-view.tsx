@@ -7,9 +7,7 @@ import { getTaxonomyOptions, matchesTaxonomyFilter } from "@/lib/taxonomy-filter
 import { ContentCard } from "@/components/ui/content-card";
 import { FilterSection } from "@/components/ui/filter-section";
 import { cn } from "@/lib/utils";
-import type { Place, PlaceType, District } from "@/types/database";
-
-const placeTypes = Object.keys(PLACE_TYPE_LABELS).filter((k) => k !== "inne") as PlaceType[];
+import type { Place, District } from "@/types/database";
 
 const AGE_GROUPS = [
   { key: "0-3", label: "0–3 lata", icon: "👶", min: 0, max: 3 },
@@ -54,11 +52,20 @@ function getPlaceCategoryLvl2(place: Place) {
   return place.category_lvl_2 ?? place.category ?? null;
 }
 
+function getPlaceCategoryLabel(value: string | null | undefined) {
+  if (!value) return "Bez kategorii";
+  return PLACE_TYPE_LABELS[value as keyof typeof PLACE_TYPE_LABELS] ?? value;
+}
+
+function getPlaceCategoryIcon(value: string | null | undefined) {
+  if (!value) return "📍";
+  return PLACE_TYPE_ICONS[value as keyof typeof PLACE_TYPE_ICONS] ?? "📍";
+}
+
 export function PlacesListView({ places }: PlacesListViewProps) {
   const [search, setSearch] = useState("");
   const [activeMainCategories, setActiveMainCategories] = useState<string[]>([]);
   const [activeCategories, setActiveCategories] = useState<string[]>([]);
-  const [activeTypes, setActiveTypes] = useState<PlaceType[]>([]);
   const [activeDistricts, setActiveDistricts] = useState<District[]>([]);
   const [activeAgeGroups, setActiveAgeGroups] = useState<string[]>([]);
   const [view, setView] = useState<ViewMode>("list");
@@ -70,7 +77,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
     [activeAgeGroups]
   );
   const hasActiveFilters =
-    !!search || activeMainCategories.length > 0 || activeCategories.length > 0 || activeTypes.length > 0 || activeDistricts.length > 0 || activeAgeGroups.length > 0;
+    !!search || activeMainCategories.length > 0 || activeCategories.length > 0 || activeDistricts.length > 0 || activeAgeGroups.length > 0;
 
   // Lazy load map component
   useEffect(() => {
@@ -95,9 +102,6 @@ export function PlacesListView({ places }: PlacesListViewProps) {
     if (activeCategories.length > 0) {
       result = result.filter((place) => matchesTaxonomyFilter(getPlaceCategoryLvl2(place), activeCategories));
     }
-    if (activeTypes.length > 0) {
-      result = result.filter((p) => activeTypes.includes(p.place_type));
-    }
     if (activeDistricts.length > 0) {
       result = result.filter((p) => activeDistricts.includes(p.district));
     }
@@ -110,20 +114,20 @@ export function PlacesListView({ places }: PlacesListViewProps) {
       );
     }
     return result;
-  }, [places, search, activeMainCategories, activeCategories, activeTypes, activeDistricts, ageGroups]);
+  }, [places, search, activeMainCategories, activeCategories, activeDistricts, ageGroups]);
 
-  // Group by place_type preserving order
+  // Group by category_lvl_1 preserving order
   const grouped = useMemo(() => {
-    const groups: { type: PlaceType; label: string; icon: string; places: Place[] }[] = [];
+    const groups: { type: string; label: string; icon: string; places: Place[] }[] = [];
     const seen = new Set<string>();
     for (const place of filtered) {
-      const t = place.place_type;
+      const t = getPlaceCategoryLvl1(place) ?? place.place_type ?? "Bez kategorii";
       if (!seen.has(t)) {
         seen.add(t);
         groups.push({
           type: t,
-          label: PLACE_TYPE_LABELS[t] || t,
-          icon: PLACE_TYPE_ICONS[t] || "📍",
+          label: getPlaceCategoryLabel(t),
+          icon: getPlaceCategoryIcon(t),
           places: [],
         });
       }
@@ -156,14 +160,6 @@ export function PlacesListView({ places }: PlacesListViewProps) {
     const set = new Set<string>();
     places.forEach((p) => set.add(p.district));
     return DISTRICT_LIST.filter((d) => set.has(d));
-  }, [places]);
-
-  const typeCounts = useMemo(() => {
-    const counts = new Map<PlaceType, number>();
-    places.forEach((place) => {
-      counts.set(place.place_type, (counts.get(place.place_type) || 0) + 1);
-    });
-    return counts;
   }, [places]);
 
   const mainCategoryOptions = useMemo(
@@ -209,14 +205,6 @@ export function PlacesListView({ places }: PlacesListViewProps) {
       });
     });
 
-    activeTypes.forEach((type) => {
-      badges.push({
-        id: `type-${type}`,
-        label: `Typ: ${PLACE_TYPE_LABELS[type]}`,
-        onRemove: () => setActiveTypes((prev) => prev.filter((item) => item !== type)),
-      });
-    });
-
     activeAgeGroups.forEach((ageKey) => {
       const group = AGE_GROUPS.find((item) => item.key === ageKey);
       if (group) {
@@ -237,13 +225,12 @@ export function PlacesListView({ places }: PlacesListViewProps) {
     });
 
     return badges;
-  }, [search, activeMainCategories, mainCategoryOptions, activeCategories, categoryOptions, activeTypes, activeAgeGroups, activeDistricts]);
+  }, [search, activeMainCategories, mainCategoryOptions, activeCategories, categoryOptions, activeAgeGroups, activeDistricts]);
 
   function clearFilters() {
     setSearch("");
     setActiveMainCategories([]);
     setActiveCategories([]);
-    setActiveTypes([]);
     setActiveDistricts([]);
     setActiveAgeGroups([]);
   }
@@ -257,12 +244,6 @@ export function PlacesListView({ places }: PlacesListViewProps) {
   function toggleCategory(category: string) {
     setActiveCategories((prev) =>
       prev.includes(category) ? prev.filter((item) => item !== category) : [...prev, category]
-    );
-  }
-
-  function toggleType(type: PlaceType) {
-    setActiveTypes((prev) =>
-      prev.includes(type) ? prev.filter((item) => item !== type) : [...prev, type]
     );
   }
 
@@ -356,25 +337,6 @@ export function PlacesListView({ places }: PlacesListViewProps) {
             </div>
           </FilterSection>
 
-          <FilterSection title={<span className="text-[11px] font-medium text-muted-foreground">Typ miejsca</span>}>
-            <div className="flex flex-wrap gap-1">
-              {placeTypes.map((type) => {
-                const count = typeCounts.get(type) || 0;
-                if (count === 0) return null;
-                const selected = activeTypes.includes(type);
-                return (
-                  <button key={type} onClick={() => toggleType(type)}
-                    className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
-                      selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
-                    <span>{PLACE_TYPE_ICONS[type]}</span>
-                    <span>{PLACE_TYPE_LABELS[type]}</span>
-                    <span className="text-[10px] opacity-60">{count}</span>
-                    {selected && <Check size={11} />}
-                  </button>
-                );
-              })}
-            </div>
-          </FilterSection>
           <FilterSection title={<span className="text-[11px] font-medium text-muted-foreground">Wiek dziecka</span>}>
             <div className="flex flex-wrap gap-1">
               {AGE_GROUPS.map((group) => {
@@ -484,26 +446,6 @@ export function PlacesListView({ places }: PlacesListViewProps) {
                       <span className="flex-1">{option.label}</span>
                       {selected && <Check size={10} />}
                       <span className="text-[8px] opacity-40">{option.count}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </FilterSection>
-
-            <FilterSection title={<span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Typ miejsca</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
-              <div className="flex flex-col gap-0.5">
-                {placeTypes.map((type) => {
-                  const count = typeCounts.get(type) || 0;
-                  if (count === 0) return null;
-                  const selected = activeTypes.includes(type);
-                  return (
-                    <button key={type} onClick={() => toggleType(type)}
-                      className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
-                        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
-                      <span>{PLACE_TYPE_ICONS[type]}</span>
-                      <span className="flex-1">{PLACE_TYPE_LABELS[type]}</span>
-                      {selected && <Check size={10} />}
-                      <span className="text-[8px] opacity-40">{count}</span>
                     </button>
                   );
                 })}

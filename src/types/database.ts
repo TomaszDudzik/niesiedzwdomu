@@ -325,7 +325,7 @@ export interface CampFilters extends SharedFilters {
 }
 
 export interface PlaceFilters extends SharedFilters {
-  placeType?: PlaceType;
+  placeType?: string;
   isIndoor?: boolean;
 }
 

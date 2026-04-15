@@ -28,6 +28,7 @@ import { useAdminTaxonomy } from "@/lib/use-admin-taxonomy";
 
 type DerivedActivityStatus = Activity["status"] | "outdated";
 type ActivityListFilter = "all" | "published" | "draft" | "outdated";
+const UNCATEGORIZED_GROUP = "__uncategorized__";
 
 const ACTIVITY_ORDER: Activity["activity_type"][] = [
   "sportowe",
@@ -109,6 +110,34 @@ function formatPriceRange(activity: Activity): string {
   if (activity.price_from !== null) return `od ${activity.price_from} zł`;
   if (activity.price_to !== null) return `do ${activity.price_to} zł`;
   return "Cena do ustalenia";
+}
+
+function getActivityGroupKey(activity: Partial<Activity> | Record<string, unknown>) {
+  return typeof activity.category_lvl_1 === "string"
+    ? activity.category_lvl_1
+    : typeof activity.main_category === "string"
+      ? activity.main_category
+      : typeof activity.activity_type === "string"
+        ? activity.activity_type
+        : UNCATEGORIZED_GROUP;
+}
+
+function getActivityGroupLabel(group: string) {
+  if (group === UNCATEGORIZED_GROUP) return "Bez kategorii";
+  return ACTIVITY_TYPE_LABELS[group as keyof typeof ACTIVITY_TYPE_LABELS] ?? group;
+}
+
+function getActivityGroupIcon(group: string) {
+  if (group === UNCATEGORIZED_GROUP) return "✨";
+  return ACTIVITY_TYPE_ICONS[group as keyof typeof ACTIVITY_TYPE_ICONS] ?? "✨";
+}
+
+function sortActivityGroupKeys(keys: string[]) {
+  return [...keys].sort((left, right) => {
+    if (left === UNCATEGORIZED_GROUP) return 1;
+    if (right === UNCATEGORIZED_GROUP) return -1;
+    return getActivityGroupLabel(left).localeCompare(getActivityGroupLabel(right), "pl");
+  });
 }
 
 function parseStructuredText(text: string) {
@@ -279,7 +308,7 @@ export default function AdminActivitiesPage() {
   };
 
   const filteredActivities = useMemo(() => {
-    const scopedActivities = typeFilter ? activities.filter((activity) => activity.activity_type === typeFilter) : activities;
+    const scopedActivities = typeFilter ? activities.filter((activity) => getActivityGroupKey(activity) === typeFilter) : activities;
     if (statusFilter === "all") return scopedActivities;
     if (statusFilter === "draft") {
       return scopedActivities.filter((activity) => {
@@ -290,11 +319,17 @@ export default function AdminActivitiesPage() {
     return scopedActivities.filter((activity) => getEffectiveStatus(activity) === statusFilter);
   }, [activities, getEffectiveStatus, statusFilter, typeFilter]);
 
+  const allGroupKeys = useMemo(() => {
+    const groups = new Set<string>();
+    activities.forEach((activity) => groups.add(getActivityGroupKey(activity)));
+    return sortActivityGroupKeys(Array.from(groups));
+  }, [activities]);
+
   const groupedActivities = useMemo(
-    () => ACTIVITY_ORDER.map((type) => ({
+    () => allGroupKeys.map((type) => ({
       type,
       items: filteredActivities
-        .filter((activity) => activity.activity_type === type)
+        .filter((activity) => getActivityGroupKey(activity) === type)
         .sort((left, right) => {
           const statusDiff = statusOrder[getEffectiveStatus(left)] - statusOrder[getEffectiveStatus(right)];
           if (statusDiff !== 0) return statusDiff;
@@ -303,7 +338,7 @@ export default function AdminActivitiesPage() {
           return left.title.localeCompare(right.title, "pl");
         }),
     })),
-    [filteredActivities, getEffectiveStatus]
+    [allGroupKeys, filteredActivities, getEffectiveStatus]
   );
 
   const publishedCount = useMemo(
@@ -324,8 +359,8 @@ export default function AdminActivitiesPage() {
 
   const sectionStats = useMemo(
     () => Object.fromEntries(
-      ACTIVITY_ORDER.map((type) => {
-        const typeActivities = activities.filter((activity) => activity.activity_type === type);
+      allGroupKeys.map((type) => {
+        const typeActivities = activities.filter((activity) => getActivityGroupKey(activity) === type);
         const published = typeActivities.filter((activity) => getEffectiveStatus(activity) === "published").length;
         const draft = typeActivities.filter((activity) => {
           const effectiveStatus = getEffectiveStatus(activity);
@@ -335,12 +370,12 @@ export default function AdminActivitiesPage() {
         return [type, { all: typeActivities.length, published, draft, outdated }];
       })
     ),
-    [activities, getEffectiveStatus]
+    [activities, allGroupKeys, getEffectiveStatus]
   );
 
   const visibleTypeKeys = useMemo(
-    () => ACTIVITY_ORDER.filter((type) => !typeFilter || type === typeFilter),
-    [typeFilter]
+    () => sortActivityGroupKeys(Array.from(new Set(filteredActivities.map((activity) => getActivityGroupKey(activity))))),
+    [filteredActivities]
   );
 
   const hasExpandedCategories = useMemo(
@@ -357,9 +392,9 @@ export default function AdminActivitiesPage() {
     setTypeFilter(null);
     setStatusFilter(nextFilter);
     const nextCollapsed = Object.fromEntries(
-      ACTIVITY_ORDER.map((type) => {
+      allGroupKeys.map((type) => {
         const matchingItems = activities.filter((activity) => {
-          if (activity.activity_type !== type) return false;
+          if (getActivityGroupKey(activity) !== type) return false;
           if (nextFilter === "all") return true;
           if (nextFilter === "draft") {
             const effectiveStatus = getEffectiveStatus(activity);
@@ -787,8 +822,8 @@ export default function AdminActivitiesPage() {
                 <div className="w-full flex items-center gap-2 mb-2 rounded-md px-1.5 py-1 hover:bg-accent/50 transition-colors">
                   <button type="button" onClick={() => toggleCategory(type)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
                     {expanded ? <ChevronDown size={14} className="text-muted-foreground" /> : <ChevronRight size={14} className="text-muted-foreground" />}
-                    <span className="text-lg">{ACTIVITY_TYPE_ICONS[type]}</span>
-                    <h2 className="text-[13px] font-semibold text-foreground">{ACTIVITY_TYPE_LABELS[type]}</h2>
+                    <span className="text-lg">{getActivityGroupIcon(type)}</span>
+                    <h2 className="text-[13px] font-semibold text-foreground">{getActivityGroupLabel(type)}</h2>
                   </button>
                   <div className="flex flex-wrap items-center gap-1 text-[10px]">
                     <button type="button" onClick={() => toggleTypeStatusFilter(type, "all")} className={cn("px-1.5 py-0.5 rounded-full font-medium transition-colors", typeFilter === type && statusFilter === "all" ? "bg-sky-200 text-sky-800" : "bg-sky-100 text-sky-700 hover:bg-sky-200")}>{stats.all} all</button>
@@ -1021,6 +1056,8 @@ export default function AdminActivitiesPage() {
                                     onClearPending={clearPendingFile}
                                     table="activities"
                                     itemId={activity.id}
+                                    typeLvl1Id={String(editForm.type_lvl_1_id || activity.type_lvl_1_id || activity.type_id || "") || null}
+                                    typeLvl2Id={String(editForm.type_lvl_2_id || activity.type_lvl_2_id || activity.subtype_id || "") || null}
                                     categoryLvl1={String(editForm.category_lvl_1 || activity.category_lvl_1 || activity.main_category || "")}
                                     categoryLvl2={String(editForm.category_lvl_2 || activity.category_lvl_2 || activity.category || "")}
                                     categoryLvl3={String(editForm.category_lvl_3 || activity.category_lvl_3 || activity.subcategory || "")}

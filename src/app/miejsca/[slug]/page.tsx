@@ -18,6 +18,16 @@ export const revalidate = 60;
 
 interface PageProps { params: Promise<{ slug: string }>; }
 
+function getPlaceCategoryLabel(value: string | null | undefined) {
+  if (!value) return "Miejsce";
+  return PLACE_TYPE_LABELS[value as keyof typeof PLACE_TYPE_LABELS] ?? value;
+}
+
+function getPlaceCategoryIcon(value: string | null | undefined) {
+  if (!value) return "📍";
+  return PLACE_TYPE_ICONS[value as keyof typeof PLACE_TYPE_ICONS] ?? "📍";
+}
+
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.niesiedzwdomu.pl";
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -63,6 +73,7 @@ export default async function PlaceDetailPage({ params }: PageProps) {
   const { slug } = await params;
   const place = await getPlaceBySlug(slug);
   if (!place) notFound();
+  const placeCategory = place.category_lvl_1 ?? place.main_category ?? place.place_type;
 
   const placeUrl = `${SITE_URL}/miejsca/${place.slug}`;
   const sameAsLinks = [place.source_url, place.facebook_url].filter(
@@ -123,8 +134,8 @@ export default async function PlaceDetailPage({ params }: PageProps) {
             <ArrowLeft size={11} /> Miejsca
           </Link>
           <span className="text-muted-foreground/30">·</span>
-          <span className="text-lg mr-0.5">{PLACE_TYPE_ICONS[place.place_type] || "📍"}</span>
-          <span className="text-primary">{PLACE_TYPE_LABELS[place.place_type] || "Miejsce"}</span>
+          <span className="text-lg mr-0.5">{getPlaceCategoryIcon(placeCategory)}</span>
+          <span className="text-primary">{getPlaceCategoryLabel(placeCategory)}</span>
           <span className="text-muted-foreground/30">·</span>
           <span className="text-muted-foreground">{place.is_indoor ? "Wewnątrz" : "Na zewnątrz"}</span>
           <span className="text-muted-foreground/30">·</span>
@@ -161,7 +172,7 @@ export default async function PlaceDetailPage({ params }: PageProps) {
               queryParts={[
                 place.title,
                 "Kraków",
-                `${PLACE_TYPE_LABELS[place.place_type] || place.place_type} miejsce dla dzieci`,
+                `${getPlaceCategoryLabel(placeCategory)} miejsce dla dzieci`,
                 "najważniejsze informacje",
                 "dla kogo",
                 "cennik",

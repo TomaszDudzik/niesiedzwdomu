@@ -23,6 +23,169 @@ function toSlug(value: string) {
   );
 }
 
+function normalizeActivityPayload(input: Record<string, unknown>) {
+  const payload = { ...input };
+
+  const typeLevel1 = payload.type_lvl_1_id ?? payload.type_id ?? null;
+  if (typeLevel1 !== null) {
+    payload.type_lvl_1_id = typeLevel1;
+    payload.type_id = typeLevel1;
+  }
+
+  const typeLevel2 = payload.type_lvl_2_id ?? payload.subtype_id ?? null;
+  if (typeLevel2 !== null) {
+    payload.type_lvl_2_id = typeLevel2;
+    payload.subtype_id = typeLevel2;
+  }
+
+  const categoryLevel1 = payload.category_lvl_1 ?? payload.main_category ?? null;
+  if (categoryLevel1 !== null) {
+    payload.category_lvl_1 = categoryLevel1;
+    payload.main_category = categoryLevel1;
+  }
+
+  const categoryLevel2 = payload.category_lvl_2 ?? payload.category ?? null;
+  if (categoryLevel2 !== null) {
+    payload.category_lvl_2 = categoryLevel2;
+    payload.category = categoryLevel2;
+  }
+
+  const categoryLevel3 = payload.category_lvl_3 ?? payload.subcategory ?? null;
+  if (categoryLevel3 !== null) {
+    payload.category_lvl_3 = categoryLevel3;
+    payload.subcategory = categoryLevel3;
+  }
+
+  return payload;
+}
+
+function withLegacyActivityTaxonomy(input: Record<string, unknown>) {
+  const payload = { ...input };
+
+  if ("type_lvl_1_id" in payload) {
+    payload.type_id = payload.type_lvl_1_id ?? null;
+    delete payload.type_lvl_1_id;
+  }
+
+  if ("type_lvl_2_id" in payload) {
+    payload.subtype_id = payload.type_lvl_2_id ?? null;
+    delete payload.type_lvl_2_id;
+  }
+
+  if ("category_lvl_1" in payload) {
+    payload.main_category = payload.category_lvl_1 ?? null;
+    delete payload.category_lvl_1;
+  }
+
+  if ("category_lvl_2" in payload) {
+    payload.category = payload.category_lvl_2 ?? null;
+    delete payload.category_lvl_2;
+  }
+
+  if ("category_lvl_3" in payload) {
+    payload.subcategory = payload.category_lvl_3 ?? null;
+    delete payload.category_lvl_3;
+  }
+
+  return payload;
+}
+
+function normalizeActivityRecord(record: Record<string, unknown>) {
+  const typeLevel1 = record.type_lvl_1_id ?? record.type_id ?? null;
+  const typeLevel2 = record.type_lvl_2_id ?? record.subtype_id ?? null;
+  const categoryLevel1 = record.category_lvl_1 ?? record.main_category ?? null;
+  const categoryLevel2 = record.category_lvl_2 ?? record.category ?? null;
+  const categoryLevel3 = record.category_lvl_3 ?? record.subcategory ?? null;
+
+  return {
+    ...record,
+    type_lvl_1_id: typeLevel1,
+    type_lvl_2_id: typeLevel2,
+    type_id: typeLevel1,
+    subtype_id: typeLevel2,
+    category_lvl_1: categoryLevel1,
+    category_lvl_2: categoryLevel2,
+    category_lvl_3: categoryLevel3,
+    main_category: categoryLevel1,
+    category: categoryLevel2,
+    subcategory: categoryLevel3,
+  };
+}
+
+function isMissingNewActivityTaxonomyColumn(message: string | undefined) {
+  if (!message) return false;
+
+  return [
+    "type_lvl_1_id",
+    "type_lvl_2_id",
+    "category_lvl_1",
+    "category_lvl_2",
+    "category_lvl_3",
+  ].some((columnName) => message.includes(`'${columnName}'`) || message.includes(`\"${columnName}\"`));
+}
+
+function getMissingSchemaColumn(message: string | undefined) {
+  if (!message) return null;
+
+  const singleQuoteMatch = message.match(/'([^']+)' column/);
+  if (singleQuoteMatch?.[1]) return singleQuoteMatch[1];
+
+  const doubleQuoteMatch = message.match(/"([^"]+)" column/);
+  if (doubleQuoteMatch?.[1]) return doubleQuoteMatch[1];
+
+  return null;
+}
+
+async function insertActivityWithFallback(db: ReturnType<typeof getDb>, payload: Record<string, unknown>) {
+  let currentPayload = { ...payload };
+  let attemptedLegacyMapping = false;
+
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const result = await db.from("activities").insert(currentPayload).select().single();
+    if (!result.error) return result;
+
+    if (!attemptedLegacyMapping && isMissingNewActivityTaxonomyColumn(result.error.message)) {
+      currentPayload = withLegacyActivityTaxonomy(currentPayload);
+      attemptedLegacyMapping = true;
+      continue;
+    }
+
+    const missingColumn = getMissingSchemaColumn(result.error.message);
+    if (!missingColumn || !(missingColumn in currentPayload)) {
+      return result;
+    }
+
+    delete currentPayload[missingColumn];
+  }
+
+  return db.from("activities").insert(currentPayload).select().single();
+}
+
+async function updateActivityWithFallback(db: ReturnType<typeof getDb>, id: unknown, updates: Record<string, unknown>) {
+  let currentUpdates = { ...updates };
+  let attemptedLegacyMapping = false;
+
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const result = await db.from("activities").update(currentUpdates).eq("id", id).select();
+    if (!result.error) return result;
+
+    if (!attemptedLegacyMapping && isMissingNewActivityTaxonomyColumn(result.error.message)) {
+      currentUpdates = withLegacyActivityTaxonomy(currentUpdates);
+      attemptedLegacyMapping = true;
+      continue;
+    }
+
+    const missingColumn = getMissingSchemaColumn(result.error.message);
+    if (!missingColumn || !(missingColumn in currentUpdates)) {
+      return result;
+    }
+
+    delete currentUpdates[missingColumn];
+  }
+
+  return db.from("activities").update(currentUpdates).eq("id", id).select();
+}
+
 function pickActivityFields(input: Record<string, unknown>) {
   return {
     title: input.title,
@@ -64,7 +227,7 @@ export async function GET() {
   const { data, error } = await db.from("activities").select("*").order("title", { ascending: true });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+  return NextResponse.json(Array.isArray(data) ? data.map((record) => normalizeActivityRecord(record as Record<string, unknown>)) : []);
 }
 
 export async function POST(request: NextRequest) {
@@ -73,12 +236,12 @@ export async function POST(request: NextRequest) {
   const slug = toSlug(typeof body.title === "string" ? body.title : "nowe-zajecia");
 
   const payload = {
-    ...pickActivityFields(body),
+    ...pickActivityFields(normalizeActivityPayload(body)),
     slug,
     status: "draft",
   };
 
-  const { data, error } = await db.from("activities").insert(payload).select().single();
+  const { data, error } = await insertActivityWithFallback(db, payload);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
@@ -86,7 +249,7 @@ export async function POST(request: NextRequest) {
   revalidatePath("/zajecia");
   revalidatePath("/admin/zajecia");
 
-  return NextResponse.json(data);
+  return NextResponse.json(normalizeActivityRecord(data as Record<string, unknown>));
 }
 
 const ALLOWED_ACTIVITY_FIELDS = new Set([
@@ -109,10 +272,10 @@ export async function PATCH(request: NextRequest) {
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
   const patch = Object.fromEntries(
-    Object.entries(updates).filter(([k, v]) => ALLOWED_ACTIVITY_FIELDS.has(k) && v !== undefined)
+    Object.entries(normalizeActivityPayload(updates)).filter(([k, v]) => ALLOWED_ACTIVITY_FIELDS.has(k) && v !== undefined)
   );
 
-  const { data, error } = await db.from("activities").update(patch).eq("id", id).select();
+  const { data, error } = await updateActivityWithFallback(db, id, patch);
   if (error) return NextResponse.json({ error: error.message, details: error }, { status: 500 });
   if (!data || data.length === 0) return NextResponse.json({ error: "No rows updated - check id or RLS" }, { status: 404 });
 
@@ -120,7 +283,7 @@ export async function PATCH(request: NextRequest) {
   revalidatePath("/zajecia");
   revalidatePath("/admin/zajecia");
 
-  return NextResponse.json({ ok: true, updated: data[0] });
+  return NextResponse.json({ ok: true, updated: normalizeActivityRecord(data[0] as Record<string, unknown>) });
 }
 
 export async function DELETE(request: NextRequest) {

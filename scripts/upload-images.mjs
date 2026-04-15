@@ -1,11 +1,11 @@
 /**
- * Resize images and upload to Supabase Storage.
+ * Resize new local images and upload them to Supabase Storage.
  *
- * Walks the folder tree under `photo/` and uses the directory structure
- * directly as the storage path.  e.g.:
- *   photo/kolonie/sportowe/pilka_nozna/img1.jpg
- *   → bucket: kolonie/sportowe/pilka_nozna/img1-cover.webp
- *   → bucket: kolonie/sportowe/pilka_nozna/img1-thumb.webp
+ * Walks the folder tree under `photos/` or `photo/` and uses the directory
+ * structure directly as the storage path. New files are assigned the next
+ * numeric image set id found in Storage for that folder. After a successful
+ * upload, local `cover` and `thumb` files are kept on disk while the original
+ * input file is deleted so the script stays incremental.
  *
  * Usage:
  *   node scripts/upload-images.mjs                          # all folders
@@ -55,6 +55,10 @@ const PRESETS = [
   { suffix: 'thumb', width: 480, quality: 70 },
 ]
 
+function isGeneratedVariant(filename) {
+  return /^\d{3,}-(cover|thumb)\.webp$/i.test(filename)
+}
+
 async function ensureBucket() {
   const { data } = await supabase.storage.getBucket(BUCKET)
   if (!data) {
@@ -77,8 +81,54 @@ async function uploadBuffer(storagePath, buffer) {
   }
 }
 
+async function listStorageFiles(storageDirPath) {
+  const files = []
+  let offset = 0
+
+  while (true) {
+    const { data, error } = await supabase.storage
+      .from(BUCKET)
+      .list(storageDirPath, {
+        limit: 100,
+        offset,
+        sortBy: { column: 'name', order: 'asc' },
+      })
+
+    if (error) {
+      throw new Error(`Failed to list storage folder ${storageDirPath}: ${error.message}`)
+    }
+
+    if (!data || data.length === 0) {
+      break
+    }
+
+    files.push(...data)
+
+    if (data.length < 100) {
+      break
+    }
+
+    offset += data.length
+  }
+
+  return files
+}
+
+function getNextSetNumber(files) {
+  const maxUsed = files.reduce((highest, file) => {
+    const match = /^([0-9]+)-(cover|thumb)\.webp$/i.exec(file.name)
+    if (!match) return highest
+
+    const numericId = Number.parseInt(match[1], 10)
+    return Number.isNaN(numericId) ? highest : Math.max(highest, numericId)
+  }, 0)
+
+  return maxUsed + 1
+}
+
 async function processImage(localFilePath, storageDirPath, setId) {
   const inputBuffer = await fs.readFile(localFilePath)
+  const localDirPath = path.dirname(localFilePath)
 
   for (const preset of PRESETS) {
     const outBuffer = await sharp(inputBuffer)
@@ -86,23 +136,42 @@ async function processImage(localFilePath, storageDirPath, setId) {
       .webp({ quality: preset.quality })
       .toBuffer()
 
+    const localOutputPath = path.join(localDirPath, `${setId}-${preset.suffix}.webp`)
     const storagePath = `${storageDirPath}/${setId}-${preset.suffix}.webp`
+
+    await fs.writeFile(localOutputPath, outBuffer)
+    console.log(`  Saved locally: ${path.basename(localOutputPath)}`)
+
     await uploadBuffer(storagePath, outBuffer)
     console.log(`  Uploaded: ${storagePath}`)
   }
+
+  await fs.unlink(localFilePath)
+  console.log(`  Deleted local original: ${path.basename(localFilePath)}`)
 }
 
 async function walk(dir) {
   const entries = await fs.readdir(dir, { withFileTypes: true })
-  const images = entries.filter(e => e.isFile() && IMAGE_EXTS.has(path.extname(e.name).toLowerCase()))
+  const images = entries
+    .filter((entry) => (
+      entry.isFile()
+      && IMAGE_EXTS.has(path.extname(entry.name).toLowerCase())
+      && !isGeneratedVariant(entry.name)
+    ))
+    .sort((left, right) => left.name.localeCompare(right.name, 'en'))
 
   if (images.length > 0) {
     const storageDirPath = path.relative(PHOTO_DIR, dir).split(path.sep).join('/')
-    console.log(`\n${storageDirPath} (${images.length} images)`)
+    const existingFiles = await listStorageFiles(storageDirPath)
+    let nextSetNumber = getNextSetNumber(existingFiles)
 
-    for (let i = 0; i < images.length; i++) {
-      const setId = String(i + 1).padStart(3, '0')
-      await processImage(path.join(dir, images[i].name), storageDirPath, setId)
+    console.log(`\n${storageDirPath} (${images.length} new images, next id ${String(nextSetNumber).padStart(3, '0')})`)
+
+    for (const image of images) {
+      const setId = String(nextSetNumber).padStart(3, '0')
+      console.log(` Processing ${image.name} -> ${setId}`)
+      await processImage(path.join(dir, image.name), storageDirPath, setId)
+      nextSetNumber += 1
     }
 
     return images.length

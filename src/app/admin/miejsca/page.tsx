@@ -14,6 +14,39 @@ import { useAdminTaxonomy } from "@/lib/use-admin-taxonomy";
 
 const MiniMapLazy = lazy(() => import("./mini-map").then((m) => ({ default: m.MiniMap })));
 type PlaceListFilter = "all" | "published" | "draft";
+const UNCATEGORIZED_KEY = "__uncategorized__";
+
+function getPlaceMainCategory(place: Partial<Place> | Record<string, unknown>) {
+  return typeof place.category_lvl_1 === "string"
+    ? place.category_lvl_1
+    : typeof place.main_category === "string"
+      ? place.main_category
+      : typeof place.place_type === "string"
+        ? place.place_type
+        : null;
+}
+
+function getPlaceCategoryLabel(category: string | null) {
+  if (!category || category === UNCATEGORIZED_KEY) return "Bez kategorii";
+  return PLACE_TYPE_LABELS[category as keyof typeof PLACE_TYPE_LABELS] ?? category;
+}
+
+function getPlaceCategoryIcon(category: string | null) {
+  if (!category || category === UNCATEGORIZED_KEY) return "📍";
+  return PLACE_TYPE_ICONS[category as keyof typeof PLACE_TYPE_ICONS] ?? "📍";
+}
+
+function getPlaceGroupKey(place: Partial<Place> | Record<string, unknown>) {
+  return getPlaceMainCategory(place) ?? UNCATEGORIZED_KEY;
+}
+
+function sortPlaceGroupKeys(keys: string[]) {
+  return [...keys].sort((left, right) => {
+    if (left === UNCATEGORIZED_KEY) return 1;
+    if (right === UNCATEGORIZED_KEY) return -1;
+    return getPlaceCategoryLabel(left).localeCompare(getPlaceCategoryLabel(right), "pl");
+  });
+}
 
 export default function AdminPlacesPage() {
   const { typeLevel1Options, typeLevel2Options, categoryLevel1Options, categoryLevel2Options, categoryLevel3Options, loading: taxonomyLoading } = useAdminTaxonomy();
@@ -120,7 +153,7 @@ export default function AdminPlacesPage() {
     title: ["title", "tytuł", "tytul", "nazwa", "name"],
     description_short: ["description_short", "krótki opis", "krotki opis", "opis krótki", "short description", "opis"],
     description_long: ["description_long", "długi opis", "dlugi opis", "opis długi", "long description"],
-    place_type: ["place_type", "typ", "type", "kategoria", "category"],
+    category_lvl_1: ["category_lvl_1", "main_category", "place_type", "typ", "type", "kategoria glowna", "kategoria", "category"],
     street: ["street", "ulica", "adres", "address"],
     city: ["city", "miasto"],
     district: ["district", "dzielnica"],
@@ -150,7 +183,7 @@ export default function AdminPlacesPage() {
 
     for (let i = 0; i < pastePreview.length; i++) {
       const row = pastePreview[i];
-      const place: Record<string, unknown> = { city: "Kraków", district: "Inne", place_type: "inne" };
+      const place: Record<string, unknown> = { city: "Kraków", district: "Inne", category_lvl_1: null };
       for (const header of pasteHeaders) {
         const field = resolveField(header);
         if (!field || !row[header]) continue;
@@ -227,25 +260,31 @@ export default function AdminPlacesPage() {
   useEffect(() => { fetchPlaces(); }, [fetchPlaces]);
 
   const filteredPlaces = useMemo(() => {
-    const scopedPlaces = typeFilter ? places.filter((place) => place.place_type === typeFilter) : places;
+    const scopedPlaces = typeFilter ? places.filter((place) => getPlaceGroupKey(place) === typeFilter) : places;
     if (statusFilter === "all") return scopedPlaces;
     if (statusFilter === "published") return scopedPlaces.filter((place) => place.status === "published");
     return scopedPlaces.filter((place) => place.status !== "published");
   }, [places, typeFilter, statusFilter]);
-  const displayedTypeKeys = useMemo(
-    () => Object.keys(PLACE_TYPE_LABELS).filter((type) => !typeFilter || type === typeFilter),
-    [typeFilter]
-  );
+  const allTypeKeys = useMemo(() => {
+    const categories = new Set<string>();
+    places.forEach((place) => categories.add(getPlaceGroupKey(place)));
+    return sortPlaceGroupKeys(Array.from(categories));
+  }, [places]);
+  const displayedTypeKeys = useMemo(() => {
+    const categories = new Set<string>();
+    filteredPlaces.forEach((place) => categories.add(getPlaceGroupKey(place)));
+    return sortPlaceGroupKeys(Array.from(categories));
+  }, [filteredPlaces]);
 
   const publishedCount = useMemo(() => places.filter((place) => place.status === "published").length, [places]);
   const draftCount = useMemo(() => places.filter((place) => place.status !== "published").length, [places]);
   const sectionStats = useMemo(() => Object.fromEntries(
-    Object.keys(PLACE_TYPE_LABELS).map((type) => {
-      const typePlaces = places.filter((place) => place.place_type === type);
+    allTypeKeys.map((type) => {
+      const typePlaces = places.filter((place) => getPlaceGroupKey(place) === type);
       const published = typePlaces.filter((place) => place.status === "published").length;
       return [type, { all: typePlaces.length, published, draft: typePlaces.length - published }];
     })
-  ), [places]);
+  ), [allTypeKeys, places]);
   const visibleTypeKeys = useMemo(() => displayedTypeKeys, [displayedTypeKeys]);
   const hasExpandedCategories = useMemo(() => visibleTypeKeys.some((type) => !collapsedCategories[type]), [visibleTypeKeys, collapsedCategories]);
 
@@ -261,9 +300,9 @@ export default function AdminPlacesPage() {
     setTypeFilter(null);
     setStatusFilter(nextFilter);
     const nextCollapsed = Object.fromEntries(
-      Object.keys(PLACE_TYPE_LABELS).map((type) => {
+      allTypeKeys.map((type) => {
         const matchingItems = places.filter((place) => {
-          if (place.place_type !== type) return false;
+          if (getPlaceGroupKey(place) !== type) return false;
           if (nextFilter === "all") return true;
           if (nextFilter === "published") return place.status === "published";
           return place.status !== "published";
@@ -326,7 +365,6 @@ export default function AdminPlacesPage() {
       category_lvl_1: place.category_lvl_1 ?? place.main_category ?? null,
       category_lvl_2: place.category_lvl_2 ?? place.category ?? null,
       category_lvl_3: place.category_lvl_3 ?? place.subcategory ?? null,
-      place_type: place.place_type,
       street: place.street,
       city: place.city,
       district: place.district,
@@ -375,7 +413,6 @@ export default function AdminPlacesPage() {
       category_lvl_1: editForm.category_lvl_1 ? String(editForm.category_lvl_1) : null,
       category_lvl_2: editForm.category_lvl_2 ? String(editForm.category_lvl_2) : null,
       category_lvl_3: editForm.category_lvl_3 ? String(editForm.category_lvl_3) : null,
-      place_type: editForm.place_type,
       is_indoor: editForm.is_indoor,
       street: editForm.street || "",
       city: editForm.city || "Kraków",
@@ -477,7 +514,7 @@ export default function AdminPlacesPage() {
     const res = await fetch("/api/admin/places", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: "Nowe miejsce", place_type: "inne", street: "", city: "Kraków", district: "Inne" }),
+      body: JSON.stringify({ title: "Nowe miejsce", category_lvl_1: null, street: "", city: "Kraków", district: "Inne" }),
     });
     const data = await res.json();
     if (data.id) {
@@ -547,9 +584,9 @@ export default function AdminPlacesPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          {Object.entries(PLACE_TYPE_LABELS).filter(([type]) => !typeFilter || type === typeFilter).map(([type, label]) => {
+          {displayedTypeKeys.map((type) => {
             const typePlaces = [...filteredPlaces]
-              .filter((p) => p.place_type === type)
+              .filter((p) => getPlaceGroupKey(p) === type)
               .sort((a, b) => {
                 const statusDiff = statusOrder[a.status] - statusOrder[b.status];
                 if (statusDiff !== 0) return statusDiff;
@@ -566,8 +603,8 @@ export default function AdminPlacesPage() {
                     className="flex min-w-0 flex-1 items-center gap-2 text-left"
                   >
                     {expandedCategory ? <ChevronDown size={14} className="text-muted-foreground" /> : <ChevronRight size={14} className="text-muted-foreground" />}
-                    <span className="text-lg">{PLACE_TYPE_ICONS[type as keyof typeof PLACE_TYPE_ICONS] || "📍"}</span>
-                    <h2 className="text-[13px] font-semibold text-foreground">{label}</h2>
+                    <span className="text-lg">{getPlaceCategoryIcon(type)}</span>
+                    <h2 className="text-[13px] font-semibold text-foreground">{getPlaceCategoryLabel(type)}</h2>
                   </button>
                   <div className="flex flex-wrap items-center gap-1 text-[10px]">
                     <button type="button" onClick={() => toggleTypeStatusFilter(type, "all")} className={cn("px-1.5 py-0.5 rounded-full font-medium transition-colors", typeFilter === type && statusFilter === "all" ? "bg-sky-200 text-sky-800" : "bg-sky-100 text-sky-700 hover:bg-sky-200")}>{stats.all} all</button>
@@ -597,7 +634,7 @@ export default function AdminPlacesPage() {
                   </span>
 
                   {/* Type icon */}
-                  <span className="shrink-0 text-lg">{PLACE_TYPE_ICONS[place.place_type] || "📍"}</span>
+                  <span className="shrink-0 text-lg">{getPlaceCategoryIcon(getPlaceMainCategory(place))}</span>
 
                   {/* Image thumbnail */}
                   {place.image_url ? (
@@ -610,7 +647,7 @@ export default function AdminPlacesPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-[13px] font-medium text-foreground truncate">{place.title}</p>
                     <div className="flex items-center gap-1.5 text-[11px] text-muted mt-0.5">
-                      <span>{PLACE_TYPE_LABELS[place.place_type] || place.place_type}</span>
+                      <span>{getPlaceCategoryLabel(getPlaceMainCategory(place))}</span>
                       <span className="opacity-40">·</span>
                       <span>{place.is_indoor ? "Wewnątrz" : "Na zewnątrz"}</span>
                       {place.street && (
@@ -698,14 +735,6 @@ export default function AdminPlacesPage() {
                         <label className={labelClass}>Wiek do</label>
                         <input type="number" min={0} max={18} className={inputClass} value={(editForm.age_max as number) ?? ""} onChange={(e) => updateField("age_max", e.target.value ? Number(e.target.value) : null)} />
                       </div>
-                      <div>
-                        <label className={labelClass}>Typ</label>
-                        <select className={inputClass} value={(editForm.place_type as string) || "inne"} onChange={(e) => updateField("place_type", e.target.value)}>
-                          {Object.entries(PLACE_TYPE_LABELS).map(([key, label]) => (
-                            <option key={key} value={key}>{label}</option>
-                          ))}
-                        </select>
-                      </div>
                       <div className="md:col-span-3 flex items-center gap-4 pt-5">
                         <label className="flex items-center gap-2 text-[12px] cursor-pointer">
                           <input type="checkbox" checked={Boolean(editForm.is_free)} onChange={(e) => updateField("is_free", e.target.checked)} className="rounded border-border" />
@@ -750,10 +779,20 @@ export default function AdminPlacesPage() {
                         loading={taxonomyLoading}
                         inputClass={inputClass}
                         labelClass={labelClass}
-                        onTypeLevel1Change={(value) => updateField("type_lvl_1_id", value)}
+                        onTypeLevel1Change={(value) => {
+                          updateField("type_lvl_1_id", value);
+                          updateField("type_lvl_2_id", null);
+                        }}
                         onTypeLevel2Change={(value) => updateField("type_lvl_2_id", value)}
-                        onCategoryLevel1Change={(value) => updateField("category_lvl_1", value)}
-                        onCategoryLevel2Change={(value) => updateField("category_lvl_2", value)}
+                        onCategoryLevel1Change={(value) => {
+                          updateField("category_lvl_1", value);
+                          updateField("category_lvl_2", null);
+                          updateField("category_lvl_3", null);
+                        }}
+                        onCategoryLevel2Change={(value) => {
+                          updateField("category_lvl_2", value);
+                          updateField("category_lvl_3", null);
+                        }}
                         onCategoryLevel3Change={(value) => updateField("category_lvl_3", value)}
                       />
 
@@ -839,6 +878,8 @@ export default function AdminPlacesPage() {
                         onClearPending={clearPendingFile}
                         table="places"
                         itemId={place.id}
+                        typeLvl1Id={String(editForm.type_lvl_1_id || place.type_lvl_1_id || place.type_id || "") || null}
+                        typeLvl2Id={String(editForm.type_lvl_2_id || place.type_lvl_2_id || place.subtype_id || "") || null}
                         categoryLvl1={String(editForm.category_lvl_1 || place.category_lvl_1 || place.main_category || "")}
                         categoryLvl2={String(editForm.category_lvl_2 || place.category_lvl_2 || place.category || "")}
                         categoryLvl3={String(editForm.category_lvl_3 || place.category_lvl_3 || place.subcategory || "")}

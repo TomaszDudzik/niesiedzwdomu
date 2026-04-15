@@ -17,10 +17,12 @@ interface ImageSectionProps {
   onClearPending: () => void;
   table: TableName;
   itemId: string;
+  typeLvl1Id?: string | null;
+  typeLvl2Id?: string | null;
   categoryLvl1: string | null;
   categoryLvl2: string | null;
   categoryLvl3: string | null;
-  onRandomPhoto: (imageUrl: string, thumbUrl: string) => void;
+  onRandomPhoto: (imageUrl: string, thumbUrl: string | null) => void;
 }
 
 export function ImageSection({
@@ -31,6 +33,8 @@ export function ImageSection({
   onClearPending,
   table,
   itemId,
+  typeLvl1Id,
+  typeLvl2Id,
   categoryLvl1,
   categoryLvl2,
   categoryLvl3,
@@ -87,7 +91,15 @@ export function ImageSection({
       const res = await fetch("/api/admin/random-photo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: itemId, category_lvl_1: categoryLvl1, category_lvl_2: categoryLvl2, category_lvl_3: categoryLvl3, table }),
+        body: JSON.stringify({
+          id: itemId,
+          type_lvl_1_id: typeLvl1Id,
+          type_lvl_2_id: typeLvl2Id,
+          category_lvl_1: categoryLvl1,
+          category_lvl_2: categoryLvl2,
+          category_lvl_3: categoryLvl3,
+          table,
+        }),
       });
       const data = await res.json();
       if (data.image_url) {

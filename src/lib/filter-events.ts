@@ -100,7 +100,7 @@ export function filterCamps(camps: Camp[], filters: CampFilters): Camp[] {
 export function filterPlaces(places: Place[], filters: PlaceFilters): Place[] {
   return places.filter((place) => {
     if (place.status !== "published") return false;
-    if (filters.placeType && place.place_type !== filters.placeType) return false;
+    if (filters.placeType && (place.category_lvl_1 ?? place.main_category ?? place.place_type) !== filters.placeType) return false;
     if (filters.district && place.district !== filters.district) return false;
     if (filters.isFree && !place.is_free) return false;
     if (filters.isIndoor !== undefined && place.is_indoor !== filters.isIndoor) return false;

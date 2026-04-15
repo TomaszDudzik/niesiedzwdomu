@@ -17,6 +17,7 @@ interface TaxonomyFieldsProps {
   categoryLevel1Options: AdminCategoryLevel1[];
   categoryLevel2Options: AdminCategoryLevel2[];
   categoryLevel3Options: AdminCategoryLevel3[];
+  showTypeFields?: boolean;
   selectedTypeLevel1Id: string | null;
   selectedTypeLevel2Id: string | null;
   selectedCategoryLevel1: string | null;
@@ -38,6 +39,7 @@ export function TaxonomyFields({
   categoryLevel1Options,
   categoryLevel2Options,
   categoryLevel3Options,
+  showTypeFields = true,
   selectedTypeLevel1Id,
   selectedTypeLevel2Id,
   selectedCategoryLevel1,
@@ -57,47 +59,49 @@ export function TaxonomyFields({
   const categoryLevel2ForCategoryLevel1 = getCategoryLevel2ForCategoryLevel1(categoryLevel2Options, selectedCategoryLevel1Entry?.id);
   const selectedCategoryLevel2Entry = categoryLevel2ForCategoryLevel1.find((entry) => entry.name === selectedCategoryLevel2) ?? null;
   const categoryLevel3ForCategoryLevel2 = getCategoryLevel3ForCategoryLevel2(categoryLevel3Options, selectedCategoryLevel2Entry?.id);
-  const selectClass = `${inputClass} min-h-11 w-full min-w-[220px]`;
+  const selectClass = `${inputClass} w-full min-w-0`;
 
   return (
     <>
-      <div className="md:col-span-4 grid gap-3 md:grid-cols-2">
-        <div>
-          <label className={labelClass}>Type lvl 1</label>
-          <select
-            className={selectClass}
-            value={selectedTypeLevel1Id ?? ""}
-            onChange={(event) => {
-              const nextTypeLevel1Id = event.target.value || null;
-              onTypeLevel1Change(nextTypeLevel1Id);
-              onTypeLevel2Change(null);
-            }}
-            disabled={loading}
-          >
-            <option value="">{loading ? "Ładowanie..." : "— brak —"}</option>
-            {typeLevel1Options.map((entry) => (
-              <option key={entry.id} value={entry.id}>{entry.name}</option>
-            ))}
-          </select>
+      {showTypeFields && (
+        <div className="md:col-span-4 grid gap-3 md:grid-cols-12">
+          <div className="md:col-span-6">
+            <label className={labelClass}>Type lvl 1</label>
+            <select
+              className={selectClass}
+              value={selectedTypeLevel1Id ?? ""}
+              onChange={(event) => {
+                const nextTypeLevel1Id = event.target.value || null;
+                onTypeLevel1Change(nextTypeLevel1Id);
+                onTypeLevel2Change(null);
+              }}
+              disabled={loading}
+            >
+              <option value="">{loading ? "Ładowanie..." : "— brak —"}</option>
+              {typeLevel1Options.map((entry) => (
+                <option key={entry.id} value={entry.id}>{entry.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="md:col-span-6">
+            <label className={labelClass}>Type lvl 2</label>
+            <select
+              className={selectClass}
+              value={selectedTypeLevel2Id ?? ""}
+              onChange={(event) => onTypeLevel2Change(event.target.value || null)}
+              disabled={loading || !selectedTypeLevel1Id}
+            >
+              <option value="">{selectedTypeLevel1Id ? "— brak —" : "Najpierw wybierz type lvl 1"}</option>
+              {typeLevel2ForTypeLevel1.map((entry) => (
+                <option key={entry.id} value={entry.id}>{entry.name}</option>
+              ))}
+            </select>
+          </div>
         </div>
-        <div>
-          <label className={labelClass}>Type lvl 2</label>
-          <select
-            className={selectClass}
-            value={selectedTypeLevel2Id ?? ""}
-            onChange={(event) => onTypeLevel2Change(event.target.value || null)}
-            disabled={loading || !selectedTypeLevel1Id}
-          >
-            <option value="">{selectedTypeLevel1Id ? "— brak —" : "Najpierw wybierz type lvl 1"}</option>
-            {typeLevel2ForTypeLevel1.map((entry) => (
-              <option key={entry.id} value={entry.id}>{entry.name}</option>
-            ))}
-          </select>
-        </div>
-      </div>
+      )}
 
-      <div className="md:col-span-4 grid gap-3 md:grid-cols-3">
-        <div>
+      <div className="md:col-span-4 grid gap-3 md:grid-cols-12">
+        <div className="md:col-span-4">
           <label className={labelClass}>Category lvl 1</label>
           <select
             className={selectClass}
@@ -116,7 +120,7 @@ export function TaxonomyFields({
             ))}
           </select>
         </div>
-        <div>
+        <div className="md:col-span-4">
           <label className={labelClass}>Category lvl 2</label>
           <select
             className={selectClass}
@@ -134,7 +138,7 @@ export function TaxonomyFields({
             ))}
           </select>
         </div>
-        <div>
+        <div className="md:col-span-4">
           <label className={labelClass}>Category lvl 3</label>
           <select
             className={selectClass}
