@@ -2,11 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { Search, LayoutGrid, MapIcon, SlidersHorizontal, X, MapPin, Check } from "lucide-react";
-import { ACTIVITY_TYPE_LABELS, ACTIVITY_TYPE_ICONS, DISTRICT_LIST } from "@/lib/mock-data";
+import { DISTRICT_LIST } from "@/lib/mock-data";
+import { ContentCard } from "@/components/ui/content-card";
+import { FilterSection } from "@/components/ui/filter-section";
 import { cn } from "@/lib/utils";
-import type { Activity, ActivityType, District } from "@/types/database";
-
-const activityTypes = Object.keys(ACTIVITY_TYPE_LABELS).filter((key) => key !== "inne") as ActivityType[];
+import { getTaxonomyOptions, matchesTaxonomyFilter } from "@/lib/taxonomy-filters";
+import type { Activity, District } from "@/types/database";
 
 const AGE_GROUPS = [
   { key: "0-4", label: "0–4 lata", icon: "👶", min: 0, max: 4 },
@@ -37,9 +38,23 @@ interface ActivitiesListViewProps {
   activities: Activity[];
 }
 
+function getActivityTypeValue(activity: Activity): string {
+  return activity.category_lvl_1 ?? activity.main_category ?? activity.activity_type ?? "Bez kategorii";
+}
+
+function getActivityCategoryValue(activity: Activity): string | null {
+  return activity.category_lvl_2 ?? activity.category ?? null;
+}
+
+function getActivitySubcategoryValue(activity: Activity): string | null {
+  return activity.category_lvl_3 ?? activity.subcategory ?? null;
+}
+
 export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
   const [search, setSearch] = useState("");
-  const [activeTypes, setActiveTypes] = useState<ActivityType[]>([]);
+  const [activeTypes, setActiveTypes] = useState<string[]>([]);
+  const [activeCategories, setActiveCategories] = useState<string[]>([]);
+  const [activeSubcategories, setActiveSubcategories] = useState<string[]>([]);
   const [activeDistricts, setActiveDistricts] = useState<District[]>([]);
   const [activeAgeGroups, setActiveAgeGroups] = useState<string[]>([]);
   const [view, setView] = useState<ViewMode>("list");
@@ -51,29 +66,119 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
   );
 
   const hasActiveFilters =
-    !!search || activeTypes.length > 0 || activeDistricts.length > 0 || activeAgeGroups.length > 0;
+    !!search || activeTypes.length > 0 || activeCategories.length > 0 || activeSubcategories.length > 0 || activeDistricts.length > 0 || activeAgeGroups.length > 0;
 
-  const typeCounts = useMemo(() => {
-    const counts = new Map<ActivityType, number>();
-    activities.forEach((activity) => {
-      counts.set(activity.activity_type, (counts.get(activity.activity_type) || 0) + 1);
-    });
-    return counts;
-  }, [activities]);
+  const baseFiltered = useMemo(() => {
+    let result = activities;
+
+    if (search) {
+      const query = search.toLowerCase();
+      result = result.filter((activity) =>
+        [activity.title, activity.description_short, activity.venue_name, activity.venue_address, activity.organizer]
+          .join(" ")
+          .toLowerCase()
+          .includes(query)
+      );
+    }
+
+    if (activeDistricts.length > 0) {
+      result = result.filter((activity) => activeDistricts.includes(activity.district));
+    }
+
+    if (ageGroups.length > 0) {
+      result = result.filter((activity) =>
+        ageGroups.some((group) =>
+          (activity.age_min === null || activity.age_min <= group.max) &&
+          (activity.age_max === null || activity.age_max >= group.min)
+        )
+      );
+    }
+
+    return result;
+  }, [activities, search, activeDistricts, ageGroups]);
+
+  const typeOptions = useMemo(
+    () => getTaxonomyOptions(baseFiltered, getActivityTypeValue),
+    [baseFiltered]
+  );
+
+  const typeOptionsByValue = useMemo(
+    () => new Map(typeOptions.map((option) => [option.value, option])),
+    [typeOptions]
+  );
+
+  const categorySource = useMemo(
+    () => baseFiltered.filter((activity) => matchesTaxonomyFilter(getActivityTypeValue(activity), activeTypes)),
+    [baseFiltered, activeTypes]
+  );
+
+  const categoryOptions = useMemo(
+    () => getTaxonomyOptions(categorySource, getActivityCategoryValue),
+    [categorySource]
+  );
+
+  const categoryOptionsByValue = useMemo(
+    () => new Map(categoryOptions.map((option) => [option.value, option])),
+    [categoryOptions]
+  );
+
+  const subcategorySource = useMemo(
+    () => categorySource.filter((activity) => matchesTaxonomyFilter(getActivityCategoryValue(activity), activeCategories)),
+    [categorySource, activeCategories]
+  );
+
+  const subcategoryOptions = useMemo(
+    () => getTaxonomyOptions(subcategorySource, getActivitySubcategoryValue),
+    [subcategorySource]
+  );
+
+  const subcategoryOptionsByValue = useMemo(
+    () => new Map(subcategoryOptions.map((option) => [option.value, option])),
+    [subcategoryOptions]
+  );
+
+  const filteredActivities = useMemo(
+    () => subcategorySource.filter((activity) => matchesTaxonomyFilter(getActivitySubcategoryValue(activity), activeSubcategories)),
+    [subcategorySource, activeSubcategories]
+  );
 
   const districtCounts = useMemo(() => {
     const counts = new Map<District, number>();
-    activities.forEach((activity) => {
+    baseFiltered.forEach((activity) => {
       counts.set(activity.district, (counts.get(activity.district) || 0) + 1);
     });
     return counts;
-  }, [activities]);
+  }, [baseFiltered]);
 
   const availableDistricts = useMemo(() => {
     const set = new Set<string>();
-    activities.forEach((activity) => set.add(activity.district));
+    baseFiltered.forEach((activity) => set.add(activity.district));
     return DISTRICT_LIST.filter((district) => set.has(district));
-  }, [activities]);
+  }, [baseFiltered]);
+
+  const grouped = useMemo(() => {
+    const groups: { type: string; label: string; icon: string; activities: Activity[] }[] = [];
+    const seen = new Set<string>();
+
+    for (const activity of filteredActivities) {
+      const type = getActivityTypeValue(activity);
+      const typeOption = typeOptionsByValue.get(type);
+
+      if (!seen.has(type)) {
+        seen.add(type);
+        groups.push({
+          type,
+          label: typeOption?.label || type,
+          icon: typeOption?.icon || "✨",
+          activities: [],
+        });
+      }
+
+      groups.find((group) => group.type === type)!.activities.push(activity);
+    }
+
+    return groups;
+  }, [filteredActivities, typeOptionsByValue]);
 
   const activeFilterBadges = useMemo(() => {
     const badges: { id: string; label: string; onRemove: () => void }[] = [];
@@ -83,10 +188,29 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
     }
 
     activeTypes.forEach((type) => {
+      const typeOption = typeOptionsByValue.get(type);
       badges.push({
         id: `type-${type}`,
-        label: `Typ: ${ACTIVITY_TYPE_LABELS[type]}`,
+        label: `Typ: ${typeOption?.label || type}`,
         onRemove: () => setActiveTypes((prev) => prev.filter((item) => item !== type)),
+      });
+    });
+
+    activeCategories.forEach((category) => {
+      const categoryOption = categoryOptionsByValue.get(category);
+      badges.push({
+        id: `category-${category}`,
+        label: `Kategoria: ${categoryOption?.label || category}`,
+        onRemove: () => setActiveCategories((prev) => prev.filter((item) => item !== category)),
+      });
+    });
+
+    activeSubcategories.forEach((subcategory) => {
+      const subcategoryOption = subcategoryOptionsByValue.get(subcategory);
+      badges.push({
+        id: `subcategory-${subcategory}`,
+        label: `Tematyka: ${subcategoryOption?.label || subcategory}`,
+        onRemove: () => setActiveSubcategories((prev) => prev.filter((item) => item !== subcategory)),
       });
     });
 
@@ -110,18 +234,35 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
     });
 
     return badges;
-  }, [search, activeTypes, activeAgeGroups, activeDistricts]);
+  }, [search, activeTypes, activeCategories, activeSubcategories, activeAgeGroups, activeDistricts, typeOptionsByValue, categoryOptionsByValue, subcategoryOptionsByValue]);
 
   function clearFilters() {
     setSearch("");
     setActiveTypes([]);
+    setActiveCategories([]);
+    setActiveSubcategories([]);
     setActiveDistricts([]);
     setActiveAgeGroups([]);
   }
 
-  function toggleType(type: ActivityType) {
+  function toggleType(type: string) {
     setActiveTypes((prev) =>
       prev.includes(type) ? prev.filter((item) => item !== type) : [...prev, type]
+    );
+    setActiveCategories([]);
+    setActiveSubcategories([]);
+  }
+
+  function toggleCategory(category: string) {
+    setActiveCategories((prev) =>
+      prev.includes(category) ? prev.filter((item) => item !== category) : [...prev, category]
+    );
+    setActiveSubcategories([]);
+  }
+
+  function toggleSubcategory(subcategory: string) {
+    setActiveSubcategories((prev) =>
+      prev.includes(subcategory) ? prev.filter((item) => item !== subcategory) : [...prev, subcategory]
     );
   }
 
@@ -171,28 +312,24 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
 
       {filtersOpen && (
         <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 space-y-2.5">
-          <div>
-            <p className="text-[11px] font-medium text-muted-foreground mb-1.5">Typ zajęć</p>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Typ</p>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
-              {activityTypes.map((type) => {
-                const count = typeCounts.get(type) || 0;
-                if (count === 0) return null;
-                const selected = activeTypes.includes(type);
+              {typeOptions.map((option) => {
+                const selected = activeTypes.includes(option.value);
                 return (
-                  <button key={type} onClick={() => toggleType(type)}
+                  <button key={option.value} onClick={() => toggleType(option.value)}
                     className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
                       selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
-                    <span>{ACTIVITY_TYPE_ICONS[type]}</span>
-                    <span>{ACTIVITY_TYPE_LABELS[type]}</span>
-                    <span className="text-[10px] opacity-60">{count}</span>
+                    <span>{option.icon}</span>
+                    <span>{option.label}</span>
+                    <span className="text-[10px] opacity-60">{option.count}</span>
                     {selected && <Check size={11} />}
                   </button>
                 );
               })}
             </div>
-          </div>
-          <div>
-            <p className="text-[11px] font-medium text-muted-foreground mb-1.5">Wiek dziecka</p>
+          </FilterSection>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Wiek dziecka</p>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
               {AGE_GROUPS.map((group) => {
                 const selected = activeAgeGroups.includes(group.key);
@@ -207,9 +344,42 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
                 );
               })}
             </div>
-          </div>
-          <div>
-            <p className="text-[11px] font-medium text-muted-foreground mb-1.5">Dzielnica</p>
+          </FilterSection>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Kategoria</p>} defaultCollapsed={false}>
+            <div className="flex flex-wrap gap-1">
+              {categoryOptions.map((option) => {
+                const selected = activeCategories.includes(option.value);
+                return (
+                  <button key={option.value} onClick={() => toggleCategory(option.value)}
+                    className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
+                      selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
+                    <span>{option.icon}</span>
+                    <span>{option.label}</span>
+                    <span className="text-[10px] opacity-60">{option.count}</span>
+                    {selected && <Check size={11} />}
+                  </button>
+                );
+              })}
+            </div>
+          </FilterSection>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Tematyka</p>} defaultCollapsed>
+            <div className="flex flex-wrap gap-1">
+              {subcategoryOptions.map((option) => {
+                const selected = activeSubcategories.includes(option.value);
+                return (
+                  <button key={option.value} onClick={() => toggleSubcategory(option.value)}
+                    className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
+                      selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
+                    <span>{option.icon}</span>
+                    <span>{option.label}</span>
+                    <span className="text-[10px] opacity-60">{option.count}</span>
+                    {selected && <Check size={11} />}
+                  </button>
+                );
+              })}
+            </div>
+          </FilterSection>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Dzielnica</p>} defaultCollapsed>
             <div className="flex flex-wrap gap-1">
               {availableDistricts.map((district) => {
                 const selected = activeDistricts.includes(district);
@@ -232,7 +402,7 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
                 );
               })}
             </div>
-          </div>
+          </FilterSection>
           {hasActiveFilters && (
             <button onClick={clearFilters} className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors">
               <X size={11} /> Wyczyść filtry
@@ -261,29 +431,25 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
                 className="w-full pl-7 pr-2 py-1 rounded-lg border border-border bg-background text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-200" />
             </div>
 
-            <div>
-              <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Typ zajęć</p>
+            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Typ</p>} defaultCollapsed={false}>
               <div className="flex flex-col gap-0.5">
-                {activityTypes.map((type) => {
-                  const count = typeCounts.get(type) || 0;
-                  if (count === 0) return null;
-                  const selected = activeTypes.includes(type);
+                {typeOptions.map((option) => {
+                  const selected = activeTypes.includes(option.value);
                   return (
-                    <button key={type} onClick={() => toggleType(type)}
+                    <button key={option.value} onClick={() => toggleType(option.value)}
                       className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
                         selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
-                      <span>{ACTIVITY_TYPE_ICONS[type]}</span>
-                      <span className="flex-1">{ACTIVITY_TYPE_LABELS[type]}</span>
+                      <span>{option.icon}</span>
+                      <span className="flex-1">{option.label}</span>
                       {selected && <Check size={10} />}
-                      <span className="text-[8px] opacity-40">{count}</span>
+                      <span className="text-[8px] opacity-40">{option.count}</span>
                     </button>
                   );
                 })}
               </div>
-            </div>
+            </FilterSection>
 
-            <div>
-              <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Wiek</p>
+            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Wiek</p>} defaultCollapsed={false}>
               <div className="flex flex-col gap-0.5">
                 {AGE_GROUPS.map((group) => {
                   const selected = activeAgeGroups.includes(group.key);
@@ -298,10 +464,45 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
                   );
                 })}
               </div>
-            </div>
+            </FilterSection>
 
-            <div>
-              <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Dzielnica</p>
+            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Kategoria</p>} defaultCollapsed={false}>
+              <div className="flex flex-col gap-0.5">
+                {categoryOptions.map((option) => {
+                  const selected = activeCategories.includes(option.value);
+                  return (
+                    <button key={option.value} onClick={() => toggleCategory(option.value)}
+                      className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
+                        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
+                      <span>{option.icon}</span>
+                      <span className="flex-1">{option.label}</span>
+                      {selected && <Check size={10} />}
+                      <span className="text-[8px] opacity-40">{option.count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </FilterSection>
+
+            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Tematyka</p>} defaultCollapsed>
+              <div className="flex flex-col gap-0.5">
+                {subcategoryOptions.map((option) => {
+                  const selected = activeSubcategories.includes(option.value);
+                  return (
+                    <button key={option.value} onClick={() => toggleSubcategory(option.value)}
+                      className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
+                        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
+                      <span>{option.icon}</span>
+                      <span className="flex-1">{option.label}</span>
+                      {selected && <Check size={10} />}
+                      <span className="text-[8px] opacity-40">{option.count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </FilterSection>
+
+            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Dzielnica</p>} defaultCollapsed>
               <div className="flex flex-col gap-0.5">
                 {availableDistricts.map((district) => {
                   const selected = activeDistricts.includes(district);
@@ -324,7 +525,7 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
                   );
                 })}
               </div>
-            </div>
+            </FilterSection>
 
             {hasActiveFilters && (
               <button onClick={clearFilters} className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors pt-2 border-t border-border w-full">
@@ -382,16 +583,33 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
                 </div>
               </div>
             </div>
-          ) : (
+          ) : filteredActivities.length === 0 ? (
             <div className="text-center py-16">
               <Search size={32} className="mx-auto text-muted-foreground/20 mb-3" />
-              <p className="text-[14px] font-semibold text-foreground mb-2">Zajęcia pojawią się wkrótce.</p>
-              <p className="text-[13px] text-muted mb-3">Układ jest już gotowy, teraz podpinamy do niego treści i filtry.</p>
+              <p className="text-[14px] font-semibold text-foreground mb-2">Brak zajęć pasujących do filtrów.</p>
+              <p className="text-[13px] text-muted mb-3">Zmień filtry albo wyczyść je, aby zobaczyć więcej wyników.</p>
               {hasActiveFilters && (
                 <button onClick={clearFilters} className="text-[12px] font-medium text-primary hover:text-primary-hover transition-colors">
                   Wyczyść filtry
                 </button>
               )}
+            </div>
+          ) : (
+            <div className="space-y-12">
+              {grouped.map((group) => (
+                <section key={group.type}>
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-lg">{group.icon}</span>
+                    <h2 className="text-[15px] font-semibold text-foreground">{group.label}</h2>
+                    <span className="text-[12px] text-muted-foreground">({group.activities.length})</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {group.activities.map((activity) => (
+                      <ContentCard key={activity.id} item={activity} />
+                    ))}
+                  </div>
+                </section>
+              ))}
             </div>
           )}
         </div>
