@@ -237,6 +237,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
         title="Chcesz stworzyć z nami mapę miejsc?"
         description="Dodaj swoje miejsce i pomóż rodzicom odkrywać wartościowe adresy w Krakowie."
         buttonLabel="Wypełnij formularz"
+        href="/dodaj?type=place"
       />
 
       {/* Mobile top bar */}
@@ -430,6 +431,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
             title="Chcesz stworzyć z nami mapę miejsc?"
             description="Dodaj swoje miejsce i pomóż rodzicom odkrywać wartościowe adresy w Krakowie."
             buttonLabel="Wypełnij formularz"
+            href="/dodaj?type=place"
           />
 
           <div className="mb-4 rounded-xl border border-border bg-card px-2.5 py-2">

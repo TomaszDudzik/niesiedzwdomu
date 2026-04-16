@@ -606,6 +606,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
         title="Prowadzisz kolonie lub półkolonie?"
         description="Pokaż ofertę rodzinom szukającym sprawdzonych wyjazdów i turnusów w Krakowie."
         buttonLabel="Dodaj ofertę"
+        href="/dodaj?type=camp"
       />
 
       <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 flex items-center gap-2">
@@ -1003,6 +1004,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
             title="Prowadzisz kolonie lub półkolonie?"
             description="Pokaż ofertę rodzinom szukającym sprawdzonych wyjazdów i turnusów w Krakowie."
             buttonLabel="Dodaj ofertę"
+            href="/dodaj?type=camp"
           />
 
           <div ref={calendarRef} className="rounded-xl border border-border bg-white overflow-hidden mb-4 scroll-mt-24">

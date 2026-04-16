@@ -1,6 +1,15 @@
 import type { Metadata } from "next";
 import { PublicSubmissionForms } from "@/components/ui/public-submission-forms";
 
+type AddContentPageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+function normalizeInitialType(value: string | string[] | undefined) {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return raw === "event" || raw === "place" || raw === "camp" || raw === "activity" ? raw : undefined;
+}
+
 export const metadata: Metadata = {
   title: "Dodaj do serwisu | NieSiedzWDomu",
   description: "Dodaj wydarzenie, miejsce, kolonie lub zajęcia do serwisu NieSiedzWDomu. Zgłoszenie zapisze się jako szkic do weryfikacji.",
@@ -9,7 +18,10 @@ export const metadata: Metadata = {
   },
 };
 
-export default function AddContentPage() {
+export default async function AddContentPage({ searchParams }: AddContentPageProps) {
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const initialType = normalizeInitialType(resolvedSearchParams?.type);
+
   return (
     <section className="container-page py-8 md:py-10">
       <div className="mx-auto max-w-5xl space-y-8">
@@ -26,7 +38,7 @@ export default function AddContentPage() {
           </p>
         </header>
 
-        <PublicSubmissionForms />
+        <PublicSubmissionForms initialTab={initialType} />
       </div>
     </section>
   );

@@ -1240,8 +1240,8 @@ function ActivitySubmissionForm() {
   );
 }
 
-export function PublicSubmissionForms() {
-  const [activeTab, setActiveTab] = useState<SubmissionKind>("event");
+export function PublicSubmissionForms({ initialTab = "event" }: { initialTab?: SubmissionKind }) {
+  const [activeTab, setActiveTab] = useState<SubmissionKind>(initialTab);
 
   return (
     <div className="space-y-6">

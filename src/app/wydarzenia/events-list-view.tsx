@@ -528,6 +528,7 @@ export function EventsListView({ events }: EventsListViewProps) {
         title="Organizujesz wydarzenie dla dzieci?"
         description="Dodaj je do kalendarza i pomóż rodzinom znaleźć pomysł na dziś albo weekend."
         buttonLabel="Dodaj wydarzenie"
+        href="/dodaj?type=event"
       />
 
       {/* Mobile top bar */}
@@ -879,6 +880,7 @@ export function EventsListView({ events }: EventsListViewProps) {
               title="Organizujesz wydarzenie dla dzieci?"
               description="Dodaj je do kalendarza i pomóż rodzinom znaleźć pomysł na dziś albo weekend."
               buttonLabel="Dodaj wydarzenie"
+              href="/dodaj?type=event"
             />
 
             <div className="rounded-xl border border-border bg-white overflow-hidden mb-4">

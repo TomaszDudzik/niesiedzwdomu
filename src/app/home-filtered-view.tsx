@@ -685,6 +685,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
                 title="Masz miejsce warte polecenia?"
                 description="Dodaj je do mapy rodzinnych adresów i pomóż odkrywać kolejne sprawdzone miejscówki."
                 buttonLabel="Dodaj"
+                href="/dodaj?type=place"
               />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {visiblePlaces.map((place, idx) => (
@@ -710,6 +711,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
                 title="Tworzysz wydarzenie dla dzieci?"
                 description="Dodaj je do kalendarza, żeby rodziny szybciej trafiły na wartościowe wydarzenia w mieście."
                 buttonLabel="Dodaj"
+                href="/dodaj?type=event"
               />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {visibleEvents.map((event, idx) => (
@@ -735,6 +737,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
                 title="Prowadzisz kolonie lub półkolonie?"
                 description="Pokaż swoją ofertę w miejscu, gdzie rodzice szukają sprawdzonych wyjazdów i turnusów."
                 buttonLabel="Dodaj"
+                href="/dodaj?type=camp"
               />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {visibleOrganizers.map((organizer, idx) => (
@@ -810,6 +813,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
                 title="Prowadzisz zajęcia dla dzieci?"
                 description="Dodaj je do katalogu i daj rodzicom prosty sposób na znalezienie regularnych aktywności."
                 buttonLabel="Dodaj"
+                href="/dodaj?type=activity"
               />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {visibleActivities.map((activity, idx) => (

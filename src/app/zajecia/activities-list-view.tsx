@@ -286,6 +286,7 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
         title="Tworzysz ciekawe zajęcia dla dzieci?"
         description="Dodaj je do katalogu i ułatw rodzicom znalezienie regularnych aktywności w okolicy."
         buttonLabel="Dodaj zajęcia"
+        href="/dodaj?type=activity"
       />
 
       <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 flex items-center gap-2">
@@ -548,6 +549,7 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
             title="Tworzysz ciekawe zajęcia dla dzieci?"
             description="Dodaj je do katalogu i ułatw rodzicom znalezienie regularnych aktywności w okolicy."
             buttonLabel="Dodaj zajęcia"
+            href="/dodaj?type=activity"
           />
 
           <div className="mb-4 rounded-xl border border-border bg-card px-2.5 py-2">
