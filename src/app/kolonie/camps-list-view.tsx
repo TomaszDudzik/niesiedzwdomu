@@ -5,6 +5,7 @@ import { useMemo, useRef, useState } from "react";
 import { Search, SlidersHorizontal, X, MapPin, Check, Tags, Users, CalendarDays } from "lucide-react";
 import { DISTRICT_LIST } from "@/lib/mock-data";
 import { FilterSection } from "@/components/ui/filter-section";
+import { SubmissionCta } from "@/components/ui/submission-cta";
 import { cn, formatDateShort, toLocalDateKey, thumbUrl } from "@/lib/utils";
 import { ImageWithFallback } from "@/components/ui/image-with-fallback";
 import { getTaxonomyOptions, matchesTaxonomyFilter } from "@/lib/taxonomy-filters";
@@ -600,6 +601,13 @@ export function CampsListView({ camps }: CampsListViewProps) {
 
   return (
     <div className="container-page pt-5 pb-10">
+      <SubmissionCta
+        mobile
+        title="Prowadzisz kolonie lub półkolonie?"
+        description="Pokaż ofertę rodzinom szukającym sprawdzonych wyjazdów i turnusów w Krakowie."
+        buttonLabel="Dodaj ofertę"
+      />
+
       <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 flex items-center gap-2">
         <button
           onClick={() => setFiltersOpen(!filtersOpen)}
@@ -991,6 +999,12 @@ export function CampsListView({ camps }: CampsListViewProps) {
         </aside>
 
         <div className="flex-1 min-w-0">
+          <SubmissionCta
+            title="Prowadzisz kolonie lub półkolonie?"
+            description="Pokaż ofertę rodzinom szukającym sprawdzonych wyjazdów i turnusów w Krakowie."
+            buttonLabel="Dodaj ofertę"
+          />
+
           <div ref={calendarRef} className="rounded-xl border border-border bg-white overflow-hidden mb-4 scroll-mt-24">
             <div className="px-3 pt-2 pb-1 border-b border-border/50">
               <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: "none" }}>

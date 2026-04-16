@@ -5,6 +5,7 @@ import { Search, LayoutGrid, CalendarDays, SlidersHorizontal, X, MapPin, MapIcon
 import { DISTRICT_LIST } from "@/lib/mock-data";
 import { ContentCard } from "@/components/ui/content-card";
 import { FilterSection } from "@/components/ui/filter-section";
+import { SubmissionCta } from "@/components/ui/submission-cta";
 import { cn, toLocalDateKey } from "@/lib/utils";
 import { getEventsForDate } from "@/lib/filter-events";
 import { getTaxonomyOptions, matchesTaxonomyFilter } from "@/lib/taxonomy-filters";
@@ -522,6 +523,13 @@ export function EventsListView({ events }: EventsListViewProps) {
 
   return (
     <div className="container-page pt-5 pb-10">
+      <SubmissionCta
+        mobile
+        title="Organizujesz wydarzenie dla dzieci?"
+        description="Dodaj je do kalendarza i pomóż rodzinom znaleźć pomysł na dziś albo weekend."
+        buttonLabel="Dodaj wydarzenie"
+      />
+
       {/* Mobile top bar */}
       <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 flex items-center gap-2">
         <button
@@ -867,6 +875,12 @@ export function EventsListView({ events }: EventsListViewProps) {
         {/* Main content */}
         <div className="flex-1 min-w-0">
           <>
+            <SubmissionCta
+              title="Organizujesz wydarzenie dla dzieci?"
+              description="Dodaj je do kalendarza i pomóż rodzinom znaleźć pomysł na dziś albo weekend."
+              buttonLabel="Dodaj wydarzenie"
+            />
+
             <div className="rounded-xl border border-border bg-white overflow-hidden mb-4">
               <div className="px-3 pt-2 pb-1 border-b border-border/50">
                 <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: "none" }}>

@@ -5,6 +5,7 @@ import { Search, LayoutGrid, MapIcon, SlidersHorizontal, X, MapPin, Check } from
 import { DISTRICT_LIST } from "@/lib/mock-data";
 import { ContentCard } from "@/components/ui/content-card";
 import { FilterSection } from "@/components/ui/filter-section";
+import { SubmissionCta } from "@/components/ui/submission-cta";
 import { cn } from "@/lib/utils";
 import { getTaxonomyOptions, matchesTaxonomyFilter } from "@/lib/taxonomy-filters";
 import type { Place, District } from "@/types/database";
@@ -231,6 +232,13 @@ export function PlacesListView({ places }: PlacesListViewProps) {
 
   return (
     <div className="container-page pt-5 pb-10">
+      <SubmissionCta
+        mobile
+        title="Chcesz stworzyć z nami mapę miejsc?"
+        description="Dodaj swoje miejsce i pomóż rodzicom odkrywać wartościowe adresy w Krakowie."
+        buttonLabel="Wypełnij formularz"
+      />
+
       {/* Mobile top bar */}
       <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 flex items-center gap-2">
         <button
@@ -418,6 +426,12 @@ export function PlacesListView({ places }: PlacesListViewProps) {
 
         {/* Main content */}
         <div className="flex-1 min-w-0">
+          <SubmissionCta
+            title="Chcesz stworzyć z nami mapę miejsc?"
+            description="Dodaj swoje miejsce i pomóż rodzicom odkrywać wartościowe adresy w Krakowie."
+            buttonLabel="Wypełnij formularz"
+          />
+
           <div className="mb-4 rounded-xl border border-border bg-card px-2.5 py-2">
             <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide whitespace-nowrap" style={{ scrollbarWidth: "none" }}>
               <p className="shrink-0 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Filtry:</p>
