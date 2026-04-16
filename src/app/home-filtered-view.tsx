@@ -64,7 +64,7 @@ function HomeSectionSubmissionCta({
   title,
   description,
   buttonLabel,
-  href = "/kontakt",
+  href = "/dodaj",
 }: {
   title: string;
   description: string;
@@ -684,7 +684,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
               <HomeSectionSubmissionCta
                 title="Masz miejsce warte polecenia?"
                 description="Dodaj je do mapy rodzinnych adresów i pomóż odkrywać kolejne sprawdzone miejscówki."
-                buttonLabel="Dodaj miejsce"
+                buttonLabel="Dodaj"
               />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {visiblePlaces.map((place, idx) => (
@@ -709,7 +709,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
               <HomeSectionSubmissionCta
                 title="Tworzysz wydarzenie dla dzieci?"
                 description="Dodaj je do kalendarza, żeby rodziny szybciej trafiły na wartościowe wydarzenia w mieście."
-                buttonLabel="Dodaj wydarzenie"
+                buttonLabel="Dodaj"
               />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {visibleEvents.map((event, idx) => (
@@ -734,7 +734,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
               <HomeSectionSubmissionCta
                 title="Prowadzisz kolonie lub półkolonie?"
                 description="Pokaż swoją ofertę w miejscu, gdzie rodzice szukają sprawdzonych wyjazdów i turnusów."
-                buttonLabel="Dodaj ofertę"
+                buttonLabel="Dodaj"
               />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {visibleOrganizers.map((organizer, idx) => (
@@ -809,7 +809,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
               <HomeSectionSubmissionCta
                 title="Prowadzisz zajęcia dla dzieci?"
                 description="Dodaj je do katalogu i daj rodzicom prosty sposób na znalezienie regularnych aktywności."
-                buttonLabel="Dodaj zajęcia"
+                buttonLabel="Dodaj"
               />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {visibleActivities.map((activity, idx) => (

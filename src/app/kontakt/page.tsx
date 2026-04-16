@@ -41,9 +41,15 @@ export default function ContactPage() {
         <div className="rounded-xl border border-border bg-card p-5 md:p-6 space-y-4">
           <h2 className="text-[18px] font-semibold text-foreground">Co mozemy dodac do serwisu</h2>
           <p className="text-[14px] text-muted leading-relaxed">
-            Jesli chcesz, abysmy dodali do serwisu nowe wydarzenie, miejsce, kolonie
-            lub zajecia dla dzieci, skontaktuj sie z nami mailowo.
+            Jesli chcesz dodac do serwisu nowe wydarzenie, miejsce, kolonie
+            lub zajecia dla dzieci, skorzystaj z formularza zgłoszeniowego.
           </p>
+          <a
+            href="/dodaj"
+            className="inline-flex items-center rounded-full bg-sky-900 px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-sky-800"
+          >
+            Przejdz do formularza
+          </a>
           <ul className="space-y-2 text-[14px] text-muted leading-relaxed list-disc pl-5">
             <li>Wydarzenia jednorazowe i cykliczne</li>
             <li>Miejsca przyjazne rodzinom</li>

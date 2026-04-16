@@ -16,7 +16,7 @@ export function SubmissionCta({
   title,
   description,
   buttonLabel,
-  href = "/kontakt",
+  href = "/dodaj",
   mobile = false,
   mobileLabel = "Dodaj",
   className,
@@ -32,10 +32,7 @@ export function SubmissionCta({
       >
         <div className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-cyan-700" />
         <div className="flex items-start gap-2.5">
-          <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-sky-900/8 text-cyan-800">
-            <Sparkles size={12} strokeWidth={2} />
-          </div>
-          <div className="min-w-0 flex-1 pr-2">
+          <div className="min-w-0 flex-1 pl-2 pr-2">
             <p className="text-[12px] font-semibold leading-4 text-slate-900">{title}</p>
             <p className="mt-0.5 text-[10px] leading-4 text-slate-600">{description}</p>
           </div>
