@@ -369,11 +369,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
 
           const leadCampDate = new Date(existing.leadCamp.date_start).getTime();
           const currentDate = new Date(camp.date_start).getTime();
-          // Prefer camp with organizer_data image; otherwise earliest date with image
-          const leadHasOrgImage = !!existing.leadCamp.organizer_data?.image_url;
-          const campHasOrgImage = !!camp.organizer_data?.image_url;
-          if ((!leadHasOrgImage && campHasOrgImage) ||
-              (currentDate < leadCampDate && !(!leadHasOrgImage && !campHasOrgImage))) {
+          if (currentDate < leadCampDate) {
             existing.leadCamp = camp;
           }
         });
@@ -1165,7 +1161,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                               className="relative aspect-video w-full shrink-0 bg-accent sm:aspect-auto sm:h-auto sm:w-[210px] sm:self-stretch"
                             >
                               {(() => {
-                                const imgSrc = organizer.leadCamp.organizer_data?.image_url ?? organizer.leadCamp.image_url;
+                                const imgSrc = organizer.leadCamp.image_url;
                                 return imgSrc ? (
                                   <ImageWithFallback
                                     src={thumbUrl(organizer.leadCamp.image_thumb, imgSrc) || imgSrc}
@@ -1192,7 +1188,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                                       {organizer.organizerName}
                                     </Link>
                                     {(() => {
-                                      const desc = organizer.leadCamp.organizer_data?.description_short ?? organizer.leadCamp.description_short;
+                                      const desc = organizer.leadCamp.description_short;
                                       return desc ? (
                                         <p className="mt-1 text-[11px] text-muted leading-relaxed line-clamp-2">{desc}</p>
                                       ) : null;

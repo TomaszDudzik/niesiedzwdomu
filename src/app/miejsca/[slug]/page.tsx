@@ -100,6 +100,7 @@ export default async function PlaceDetailPage({ params }: PageProps) {
     address: {
       "@type": "PostalAddress",
       streetAddress: place.street || undefined,
+      postalCode: place.postcode || undefined,
       addressLocality: place.city || "Krakow",
       addressRegion: place.district || undefined,
       addressCountry: "PL",

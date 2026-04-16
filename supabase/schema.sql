@@ -206,6 +206,7 @@ CREATE TABLE places (
   place_type        place_type NOT NULL,
   is_indoor         BOOLEAN NOT NULL DEFAULT false,
   street            TEXT NOT NULL DEFAULT '',
+  postcode          TEXT NOT NULL DEFAULT '',
   city              TEXT NOT NULL DEFAULT 'Kraków',
   district          district NOT NULL DEFAULT 'Inne',
   lat               DOUBLE PRECISION,
@@ -228,6 +229,7 @@ CREATE TABLE places (
 
 CREATE INDEX idx_places_place_type ON places(place_type);
 CREATE INDEX idx_places_district ON places(district);
+CREATE INDEX idx_places_postcode ON places(postcode);
 CREATE INDEX idx_places_is_indoor ON places(is_indoor);
 CREATE INDEX idx_places_status ON places(status);
 CREATE INDEX idx_places_slug ON places(slug);

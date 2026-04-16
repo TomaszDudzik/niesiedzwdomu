@@ -18,6 +18,11 @@ interface TaxonomyFieldsProps {
   categoryLevel2Options: AdminCategoryLevel2[];
   categoryLevel3Options: AdminCategoryLevel3[];
   showTypeFields?: boolean;
+  typeLevel1Label?: string;
+  typeLevel2Label?: string;
+  categoryLevel1Label?: string;
+  categoryLevel2Label?: string;
+  categoryLevel3Label?: string;
   selectedTypeLevel1Id: string | null;
   selectedTypeLevel2Id: string | null;
   selectedCategoryLevel1: string | null;
@@ -40,6 +45,11 @@ export function TaxonomyFields({
   categoryLevel2Options,
   categoryLevel3Options,
   showTypeFields = true,
+  typeLevel1Label = "Type lvl 1",
+  typeLevel2Label = "Type lvl 2",
+  categoryLevel1Label = "Category lvl 1",
+  categoryLevel2Label = "Category lvl 2",
+  categoryLevel3Label = "Category lvl 3",
   selectedTypeLevel1Id,
   selectedTypeLevel2Id,
   selectedCategoryLevel1,
@@ -66,7 +76,7 @@ export function TaxonomyFields({
       {showTypeFields && (
         <div className="md:col-span-4 grid gap-3 md:grid-cols-12">
           <div className="md:col-span-6">
-            <label className={labelClass}>Type lvl 1</label>
+            <label className={labelClass}>{typeLevel1Label}</label>
             <select
               className={selectClass}
               value={selectedTypeLevel1Id ?? ""}
@@ -84,7 +94,7 @@ export function TaxonomyFields({
             </select>
           </div>
           <div className="md:col-span-6">
-            <label className={labelClass}>Type lvl 2</label>
+            <label className={labelClass}>{typeLevel2Label}</label>
             <select
               className={selectClass}
               value={selectedTypeLevel2Id ?? ""}
@@ -102,7 +112,7 @@ export function TaxonomyFields({
 
       <div className="md:col-span-4 grid gap-3 md:grid-cols-12">
         <div className="md:col-span-4">
-          <label className={labelClass}>Category lvl 1</label>
+          <label className={labelClass}>{categoryLevel1Label}</label>
           <select
             className={selectClass}
             value={selectedCategoryLevel1 ?? ""}
@@ -121,7 +131,7 @@ export function TaxonomyFields({
           </select>
         </div>
         <div className="md:col-span-4">
-          <label className={labelClass}>Category lvl 2</label>
+          <label className={labelClass}>{categoryLevel2Label}</label>
           <select
             className={selectClass}
             value={selectedCategoryLevel2 ?? ""}
@@ -139,7 +149,7 @@ export function TaxonomyFields({
           </select>
         </div>
         <div className="md:col-span-4">
-          <label className={labelClass}>Category lvl 3</label>
+          <label className={labelClass}>{categoryLevel3Label}</label>
           <select
             className={selectClass}
             value={selectedCategoryLevel3 ?? ""}

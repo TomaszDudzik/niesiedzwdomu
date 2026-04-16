@@ -97,6 +97,7 @@ export async function POST(request: NextRequest) {
           display_name: result.display_name,
           district: district || null,
           city: addr.city || addr.town || null,
+          postcode: addr.postcode || null,
         });
       }
     }

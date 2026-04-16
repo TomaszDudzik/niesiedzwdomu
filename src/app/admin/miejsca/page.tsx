@@ -155,6 +155,7 @@ export default function AdminPlacesPage() {
     description_long: ["description_long", "długi opis", "dlugi opis", "opis długi", "long description"],
     category_lvl_1: ["category_lvl_1", "main_category", "place_type", "typ", "type", "kategoria glowna", "kategoria", "category"],
     street: ["street", "ulica", "adres", "address"],
+    postcode: ["postcode", "zip", "kod", "kod_pocztowy", "kod pocztowy"],
     city: ["city", "miasto"],
     district: ["district", "dzielnica"],
     lat: ["lat", "latitude"],
@@ -223,13 +224,22 @@ export default function AdminPlacesPage() {
               if (geo.lat && geo.lng) {
                 const patch: Record<string, unknown> = { id: data.id, lat: geo.lat, lng: geo.lng };
                 if (geo.district) patch.district = geo.district;
+                if (geo.postcode) patch.postcode = geo.postcode;
                 await fetch("/api/admin/places", {
                   method: "PATCH",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify(patch),
                 });
                 const idx = imported.findIndex((p) => p.id === data.id);
-                if (idx !== -1) imported[idx] = { ...imported[idx], lat: geo.lat, lng: geo.lng, ...(geo.district ? { district: geo.district } : {}) } as Place;
+                if (idx !== -1) {
+                  imported[idx] = {
+                    ...imported[idx],
+                    lat: geo.lat,
+                    lng: geo.lng,
+                    ...(geo.district ? { district: geo.district } : {}),
+                    ...(geo.postcode ? { postcode: geo.postcode } : {}),
+                  } as Place;
+                }
               }
             } catch { /* geocoding is best-effort */ }
           }
@@ -366,6 +376,7 @@ export default function AdminPlacesPage() {
       category_lvl_2: place.category_lvl_2 ?? place.category ?? null,
       category_lvl_3: place.category_lvl_3 ?? place.subcategory ?? null,
       street: place.street,
+      postcode: place.postcode,
       city: place.city,
       district: place.district,
       lat: place.lat,
@@ -416,6 +427,7 @@ export default function AdminPlacesPage() {
       is_indoor: editForm.is_indoor,
       is_free: Boolean(editForm.is_free),
       street: editForm.street || "",
+      postcode: editForm.postcode || "",
       city: editForm.city || "Kraków",
       district: editForm.district,
       lat: editForm.lat ?? null,
@@ -507,6 +519,7 @@ export default function AdminPlacesPage() {
           lng: data.lng,
           ...(data.district ? { district: data.district } : {}),
           ...(data.city ? { city: data.city } : {}),
+          ...(data.postcode ? { postcode: data.postcode } : {}),
         }));
       }
     } catch { /* silent */ }
@@ -716,20 +729,66 @@ export default function AdminPlacesPage() {
                 {/* Edit form */}
                 {isEditing && (
                   <div className="px-3 pb-3 pt-1 border-t border-border/50">
-                    <div className="grid grid-cols-1 md:grid-cols-6 gap-3 mb-4">
-                      <div className="md:col-span-6">
-                        <label className={labelClass}>Tytuł</label>
-                        <input className={inputClass} value={(editForm.title as string) || ""} onChange={(e) => updateField("title", e.target.value)} />
+                    <div className="rounded-lg border border-border/50 p-3 mb-4 space-y-3">
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Opis miejsca</p>
+                      <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+                        <div className="md:col-span-6">
+                          <label className={labelClass}>Nazwa miejsca</label>
+                          <input className={inputClass} value={(editForm.title as string) || ""} onChange={(e) => updateField("title", e.target.value)} />
+                        </div>
+                        <div className="md:col-span-6">
+                          <label className={labelClass}>Krótki opis</label>
+                          <textarea className={inputClass} rows={2} value={(editForm.description_short as string) || ""} onChange={(e) => updateField("description_short", e.target.value)} />
+                        </div>
+                        <div className="md:col-span-6">
+                          <label className={labelClass}>Pełny opis</label>
+                          <textarea className={inputClass} rows={5} value={(editForm.description_long as string) || ""} onChange={(e) => updateField("description_long", e.target.value)} />
+                        </div>
                       </div>
-                      <div className="md:col-span-6">
-                        <label className={labelClass}>Krótki opis</label>
-                        <textarea className={inputClass} rows={2} value={(editForm.description_short as string) || ""} onChange={(e) => updateField("description_short", e.target.value)} />
-                      </div>
-                      <div className="md:col-span-6">
-                        <label className={labelClass}>Długi opis</label>
-                        <textarea className={inputClass} rows={5} value={(editForm.description_long as string) || ""} onChange={(e) => updateField("description_long", e.target.value)} />
-                      </div>
+                    </div>
 
+                    <div className="rounded-lg border border-border/50 p-3 mb-4 space-y-3">
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Klasyfikacja</p>
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
+                        <TaxonomyFields
+                          typeLevel1Options={typeLevel1Options}
+                          typeLevel2Options={typeLevel2Options}
+                          categoryLevel1Options={categoryLevel1Options}
+                          categoryLevel2Options={categoryLevel2Options}
+                          categoryLevel3Options={categoryLevel3Options}
+                          typeLevel1Label="Grupa"
+                          typeLevel2Label="Podgrupa"
+                          categoryLevel1Label="Typ"
+                          categoryLevel2Label="Kategoria"
+                          categoryLevel3Label="Tematyka"
+                          selectedTypeLevel1Id={typeof editForm.type_lvl_1_id === "string" ? editForm.type_lvl_1_id : null}
+                          selectedTypeLevel2Id={typeof editForm.type_lvl_2_id === "string" ? editForm.type_lvl_2_id : null}
+                          selectedCategoryLevel1={typeof editForm.category_lvl_1 === "string" ? editForm.category_lvl_1 : null}
+                          selectedCategoryLevel2={typeof editForm.category_lvl_2 === "string" ? editForm.category_lvl_2 : null}
+                          selectedCategoryLevel3={typeof editForm.category_lvl_3 === "string" ? editForm.category_lvl_3 : null}
+                          loading={taxonomyLoading}
+                          inputClass={inputClass}
+                          labelClass={labelClass}
+                          onTypeLevel1Change={(value) => {
+                            updateField("type_lvl_1_id", value);
+                            updateField("type_lvl_2_id", null);
+                          }}
+                          onTypeLevel2Change={(value) => updateField("type_lvl_2_id", value)}
+                          onCategoryLevel1Change={(value) => {
+                            updateField("category_lvl_1", value);
+                            updateField("category_lvl_2", null);
+                            updateField("category_lvl_3", null);
+                          }}
+                          onCategoryLevel2Change={(value) => {
+                            updateField("category_lvl_2", value);
+                            updateField("category_lvl_3", null);
+                          }}
+                          onCategoryLevel3Change={(value) => updateField("category_lvl_3", value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-6 gap-3 mb-4">
                       <div>
                         <label className={labelClass}>Wiek od</label>
                         <input type="number" min={0} max={18} className={inputClass} value={(editForm.age_min as number) ?? ""} onChange={(e) => updateField("age_min", e.target.value ? Number(e.target.value) : null)} />
@@ -768,37 +827,6 @@ export default function AdminPlacesPage() {
                         <input className={inputClass} value={(editForm.facebook_url as string) || ""} onChange={(e) => updateField("facebook_url", e.target.value)} placeholder="https://facebook.com/..." />
                       </div>
 
-                      <TaxonomyFields
-                        typeLevel1Options={typeLevel1Options}
-                        typeLevel2Options={typeLevel2Options}
-                        categoryLevel1Options={categoryLevel1Options}
-                        categoryLevel2Options={categoryLevel2Options}
-                        categoryLevel3Options={categoryLevel3Options}
-                        selectedTypeLevel1Id={typeof editForm.type_lvl_1_id === "string" ? editForm.type_lvl_1_id : null}
-                        selectedTypeLevel2Id={typeof editForm.type_lvl_2_id === "string" ? editForm.type_lvl_2_id : null}
-                        selectedCategoryLevel1={typeof editForm.category_lvl_1 === "string" ? editForm.category_lvl_1 : null}
-                        selectedCategoryLevel2={typeof editForm.category_lvl_2 === "string" ? editForm.category_lvl_2 : null}
-                        selectedCategoryLevel3={typeof editForm.category_lvl_3 === "string" ? editForm.category_lvl_3 : null}
-                        loading={taxonomyLoading}
-                        inputClass={inputClass}
-                        labelClass={labelClass}
-                        onTypeLevel1Change={(value) => {
-                          updateField("type_lvl_1_id", value);
-                          updateField("type_lvl_2_id", null);
-                        }}
-                        onTypeLevel2Change={(value) => updateField("type_lvl_2_id", value)}
-                        onCategoryLevel1Change={(value) => {
-                          updateField("category_lvl_1", value);
-                          updateField("category_lvl_2", null);
-                          updateField("category_lvl_3", null);
-                        }}
-                        onCategoryLevel2Change={(value) => {
-                          updateField("category_lvl_2", value);
-                          updateField("category_lvl_3", null);
-                        }}
-                        onCategoryLevel3Change={(value) => updateField("category_lvl_3", value)}
-                      />
-
                       <div>
                         <label className={labelClass}>Likes</label>
                         <input type="number" min={0} className={inputClass} value={(editForm.likes as number) ?? 0} onChange={(e) => updateField("likes", Number(e.target.value) || 0)} />
@@ -833,6 +861,10 @@ export default function AdminPlacesPage() {
                                 <Loader2 size={12} className="animate-spin text-muted absolute right-2 top-1/2 -translate-y-1/2" />
                               )}
                             </div>
+                          </div>
+                          <div>
+                            <label className={labelClass}>Kod pocztowy</label>
+                            <input className={inputClass} value={(editForm.postcode as string) || ""} onChange={(e) => updateField("postcode", e.target.value)} placeholder="np. 30-001" />
                           </div>
                           <div>
                             <label className={labelClass}>Miasto</label>

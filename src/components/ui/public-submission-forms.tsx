@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CalendarDays, MapPin, Tent, Music4, Send, CheckCircle2 } from "lucide-react";
+import { CalendarDays, MapPin, Tent, Users, Send, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DISTRICT_LIST } from "@/lib/mock-data";
 import { useAdminTaxonomy } from "@/lib/use-admin-taxonomy";
@@ -194,15 +194,15 @@ const DAYS_OF_WEEK = [
 ] as const;
 
 const TAB_CONFIG = {
-  event: {
-    title: "Wydarzenie",
-    description: "Jednorazowe lub cykliczne wydarzenia dla dzieci i rodzin.",
-    icon: CalendarDays,
-  },
   place: {
     title: "Miejsce",
     description: "Adres przyjazny rodzinom, do którego warto odesłać innych.",
     icon: MapPin,
+  },
+  event: {
+    title: "Wydarzenie",
+    description: "Jednorazowe lub cykliczne wydarzenia dla dzieci i rodzin.",
+    icon: CalendarDays,
   },
   camp: {
     title: "Kolonie i półkolonie",
@@ -212,7 +212,7 @@ const TAB_CONFIG = {
   activity: {
     title: "Zajęcia",
     description: "Regularne aktywności, kursy i zajęcia dodatkowe.",
-    icon: Music4,
+    icon: Users,
   },
 } as const;
 
@@ -385,6 +385,7 @@ function TaxonomyFields({
   categoryLevel3Options,
   state,
   onChange,
+  showTypeFields = true,
 }: {
   typeLevel1Options: AdminTypeLevel1[];
   typeLevel2Options: AdminTypeLevel2[];
@@ -393,6 +394,7 @@ function TaxonomyFields({
   categoryLevel3Options: AdminCategoryLevel3[];
   state: TaxonomyState;
   onChange: (patch: Partial<TaxonomyState>) => void;
+  showTypeFields?: boolean;
 }) {
   const availableTypeLevel2 = useMemo(
     () => getTypeLevel2ForTypeLevel1(typeLevel2Options, state.type_lvl_1_id || null),
@@ -412,33 +414,37 @@ function TaxonomyFields({
   );
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-      <Field label="Grupa">
-        <select
-          value={state.type_lvl_1_id}
-          onChange={(event) => onChange({ type_lvl_1_id: event.target.value, type_lvl_2_id: "" })}
-          className={inputClass}
-        >
-          <option value="">Wybierz</option>
-          {typeLevel1Options.map((entry) => (
-            <option key={entry.id} value={entry.id}>{entry.name}</option>
-          ))}
-        </select>
-      </Field>
+    <div className={cn("grid gap-4 md:grid-cols-2", showTypeFields ? "xl:grid-cols-5" : "xl:grid-cols-3")}>
+      {showTypeFields ? (
+        <>
+          <Field label="Grupa">
+            <select
+              value={state.type_lvl_1_id}
+              onChange={(event) => onChange({ type_lvl_1_id: event.target.value, type_lvl_2_id: "" })}
+              className={inputClass}
+            >
+              <option value="">Wybierz</option>
+              {typeLevel1Options.map((entry) => (
+                <option key={entry.id} value={entry.id}>{entry.name}</option>
+              ))}
+            </select>
+          </Field>
 
-      <Field label="Typ szczegółowy">
-        <select
-          value={state.type_lvl_2_id}
-          onChange={(event) => onChange({ type_lvl_2_id: event.target.value })}
-          className={inputClass}
-          disabled={!state.type_lvl_1_id}
-        >
-          <option value="">{state.type_lvl_1_id ? "Wybierz" : "Najpierw grupa"}</option>
-          {availableTypeLevel2.map((entry) => (
-            <option key={entry.id} value={entry.id}>{entry.name}</option>
-          ))}
-        </select>
-      </Field>
+          <Field label="Typ szczegółowy">
+            <select
+              value={state.type_lvl_2_id}
+              onChange={(event) => onChange({ type_lvl_2_id: event.target.value })}
+              className={inputClass}
+              disabled={!state.type_lvl_1_id}
+            >
+              <option value="">{state.type_lvl_1_id ? "Wybierz" : "Najpierw grupa"}</option>
+              {availableTypeLevel2.map((entry) => (
+                <option key={entry.id} value={entry.id}>{entry.name}</option>
+              ))}
+            </select>
+          </Field>
+        </>
+      ) : null}
 
       <Field label="Kategoria">
         <select
@@ -493,12 +499,11 @@ function ContactFields({
 }) {
   return (
     <div className="grid gap-4 md:grid-cols-2">
-      <Field label="Imię i nazwisko" required>
+      <Field label="Imię i nazwisko">
         <input
           value={contact.submitter_name}
           onChange={(event) => setContact((prev) => ({ ...prev, submitter_name: event.target.value }))}
           className={inputClass}
-          required
         />
       </Field>
       <Field label="Email" required>
@@ -743,6 +748,16 @@ function PlaceSubmissionForm() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { typeLevel1Options, typeLevel2Options, categoryLevel1Options, categoryLevel2Options, categoryLevel3Options } = useAdminTaxonomy();
+  const defaultPlaceTypeLevel1Id = useMemo(
+    () => typeLevel1Options.find((entry) => entry.name === "Dzieci")?.id ?? "",
+    [typeLevel1Options],
+  );
+  const defaultPlaceTypeLevel2Id = useMemo(
+    () => typeLevel2Options.find((entry) => entry.name === "Miejsca" && entry.type_lvl_1_id === defaultPlaceTypeLevel1Id)?.id
+      ?? typeLevel2Options.find((entry) => entry.name === "Miejsca")?.id
+      ?? "",
+    [typeLevel2Options, defaultPlaceTypeLevel1Id],
+  );
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -751,7 +766,11 @@ function PlaceSubmissionForm() {
     setErrorMessage(null);
 
     try {
-      const result = await submitForm("place", form, contact);
+      const result = await submitForm("place", {
+        ...form,
+        type_lvl_1_id: defaultPlaceTypeLevel1Id,
+        type_lvl_2_id: defaultPlaceTypeLevel2Id,
+      }, contact);
       setSuccessMessage(result.message);
       setForm(EMPTY_PLACE_FORM);
       setContact(EMPTY_CONTACT);
@@ -765,18 +784,13 @@ function PlaceSubmissionForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className={panelClass}>
-        <SectionTitle title="Opis miejsca" description="Dla kawiarni rodzinnych, sal zabaw, placów zabaw i innych przyjaznych miejscówek." />
+        <SectionTitle title="Opis miejsca" />
         <div className="mt-5 grid gap-4 md:grid-cols-2">
-          <Field label="Nazwa miejsca" required>
-            <input value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} className={inputClass} required />
-          </Field>
-          <Field label="Typ miejsca" required>
-            <select value={form.place_type} onChange={(event) => setForm((prev) => ({ ...prev, place_type: event.target.value }))} className={inputClass} required>
-              {PLACE_TYPE_OPTIONS.map((option) => (
-                <option key={option} value={option}>{option}</option>
-              ))}
-            </select>
-          </Field>
+          <div className="md:col-span-2">
+            <Field label="Nazwa miejsca" required>
+              <input value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} className={inputClass} required />
+            </Field>
+          </div>
           <div className="md:col-span-2">
             <Field label="Krótki opis" required>
               <textarea value={form.description_short} onChange={(event) => setForm((prev) => ({ ...prev, description_short: event.target.value }))} className={textareaClass} required />
@@ -801,6 +815,7 @@ function PlaceSubmissionForm() {
             categoryLevel3Options={categoryLevel3Options}
             state={form}
             onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
+            showTypeFields={false}
           />
         </div>
       </div>
@@ -813,16 +828,11 @@ function PlaceSubmissionForm() {
               <input value={form.street} onChange={(event) => setForm((prev) => ({ ...prev, street: event.target.value }))} className={inputClass} required />
             </Field>
           </div>
-          <Field label="Miasto" required>
+          <div className="xl:col-span-2">
+            <Field label="Miasto" required>
             <input value={form.city} onChange={(event) => setForm((prev) => ({ ...prev, city: event.target.value }))} className={inputClass} required />
-          </Field>
-          <Field label="Dzielnica" required>
-            <select value={form.district} onChange={(event) => setForm((prev) => ({ ...prev, district: event.target.value }))} className={inputClass} required>
-              {DISTRICT_LIST.map((district) => (
-                <option key={district} value={district}>{district}</option>
-              ))}
-            </select>
-          </Field>
+            </Field>
+          </div>
           <Field label="Godziny otwarcia">
             <input value={form.opening_hours} onChange={(event) => setForm((prev) => ({ ...prev, opening_hours: event.target.value }))} className={inputClass} placeholder="np. pn-pt 10:00-18:00" />
           </Field>
@@ -852,7 +862,7 @@ function PlaceSubmissionForm() {
       </div>
 
       <div className={panelClass}>
-        <SectionTitle title="Linki i materiały" />
+        <SectionTitle title="Linki" />
         <div className="mt-5 grid gap-4 md:grid-cols-2">
           <Field label="Strona WWW">
             <input type="url" value={form.source_url} onChange={(event) => setForm((prev) => ({ ...prev, source_url: event.target.value }))} className={inputClass} placeholder="https://..." />
@@ -860,11 +870,6 @@ function PlaceSubmissionForm() {
           <Field label="Facebook">
             <input type="url" value={form.facebook_url} onChange={(event) => setForm((prev) => ({ ...prev, facebook_url: event.target.value }))} className={inputClass} placeholder="https://facebook.com/..." />
           </Field>
-          <div className="md:col-span-2">
-            <Field label="Zdjęcie (URL)">
-              <input type="url" value={form.image_url} onChange={(event) => setForm((prev) => ({ ...prev, image_url: event.target.value }))} className={inputClass} placeholder="https://..." />
-            </Field>
-          </div>
         </div>
       </div>
 
@@ -1257,13 +1262,13 @@ export function PublicSubmissionForms({ initialTab = "event" }: { initialTab?: S
               type="button"
               onClick={() => setActiveTab(tabKey)}
               className={cn(
-                "rounded-3xl border px-4 py-4 text-left transition-all duration-200",
+                "flex h-full items-start rounded-3xl border px-4 py-4 text-left transition-all duration-200",
                 selected
                   ? "border-sky-300 bg-[linear-gradient(180deg,rgba(240,249,255,0.98),rgba(236,253,255,0.98))] shadow-[0_18px_42px_-32px_rgba(2,132,199,0.4)]"
                   : "border-border bg-card hover:border-sky-200 hover:bg-sky-50/40",
               )}
             >
-              <div className="flex items-start gap-3">
+              <div className="flex w-full items-start gap-3">
                 <div className={cn("rounded-2xl p-2.5", selected ? "bg-sky-900 text-white" : "bg-slate-100 text-slate-700")}>
                   <Icon size={18} />
                 </div>

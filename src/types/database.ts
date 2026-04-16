@@ -118,21 +118,23 @@ export interface Event {
 // Camp & Place — frontend types (DB tables TBD)
 // ============================================
 
-export type OrganizerContentType = "miejsca" | "wydarzenia" | "kolonie" | "zajecia";
-
-export interface Organizer {
+export interface Company {
   id: string;
   name: string;
-  image_url: string | null;
-  description_short: string | null;
-  description_long: string | null;
-  source_url: string | null;
-  facebook_url: string | null;
+  business_name: string | null;
+  street: string;
+  postcode: string;
+  city: string;
+  email: string | null;
+  phone: string | null;
+  website_url: string | null;
+  note: string | null;
   status: "draft" | "published";
-  content_types: OrganizerContentType[];
   created_at: string;
   updated_at: string;
 }
+
+export type Organizer = Company;
 
 export interface Camp {
   content_type: "camp";
@@ -167,7 +169,7 @@ export interface Camp {
   lng: number | null;
   organizer: string;
   organizer_id?: string | null;
-  organizer_data?: Organizer | null;
+  organizer_data?: Company | null;
   source_url: string | null;
   facebook_url: string | null;
   is_featured: boolean;
@@ -249,6 +251,7 @@ export interface Place {
   place_type: PlaceType;
   is_indoor: boolean;
   street: string;
+  postcode: string;
   city: string;
   district: District;
   lat: number | null;

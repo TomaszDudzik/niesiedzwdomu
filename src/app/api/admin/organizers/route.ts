@@ -10,8 +10,16 @@ function getDb() {
 }
 
 const ALLOWED_FIELDS = new Set([
-  "name", "description_short", "description_long",
-  "source_url", "facebook_url", "status", "content_types",
+  "name",
+  "business_name",
+  "street",
+  "postcode",
+  "city",
+  "email",
+  "phone",
+  "website_url",
+  "note",
+  "status",
 ]);
 
 function pickFields(input: Record<string, unknown>) {
@@ -23,7 +31,7 @@ function pickFields(input: Record<string, unknown>) {
 export async function GET() {
   const db = getDb();
   const { data, error } = await db
-    .from("organizers")
+    .from("companies")
     .select("*")
     .order("name", { ascending: true });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -34,11 +42,14 @@ export async function POST(request: NextRequest) {
   const db = getDb();
   const body = (await request.json()) as Record<string, unknown>;
   const payload = pickFields(body);
+  if (!payload.name || String(payload.name).trim().length === 0) {
+    return NextResponse.json({ error: "name required" }, { status: 400 });
+  }
   if (!payload.status) payload.status = "draft";
-  if (!payload.content_types) payload.content_types = [];
+  if (!payload.city) payload.city = "Kraków";
 
   const { data, error } = await db
-    .from("organizers")
+    .from("companies")
     .insert(payload)
     .select()
     .single();
@@ -53,8 +64,11 @@ export async function PATCH(request: NextRequest) {
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
   const patch = pickFields(updates);
+  if ("name" in patch && (!patch.name || String(patch.name).trim().length === 0)) {
+    return NextResponse.json({ error: "name required" }, { status: 400 });
+  }
   const { data, error } = await db
-    .from("organizers")
+    .from("companies")
     .update(patch)
     .eq("id", id)
     .select()
@@ -69,7 +83,7 @@ export async function DELETE(request: NextRequest) {
   const db = getDb();
   const { id } = await request.json();
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
-  const { error } = await db.from("organizers").delete().eq("id", id);
+  const { error } = await db.from("companies").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }
