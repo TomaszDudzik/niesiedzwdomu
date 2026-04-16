@@ -59,6 +59,10 @@ export default async function CampDetailPage({ params }: PageProps) {
     ? await getCampSessionsByOrganizer(camp.organizer_id, camp.organizer, camp.id)
     : [];
   const campType = camp.category_lvl_1 ?? camp.main_category;
+  const campTypeLabel = CAMP_MAIN_CATEGORY_LABELS[campType as keyof typeof CAMP_MAIN_CATEGORY_LABELS] ?? campType;
+  const campCategoryLabel = camp.category
+    ? CAMP_CATEGORY_LABELS[camp.category as keyof typeof CAMP_CATEGORY_LABELS] ?? camp.category
+    : null;
 
   const campUrl = `${SITE_URL}/kolonie/${camp.slug}`;
   const breadcrumbSchema = {
@@ -104,7 +108,7 @@ export default async function CampDetailPage({ params }: PageProps) {
           validFrom: camp.created_at,
         }
       : undefined,
-    keywords: [CAMP_MAIN_CATEGORY_LABELS[campType], camp.district, CAMP_SEASON_LABELS[camp.season], "kolonie dla dzieci", "Krakow"].join(", "),
+    keywords: [campTypeLabel, camp.district, CAMP_SEASON_LABELS[camp.season], "kolonie dla dzieci", "Krakow"].join(", "),
     audience:
       camp.age_min !== null || camp.age_max !== null
         ? {
@@ -131,7 +135,7 @@ export default async function CampDetailPage({ params }: PageProps) {
           </Link>
           <span className="text-muted-foreground/30">·</span>
           <span className="text-lg mr-0.5">{CAMP_MAIN_CATEGORY_ICONS[campType] || "🏕️"}</span>
-          <span className="text-primary">{CAMP_MAIN_CATEGORY_LABELS[campType]}</span>
+          <span className="text-primary">{campTypeLabel}</span>
           <span className="text-muted-foreground/30">·</span>
           <span className="text-muted-foreground">{CAMP_SEASON_LABELS[camp.season]}</span>
           <span className="text-muted-foreground/30">·</span>
@@ -167,8 +171,8 @@ export default async function CampDetailPage({ params }: PageProps) {
             <AiLearnMoreLink
               queryParts={[
                 camp.organizer,
-                CAMP_MAIN_CATEGORY_LABELS[campType],
-                camp.category ? CAMP_CATEGORY_LABELS[camp.category as keyof typeof CAMP_CATEGORY_LABELS] : null,
+                campTypeLabel,
+                campCategoryLabel,
                 camp.title,
                 "Kraków",
                 camp.price ? `cena ${formatPrice(camp.price)}` : null,

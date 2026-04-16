@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
+import { loadAdminCategoryMaps, withCategoryIds, withCategoryNames } from "@/lib/admin-taxonomy-db";
 
 function getDb() {
   return createClient(
@@ -22,17 +23,19 @@ function withLegacyPlacesTaxonomy(input: Record<string, unknown>) {
     delete payload.type_lvl_2_id;
   }
 
+  delete payload.category_lvl_1_id;
   if ("category_lvl_1" in payload) {
     payload.main_category = payload.category_lvl_1 ?? null;
-    payload.place_type = payload.category_lvl_1 ?? null;
     delete payload.category_lvl_1;
   }
 
+  delete payload.category_lvl_2_id;
   if ("category_lvl_2" in payload) {
     payload.category = payload.category_lvl_2 ?? null;
     delete payload.category_lvl_2;
   }
 
+  delete payload.category_lvl_3_id;
   if ("category_lvl_3" in payload) {
     payload.subcategory = payload.category_lvl_3 ?? null;
     delete payload.category_lvl_3;
@@ -41,39 +44,43 @@ function withLegacyPlacesTaxonomy(input: Record<string, unknown>) {
   return payload;
 }
 
-function normalizePlacesPayload(input: Record<string, unknown>) {
-  const payload = { ...input };
+function normalizePlacesPayload(input: Record<string, unknown>, categoryMaps: Awaited<ReturnType<typeof loadAdminCategoryMaps>>) {
+  const payload = withCategoryIds(input, categoryMaps);
 
+  const hasTypeLevel1 = "type_lvl_1_id" in payload || "type_id" in payload;
   const typeLevel1 = payload.type_lvl_1_id ?? payload.type_id ?? null;
-  if (typeLevel1 !== null) {
+  if (hasTypeLevel1) {
     payload.type_lvl_1_id = typeLevel1;
-    payload.type_id = typeLevel1;
   }
+  delete payload.type_id;
 
+  const hasTypeLevel2 = "type_lvl_2_id" in payload || "subtype_id" in payload;
   const typeLevel2 = payload.type_lvl_2_id ?? payload.subtype_id ?? null;
-  if (typeLevel2 !== null) {
+  if (hasTypeLevel2) {
     payload.type_lvl_2_id = typeLevel2;
-    payload.subtype_id = typeLevel2;
   }
+  delete payload.subtype_id;
 
-  const categoryLevel1 = payload.category_lvl_1 ?? payload.main_category ?? payload.place_type ?? null;
-  if (categoryLevel1 !== null) {
+  const hasCategoryLevel1 = "category_lvl_1" in payload || "main_category" in payload;
+  const categoryLevel1 = payload.category_lvl_1 ?? payload.main_category ?? null;
+  if (hasCategoryLevel1) {
     payload.category_lvl_1 = categoryLevel1;
-    payload.main_category = categoryLevel1;
-    payload.place_type = categoryLevel1;
   }
+  delete payload.main_category;
 
+  const hasCategoryLevel2 = "category_lvl_2" in payload || "category" in payload;
   const categoryLevel2 = payload.category_lvl_2 ?? payload.category ?? null;
-  if (categoryLevel2 !== null) {
+  if (hasCategoryLevel2) {
     payload.category_lvl_2 = categoryLevel2;
-    payload.category = categoryLevel2;
   }
+  delete payload.category;
 
+  const hasCategoryLevel3 = "category_lvl_3" in payload || "subcategory" in payload;
   const categoryLevel3 = payload.category_lvl_3 ?? payload.subcategory ?? null;
-  if (categoryLevel3 !== null) {
+  if (hasCategoryLevel3) {
     payload.category_lvl_3 = categoryLevel3;
-    payload.subcategory = categoryLevel3;
   }
+  delete payload.subcategory;
 
   return payload;
 }
@@ -81,7 +88,7 @@ function normalizePlacesPayload(input: Record<string, unknown>) {
 function normalizePlaceRecord(record: Record<string, unknown>) {
   const typeLevel1 = record.type_lvl_1_id ?? record.type_id ?? null;
   const typeLevel2 = record.type_lvl_2_id ?? record.subtype_id ?? null;
-  const categoryLevel1 = record.category_lvl_1 ?? record.main_category ?? record.place_type ?? null;
+  const categoryLevel1 = record.category_lvl_1 ?? record.main_category ?? null;
   const categoryLevel2 = record.category_lvl_2 ?? record.category ?? null;
   const categoryLevel3 = record.category_lvl_3 ?? record.subcategory ?? null;
 
@@ -97,7 +104,6 @@ function normalizePlaceRecord(record: Record<string, unknown>) {
     main_category: categoryLevel1,
     category: categoryLevel2,
     subcategory: categoryLevel3,
-    place_type: categoryLevel1,
   };
 }
 
@@ -107,6 +113,9 @@ function isMissingNewPlacesTaxonomyColumn(message: string | undefined) {
   return [
     "type_lvl_1_id",
     "type_lvl_2_id",
+    "category_lvl_1_id",
+    "category_lvl_2_id",
+    "category_lvl_3_id",
     "category_lvl_1",
     "category_lvl_2",
     "category_lvl_3",
@@ -133,13 +142,18 @@ async function insertPlaceWithFallback(db: ReturnType<typeof getDb>, payload: Re
     const result = await db.from("places").insert(currentPayload).select().single();
     if (!result.error) return result;
 
+    const missingColumn = getMissingSchemaColumn(result.error.message);
+    if (missingColumn && ["category_lvl_1", "category_lvl_2", "category_lvl_3"].includes(missingColumn)) {
+      delete currentPayload[missingColumn];
+      continue;
+    }
+
     if (!attemptedLegacyMapping && isMissingNewPlacesTaxonomyColumn(result.error.message)) {
       currentPayload = withLegacyPlacesTaxonomy(currentPayload);
       attemptedLegacyMapping = true;
       continue;
     }
 
-    const missingColumn = getMissingSchemaColumn(result.error.message);
     if (!missingColumn || !(missingColumn in currentPayload)) {
       return result;
     }
@@ -158,13 +172,18 @@ async function updatePlaceWithFallback(db: ReturnType<typeof getDb>, id: unknown
     const result = await db.from("places").update(currentUpdates).eq("id", id).select();
     if (!result.error) return result;
 
+    const missingColumn = getMissingSchemaColumn(result.error.message);
+    if (missingColumn && ["category_lvl_1", "category_lvl_2", "category_lvl_3"].includes(missingColumn)) {
+      delete currentUpdates[missingColumn];
+      continue;
+    }
+
     if (!attemptedLegacyMapping && isMissingNewPlacesTaxonomyColumn(result.error.message)) {
       currentUpdates = withLegacyPlacesTaxonomy(currentUpdates);
       attemptedLegacyMapping = true;
       continue;
     }
 
-    const missingColumn = getMissingSchemaColumn(result.error.message);
     if (!missingColumn || !(missingColumn in currentUpdates)) {
       return result;
     }
@@ -178,19 +197,21 @@ async function updatePlaceWithFallback(db: ReturnType<typeof getDb>, id: unknown
 // GET /api/admin/places — list all places
 export async function GET() {
   const db = getDb();
+  const categoryMaps = await loadAdminCategoryMaps(db);
   const { data, error } = await db
     .from("places")
     .select("*")
     .order("title", { ascending: true });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(Array.isArray(data) ? data.map((record) => normalizePlaceRecord(record as Record<string, unknown>)) : []);
+  return NextResponse.json(Array.isArray(data) ? data.map((record) => normalizePlaceRecord(withCategoryNames(record as Record<string, unknown>, categoryMaps))) : []);
 }
 
 // POST /api/admin/places — create a new place
 export async function POST(request: NextRequest) {
   const db = getDb();
   const body = await request.json();
+  const categoryMaps = await loadAdminCategoryMaps(db);
 
   // Generate slug from title
   const slug = (body.title || "nowe-miejsce")
@@ -202,12 +223,12 @@ export async function POST(request: NextRequest) {
     .replace(/(^-|-$)/g, "")
     + "-" + Date.now().toString(36);
 
-  const initialPayload = normalizePlacesPayload({ ...body, slug, status: "draft" });
+  const initialPayload = normalizePlacesPayload({ ...body, slug, status: "draft" }, categoryMaps);
 
   const { data, error } = await insertPlaceWithFallback(db, initialPayload);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+  return NextResponse.json(normalizePlaceRecord(withCategoryNames(data as Record<string, unknown>, categoryMaps)));
 }
 
 // PATCH /api/admin/places — update a place
@@ -215,10 +236,11 @@ export async function PATCH(request: NextRequest) {
   const db = getDb();
   const body = await request.json();
   const { id, ...updates } = body;
+  const categoryMaps = await loadAdminCategoryMaps(db);
 
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
-  const { data, error } = await updatePlaceWithFallback(db, id, normalizePlacesPayload(updates as Record<string, unknown>));
+  const { data, error } = await updatePlaceWithFallback(db, id, normalizePlacesPayload(updates as Record<string, unknown>, categoryMaps));
 
   if (error) return NextResponse.json({ error: error.message, details: error }, { status: 500 });
   if (!data || data.length === 0) return NextResponse.json({ error: "No rows updated — check id or RLS" }, { status: 404 });
@@ -226,7 +248,7 @@ export async function PATCH(request: NextRequest) {
   revalidatePath("/");
   revalidatePath("/miejsca");
 
-  return NextResponse.json({ ok: true, updated: normalizePlaceRecord(data[0] as Record<string, unknown>) });
+  return NextResponse.json({ ok: true, updated: normalizePlaceRecord(withCategoryNames(data[0] as Record<string, unknown>, categoryMaps)) });
 }
 
 // DELETE /api/admin/places — delete a place

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@supabase/supabase-js";
+import { loadAdminCategoryMaps, withCategoryIds, withCategoryNames } from "@/lib/admin-taxonomy-db";
 
 function getDb() {
   return createClient(
@@ -23,38 +24,43 @@ function toSlug(value: string) {
   );
 }
 
-function normalizeActivityPayload(input: Record<string, unknown>) {
-  const payload = { ...input };
+function normalizeActivityPayload(input: Record<string, unknown>, categoryMaps: Awaited<ReturnType<typeof loadAdminCategoryMaps>>) {
+  const payload = withCategoryIds(input, categoryMaps);
 
+  const hasTypeLevel1 = "type_lvl_1_id" in payload || "type_id" in payload;
   const typeLevel1 = payload.type_lvl_1_id ?? payload.type_id ?? null;
-  if (typeLevel1 !== null) {
+  if (hasTypeLevel1) {
     payload.type_lvl_1_id = typeLevel1;
-    payload.type_id = typeLevel1;
   }
+  delete payload.type_id;
 
+  const hasTypeLevel2 = "type_lvl_2_id" in payload || "subtype_id" in payload;
   const typeLevel2 = payload.type_lvl_2_id ?? payload.subtype_id ?? null;
-  if (typeLevel2 !== null) {
+  if (hasTypeLevel2) {
     payload.type_lvl_2_id = typeLevel2;
-    payload.subtype_id = typeLevel2;
   }
+  delete payload.subtype_id;
 
+  const hasCategoryLevel1 = "category_lvl_1" in payload || "main_category" in payload;
   const categoryLevel1 = payload.category_lvl_1 ?? payload.main_category ?? null;
-  if (categoryLevel1 !== null) {
+  if (hasCategoryLevel1) {
     payload.category_lvl_1 = categoryLevel1;
-    payload.main_category = categoryLevel1;
   }
+  delete payload.main_category;
 
+  const hasCategoryLevel2 = "category_lvl_2" in payload || "category" in payload;
   const categoryLevel2 = payload.category_lvl_2 ?? payload.category ?? null;
-  if (categoryLevel2 !== null) {
+  if (hasCategoryLevel2) {
     payload.category_lvl_2 = categoryLevel2;
-    payload.category = categoryLevel2;
   }
+  delete payload.category;
 
+  const hasCategoryLevel3 = "category_lvl_3" in payload || "subcategory" in payload;
   const categoryLevel3 = payload.category_lvl_3 ?? payload.subcategory ?? null;
-  if (categoryLevel3 !== null) {
+  if (hasCategoryLevel3) {
     payload.category_lvl_3 = categoryLevel3;
-    payload.subcategory = categoryLevel3;
   }
+  delete payload.subcategory;
 
   return payload;
 }
@@ -72,16 +78,19 @@ function withLegacyActivityTaxonomy(input: Record<string, unknown>) {
     delete payload.type_lvl_2_id;
   }
 
+  delete payload.category_lvl_1_id;
   if ("category_lvl_1" in payload) {
     payload.main_category = payload.category_lvl_1 ?? null;
     delete payload.category_lvl_1;
   }
 
+  delete payload.category_lvl_2_id;
   if ("category_lvl_2" in payload) {
     payload.category = payload.category_lvl_2 ?? null;
     delete payload.category_lvl_2;
   }
 
+  delete payload.category_lvl_3_id;
   if ("category_lvl_3" in payload) {
     payload.subcategory = payload.category_lvl_3 ?? null;
     delete payload.category_lvl_3;
@@ -118,6 +127,9 @@ function isMissingNewActivityTaxonomyColumn(message: string | undefined) {
   return [
     "type_lvl_1_id",
     "type_lvl_2_id",
+    "category_lvl_1_id",
+    "category_lvl_2_id",
+    "category_lvl_3_id",
     "category_lvl_1",
     "category_lvl_2",
     "category_lvl_3",
@@ -144,13 +156,18 @@ async function insertActivityWithFallback(db: ReturnType<typeof getDb>, payload:
     const result = await db.from("activities").insert(currentPayload).select().single();
     if (!result.error) return result;
 
+    const missingColumn = getMissingSchemaColumn(result.error.message);
+    if (missingColumn && ["category_lvl_1", "category_lvl_2", "category_lvl_3"].includes(missingColumn)) {
+      delete currentPayload[missingColumn];
+      continue;
+    }
+
     if (!attemptedLegacyMapping && isMissingNewActivityTaxonomyColumn(result.error.message)) {
       currentPayload = withLegacyActivityTaxonomy(currentPayload);
       attemptedLegacyMapping = true;
       continue;
     }
 
-    const missingColumn = getMissingSchemaColumn(result.error.message);
     if (!missingColumn || !(missingColumn in currentPayload)) {
       return result;
     }
@@ -169,13 +186,18 @@ async function updateActivityWithFallback(db: ReturnType<typeof getDb>, id: unkn
     const result = await db.from("activities").update(currentUpdates).eq("id", id).select();
     if (!result.error) return result;
 
+    const missingColumn = getMissingSchemaColumn(result.error.message);
+    if (missingColumn && ["category_lvl_1", "category_lvl_2", "category_lvl_3"].includes(missingColumn)) {
+      delete currentUpdates[missingColumn];
+      continue;
+    }
+
     if (!attemptedLegacyMapping && isMissingNewActivityTaxonomyColumn(result.error.message)) {
       currentUpdates = withLegacyActivityTaxonomy(currentUpdates);
       attemptedLegacyMapping = true;
       continue;
     }
 
-    const missingColumn = getMissingSchemaColumn(result.error.message);
     if (!missingColumn || !(missingColumn in currentUpdates)) {
       return result;
     }
@@ -194,6 +216,9 @@ function pickActivityFields(input: Record<string, unknown>) {
     image_url: input.image_url,
     type_lvl_1_id: input.type_lvl_1_id ?? input.type_id ?? null,
     type_lvl_2_id: input.type_lvl_2_id ?? input.subtype_id ?? null,
+    category_lvl_1_id: input.category_lvl_1_id ?? null,
+    category_lvl_2_id: input.category_lvl_2_id ?? null,
+    category_lvl_3_id: input.category_lvl_3_id ?? null,
     category_lvl_1: input.category_lvl_1 ?? input.main_category ?? null,
     category_lvl_2: input.category_lvl_2 ?? input.category ?? null,
     category_lvl_3: input.category_lvl_3 ?? input.subcategory ?? null,
@@ -224,19 +249,21 @@ function pickActivityFields(input: Record<string, unknown>) {
 
 export async function GET() {
   const db = getDb();
+  const categoryMaps = await loadAdminCategoryMaps(db);
   const { data, error } = await db.from("activities").select("*").order("title", { ascending: true });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(Array.isArray(data) ? data.map((record) => normalizeActivityRecord(record as Record<string, unknown>)) : []);
+  return NextResponse.json(Array.isArray(data) ? data.map((record) => normalizeActivityRecord(withCategoryNames(record as Record<string, unknown>, categoryMaps))) : []);
 }
 
 export async function POST(request: NextRequest) {
   const db = getDb();
   const body = (await request.json()) as Record<string, unknown>;
+  const categoryMaps = await loadAdminCategoryMaps(db);
   const slug = toSlug(typeof body.title === "string" ? body.title : "nowe-zajecia");
 
   const payload = {
-    ...pickActivityFields(normalizeActivityPayload(body)),
+    ...pickActivityFields(normalizeActivityPayload(body, categoryMaps)),
     slug,
     status: "draft",
   };
@@ -249,13 +276,14 @@ export async function POST(request: NextRequest) {
   revalidatePath("/zajecia");
   revalidatePath("/admin/zajecia");
 
-  return NextResponse.json(normalizeActivityRecord(data as Record<string, unknown>));
+  return NextResponse.json(normalizeActivityRecord(withCategoryNames(data as Record<string, unknown>, categoryMaps)));
 }
 
 const ALLOWED_ACTIVITY_FIELDS = new Set([
   "title", "description_short", "description_long",
   "image_url", "image_cover", "image_thumb", "image_set",
   "type_lvl_1_id", "type_lvl_2_id", "type_id", "subtype_id",
+  "category_lvl_1_id", "category_lvl_2_id", "category_lvl_3_id",
   "category_lvl_1", "category_lvl_2", "category_lvl_3", "main_category", "category", "subcategory",
   "activity_type", "schedule_summary", "days_of_week",
   "date_start", "date_end", "time_start", "time_end",
@@ -268,11 +296,12 @@ export async function PATCH(request: NextRequest) {
   const db = getDb();
   const body = (await request.json()) as Record<string, unknown>;
   const { id, ...updates } = body;
+  const categoryMaps = await loadAdminCategoryMaps(db);
 
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
   const patch = Object.fromEntries(
-    Object.entries(normalizeActivityPayload(updates)).filter(([k, v]) => ALLOWED_ACTIVITY_FIELDS.has(k) && v !== undefined)
+    Object.entries(normalizeActivityPayload(updates, categoryMaps)).filter(([k, v]) => ALLOWED_ACTIVITY_FIELDS.has(k) && v !== undefined)
   );
 
   const { data, error } = await updateActivityWithFallback(db, id, patch);
@@ -283,7 +312,7 @@ export async function PATCH(request: NextRequest) {
   revalidatePath("/zajecia");
   revalidatePath("/admin/zajecia");
 
-  return NextResponse.json({ ok: true, updated: normalizeActivityRecord(data[0] as Record<string, unknown>) });
+  return NextResponse.json({ ok: true, updated: normalizeActivityRecord(withCategoryNames(data[0] as Record<string, unknown>, categoryMaps)) });
 }
 
 export async function DELETE(request: NextRequest) {

@@ -746,9 +746,12 @@ function AdminCanonicalEventsPanel() {
       return;
     }
 
+    const updatedEvent = data.updated as Record<string, unknown> | undefined;
     setEvents((prev) => prev.map((event) => (
       event.id === id
-        ? { ...event, ...updates, ...(newImageUrl ? { image_url: newImageUrl } : {}) } as Event
+        ? (updatedEvent
+            ? ({ ...event, ...updatedEvent } as Event)
+            : { ...event, ...updates, ...(newImageUrl ? { image_url: newImageUrl } : {}) } as Event)
         : event
     )));
     clearPendingFile();

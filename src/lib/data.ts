@@ -1,4 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
+import {
+  loadAdminCategoryMaps,
+  type AdminCategoryMaps,
+  withCategoryNames,
+} from "@/lib/admin-taxonomy-db";
 import type { Activity, Camp, Event, Place } from "@/types/database";
 
 /**
@@ -14,41 +19,137 @@ function getDb() {
   );
 }
 
+function getTaxonomyDb() {
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (serviceRoleKey) {
+    return createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      serviceRoleKey,
+    );
+  }
+
+  return getDb();
+}
+
+let categoryMapsPromise: Promise<AdminCategoryMaps> | null = null;
+
+function getCategoryMaps() {
+  if (!categoryMapsPromise) {
+    categoryMapsPromise = loadAdminCategoryMaps(getTaxonomyDb());
+  }
+
+  return categoryMapsPromise;
+}
+
+function pickString(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeCategoryFields(row: Record<string, unknown>, maps: AdminCategoryMaps): Record<string, unknown> {
+  const normalized = withCategoryNames(row, maps);
+
+  const categoryLevel1 = pickString(normalized.category_lvl_1) ?? pickString(normalized.main_category);
+  const categoryLevel2 = pickString(normalized.category_lvl_2) ?? pickString(normalized.category);
+  const categoryLevel3 = pickString(normalized.category_lvl_3) ?? pickString(normalized.subcategory);
+
+  return {
+    ...normalized,
+    category_lvl_1: categoryLevel1,
+    category_lvl_2: categoryLevel2,
+    category_lvl_3: categoryLevel3,
+    main_category: categoryLevel1,
+    category: categoryLevel2 ?? categoryLevel1,
+    subcategory: categoryLevel3,
+  };
+}
+
+function getUncategorizedLabel(value: string | null | undefined) {
+  return value ?? "Bez kategorii";
+}
+
 /** Map a Supabase row to the Event type expected by components */
-function toEvent(row: Record<string, unknown>): Event {
-  return { ...row, content_type: "event" } as Event;
+function toEvent(row: Record<string, unknown>, maps: AdminCategoryMaps): Event {
+  const normalized = normalizeCategoryFields(row, maps);
+  const displayCategory =
+    pickString(normalized.category_lvl_2) ??
+    pickString(normalized.category_lvl_1) ??
+    pickString(normalized.category) ??
+    "Bez kategorii";
+
+  return {
+    ...normalized,
+    content_type: "event",
+    main_category: pickString(normalized.category_lvl_1),
+    category: displayCategory,
+  } as unknown as Event;
 }
 
-function toPlace(row: Record<string, unknown>): Place {
-  return { ...row, content_type: "place" } as Place;
+function toPlace(row: Record<string, unknown>, maps: AdminCategoryMaps): Place {
+  const normalized = normalizeCategoryFields(row, maps);
+  const placeType =
+    pickString(normalized.category_lvl_1) ??
+    pickString(normalized.main_category) ??
+    pickString(normalized.place_type) ??
+    "Bez kategorii";
+
+  return {
+    ...normalized,
+    content_type: "place",
+    place_type: placeType,
+    main_category: getUncategorizedLabel(pickString(normalized.category_lvl_1) ?? placeType),
+    category: pickString(normalized.category_lvl_2),
+    subcategory: pickString(normalized.category_lvl_3),
+  } as unknown as Place;
 }
 
-function toCamp(row: Record<string, unknown>): Camp {
+function toCamp(row: Record<string, unknown>, maps: AdminCategoryMaps): Camp {
+  const normalized = normalizeCategoryFields(row, maps);
   const priceFrom = typeof row.price_from === "number" ? row.price_from : null;
   const priceSingle = typeof row.price === "number" ? row.price : null;
   const organizerData = row.organizer_data as Record<string, unknown> | null | undefined;
+
   return {
-    ...row,
+    ...normalized,
     content_type: "camp",
+    main_category: pickString(normalized.category_lvl_1) ?? pickString(normalized.main_category) ?? "Bez kategorii",
+    category: pickString(normalized.category_lvl_2),
+    subcategory: pickString(normalized.category_lvl_3),
     organizer: typeof organizerData?.name === "string" && organizerData.name.trim().length > 0
       ? organizerData.name
       : String(row.organizer || ""),
     price: priceFrom ?? priceSingle ?? null,
-  } as Camp;
+  } as unknown as Camp;
 }
 
-function toActivity(row: Record<string, unknown>): Activity {
+function toActivity(row: Record<string, unknown>, maps: AdminCategoryMaps): Activity {
+  const normalized = normalizeCategoryFields(row, maps);
+  const activityType =
+    pickString(normalized.category_lvl_1) ??
+    pickString(normalized.activity_type) ??
+    "Bez kategorii";
+
   return {
-    ...row,
+    ...normalized,
     content_type: "activity",
+    activity_type: activityType,
+    main_category: pickString(normalized.category_lvl_1) ?? activityType,
+    category: pickString(normalized.category_lvl_2),
+    subcategory: pickString(normalized.category_lvl_3),
     days_of_week: Array.isArray(row.days_of_week) ? row.days_of_week.map(String) : [],
     price_from: typeof row.price_from === "number" ? row.price_from : null,
     price_to: typeof row.price_to === "number" ? row.price_to : null,
-  } as Activity;
+  } as unknown as Activity;
 }
 
 export async function getPublishedEvents(limit = 50): Promise<Event[]> {
   const db = getDb();
+  const maps = await getCategoryMaps();
   const today = new Date().toISOString().slice(0, 10);
   const { data } = await db
     .from("events")
@@ -57,11 +158,12 @@ export async function getPublishedEvents(limit = 50): Promise<Event[]> {
     .or(`date_start.gte.${today},date_end.gte.${today}`)
     .order("date_start", { ascending: true })
     .limit(limit);
-  return (data || []).map(toEvent);
+  return (data || []).map((row) => toEvent(row, maps));
 }
 
 export async function getFeaturedEvent(): Promise<Event | null> {
   const db = getDb();
+  const maps = await getCategoryMaps();
   const today = new Date().toISOString().slice(0, 10);
   const { data } = await db
     .from("events")
@@ -72,11 +174,12 @@ export async function getFeaturedEvent(): Promise<Event | null> {
     .order("date_start", { ascending: true })
     .limit(1)
     .single();
-  return data ? toEvent(data) : null;
+  return data ? toEvent(data, maps) : null;
 }
 
 export async function getFreeEvents(limit = 3): Promise<Event[]> {
   const db = getDb();
+  const maps = await getCategoryMaps();
   const today = new Date().toISOString().slice(0, 10);
   const { data } = await db
     .from("events")
@@ -86,39 +189,54 @@ export async function getFreeEvents(limit = 3): Promise<Event[]> {
     .or(`date_start.gte.${today},date_end.gte.${today}`)
     .order("date_start", { ascending: true })
     .limit(limit);
-  return (data || []).map(toEvent);
+  return (data || []).map((row) => toEvent(row, maps));
 }
 
 export async function getEventBySlug(slug: string): Promise<Event | null> {
   const db = getDb();
+  const maps = await getCategoryMaps();
   const { data } = await db
     .from("events")
     .select("*")
     .eq("slug", slug)
     .eq("status", "published")
     .single();
-  return data ? toEvent(data) : null;
+  return data ? toEvent(data, maps) : null;
 }
 
 export async function getRelatedEvents(event: Event, limit = 3): Promise<Event[]> {
   const db = getDb();
+  const maps = await getCategoryMaps();
   const today = new Date().toISOString().slice(0, 10);
+  const eventRow = event as Event & {
+    category_lvl_1_id?: string | null;
+    category_lvl_2_id?: string | null;
+  };
+  const relatedConditions = [`district.eq.${event.district}`];
+
+  if (eventRow.category_lvl_2_id) {
+    relatedConditions.unshift(`category_lvl_2_id.eq.${eventRow.category_lvl_2_id}`);
+  } else if (eventRow.category_lvl_1_id) {
+    relatedConditions.unshift(`category_lvl_1_id.eq.${eventRow.category_lvl_1_id}`);
+  }
+
   const { data } = await db
     .from("events")
     .select("*")
     .eq("status", "published")
     .neq("id", event.id)
     .or(`date_start.gte.${today},date_end.gte.${today}`)
-    .or(`category.eq.${event.category},district.eq.${event.district}`)
+    .or(relatedConditions.join(","))
     .order("date_start", { ascending: true })
     .limit(limit);
-  return (data || []).map(toEvent);
+  return (data || []).map((row) => toEvent(row, maps));
 }
 
 // ── Places ──
 
 export async function getPublishedPlaces(limit = 50): Promise<Place[]> {
   const db = getDb();
+  const maps = await getCategoryMaps();
   const { data } = await db
     .from("places")
     .select("*")
@@ -126,24 +244,26 @@ export async function getPublishedPlaces(limit = 50): Promise<Place[]> {
     .order("likes", { ascending: false })
     .order("title", { ascending: true })
     .limit(limit);
-  return (data || []).map(toPlace);
+  return (data || []).map((row) => toPlace(row, maps));
 }
 
 export async function getPlaceBySlug(slug: string): Promise<Place | null> {
   const db = getDb();
+  const maps = await getCategoryMaps();
   const { data } = await db
     .from("places")
     .select("*")
     .eq("slug", slug)
     .eq("status", "published")
     .single();
-  return data ? toPlace(data) : null;
+  return data ? toPlace(data, maps) : null;
 }
 
 // ── Camps ──
 
 export async function getPublishedCamps(limit = 80): Promise<Camp[]> {
   const db = getDb();
+  const maps = await getCategoryMaps();
   const today = new Date().toISOString().slice(0, 10);
   const { data } = await db
     .from("camps")
@@ -152,22 +272,24 @@ export async function getPublishedCamps(limit = 80): Promise<Camp[]> {
     .or(`date_start.gte.${today},date_end.gte.${today}`)
     .order("date_start", { ascending: true })
     .limit(limit);
-  return (data || []).map(toCamp);
+  return (data || []).map((row) => toCamp(row, maps));
 }
 
 export async function getCampBySlug(slug: string): Promise<Camp | null> {
   const db = getDb();
+  const maps = await getCategoryMaps();
   const { data } = await db
     .from("camps")
     .select("*, organizer_data:organizer_id(*)")
     .eq("slug", slug)
     .eq("status", "published")
     .single();
-  return data ? toCamp(data) : null;
+  return data ? toCamp(data, maps) : null;
 }
 
 export async function getCampSessionsByOrganizer(organizerId: string | null | undefined, organizer: string, excludeId: string): Promise<Camp[]> {
   const db = getDb();
+  const maps = await getCategoryMaps();
   let query = db
     .from("camps")
     .select("*, organizer_data:organizer_id(*)")
@@ -178,13 +300,14 @@ export async function getCampSessionsByOrganizer(organizerId: string | null | un
   query = organizerId ? query.eq("organizer_id", organizerId) : query.eq("organizer", organizer);
 
   const { data } = await query;
-  return (data || []).map(toCamp);
+  return (data || []).map((row) => toCamp(row, maps));
 }
 
 // ── Activities ──
 
 export async function getPublishedActivities(limit = 120): Promise<Activity[]> {
   const db = getDb();
+  const maps = await getCategoryMaps();
   const today = new Date().toISOString().slice(0, 10);
   const { data } = await db
     .from("activities")
@@ -195,5 +318,5 @@ export async function getPublishedActivities(limit = 120): Promise<Activity[]> {
     .order("date_start", { ascending: true })
     .order("title", { ascending: true })
     .limit(limit);
-  return (data || []).map(toActivity);
+  return (data || []).map((row) => toActivity(row, maps));
 }

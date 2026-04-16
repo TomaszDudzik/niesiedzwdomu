@@ -414,6 +414,7 @@ export default function AdminPlacesPage() {
       category_lvl_2: editForm.category_lvl_2 ? String(editForm.category_lvl_2) : null,
       category_lvl_3: editForm.category_lvl_3 ? String(editForm.category_lvl_3) : null,
       is_indoor: editForm.is_indoor,
+      is_free: Boolean(editForm.is_free),
       street: editForm.street || "",
       city: editForm.city || "Kraków",
       district: editForm.district,
@@ -422,6 +423,7 @@ export default function AdminPlacesPage() {
       age_min: editForm.age_min ?? null,
       age_max: editForm.age_max ?? null,
       source_url: editForm.source_url || null,
+      facebook_url: editForm.facebook_url ? String(editForm.facebook_url) : null,
       is_featured: Boolean(editForm.is_featured),
       likes: Number(editForm.likes) || 0,
       dislikes: Number(editForm.dislikes) || 0,
@@ -432,24 +434,20 @@ export default function AdminPlacesPage() {
       dbPayload.image_url = newImageUrl;
     }
 
-    // Try saving with facebook_url, retry without if column doesn't exist
-    const payloadWithFb = editForm.facebook_url
-      ? { id, ...dbPayload, facebook_url: String(editForm.facebook_url) }
-      : { id, ...dbPayload };
-
     let saveRes = await fetch("/api/admin/places", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payloadWithFb),
+      body: JSON.stringify({ id, ...dbPayload }),
     });
     let saveData = await saveRes.json();
 
     // Retry without facebook_url if column doesn't exist
     if (!saveRes.ok && saveData.error?.includes("facebook_url")) {
+      const { facebook_url: _facebookUrl, ...dbPayloadWithoutFacebook } = dbPayload;
       saveRes = await fetch("/api/admin/places", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, ...dbPayload }),
+        body: JSON.stringify({ id, ...dbPayloadWithoutFacebook }),
       });
       saveData = await saveRes.json();
     }
@@ -459,11 +457,16 @@ export default function AdminPlacesPage() {
       return;
     }
 
-    setPlaces((prev) => prev.map((p) => p.id === id ? {
-      ...p,
-      ...dbPayload,
-      ...(newImageUrl ? { image_url: newImageUrl } : {}),
-    } as Place : p));
+    const updatedPlace = saveData.updated as Record<string, unknown> | undefined;
+    setPlaces((prev) => prev.map((p) => p.id === id ? (
+      updatedPlace
+        ? ({ ...updatedPlace, content_type: "place" } as Place)
+        : {
+            ...p,
+            ...dbPayload,
+            ...(newImageUrl ? { image_url: newImageUrl } : {}),
+          } as Place
+    ) : p));
     setPendingFile(null);
     setPendingPreview(null);
     setEditing(null);
@@ -796,10 +799,6 @@ export default function AdminPlacesPage() {
                         onCategoryLevel3Change={(value) => updateField("category_lvl_3", value)}
                       />
 
-                      <div className="md:col-span-4">
-                        <label className={labelClass}>Organizator</label>
-                        <input className={inputClass} value={(editForm.organizer as string) || ""} onChange={(e) => updateField("organizer", e.target.value)} />
-                      </div>
                       <div>
                         <label className={labelClass}>Likes</label>
                         <input type="number" min={0} className={inputClass} value={(editForm.likes as number) ?? 0} onChange={(e) => updateField("likes", Number(e.target.value) || 0)} />

@@ -3,14 +3,12 @@
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 import { Search, SlidersHorizontal, X, MapPin, Check, Tags, Users, CalendarDays } from "lucide-react";
-import { CAMP_CATEGORY_LABELS, CAMP_MAIN_CATEGORY_ICONS, CAMP_MAIN_CATEGORY_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
+import { DISTRICT_LIST } from "@/lib/mock-data";
 import { FilterSection } from "@/components/ui/filter-section";
-import { getTaxonomyOptions, matchesTaxonomyFilter } from "@/lib/taxonomy-filters";
 import { cn, formatDateShort, toLocalDateKey, thumbUrl } from "@/lib/utils";
 import { ImageWithFallback } from "@/components/ui/image-with-fallback";
-import type { Camp, CampCategory, CampMainCategory, District } from "@/types/database";
-
-const campTypes = Object.keys(CAMP_MAIN_CATEGORY_LABELS) as CampMainCategory[];
+import { getTaxonomyOptions, matchesTaxonomyFilter } from "@/lib/taxonomy-filters";
+import type { Camp, District } from "@/types/database";
 
 const AGE_GROUPS = [
   { key: "0-5", label: "0-5 lat", icon: "👶", min: 0, max: 5 },
@@ -53,7 +51,7 @@ interface OrganizerTile {
 }
 
 interface CampMainCategoryGroup {
-  type: CampMainCategory;
+  type: string;
   label: string;
   icon: string;
   organizers: OrganizerTile[];
@@ -63,16 +61,16 @@ interface CampsListViewProps {
   camps: Camp[];
 }
 
-function getCampCategoryLvl1(camp: Camp) {
-  return camp.category_lvl_1 ?? camp.main_category;
+function getCampTypeValue(camp: Camp): string {
+  return camp.category_lvl_1 ?? camp.main_category ?? "Bez kategorii";
 }
 
-function getCampCategoryLvl2(camp: Camp) {
-  return camp.category_lvl_2 ?? camp.category;
+function getCampCategoryValue(camp: Camp): string | null {
+  return camp.category_lvl_2 ?? camp.category ?? null;
 }
 
-function getCampCategoryLvl3(camp: Camp) {
-  return camp.category_lvl_3 ?? camp.subcategory;
+function getCampSubcategoryValue(camp: Camp): string | null {
+  return camp.category_lvl_3 ?? camp.subcategory ?? null;
 }
 
 function getTodayStart(): Date {
@@ -187,8 +185,8 @@ export function CampsListView({ camps }: CampsListViewProps) {
   const calendarRef = useRef<HTMLDivElement | null>(null);
 
   const [search, setSearch] = useState("");
-  const [activeTypes, setActiveTypes] = useState<CampMainCategory[]>([]);
-  const [activeCategories, setActiveCategories] = useState<CampCategory[]>([]);
+  const [activeTypes, setActiveTypes] = useState<string[]>([]);
+  const [activeCategories, setActiveCategories] = useState<string[]>([]);
   const [activeSubcategories, setActiveSubcategories] = useState<string[]>([]);
   const [activeDistricts, setActiveDistricts] = useState<District[]>([]);
   const [activeAgeGroups, setActiveAgeGroups] = useState<string[]>([]);
@@ -210,7 +208,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
   const hasActiveFilters =
     !!search || activeTypes.length > 0 || activeCategories.length > 0 || activeSubcategories.length > 0 || activeDistricts.length > 0 || activeAgeGroups.length > 0 || hasDateFilters;
 
-  const filtered = useMemo(() => {
+  const preTaxonomyFiltered = useMemo(() => {
     let result = camps;
 
     if (search) {
@@ -221,21 +219,6 @@ export function CampsListView({ camps }: CampsListViewProps) {
           .toLowerCase()
           .includes(query)
       );
-    }
-
-    if (activeTypes.length > 0) {
-      result = result.filter((camp) => activeTypes.includes(getCampCategoryLvl1(camp)));
-    }
-
-    if (activeCategories.length > 0) {
-      result = result.filter((camp) => {
-        const category = getCampCategoryLvl2(camp);
-        return !!category && activeCategories.includes(category);
-      });
-    }
-
-    if (activeSubcategories.length > 0) {
-      result = result.filter((camp) => matchesTaxonomyFilter(getCampCategoryLvl3(camp), activeSubcategories));
     }
 
     if (activeDistricts.length > 0) {
@@ -253,26 +236,71 @@ export function CampsListView({ camps }: CampsListViewProps) {
     }
 
     return result;
-  }, [camps, search, activeTypes, activeCategories, activeSubcategories, activeDistricts, ageGroups]);
+  }, [camps, search, activeDistricts, ageGroups]);
 
-  const dateFiltered = useMemo(() => {
+  const dateScopedCamps = useMemo(() => {
     const fromDate = parseDateOnly(rangeFrom);
     const toDate = parseDateOnly(rangeTo);
 
     if (fromDate || toDate) {
       const start = fromDate ? toStartOfDay(fromDate) : new Date(1970, 0, 1);
       const end = toDate ? toEndOfDay(toDate) : new Date(2100, 0, 1);
-      return filtered.filter((camp) => campIntersectsRange(camp, { start, end }));
+      return preTaxonomyFiltered.filter((camp) => campIntersectsRange(camp, { start, end }));
     }
 
     const exactDate = parseDateOnly(singleDate);
     if (exactDate) {
       const range = { start: toStartOfDay(exactDate), end: toEndOfDay(exactDate) };
-      return filtered.filter((camp) => campIntersectsRange(camp, range));
+      return preTaxonomyFiltered.filter((camp) => campIntersectsRange(camp, range));
     }
 
-    return filtered;
-  }, [filtered, rangeFrom, rangeTo, singleDate]);
+    return preTaxonomyFiltered;
+  }, [preTaxonomyFiltered, rangeFrom, rangeTo, singleDate]);
+
+  const typeOptions = useMemo(
+    () => getTaxonomyOptions(dateScopedCamps, getCampTypeValue),
+    [dateScopedCamps]
+  );
+
+  const typeOptionsByValue = useMemo(
+    () => new Map(typeOptions.map((option) => [option.value, option])),
+    [typeOptions]
+  );
+
+  const categorySource = useMemo(
+    () => dateScopedCamps.filter((camp) => matchesTaxonomyFilter(getCampTypeValue(camp), activeTypes)),
+    [dateScopedCamps, activeTypes]
+  );
+
+  const categoryOptions = useMemo(
+    () => getTaxonomyOptions(categorySource, getCampCategoryValue),
+    [categorySource]
+  );
+
+  const categoryOptionsByValue = useMemo(
+    () => new Map(categoryOptions.map((option) => [option.value, option])),
+    [categoryOptions]
+  );
+
+  const subcategorySource = useMemo(
+    () => categorySource.filter((camp) => matchesTaxonomyFilter(getCampCategoryValue(camp), activeCategories)),
+    [categorySource, activeCategories]
+  );
+
+  const subcategoryOptions = useMemo(
+    () => getTaxonomyOptions(subcategorySource, getCampSubcategoryValue),
+    [subcategorySource]
+  );
+
+  const subcategoryOptionsByValue = useMemo(
+    () => new Map(subcategoryOptions.map((option) => [option.value, option])),
+    [subcategoryOptions]
+  );
+
+  const filteredCamps = useMemo(
+    () => subcategorySource.filter((camp) => matchesTaxonomyFilter(getCampSubcategoryValue(camp), activeSubcategories)),
+    [subcategorySource, activeSubcategories]
+  );
 
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
   const monthDays = useMemo(
@@ -297,19 +325,19 @@ export function CampsListView({ camps }: CampsListViewProps) {
     const counts = new Map<string, number>();
     for (const date of monthDays) {
       const key = toLocalDateKey(date);
-      counts.set(key, getCampsForDate(filtered, date).length);
+      counts.set(key, getCampsForDate(preTaxonomyFiltered, date).length);
     }
     return counts;
-  }, [filtered, monthDays]);
+  }, [preTaxonomyFiltered, monthDays]);
 
   const grouped = useMemo(() => {
-    const groupedByType = new Map<CampMainCategory, Camp[]>();
+    const groupedByType = new Map<string, Camp[]>();
 
-    for (const camp of dateFiltered) {
-      const categoryLvl1 = getCampCategoryLvl1(camp);
-      const current = groupedByType.get(categoryLvl1) || [];
+    for (const camp of filteredCamps) {
+      const campType = getCampTypeValue(camp);
+      const current = groupedByType.get(campType) || [];
       current.push(camp);
-      groupedByType.set(categoryLvl1, current);
+      groupedByType.set(campType, current);
     }
 
     return Array.from(groupedByType.entries()).map(([type, typeCamps]) => {
@@ -340,49 +368,33 @@ export function CampsListView({ camps }: CampsListViewProps) {
 
           const leadCampDate = new Date(existing.leadCamp.date_start).getTime();
           const currentDate = new Date(camp.date_start).getTime();
-          const leadHasImage = !!existing.leadCamp.image_url;
-          const campHasImage = !!camp.image_url;
-          if ((!leadHasImage && campHasImage) ||
-              (currentDate < leadCampDate && !(!leadHasImage && !campHasImage))) {
+          // Prefer camp with organizer_data image; otherwise earliest date with image
+          const leadHasOrgImage = !!existing.leadCamp.organizer_data?.image_url;
+          const campHasOrgImage = !!camp.organizer_data?.image_url;
+          if ((!leadHasOrgImage && campHasOrgImage) ||
+              (currentDate < leadCampDate && !(!leadHasOrgImage && !campHasOrgImage))) {
             existing.leadCamp = camp;
           }
         });
 
       const organizers = Array.from(organizerMap.values()).sort((a, b) => a.organizerName.localeCompare(b.organizerName, "pl"));
 
+      const typeOption = typeOptionsByValue.get(type);
+
       return {
         type,
-        label: CAMP_MAIN_CATEGORY_LABELS[type] || type,
-        icon: CAMP_MAIN_CATEGORY_ICONS[type] || "🏕️",
+        label: typeOption?.label || type,
+        icon: typeOption?.icon || "🏕️",
         organizers,
       } satisfies CampMainCategoryGroup;
     });
-  }, [dateFiltered]);
+  }, [filteredCamps, typeOptionsByValue]);
 
   const availableDistricts = useMemo(() => {
     const set = new Set<string>();
-    camps.forEach((camp) => set.add(camp.district));
+    dateScopedCamps.forEach((camp) => set.add(camp.district));
     return DISTRICT_LIST.filter((district) => set.has(district));
-  }, [camps]);
-
-  const typeCounts = useMemo(() => {
-    const counts = new Map<CampMainCategory, number>();
-    camps.forEach((camp) => {
-      const categoryLvl1 = getCampCategoryLvl1(camp);
-      counts.set(categoryLvl1, (counts.get(categoryLvl1) || 0) + 1);
-    });
-    return counts;
-  }, [camps]);
-
-  const categoryOptions = useMemo(
-    () => getTaxonomyOptions(camps, getCampCategoryLvl2, CAMP_CATEGORY_LABELS),
-    [camps]
-  );
-
-  const subcategoryOptions = useMemo(
-    () => getTaxonomyOptions(camps, getCampCategoryLvl3),
-    [camps]
-  );
+  }, [dateScopedCamps]);
 
   const districtCounts = useMemo(() => {
     const counts = new Map<District, number>();
@@ -400,26 +412,28 @@ export function CampsListView({ camps }: CampsListViewProps) {
     }
 
     activeTypes.forEach((type) => {
+      const typeOption = typeOptionsByValue.get(type);
       badges.push({
         id: `type-${type}`,
-        label: `Typ: ${CAMP_MAIN_CATEGORY_LABELS[type]}`,
+        label: `Typ: ${typeOption?.label || type}`,
         onRemove: () => setActiveTypes((prev) => prev.filter((item) => item !== type)),
       });
     });
 
     activeCategories.forEach((category) => {
+      const categoryOption = categoryOptionsByValue.get(category);
       badges.push({
         id: `category-${category}`,
-        label: `Kategoria: ${CAMP_CATEGORY_LABELS[category]}`,
+        label: `Kategoria: ${categoryOption?.label || category}`,
         onRemove: () => setActiveCategories((prev) => prev.filter((item) => item !== category)),
       });
     });
 
     activeSubcategories.forEach((subcategory) => {
-      const option = subcategoryOptions.find((item) => item.value === subcategory);
+      const subcategoryOption = subcategoryOptionsByValue.get(subcategory);
       badges.push({
         id: `subcategory-${subcategory}`,
-        label: `Tematyka: ${option?.label || subcategory}`,
+        label: `Tematyka: ${subcategoryOption?.label || subcategory}`,
         onRemove: () => setActiveSubcategories((prev) => prev.filter((item) => item !== subcategory)),
       });
     });
@@ -467,7 +481,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
     }
 
     return badges;
-  }, [search, activeTypes, activeCategories, activeSubcategories, subcategoryOptions, activeAgeGroups, activeDistricts, singleDate, rangeFrom, rangeTo]);
+  }, [search, activeTypes, activeCategories, activeSubcategories, activeAgeGroups, activeDistricts, singleDate, rangeFrom, rangeTo, typeOptionsByValue, categoryOptionsByValue, subcategoryOptionsByValue]);
 
   function clearFilters() {
     setSearch("");
@@ -482,16 +496,19 @@ export function CampsListView({ camps }: CampsListViewProps) {
     setSelectedDate(null);
   }
 
-  function toggleType(type: CampMainCategory) {
+  function toggleType(type: string) {
     setActiveTypes((prev) =>
       prev.includes(type) ? prev.filter((item) => item !== type) : [...prev, type]
     );
+    setActiveCategories([]);
+    setActiveSubcategories([]);
   }
 
-  function toggleCategory(category: CampCategory) {
+  function toggleCategory(category: string) {
     setActiveCategories((prev) =>
       prev.includes(category) ? prev.filter((item) => item !== category) : [...prev, category]
     );
+    setActiveSubcategories([]);
   }
 
   function toggleSubcategory(subcategory: string) {
@@ -610,8 +627,8 @@ export function CampsListView({ camps }: CampsListViewProps) {
       </div>
 
       {filtersOpen && (
-        <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 space-y-2.5 max-h-[calc(100dvh-8rem)] overflow-y-auto overscroll-contain">
-          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><CalendarDays size={11} /> Data</span>}>
+        <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 space-y-2.5">
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Data</p>} defaultCollapsed>
             <p className="text-[10px] text-muted-foreground mb-1">Konkretna data</p>
             <input
               type="date"
@@ -653,41 +670,14 @@ export function CampsListView({ camps }: CampsListViewProps) {
             </div>
           </FilterSection>
 
-          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Typ kolonii</span>}>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Typ</p>} defaultCollapsed>
             <div className="flex flex-wrap gap-1">
-              {campTypes.map((type) => {
-                const count = typeCounts.get(type) || 0;
-                if (count === 0) return null;
-                const selected = activeTypes.includes(type);
-                return (
-                  <button
-                    key={type}
-                    onClick={() => toggleType(type)}
-                    className={cn(
-                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
-                      selected
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground"
-                    )}
-                  >
-                    <span>{CAMP_MAIN_CATEGORY_ICONS[type]}</span>
-                    <span>{CAMP_MAIN_CATEGORY_LABELS[type]}</span>
-                    <span className="text-[10px] opacity-60">{count}</span>
-                    {selected && <Check size={11} />}
-                  </button>
-                );
-              })}
-            </div>
-          </FilterSection>
-
-          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Kategoria</span>}>
-            <div className="flex flex-wrap gap-1">
-              {categoryOptions.map((option) => {
-                const selected = activeCategories.includes(option.value as CampCategory);
+              {typeOptions.map((option) => {
+                const selected = activeTypes.includes(option.value);
                 return (
                   <button
                     key={option.value}
-                    onClick={() => toggleCategory(option.value as CampCategory)}
+                    onClick={() => toggleType(option.value)}
                     className={cn(
                       "inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
                       selected
@@ -705,7 +695,32 @@ export function CampsListView({ camps }: CampsListViewProps) {
             </div>
           </FilterSection>
 
-          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Tematyka</span>}>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Kategoria</p>} defaultCollapsed>
+            <div className="flex flex-wrap gap-1">
+              {categoryOptions.map((option) => {
+                const selected = activeCategories.includes(option.value);
+                return (
+                  <button
+                    key={option.value}
+                    onClick={() => toggleCategory(option.value)}
+                    className={cn(
+                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
+                      selected
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground"
+                    )}
+                  >
+                    <span>{option.icon}</span>
+                    <span>{option.label}</span>
+                    <span className="text-[10px] opacity-60">{option.count}</span>
+                    {selected && <Check size={11} />}
+                  </button>
+                );
+              })}
+            </div>
+          </FilterSection>
+
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Tematyka</p>} defaultCollapsed>
             <div className="flex flex-wrap gap-1">
               {subcategoryOptions.map((option) => {
                 const selected = activeSubcategories.includes(option.value);
@@ -730,7 +745,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
             </div>
           </FilterSection>
 
-          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Users size={11} /> Wiek dziecka</span>}>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Wiek dziecka</p>} defaultCollapsed>
             <div className="flex flex-wrap gap-1">
               {AGE_GROUPS.map((group) => {
                 const selected = activeAgeGroups.includes(group.key);
@@ -754,7 +769,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
             </div>
           </FilterSection>
 
-          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><MapPin size={11} /> Dzielnica</span>}>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Dzielnica</p>} defaultCollapsed>
             <div className="flex flex-wrap gap-1">
               {availableDistricts.map((district) => {
                 const selected = activeDistricts.includes(district);
@@ -794,7 +809,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
 
       <div className="lg:flex lg:gap-6 lg:items-start">
         <aside className="hidden lg:block w-52 shrink-0 sticky top-20">
-          <div className="rounded-xl border border-border bg-card p-2.5 space-y-2.5 max-h-[calc(100vh-6rem)] overflow-y-auto overscroll-contain pr-1">
+          <div className="rounded-xl border border-border bg-card p-2.5 space-y-2.5">
             <div className="relative">
               <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
               <input
@@ -806,7 +821,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
               />
             </div>
 
-            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><CalendarDays size={10} /> Data</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
+            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Data</p>} defaultCollapsed>
               <p className="text-[10px] text-muted-foreground mb-1">Konkretna data</p>
               <input
                 type="date"
@@ -848,39 +863,14 @@ export function CampsListView({ camps }: CampsListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Typ kolonii</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
+            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Typ</p>} defaultCollapsed>
               <div className="flex flex-col gap-0.5">
-                {campTypes.map((type) => {
-                  const count = typeCounts.get(type) || 0;
-                  if (count === 0) return null;
-                  const selected = activeTypes.includes(type);
-                  return (
-                    <button
-                      key={type}
-                      onClick={() => toggleType(type)}
-                      className={cn(
-                        "flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
-                        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent"
-                      )}
-                    >
-                      <span>{CAMP_MAIN_CATEGORY_ICONS[type]}</span>
-                      <span className="flex-1">{CAMP_MAIN_CATEGORY_LABELS[type]}</span>
-                      {selected && <Check size={10} />}
-                      <span className="text-[8px] opacity-40">{count}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </FilterSection>
-
-            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Kategoria</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
-              <div className="flex flex-col gap-0.5">
-                {categoryOptions.map((option) => {
-                  const selected = activeCategories.includes(option.value as CampCategory);
+                {typeOptions.map((option) => {
+                  const selected = activeTypes.includes(option.value);
                   return (
                     <button
                       key={option.value}
-                      onClick={() => toggleCategory(option.value as CampCategory)}
+                      onClick={() => toggleType(option.value)}
                       className={cn(
                         "flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
                         selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent"
@@ -896,7 +886,30 @@ export function CampsListView({ camps }: CampsListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Tematyka</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
+            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Kategoria</p>} defaultCollapsed>
+              <div className="flex flex-col gap-0.5">
+                {categoryOptions.map((option) => {
+                  const selected = activeCategories.includes(option.value);
+                  return (
+                    <button
+                      key={option.value}
+                      onClick={() => toggleCategory(option.value)}
+                      className={cn(
+                        "flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
+                        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent"
+                      )}
+                    >
+                      <span>{option.icon}</span>
+                      <span className="flex-1">{option.label}</span>
+                      {selected && <Check size={10} />}
+                      <span className="text-[8px] opacity-40">{option.count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </FilterSection>
+
+            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Tematyka</p>} defaultCollapsed>
               <div className="flex flex-col gap-0.5">
                 {subcategoryOptions.map((option) => {
                   const selected = activeSubcategories.includes(option.value);
@@ -919,7 +932,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Users size={10} /> Wiek</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
+            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Wiek</p>} defaultCollapsed>
               <div className="flex flex-col gap-0.5">
                 {AGE_GROUPS.map((group) => {
                   const selected = activeAgeGroups.includes(group.key);
@@ -941,7 +954,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><MapPin size={9} className="inline" /> Dzielnica</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
+            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Dzielnica</p>} defaultCollapsed>
               <div className="flex flex-col gap-0.5">
                 {availableDistricts.map((district) => {
                   const selected = activeDistricts.includes(district);
@@ -1096,7 +1109,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
             </div>
           </div>
 
-          {dateFiltered.length === 0 ? (
+          {filteredCamps.length === 0 ? (
             <div className="text-center py-16">
               <Search size={32} className="mx-auto text-muted-foreground/20 mb-3" />
               <p className="text-[14px] text-muted mb-3">Brak kolonii pasujących do filtrów.</p>
@@ -1133,10 +1146,10 @@ export function CampsListView({ camps }: CampsListViewProps) {
                           <div className="group flex flex-col overflow-hidden sm:min-h-[180px] sm:flex-row">
                             <Link
                               href={`/kolonie/${organizer.leadCamp.slug}`}
-                              className="relative aspect-[20/9] w-full shrink-0 bg-accent sm:aspect-auto sm:h-auto sm:w-[210px] sm:self-stretch"
+                              className="relative aspect-video w-full shrink-0 bg-accent sm:aspect-auto sm:h-auto sm:w-[210px] sm:self-stretch"
                             >
                               {(() => {
-                                const imgSrc = organizer.leadCamp.image_url;
+                                const imgSrc = organizer.leadCamp.organizer_data?.image_url ?? organizer.leadCamp.image_url;
                                 return imgSrc ? (
                                   <ImageWithFallback
                                     src={thumbUrl(organizer.leadCamp.image_thumb, imgSrc) || imgSrc}
@@ -1194,20 +1207,20 @@ export function CampsListView({ camps }: CampsListViewProps) {
                                           return (
                                             <tr
                                               key={camp.id}
-                                              className="group border-b border-border/40 last:border-0 cursor-pointer hover:bg-stone-100 transition-colors"
+                                              className="group border-b border-border/40 last:border-0 cursor-pointer"
                                               onClick={() => window.location.href = `/kolonie/${camp.slug}`}
                                             >
-                                              <td className="py-1.5 pr-2 text-foreground align-top rounded-l">
+                                              <td className="py-1.5 pr-2 text-foreground align-top group-hover:bg-stone-100 transition-colors rounded-l">
                                                 <div className="min-w-0">
                                                   <span className="block truncate whitespace-nowrap font-medium group-hover:text-primary transition-colors" title={camp.title}>
                                                     {camp.title}
                                                   </span>
                                                 </div>
                                               </td>
-                                              <td className="px-2 py-1.5 text-muted align-top whitespace-nowrap">
+                                              <td className="px-2 py-1.5 text-muted align-top whitespace-nowrap group-hover:bg-stone-100 transition-colors">
                                                 {getDateChipLabel(camp)}
                                               </td>
-                                              <td className="px-2 py-1.5 align-top whitespace-nowrap rounded-r">
+                                              <td className="px-2 py-1.5 align-top whitespace-nowrap group-hover:bg-stone-100 transition-colors rounded-r">
                                                 <span className="font-medium text-primary">
                                                   <span className="hidden sm:inline">Zobacz</span>
                                                   <svg className="sm:hidden" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>

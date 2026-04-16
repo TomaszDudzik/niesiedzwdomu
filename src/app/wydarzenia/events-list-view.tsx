@@ -1,16 +1,14 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Search, LayoutGrid, CalendarDays, SlidersHorizontal, X, MapPin, Check, Tags, Users } from "lucide-react";
-import { CATEGORY_LABELS, CATEGORY_ICONS, DISTRICT_LIST } from "@/lib/mock-data";
-import { getTaxonomyOptions, matchesTaxonomyFilter } from "@/lib/taxonomy-filters";
+import { Search, LayoutGrid, CalendarDays, SlidersHorizontal, X, MapPin, MapIcon, Check } from "lucide-react";
+import { DISTRICT_LIST } from "@/lib/mock-data";
 import { ContentCard } from "@/components/ui/content-card";
 import { FilterSection } from "@/components/ui/filter-section";
 import { cn, toLocalDateKey } from "@/lib/utils";
 import { getEventsForDate } from "@/lib/filter-events";
-import type { Event, EventCategory, District } from "@/types/database";
-
-const categoryKeys = Object.keys(CATEGORY_LABELS).filter((k) => k !== "inne") as EventCategory[];
+import { getTaxonomyOptions, matchesTaxonomyFilter } from "@/lib/taxonomy-filters";
+import type { Event, District } from "@/types/database";
 
 const AGE_GROUPS = [
   { key: "0-3", label: "0–3 lata", icon: "👶", min: 0, max: 3 },
@@ -150,15 +148,15 @@ interface EventsListViewProps {
   events: Event[];
 }
 
-function getEventCategoryLvl1(event: Event) {
-  return event.category_lvl_1 ?? event.main_category ?? null;
+function getEventTypeValue(event: Event): string {
+  return event.category_lvl_1 ?? event.main_category ?? event.category ?? "Bez kategorii";
 }
 
-function getEventCategoryLvl2(event: Event) {
-  return event.category_lvl_2 ?? event.category;
+function getEventCategoryValue(event: Event): string | null {
+  return event.category_lvl_2 ?? null;
 }
 
-function getEventCategoryLvl3(event: Event) {
+function getEventSubcategoryValue(event: Event): string | null {
   return event.category_lvl_3 ?? event.subcategory ?? null;
 }
 
@@ -170,8 +168,8 @@ export function EventsListView({ events }: EventsListViewProps) {
   const todayButtonRef = useRef<HTMLButtonElement | null>(null);
 
   const [search, setSearch] = useState("");
-  const [activeMainCategories, setActiveMainCategories] = useState<string[]>([]);
-  const [activeCategories, setActiveCategories] = useState<EventCategory[]>([]);
+  const [activeTypes, setActiveTypes] = useState<string[]>([]);
+  const [activeCategories, setActiveCategories] = useState<string[]>([]);
   const [activeSubcategories, setActiveSubcategories] = useState<string[]>([]);
   const [activeDistricts, setActiveDistricts] = useState<District[]>([]);
   const [activeAgeGroups, setActiveAgeGroups] = useState<string[]>([]);
@@ -207,9 +205,9 @@ export function EventsListView({ events }: EventsListViewProps) {
   );
   const hasDateFilters = !!singleDate || !!rangeFrom || !!rangeTo;
   const hasActiveFilters =
-    !!search || activeMainCategories.length > 0 || activeCategories.length > 0 || activeSubcategories.length > 0 || activeDistricts.length > 0 || activeAgeGroups.length > 0 || hasDateFilters;
+    !!search || activeTypes.length > 0 || activeCategories.length > 0 || activeSubcategories.length > 0 || activeDistricts.length > 0 || activeAgeGroups.length > 0 || hasDateFilters;
 
-  const filtered = useMemo(() => {
+  const preTaxonomyFiltered = useMemo(() => {
     let result = events;
     if (search) {
       const q = search.toLowerCase();
@@ -217,14 +215,8 @@ export function EventsListView({ events }: EventsListViewProps) {
         [e.title, e.description_short, e.venue_name, e.district].join(" ").toLowerCase().includes(q)
       );
     }
-    if (activeMainCategories.length > 0) {
-      result = result.filter((event) => matchesTaxonomyFilter(getEventCategoryLvl1(event), activeMainCategories));
-    }
     if (activeCategories.length > 0) {
-      result = result.filter((e) => activeCategories.includes(getEventCategoryLvl2(e)));
-    }
-    if (activeSubcategories.length > 0) {
-      result = result.filter((event) => matchesTaxonomyFilter(getEventCategoryLvl3(event), activeSubcategories));
+      result = result.filter((event) => matchesTaxonomyFilter(getEventCategoryValue(event), activeCategories));
     }
     if (activeDistricts.length > 0) {
       result = result.filter((e) => activeDistricts.includes(e.district));
@@ -238,26 +230,66 @@ export function EventsListView({ events }: EventsListViewProps) {
       );
     }
     return result;
-  }, [events, search, activeMainCategories, activeCategories, activeSubcategories, activeDistricts, ageGroups]);
+  }, [events, search, activeDistricts, ageGroups]);
 
-  const dateFiltered = useMemo(() => {
+  const dateScopedEvents = useMemo(() => {
     const fromDate = parseDateOnly(rangeFrom);
     const toDate = parseDateOnly(rangeTo);
 
     if (fromDate || toDate) {
       const start = fromDate ? toStartOfDay(fromDate) : new Date(1970, 0, 1);
       const end = toDate ? toEndOfDay(toDate) : new Date(2100, 0, 1);
-      return filtered.filter((event) => eventIntersectsRange(event, { start, end }));
+      return preTaxonomyFiltered.filter((event) => eventIntersectsRange(event, { start, end }));
     }
 
     const exactDate = parseDateOnly(singleDate);
     if (exactDate) {
       const range = { start: toStartOfDay(exactDate), end: toEndOfDay(exactDate) };
-      return filtered.filter((event) => eventIntersectsRange(event, range));
+      return preTaxonomyFiltered.filter((event) => eventIntersectsRange(event, range));
     }
 
-    return filtered;
-  }, [filtered, rangeFrom, rangeTo, singleDate]);
+    return preTaxonomyFiltered;
+  }, [preTaxonomyFiltered, rangeFrom, rangeTo, singleDate]);
+
+  const typeOptions = useMemo(
+    () => getTaxonomyOptions(dateScopedEvents, getEventTypeValue),
+    [dateScopedEvents]
+  );
+
+  const typeOptionsByValue = useMemo(
+    () => new Map(typeOptions.map((option) => [option.value, option])),
+    [typeOptions]
+  );
+
+  const categorySource = useMemo(
+    () => dateScopedEvents.filter((event) => matchesTaxonomyFilter(getEventTypeValue(event), activeTypes)),
+    [dateScopedEvents, activeTypes]
+  );
+
+  const categoryOptions = useMemo(
+    () => getTaxonomyOptions(categorySource, getEventCategoryValue),
+    [categorySource]
+  );
+
+  const categoryOptionsByValue = useMemo(
+    () => new Map(categoryOptions.map((option) => [option.value, option])),
+    [categoryOptions]
+  );
+
+  const subcategorySource = useMemo(
+    () => categorySource.filter((event) => matchesTaxonomyFilter(getEventCategoryValue(event), activeCategories)),
+    [categorySource, activeCategories]
+  );
+
+  const subcategoryOptions = useMemo(
+    () => getTaxonomyOptions(subcategorySource, getEventSubcategoryValue),
+    [subcategorySource]
+  );
+
+  const subcategoryOptionsByValue = useMemo(
+    () => new Map(subcategoryOptions.map((option) => [option.value, option])),
+    [subcategoryOptions]
+  );
 
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
   const monthDays = useMemo(
@@ -282,38 +314,37 @@ export function EventsListView({ events }: EventsListViewProps) {
     const counts = new Map<string, number>();
     for (const date of monthDays) {
       const key = toLocalDateKey(date);
-      counts.set(key, getEventsForDate(events, date).length);
+      counts.set(key, getEventsForDate(preTaxonomyFiltered, date).length);
     }
     return counts;
-  }, [events, monthDays]);
+  }, [preTaxonomyFiltered, monthDays]);
 
-  const listEvents = useMemo(() => dateFiltered, [dateFiltered]);
+  const listEvents = useMemo(
+    () => subcategorySource.filter((event) => matchesTaxonomyFilter(getEventSubcategoryValue(event), activeSubcategories)),
+    [subcategorySource, activeSubcategories]
+  );
 
   const sidebarMapGroups = useMemo(() => groupByLocation(listEvents), [listEvents]);
 
   const grouped = useMemo(() => {
-    const groups: { category: EventCategory; label: string; icon: string; events: Event[] }[] = [];
+    const groups: { category: string; label: string; icon: string; events: Event[] }[] = [];
     const seen = new Set<string>();
     for (const event of listEvents) {
-      const cat = getEventCategoryLvl2(event);
+      const cat = getEventTypeValue(event);
+      const categoryOption = typeOptionsByValue.get(cat);
       if (!seen.has(cat)) {
         seen.add(cat);
-        groups.push({ category: cat, label: CATEGORY_LABELS[cat] || cat, icon: CATEGORY_ICONS[cat] || "✨", events: [] });
+        groups.push({
+          category: cat,
+          label: categoryOption?.label || cat,
+          icon: categoryOption?.icon || "✨",
+          events: [],
+        });
       }
       groups.find((g) => g.category === cat)!.events.push(event);
     }
     return groups;
-  }, [listEvents]);
-
-  const mainCategoryOptions = useMemo(
-    () => getTaxonomyOptions(events, getEventCategoryLvl1),
-    [events]
-  );
-
-  const subcategoryOptions = useMemo(
-    () => getTaxonomyOptions(events, getEventCategoryLvl3),
-    [events]
-  );
+  }, [listEvents, typeOptionsByValue]);
 
   const activeFilterBadges = useMemo(() => {
     const badges: { id: string; label: string; onRemove: () => void }[] = [];
@@ -321,27 +352,29 @@ export function EventsListView({ events }: EventsListViewProps) {
     if (search.trim()) {
       badges.push({ id: "search", label: `Szukaj: ${search.trim()}`, onRemove: () => setSearch("") });
     }
-    activeMainCategories.forEach((mainCategory) => {
-      const option = mainCategoryOptions.find((item) => item.value === mainCategory);
+    activeTypes.forEach((type) => {
+      const typeOption = typeOptionsByValue.get(type);
       badges.push({
-        id: `main-${mainCategory}`,
-        label: `Typ: ${option?.label || mainCategory}`,
-        onRemove: () => setActiveMainCategories((prev) => prev.filter((item) => item !== mainCategory)),
+        id: `type-${type}`,
+        label: `Typ: ${typeOption?.label || type}`,
+        onRemove: () => setActiveTypes((prev) => prev.filter((item) => item !== type)),
       });
     });
+
     activeCategories.forEach((category) => {
+      const categoryOption = categoryOptionsByValue.get(category);
       badges.push({
         id: `category-${category}`,
-        label: `Kategoria: ${CATEGORY_LABELS[category]}`,
+        label: `Kategoria: ${categoryOption?.label || category}`,
         onRemove: () => setActiveCategories((prev) => prev.filter((c) => c !== category)),
       });
     });
 
     activeSubcategories.forEach((subcategory) => {
-      const option = subcategoryOptions.find((item) => item.value === subcategory);
+      const subcategoryOption = subcategoryOptionsByValue.get(subcategory);
       badges.push({
         id: `subcategory-${subcategory}`,
-        label: `Tematyka: ${option?.label || subcategory}`,
+        label: `Tematyka: ${subcategoryOption?.label || subcategory}`,
         onRemove: () => setActiveSubcategories((prev) => prev.filter((item) => item !== subcategory)),
       });
     });
@@ -386,22 +419,13 @@ export function EventsListView({ events }: EventsListViewProps) {
     }
 
     return badges;
-  }, [search, activeMainCategories, mainCategoryOptions, activeCategories, activeSubcategories, subcategoryOptions, activeAgeGroups, activeDistricts, singleDate, rangeFrom, rangeTo]);
+  }, [search, activeTypes, activeCategories, activeSubcategories, activeAgeGroups, activeDistricts, singleDate, rangeFrom, rangeTo, typeOptionsByValue, categoryOptionsByValue, subcategoryOptionsByValue]);
 
   const availableDistricts = useMemo(() => {
     const set = new Set<string>();
-    events.forEach((e) => set.add(e.district));
+    dateScopedEvents.forEach((e) => set.add(e.district));
     return DISTRICT_LIST.filter((d) => set.has(d));
-  }, [events]);
-
-  const categoryCounts = useMemo(() => {
-    const counts = new Map<EventCategory, number>();
-    events.forEach((event) => {
-      const category = getEventCategoryLvl2(event);
-      counts.set(category, (counts.get(category) || 0) + 1);
-    });
-    return counts;
-  }, [events]);
+  }, [dateScopedEvents]);
 
   const districtCounts = useMemo(() => {
     const counts = new Map<District, number>();
@@ -413,7 +437,7 @@ export function EventsListView({ events }: EventsListViewProps) {
 
   function clearFilters() {
     setSearch("");
-    setActiveMainCategories([]);
+    setActiveTypes([]);
     setActiveCategories([]);
     setActiveSubcategories([]);
     setActiveDistricts([]);
@@ -424,16 +448,19 @@ export function EventsListView({ events }: EventsListViewProps) {
     setSelectedDate(null);
   }
 
-  function toggleCategory(category: EventCategory) {
+  function toggleType(type: string) {
+    setActiveTypes((prev) =>
+      prev.includes(type) ? prev.filter((item) => item !== type) : [...prev, type]
+    );
+    setActiveCategories([]);
+    setActiveSubcategories([]);
+  }
+
+  function toggleCategory(category: string) {
     setActiveCategories((prev) =>
       prev.includes(category) ? prev.filter((c) => c !== category) : [...prev, category]
     );
-  }
-
-  function toggleMainCategory(mainCategory: string) {
-    setActiveMainCategories((prev) =>
-      prev.includes(mainCategory) ? prev.filter((item) => item !== mainCategory) : [...prev, mainCategory]
-    );
+    setActiveSubcategories([]);
   }
 
   function toggleSubcategory(subcategory: string) {
@@ -513,25 +540,14 @@ export function EventsListView({ events }: EventsListViewProps) {
         </div>
         <div className="flex items-center gap-1 rounded-lg border border-border p-0.5 bg-accent/50">
           <button onClick={() => setView("list")} className={cn("px-2 py-1 rounded-lg text-[11px] font-medium transition-all duration-200", view === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}><LayoutGrid size={12} /></button>
-          <button onClick={() => setView("map")} className={cn("px-2 py-1 rounded-lg text-[11px] font-medium transition-all duration-200", view === "map" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}><CalendarDays size={12} /></button>
+          <button onClick={() => setView("map")} className={cn("px-2 py-1 rounded-lg text-[11px] font-medium transition-all duration-200", view === "map" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}><MapIcon size={12} /></button>
         </div>
       </div>
 
       {/* Mobile filters dropdown */}
       {filtersOpen && (
-        <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 space-y-2.5 max-h-[calc(100dvh-8rem)] overflow-y-auto overscroll-contain">
-          <div className="flex items-center justify-between gap-3 pb-1 border-b border-border/70">
-            <p className="text-[11px] font-semibold text-foreground">Filtry wydarzeń</p>
-            <button
-              type="button"
-              onClick={() => setFiltersOpen(false)}
-              className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-2 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:border-primary/20 transition-colors"
-            >
-              <X size={10} /> Zwiń
-            </button>
-          </div>
-
-          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><CalendarDays size={11} /> Data</span>}>
+        <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 space-y-2.5">
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Data</p>} defaultCollapsed>
             <p className="text-[10px] text-muted-foreground mb-1">Konkretna data</p>
             <input
               type="date"
@@ -573,19 +589,14 @@ export function EventsListView({ events }: EventsListViewProps) {
             </div>
           </FilterSection>
 
-          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Typ</span>}>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Typ</p>} defaultCollapsed>
             <div className="flex flex-wrap gap-1">
-              {mainCategoryOptions.map((option) => {
-                const selected = activeMainCategories.includes(option.value);
+              {typeOptions.map((option) => {
+                const selected = activeTypes.includes(option.value);
                 return (
-                  <button
-                    key={option.value}
-                    onClick={() => toggleMainCategory(option.value)}
-                    className={cn(
-                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
-                      selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground"
-                    )}
-                  >
+                  <button key={option.value} onClick={() => toggleType(option.value)}
+                    className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
+                      selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
                     <span>{option.icon}</span>
                     <span>{option.label}</span>
                     <span className="text-[10px] opacity-60">{option.count}</span>
@@ -596,19 +607,17 @@ export function EventsListView({ events }: EventsListViewProps) {
             </div>
           </FilterSection>
 
-          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Kategoria</span>}>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Kategoria</p>} defaultCollapsed>
             <div className="flex flex-wrap gap-1">
-              {categoryKeys.map((key) => {
-                const count = categoryCounts.get(key) || 0;
-                if (count === 0) return null;
-                const selected = activeCategories.includes(key);
+              {categoryOptions.map((option) => {
+                const selected = activeCategories.includes(option.value);
                 return (
-                  <button key={key} onClick={() => toggleCategory(key)}
+                  <button key={option.value} onClick={() => toggleCategory(option.value)}
                     className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
                       selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
-                    <span>{CATEGORY_ICONS[key]}</span>
-                    <span>{CATEGORY_LABELS[key]}</span>
-                    <span className="text-[10px] opacity-60">{count}</span>
+                    <span>{option.icon}</span>
+                    <span>{option.label}</span>
+                    <span className="text-[10px] opacity-60">{option.count}</span>
                     {selected && <Check size={11} />}
                   </button>
                 );
@@ -616,19 +625,14 @@ export function EventsListView({ events }: EventsListViewProps) {
             </div>
           </FilterSection>
 
-          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Tematyka</span>}>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Tematyka</p>} defaultCollapsed>
             <div className="flex flex-wrap gap-1">
               {subcategoryOptions.map((option) => {
                 const selected = activeSubcategories.includes(option.value);
                 return (
-                  <button
-                    key={option.value}
-                    onClick={() => toggleSubcategory(option.value)}
-                    className={cn(
-                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
-                      selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground"
-                    )}
-                  >
+                  <button key={option.value} onClick={() => toggleSubcategory(option.value)}
+                    className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
+                      selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
                     <span>{option.icon}</span>
                     <span>{option.label}</span>
                     <span className="text-[10px] opacity-60">{option.count}</span>
@@ -639,7 +643,7 @@ export function EventsListView({ events }: EventsListViewProps) {
             </div>
           </FilterSection>
 
-          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Users size={11} /> Wiek dziecka</span>}>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Wiek dziecka</p>} defaultCollapsed>
             <div className="flex flex-wrap gap-1">
               {AGE_GROUPS.map((group) => {
                 const selected = activeAgeGroups.includes(group.key);
@@ -656,7 +660,7 @@ export function EventsListView({ events }: EventsListViewProps) {
             </div>
           </FilterSection>
 
-          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><MapPin size={11} /> Dzielnica</span>}>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Dzielnica</p>} defaultCollapsed>
             <div className="flex flex-wrap gap-1">
               {availableDistricts.map((district) => {
                 const selected = activeDistricts.includes(district);
@@ -686,14 +690,6 @@ export function EventsListView({ events }: EventsListViewProps) {
               <X size={11} /> Wyczyść filtry
             </button>
           )}
-
-          <button
-            type="button"
-            onClick={() => setFiltersOpen(false)}
-            className="w-full inline-flex items-center justify-center gap-1 rounded-lg border border-border bg-background px-3 py-2 text-[11px] font-semibold text-foreground hover:border-primary/20 hover:bg-accent/40 transition-colors"
-          >
-            Zamknij filtry
-          </button>
         </div>
       )}
 
@@ -702,13 +698,13 @@ export function EventsListView({ events }: EventsListViewProps) {
 
         {/* Sidebar — desktop only */}
         <aside className="hidden lg:block w-52 shrink-0 sticky top-20">
-          <div className="rounded-xl border border-border bg-card p-2.5 space-y-2.5 max-h-[calc(100vh-6rem)] overflow-y-auto overscroll-contain pr-1">
+          <div className="rounded-xl border border-border bg-card p-2.5 space-y-2.5">
             <div className="flex items-center gap-1 rounded-lg border border-border p-0.5 bg-accent/50">
               <button onClick={() => setView("list")} className={cn("flex-1 inline-flex items-center justify-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all duration-200", view === "list" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
                 <LayoutGrid size={11} /> Lista
               </button>
               <button onClick={() => setView("map")} className={cn("flex-1 inline-flex items-center justify-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all duration-200", view === "map" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
-                <CalendarDays size={11} /> Mapa
+                <MapIcon size={11} /> Mapa
               </button>
             </div>
 
@@ -720,7 +716,7 @@ export function EventsListView({ events }: EventsListViewProps) {
                 className="w-full pl-7 pr-2 py-1 rounded-lg border border-border bg-background text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-200" />
             </div>
 
-            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><CalendarDays size={10} /> Data</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
+            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Data</p>} defaultCollapsed>
               <p className="text-[10px] text-muted-foreground mb-1">Konkretna data</p>
               <input
                 type="date"
@@ -762,73 +758,61 @@ export function EventsListView({ events }: EventsListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Typ</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
+            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Typ</p>} defaultCollapsed>
               <div className="flex flex-col gap-0.5">
-                {mainCategoryOptions.map((option) => {
-                  const selected = activeMainCategories.includes(option.value);
+                {typeOptions.map((option) => {
+                  const selected = activeTypes.includes(option.value);
                   return (
-                    <button
-                      key={option.value}
-                      onClick={() => toggleMainCategory(option.value)}
-                      className={cn(
-                        "flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
-                        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent"
-                      )}
-                    >
-                      <span>{option.icon}</span>
-                      <span className="flex-1">{option.label}</span>
-                      <span className="text-[8px] opacity-40">{option.count}</span>
-                      {selected && <Check size={10} />}
-                    </button>
-                  );
-                })}
-              </div>
-            </FilterSection>
-
-            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Kategoria</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
-              <div className="flex flex-col gap-0.5">
-                {categoryKeys.map((key) => {
-                  const count = categoryCounts.get(key) || 0;
-                  if (count === 0) return null;
-                  const selected = activeCategories.includes(key);
-                  return (
-                    <button key={key} onClick={() => toggleCategory(key)}
+                    <button key={option.value} onClick={() => toggleType(option.value)}
                       className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
                         selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
-                      <span>{CATEGORY_ICONS[key]}</span>
-                      <span className="flex-1">{CATEGORY_LABELS[key]}</span>
+                      <span>{option.icon}</span>
+                      <span className="flex-1">{option.label}</span>
                       {selected && <Check size={10} />}
-                      <span className="text-[8px] opacity-40">{count}</span>
+                      <span className="text-[8px] opacity-40">{option.count}</span>
                     </button>
                   );
                 })}
               </div>
             </FilterSection>
 
-            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Tematyka</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
+            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Kategoria</p>} defaultCollapsed>
+              <div className="flex flex-col gap-0.5">
+                {categoryOptions.map((option) => {
+                  const selected = activeCategories.includes(option.value);
+                  return (
+                    <button key={option.value} onClick={() => toggleCategory(option.value)}
+                      className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
+                        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
+                      <span>{option.icon}</span>
+                      <span className="flex-1">{option.label}</span>
+                      {selected && <Check size={10} />}
+                      <span className="text-[8px] opacity-40">{option.count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </FilterSection>
+
+            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Tematyka</p>} defaultCollapsed>
               <div className="flex flex-col gap-0.5">
                 {subcategoryOptions.map((option) => {
                   const selected = activeSubcategories.includes(option.value);
                   return (
-                    <button
-                      key={option.value}
-                      onClick={() => toggleSubcategory(option.value)}
-                      className={cn(
-                        "flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
-                        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent"
-                      )}
-                    >
+                    <button key={option.value} onClick={() => toggleSubcategory(option.value)}
+                      className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
+                        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
                       <span>{option.icon}</span>
                       <span className="flex-1">{option.label}</span>
-                      <span className="text-[8px] opacity-40">{option.count}</span>
                       {selected && <Check size={10} />}
+                      <span className="text-[8px] opacity-40">{option.count}</span>
                     </button>
                   );
                 })}
               </div>
             </FilterSection>
 
-            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Users size={10} /> Wiek</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
+            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Wiek</p>} defaultCollapsed>
               <div className="flex flex-col gap-0.5">
                 {AGE_GROUPS.map((group) => {
                   const selected = activeAgeGroups.includes(group.key);
@@ -845,8 +829,8 @@ export function EventsListView({ events }: EventsListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><MapPin size={9} className="inline" /> Dzielnica</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
-              <div className="flex flex-col gap-0.5 max-h-52 overflow-y-auto">
+            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Dzielnica</p>} defaultCollapsed>
+              <div className="flex flex-col gap-0.5">
                 {availableDistricts.map((district) => {
                   const selected = activeDistricts.includes(district);
                   const count = districtCounts.get(district) || 0;

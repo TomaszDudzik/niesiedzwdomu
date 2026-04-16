@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
+import { loadAdminCategoryMaps, withCategoryIds, withCategoryNames } from "@/lib/admin-taxonomy-db";
 
 function getDb() {
   return createClient(
@@ -24,38 +25,43 @@ function sanitizeEventPayload(input: unknown): Record<string, unknown> {
   return safe;
 }
 
-function normalizeEventPayload(input: unknown) {
-  const payload = sanitizeEventPayload(input);
+function normalizeEventPayload(input: unknown, categoryMaps: Awaited<ReturnType<typeof loadAdminCategoryMaps>>) {
+  const payload = withCategoryIds(sanitizeEventPayload(input), categoryMaps);
 
+  const hasTypeLevel1 = "type_lvl_1_id" in payload || "type_id" in payload;
   const typeLevel1 = payload.type_lvl_1_id ?? payload.type_id ?? null;
-  if (typeLevel1 !== null) {
+  if (hasTypeLevel1) {
     payload.type_lvl_1_id = typeLevel1;
-    payload.type_id = typeLevel1;
   }
+  delete payload.type_id;
 
+  const hasTypeLevel2 = "type_lvl_2_id" in payload || "subtype_id" in payload;
   const typeLevel2 = payload.type_lvl_2_id ?? payload.subtype_id ?? null;
-  if (typeLevel2 !== null) {
+  if (hasTypeLevel2) {
     payload.type_lvl_2_id = typeLevel2;
-    payload.subtype_id = typeLevel2;
   }
+  delete payload.subtype_id;
 
+  const hasCategoryLevel1 = "category_lvl_1" in payload || "main_category" in payload;
   const categoryLevel1 = payload.category_lvl_1 ?? payload.main_category ?? null;
-  if (categoryLevel1 !== null) {
+  if (hasCategoryLevel1) {
     payload.category_lvl_1 = categoryLevel1;
-    payload.main_category = categoryLevel1;
   }
+  delete payload.main_category;
 
+  const hasCategoryLevel2 = "category_lvl_2" in payload || "category" in payload;
   const categoryLevel2 = payload.category_lvl_2 ?? payload.category ?? null;
-  if (categoryLevel2 !== null) {
+  if (hasCategoryLevel2) {
     payload.category_lvl_2 = categoryLevel2;
-    payload.category = categoryLevel2;
   }
+  delete payload.category;
 
+  const hasCategoryLevel3 = "category_lvl_3" in payload || "subcategory" in payload;
   const categoryLevel3 = payload.category_lvl_3 ?? payload.subcategory ?? null;
-  if (categoryLevel3 !== null) {
+  if (hasCategoryLevel3) {
     payload.category_lvl_3 = categoryLevel3;
-    payload.subcategory = categoryLevel3;
   }
+  delete payload.subcategory;
 
   return payload;
 }
@@ -73,16 +79,19 @@ function withLegacyEventTaxonomy(input: Record<string, unknown>) {
     delete payload.type_lvl_2_id;
   }
 
+  delete payload.category_lvl_1_id;
   if ("category_lvl_1" in payload) {
     payload.main_category = payload.category_lvl_1 ?? null;
     delete payload.category_lvl_1;
   }
 
+  delete payload.category_lvl_2_id;
   if ("category_lvl_2" in payload) {
     payload.category = payload.category_lvl_2 ?? null;
     delete payload.category_lvl_2;
   }
 
+  delete payload.category_lvl_3_id;
   if ("category_lvl_3" in payload) {
     payload.subcategory = payload.category_lvl_3 ?? null;
     delete payload.category_lvl_3;
@@ -119,6 +128,9 @@ function isMissingNewEventTaxonomyColumn(message: string | undefined) {
   return [
     "type_lvl_1_id",
     "type_lvl_2_id",
+    "category_lvl_1_id",
+    "category_lvl_2_id",
+    "category_lvl_3_id",
     "category_lvl_1",
     "category_lvl_2",
     "category_lvl_3",
@@ -145,13 +157,18 @@ async function insertEventWithFallback(db: ReturnType<typeof getDb>, payload: Re
     const result = await db.from("events").insert(currentPayload).select().single();
     if (!result.error) return result;
 
+    const missingColumn = getMissingSchemaColumn(result.error.message);
+    if (missingColumn && ["category_lvl_1", "category_lvl_2", "category_lvl_3"].includes(missingColumn)) {
+      delete currentPayload[missingColumn];
+      continue;
+    }
+
     if (!attemptedLegacyMapping && isMissingNewEventTaxonomyColumn(result.error.message)) {
       currentPayload = withLegacyEventTaxonomy(currentPayload);
       attemptedLegacyMapping = true;
       continue;
     }
 
-    const missingColumn = getMissingSchemaColumn(result.error.message);
     if (!missingColumn || !(missingColumn in currentPayload)) {
       return result;
     }
@@ -170,13 +187,18 @@ async function updateEventWithFallback(db: ReturnType<typeof getDb>, id: unknown
     const result = await db.from("events").update(currentUpdates).eq("id", id).select();
     if (!result.error) return result;
 
+    const missingColumn = getMissingSchemaColumn(result.error.message);
+    if (missingColumn && ["category_lvl_1", "category_lvl_2", "category_lvl_3"].includes(missingColumn)) {
+      delete currentUpdates[missingColumn];
+      continue;
+    }
+
     if (!attemptedLegacyMapping && isMissingNewEventTaxonomyColumn(result.error.message)) {
       currentUpdates = withLegacyEventTaxonomy(currentUpdates);
       attemptedLegacyMapping = true;
       continue;
     }
 
-    const missingColumn = getMissingSchemaColumn(result.error.message);
     if (!missingColumn || !(missingColumn in currentUpdates)) {
       return result;
     }
@@ -190,6 +212,7 @@ async function updateEventWithFallback(db: ReturnType<typeof getDb>, id: unknown
 // GET /api/admin/events — list all events (all statuses)
 export async function GET() {
   const db = getDb();
+  const categoryMaps = await loadAdminCategoryMaps(db);
   const { data, error } = await db
     .from("events")
     .select("*")
@@ -197,24 +220,26 @@ export async function GET() {
     .limit(200);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(Array.isArray(data) ? data.map((record) => normalizeEventRecord(record as Record<string, unknown>)) : []);
+  return NextResponse.json(Array.isArray(data) ? data.map((record) => normalizeEventRecord(withCategoryNames(record as Record<string, unknown>, categoryMaps))) : []);
 }
 
 // POST /api/admin/events — create a new event
 export async function POST(request: NextRequest) {
   const db = getDb();
-  const body = normalizeEventPayload(await request.json());
+  const categoryMaps = await loadAdminCategoryMaps(db);
+  const body = normalizeEventPayload(await request.json(), categoryMaps);
 
   const { data, error } = await insertEventWithFallback(db, body);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(normalizeEventRecord(data as Record<string, unknown>));
+  return NextResponse.json(normalizeEventRecord(withCategoryNames(data as Record<string, unknown>, categoryMaps)));
 }
 
 // PATCH /api/admin/events — update event fields
 export async function PATCH(request: NextRequest) {
   const db = getDb();
   const { id, ...updatesRaw } = await request.json();
-  const updates = normalizeEventPayload(updatesRaw);
+  const categoryMaps = await loadAdminCategoryMaps(db);
+  const updates = normalizeEventPayload(updatesRaw, categoryMaps);
 
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
   if (Object.keys(updates).length === 0) return NextResponse.json({ error: "no update fields provided" }, { status: 400 });
@@ -226,7 +251,7 @@ export async function PATCH(request: NextRequest) {
   revalidatePath("/");
   revalidatePath("/wydarzenia");
 
-  return NextResponse.json({ ok: true, updated: normalizeEventRecord(data[0] as Record<string, unknown>) });
+  return NextResponse.json({ ok: true, updated: normalizeEventRecord(withCategoryNames(data[0] as Record<string, unknown>, categoryMaps)) });
 }
 
 // DELETE /api/admin/events — soft delete an event
