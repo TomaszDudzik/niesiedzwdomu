@@ -123,6 +123,7 @@ export type OrganizerContentType = "miejsca" | "wydarzenia" | "kolonie" | "zajec
 export interface Organizer {
   id: string;
   name: string;
+  image_url: string | null;
   description_short: string | null;
   description_long: string | null;
   source_url: string | null;
