@@ -6,10 +6,11 @@ import { Search, ArrowRight, SlidersHorizontal, X, MapPin, Users, Check, Tags } 
 import { ContentCard } from "@/components/ui/content-card";
 import { FilterSection } from "@/components/ui/filter-section";
 import { ImageWithFallback } from "@/components/ui/image-with-fallback";
+import { useAdminTaxonomy } from "@/lib/use-admin-taxonomy";
 import { CATEGORY_LABELS, CATEGORY_ICONS } from "@/lib/mock-data";
 import { getTaxonomyOptions, matchesTaxonomyFilter } from "@/lib/taxonomy-filters";
 import { cn, formatDateShort, formatAgeRange, thumbUrl } from "@/lib/utils";
-import type { Event, Place, Camp, Activity, EventCategory } from "@/types/database";
+import type { Event, Place, Camp, Activity, District } from "@/types/database";
 
 const DAYS_PL = ["Nd", "Pn", "Wt", "Śr", "Cz", "Pt", "So"];
 
@@ -59,7 +60,35 @@ function SectionLink({ href, children }: { href: string; children: React.ReactNo
   );
 }
 
-const categoryKeys = Object.keys(CATEGORY_LABELS).filter((k) => k !== "inne") as EventCategory[];
+function HomeSectionSubmissionCta({
+  title,
+  description,
+  buttonLabel,
+  href = "/kontakt",
+}: {
+  title: string;
+  description: string;
+  buttonLabel: string;
+  href?: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group mb-4 flex w-full items-center gap-3 rounded-2xl border border-sky-200/80 bg-[linear-gradient(180deg,rgba(240,249,255,0.98),rgba(236,253,255,0.98))] px-3 py-3 shadow-[0_14px_34px_-30px_rgba(14,116,144,0.35)] transition-colors duration-200 hover:border-sky-300/90"
+    >
+      <div className="h-10 w-1 shrink-0 rounded-full bg-cyan-700" />
+      <div className="min-w-0 flex-1">
+        <p className="text-[12px] font-semibold leading-4 text-slate-900 sm:text-[13px] lg:text-[14px]">{title}</p>
+        <p className="mt-1 text-[10px] leading-4 text-slate-600 sm:text-[11px] lg:text-[12px]">{description}</p>
+      </div>
+      <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-cyan-700/15 bg-white/85 px-2.5 py-1.5 text-[10px] font-semibold text-cyan-800 shadow-[0_10px_22px_-18px_rgba(8,145,178,0.7)] transition-all duration-200 group-hover:border-cyan-700/30 group-hover:bg-cyan-700 group-hover:text-white sm:px-3 sm:text-[11px]">
+        {buttonLabel}
+        <ArrowRight size={13} className="transition-transform duration-200 group-hover:translate-x-0.5" />
+      </span>
+    </Link>
+  );
+}
+
 const AGE_GROUPS = [
   { key: "0-3", label: "0–3 lata", icon: "👶", min: 0, max: 3 },
   { key: "4-6", label: "4–6 lat", icon: "🧒", min: 4, max: 6 },
@@ -68,11 +97,39 @@ const AGE_GROUPS = [
   { key: "15+", label: "15+ lat", icon: "🎓", min: 15, max: 99 },
 ] as const;
 
+const DISTRICT_ICONS: Partial<Record<District, string>> = {
+  "Stare Miasto": "🏰",
+  "Grzegórzki": "🚋",
+  "Kazimierz": "🕍",
+  "Podgórze": "🌉",
+  "Nowa Huta": "🏭",
+  "Krowodrza": "🌿",
+  "Bronowice": "🌾",
+  "Zwierzyniec": "🦬",
+  "Dębniki": "🌊",
+  "Prądnik Czerwony": "🌳",
+  "Prądnik Biały": "🍃",
+  "Czyżyny": "✈️",
+  "Bieżanów-Prokocim": "🚋",
+  "Łagiewniki-Borek Fałęcki": "⛪",
+  "Swoszowice": "♨️",
+  "Mistrzejowice": "🏘️",
+  "Wzgórza Krzesławickie": "🌄",
+  "Inne": "📍",
+};
+
 interface HomeFilteredViewProps {
   events: Event[];
   places: Place[];
   camps: Camp[];
   activities: Activity[];
+}
+
+interface UnifiedFilterEntry {
+  typeLevel2: string | null;
+  type: string | null;
+  category: string | null;
+  district: District;
 }
 
 function getEventCategoryLvl1(event: Event) {
@@ -95,42 +152,104 @@ function getPlaceCategoryLvl2(place: Place) {
   return place.category_lvl_2 ?? place.category ?? null;
 }
 
+function getCampCategoryLvl1(camp: Camp) {
+  return camp.category_lvl_1 ?? camp.main_category ?? null;
+}
+
+function getCampCategoryLvl2(camp: Camp) {
+  return camp.category_lvl_2 ?? camp.category ?? null;
+}
+
+function getActivityCategoryLvl1(activity: Activity) {
+  return activity.category_lvl_1 ?? activity.main_category ?? activity.activity_type ?? null;
+}
+
+function getActivityCategoryLvl2(activity: Activity) {
+  return activity.category_lvl_2 ?? activity.category ?? null;
+}
+
+function matchesAgeFilter(ageMin: number | null, ageMax: number | null, ageGroup: typeof AGE_GROUPS[number] | null) {
+  if (!ageGroup) {
+    return true;
+  }
+
+  return (ageMin === null || ageMin <= ageGroup.max) && (ageMax === null || ageMax >= ageGroup.min);
+}
+
 export function HomeFilteredView({ events, places, camps, activities }: HomeFilteredViewProps) {
+  const { typeLevel2Options: taxonomyTypeLevel2Options } = useAdminTaxonomy();
   const [search, setSearch] = useState("");
-  const [activeEventMainCategories, setActiveEventMainCategories] = useState<string[]>([]);
-  const [activeEventCategories, setActiveEventCategories] = useState<EventCategory[]>([]);
-  const [activeEventSubcategories, setActiveEventSubcategories] = useState<string[]>([]);
-  const [activePlaceMainCategories, setActivePlaceMainCategories] = useState<string[]>([]);
-  const [activePlaceCategories, setActivePlaceCategories] = useState<string[]>([]);
+  const [activeTypeLevel2, setActiveTypeLevel2] = useState<string[]>([]);
+  const [activeTypes, setActiveTypes] = useState<string[]>([]);
+  const [activeCategories, setActiveCategories] = useState<string[]>([]);
+  const [activeDistricts, setActiveDistricts] = useState<District[]>([]);
   const [activeAgeGroup, setActiveAgeGroup] = useState<string | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const ageGroup = AGE_GROUPS.find((g) => g.key === activeAgeGroup) ?? null;
-  const hasEventOnlyFilters = activeEventMainCategories.length > 0 || activeEventCategories.length > 0 || activeEventSubcategories.length > 0;
-  const hasPlaceOnlyFilters = activePlaceMainCategories.length > 0 || activePlaceCategories.length > 0;
-  const hasActiveFilters = !!(search || hasEventOnlyFilters || hasPlaceOnlyFilters || activeAgeGroup !== null);
-  const hasEventFilters = !!(search || hasEventOnlyFilters || activeAgeGroup !== null);
-  const hasPlaceFilters = !!(search || hasPlaceOnlyFilters || activeAgeGroup !== null);
+  const hasActiveFilters = !!(search || activeTypeLevel2.length > 0 || activeTypes.length > 0 || activeCategories.length > 0 || activeDistricts.length > 0 || activeAgeGroup !== null);
 
-  const eventMainCategoryOptions = useMemo(
-    () => getTaxonomyOptions(events, getEventCategoryLvl1),
-    [events]
+  const unifiedFilterEntries = useMemo<UnifiedFilterEntry[]>(
+    () => [
+      ...events.map((event) => ({
+        typeLevel2: event.type_lvl_2_id ?? null,
+        type: getEventCategoryLvl1(event),
+        category: getEventCategoryLvl2(event),
+        district: event.district,
+      })),
+      ...places.map((place) => ({
+        typeLevel2: place.type_lvl_2_id ?? null,
+        type: getPlaceCategoryLvl1(place),
+        category: getPlaceCategoryLvl2(place),
+        district: place.district,
+      })),
+      ...camps.map((camp) => ({
+        typeLevel2: camp.type_lvl_2_id ?? null,
+        type: getCampCategoryLvl1(camp),
+        category: getCampCategoryLvl2(camp),
+        district: camp.district,
+      })),
+      ...activities.map((activity) => ({
+        typeLevel2: activity.type_lvl_2_id ?? null,
+        type: getActivityCategoryLvl1(activity),
+        category: getActivityCategoryLvl2(activity),
+        district: activity.district,
+      })),
+    ],
+    [events, places, camps, activities]
   );
 
-  const eventSubcategoryOptions = useMemo(
-    () => getTaxonomyOptions(events, getEventCategoryLvl3),
-    [events]
+  const typeOptions = useMemo(
+    () => getTaxonomyOptions(unifiedFilterEntries, (entry) => entry.type),
+    [unifiedFilterEntries]
   );
 
-  const placeMainCategoryOptions = useMemo(
-    () => getTaxonomyOptions(places, getPlaceCategoryLvl1),
-    [places]
+  const typeLevel2LabelMap = useMemo(
+    () => Object.fromEntries(taxonomyTypeLevel2Options.map((option) => [option.id, option.name])),
+    [taxonomyTypeLevel2Options]
   );
 
-  const placeCategoryOptions = useMemo(
-    () => getTaxonomyOptions(places, getPlaceCategoryLvl2),
-    [places]
+  const typeLevel2Options = useMemo(
+    () => getTaxonomyOptions(unifiedFilterEntries, (entry) => entry.typeLevel2, typeLevel2LabelMap),
+    [unifiedFilterEntries, typeLevel2LabelMap]
   );
+
+  const categoryOptions = useMemo(
+    () => getTaxonomyOptions(unifiedFilterEntries, (entry) => entry.category, CATEGORY_LABELS as Record<string, string>),
+    [unifiedFilterEntries]
+  );
+
+  const districtOptions = useMemo(() => {
+    const counts = new Map<District, number>();
+
+    unifiedFilterEntries.forEach((entry) => {
+      counts.set(entry.district, (counts.get(entry.district) || 0) + 1);
+    });
+
+    return Array.from(counts.entries())
+      .map(([value, count]) => ({ value, label: value, icon: DISTRICT_ICONS[value] || "📍", count }))
+      .sort((left, right) => left.label.localeCompare(right.label, "pl"));
+  }, [unifiedFilterEntries]);
 
   const filteredEvents = useMemo(() => {
     let result = events;
@@ -140,23 +259,21 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
         [e.title, e.description_short, e.venue_name, e.district].join(" ").toLowerCase().includes(q)
       );
     }
-    if (activeEventMainCategories.length > 0) {
-      result = result.filter((event) => matchesTaxonomyFilter(getEventCategoryLvl1(event), activeEventMainCategories));
+    if (activeTypeLevel2.length > 0) {
+      result = result.filter((event) => matchesTaxonomyFilter(event.type_lvl_2_id ?? null, activeTypeLevel2));
     }
-    if (activeEventCategories.length > 0) {
-      result = result.filter((event) => activeEventCategories.includes(getEventCategoryLvl2(event)));
+    if (activeTypes.length > 0) {
+      result = result.filter((event) => matchesTaxonomyFilter(getEventCategoryLvl1(event), activeTypes));
     }
-    if (activeEventSubcategories.length > 0) {
-      result = result.filter((event) => matchesTaxonomyFilter(getEventCategoryLvl3(event), activeEventSubcategories));
+    if (activeCategories.length > 0) {
+      result = result.filter((event) => matchesTaxonomyFilter(getEventCategoryLvl2(event), activeCategories));
     }
-    if (ageGroup) {
-      result = result.filter((e) =>
-        (e.age_min === null || e.age_min <= ageGroup.max) &&
-        (e.age_max === null || e.age_max >= ageGroup.min)
-      );
+    if (activeDistricts.length > 0) {
+      result = result.filter((event) => activeDistricts.includes(event.district));
     }
+    result = result.filter((event) => matchesAgeFilter(event.age_min, event.age_max, ageGroup));
     return [...result].sort((a, b) => b.likes - a.likes);
-  }, [events, search, activeEventMainCategories, activeEventCategories, activeEventSubcategories, ageGroup]);
+  }, [events, search, activeTypeLevel2, activeTypes, activeCategories, activeDistricts, ageGroup]);
 
   const filteredPlaces = useMemo(() => {
     let result = places;
@@ -166,64 +283,112 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
         [p.title, p.description_short, p.street, p.city, p.district].join(" ").toLowerCase().includes(q)
       );
     }
-    if (activePlaceMainCategories.length > 0) {
-      result = result.filter((place) => matchesTaxonomyFilter(getPlaceCategoryLvl1(place), activePlaceMainCategories));
+    if (activeTypeLevel2.length > 0) {
+      result = result.filter((place) => matchesTaxonomyFilter(place.type_lvl_2_id ?? null, activeTypeLevel2));
     }
-    if (activePlaceCategories.length > 0) {
-      result = result.filter((place) => matchesTaxonomyFilter(getPlaceCategoryLvl2(place), activePlaceCategories));
+    if (activeTypes.length > 0) {
+      result = result.filter((place) => matchesTaxonomyFilter(getPlaceCategoryLvl1(place), activeTypes));
     }
-    if (ageGroup) {
-      result = result.filter((p) =>
-        (p.age_min === null || p.age_min <= ageGroup.max) &&
-        (p.age_max === null || p.age_max >= ageGroup.min)
+    if (activeCategories.length > 0) {
+      result = result.filter((place) => matchesTaxonomyFilter(getPlaceCategoryLvl2(place), activeCategories));
+    }
+    if (activeDistricts.length > 0) {
+      result = result.filter((place) => activeDistricts.includes(place.district));
+    }
+    result = result.filter((place) => matchesAgeFilter(place.age_min, place.age_max, ageGroup));
+    return [...result].sort((a, b) => b.likes - a.likes);
+  }, [places, search, activeTypeLevel2, activeTypes, activeCategories, activeDistricts, ageGroup]);
+
+  const filteredCamps = useMemo(() => {
+    let result = camps;
+    if (search) {
+      const q = search.toLowerCase();
+      result = result.filter((camp) =>
+        [camp.title, camp.description_short, camp.venue_name, camp.venue_address, camp.organizer]
+          .join(" ")
+          .toLowerCase()
+          .includes(q)
       );
     }
+    if (activeTypeLevel2.length > 0) {
+      result = result.filter((camp) => matchesTaxonomyFilter(camp.type_lvl_2_id ?? null, activeTypeLevel2));
+    }
+    if (activeTypes.length > 0) {
+      result = result.filter((camp) => matchesTaxonomyFilter(getCampCategoryLvl1(camp), activeTypes));
+    }
+    if (activeCategories.length > 0) {
+      result = result.filter((camp) => matchesTaxonomyFilter(getCampCategoryLvl2(camp), activeCategories));
+    }
+    if (activeDistricts.length > 0) {
+      result = result.filter((camp) => activeDistricts.includes(camp.district));
+    }
+    result = result.filter((camp) => matchesAgeFilter(camp.age_min, camp.age_max, ageGroup));
+    return [...result].sort((a, b) => new Date(a.date_start).getTime() - new Date(b.date_start).getTime());
+  }, [camps, search, activeTypeLevel2, activeTypes, activeCategories, activeDistricts, ageGroup]);
+
+  const filteredActivities = useMemo(() => {
+    let result = activities;
+    if (search) {
+      const q = search.toLowerCase();
+      result = result.filter((activity) =>
+        [activity.title, activity.description_short, activity.venue_name, activity.venue_address, activity.organizer]
+          .join(" ")
+          .toLowerCase()
+          .includes(q)
+      );
+    }
+    if (activeTypeLevel2.length > 0) {
+      result = result.filter((activity) => matchesTaxonomyFilter(activity.type_lvl_2_id ?? null, activeTypeLevel2));
+    }
+    if (activeTypes.length > 0) {
+      result = result.filter((activity) => matchesTaxonomyFilter(getActivityCategoryLvl1(activity), activeTypes));
+    }
+    if (activeCategories.length > 0) {
+      result = result.filter((activity) => matchesTaxonomyFilter(getActivityCategoryLvl2(activity), activeCategories));
+    }
+    if (activeDistricts.length > 0) {
+      result = result.filter((activity) => activeDistricts.includes(activity.district));
+    }
+    result = result.filter((activity) => matchesAgeFilter(activity.age_min, activity.age_max, ageGroup));
     return [...result].sort((a, b) => b.likes - a.likes);
-  }, [places, search, activePlaceMainCategories, activePlaceCategories, ageGroup]);
+  }, [activities, search, activeTypeLevel2, activeTypes, activeCategories, activeDistricts, ageGroup]);
 
-  function toggleEventMainCategory(nextMainCategory: string) {
-    setActiveEventMainCategories((prev) =>
-      prev.includes(nextMainCategory) ? prev.filter((item) => item !== nextMainCategory) : [...prev, nextMainCategory]
+  function toggleTypeLevel2(nextTypeLevel2: string) {
+    setActiveTypeLevel2((prev) =>
+      prev.includes(nextTypeLevel2) ? prev.filter((item) => item !== nextTypeLevel2) : [...prev, nextTypeLevel2]
     );
   }
 
-  function toggleEventCategoryFilter(nextCategory: EventCategory) {
-    setActiveEventCategories((prev) =>
+  function toggleType(nextType: string) {
+    setActiveTypes((prev) =>
+      prev.includes(nextType) ? prev.filter((item) => item !== nextType) : [...prev, nextType]
+    );
+  }
+
+  function toggleCategory(nextCategory: string) {
+    setActiveCategories((prev) =>
       prev.includes(nextCategory) ? prev.filter((item) => item !== nextCategory) : [...prev, nextCategory]
     );
   }
 
-  function toggleEventSubcategory(nextSubcategory: string) {
-    setActiveEventSubcategories((prev) =>
-      prev.includes(nextSubcategory) ? prev.filter((item) => item !== nextSubcategory) : [...prev, nextSubcategory]
-    );
-  }
-
-  function togglePlaceMainCategory(nextMainCategory: string) {
-    setActivePlaceMainCategories((prev) =>
-      prev.includes(nextMainCategory) ? prev.filter((item) => item !== nextMainCategory) : [...prev, nextMainCategory]
-    );
-  }
-
-  function togglePlaceCategory(nextCategory: string) {
-    setActivePlaceCategories((prev) =>
-      prev.includes(nextCategory) ? prev.filter((item) => item !== nextCategory) : [...prev, nextCategory]
+  function toggleDistrict(nextDistrict: District) {
+    setActiveDistricts((prev) =>
+      prev.includes(nextDistrict) ? prev.filter((item) => item !== nextDistrict) : [...prev, nextDistrict]
     );
   }
 
   function clearFilters() {
     setSearch("");
-    setActiveEventMainCategories([]);
-    setActiveEventCategories([]);
-    setActiveEventSubcategories([]);
-    setActivePlaceMainCategories([]);
-    setActivePlaceCategories([]);
+    setActiveTypeLevel2([]);
+    setActiveTypes([]);
+    setActiveCategories([]);
+    setActiveDistricts([]);
     setActiveAgeGroup(null);
   }
 
   const organizers = useMemo<OrganizerTile[]>(() => {
     const map = new Map<string, OrganizerTile>();
-    [...camps]
+    [...filteredCamps]
       .sort((a, b) => new Date(a.date_start).getTime() - new Date(b.date_start).getTime())
       .forEach((camp) => {
         const name = camp.organizer_data?.name ?? getOrganizerName(camp);
@@ -238,18 +403,19 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
           }
         }
       });
-    return Array.from(map.values()).slice(0, 8);
-  }, [camps]);
+    return Array.from(map.values());
+  }, [filteredCamps]);
 
-  const visiblePlaces = hasPlaceFilters ? filteredPlaces : filteredPlaces.slice(0, 8);
-  const visibleEvents = hasEventFilters ? filteredEvents : filteredEvents.slice(0, 8);
+  const visiblePlaces = hasActiveFilters ? filteredPlaces : filteredPlaces.slice(0, 8);
+  const visibleEvents = hasActiveFilters ? filteredEvents : filteredEvents.slice(0, 8);
+  const visibleOrganizers = hasActiveFilters ? organizers : organizers.slice(0, 8);
+  const visibleActivities = hasActiveFilters ? filteredActivities : filteredActivities.slice(0, 8);
 
-  const showPlacesSection = !hasEventOnlyFilters || hasPlaceOnlyFilters;
-  const showEventsSection = !hasPlaceOnlyFilters || hasEventOnlyFilters;
-
-  const showPlaces = showPlacesSection && places.length > 0 && visiblePlaces.length > 0;
-  const showEvents = showEventsSection && events.length > 0 && visibleEvents.length > 0;
-  const showEmpty = (hasEventFilters || hasPlaceFilters) && !showPlaces && !showEvents;
+  const showPlaces = places.length > 0 && visiblePlaces.length > 0;
+  const showEvents = events.length > 0 && visibleEvents.length > 0;
+  const showCamps = camps.length > 0 && visibleOrganizers.length > 0;
+  const showActivities = activities.length > 0 && visibleActivities.length > 0;
+  const showEmpty = hasActiveFilters && !showPlaces && !showEvents && !showCamps && !showActivities;
 
   return (
     <div className="container-page pt-5 pb-10">
@@ -266,7 +432,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
         </button>
         <div className="relative flex-1">
           <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
-          <input type="text" placeholder="Szukaj wydarzeń i miejsc..." value={search} onChange={(e) => setSearch(e.target.value)}
+          <input type="text" placeholder="Szukaj miejsc, wydarzeń, kolonii..." value={search} onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-border bg-background text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-200" />
         </div>
       </div>
@@ -285,12 +451,12 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
             </button>
           </div>
 
-          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Typ wydarzeń</span>}>
+          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Grupa</span>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
-              {eventMainCategoryOptions.map((option) => {
-                const selected = activeEventMainCategories.includes(option.value);
+              {typeLevel2Options.map((option) => {
+                const selected = activeTypeLevel2.includes(option.value);
                 return (
-                  <button key={option.value} onClick={() => toggleEventMainCategory(option.value)}
+                  <button key={option.value} onClick={() => toggleTypeLevel2(option.value)}
                     className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
                       selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
                     <span>{option.icon}</span>
@@ -303,32 +469,12 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
             </div>
           </FilterSection>
 
-          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Kategoria wydarzeń</span>}>
-            <div className="flex flex-wrap gap-1.5">
-              {categoryKeys.map((key) => {
-                const count = events.filter((event) => event.category === key).length;
-                if (count === 0) return null;
-                const selected = activeEventCategories.includes(key);
-                return (
-                  <button key={key} onClick={() => toggleEventCategoryFilter(key)}
-                    className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
-                      selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
-                    <span>{CATEGORY_ICONS[key]}</span>
-                    <span>{CATEGORY_LABELS[key]}</span>
-                    <span className="text-[10px] opacity-60">{count}</span>
-                    {selected && <Check size={11} />}
-                  </button>
-                );
-              })}
-            </div>
-          </FilterSection>
-
-          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Tematyka wydarzeń</span>}>
+          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Typ</span>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
-              {eventSubcategoryOptions.map((option) => {
-                const selected = activeEventSubcategories.includes(option.value);
+              {typeOptions.map((option) => {
+                const selected = activeTypes.includes(option.value);
                 return (
-                  <button key={option.value} onClick={() => toggleEventSubcategory(option.value)}
+                  <button key={option.value} onClick={() => toggleType(option.value)}
                     className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
                       selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
                     <span>{option.icon}</span>
@@ -341,63 +487,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
             </div>
           </FilterSection>
 
-          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Typ miejsc</span>}>
-            <div className="flex flex-wrap gap-1">
-              {placeMainCategoryOptions.map((option) => {
-                const selected = activePlaceMainCategories.includes(option.value);
-                return (
-                  <button key={option.value} onClick={() => togglePlaceMainCategory(option.value)}
-                    className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
-                      selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
-                    <span>{option.icon}</span>
-                    <span>{option.label}</span>
-                    <span className="text-[10px] opacity-60">{option.count}</span>
-                    {selected && <Check size={11} />}
-                  </button>
-                );
-              })}
-            </div>
-          </FilterSection>
-
-          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Kategoria miejsc</span>}>
-            <div className="flex flex-wrap gap-1">
-              {placeCategoryOptions.map((option) => {
-                const selected = activePlaceCategories.includes(option.value);
-                return (
-                  <button key={option.value} onClick={() => togglePlaceCategory(option.value)}
-                    className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
-                      selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
-                    <span>{option.icon}</span>
-                    <span>{option.label}</span>
-                    <span className="text-[10px] opacity-60">{option.count}</span>
-                    {selected && <Check size={11} />}
-                  </button>
-                );
-              })}
-            </div>
-          </FilterSection>
-
-          <FilterSection title={<span className="text-[11px] font-medium text-muted-foreground">Kategoria wydarzeń</span>}>
-            <div className="flex flex-wrap gap-1.5">
-              {categoryKeys.map((key) => {
-                const count = events.filter((e) => e.category === key).length;
-                if (count === 0) return null;
-                return (
-                  <button key={key} onClick={() => toggleEventCategoryFilter(key)}
-                    className={cn("px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-all duration-200",
-                      activeEventCategories.includes(key) ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
-                    <span className="inline-flex items-center gap-1">
-                      <span>{CATEGORY_ICONS[key]}</span>
-                      <span>{CATEGORY_LABELS[key]}</span>
-                      <span className="text-[10px] opacity-60">{count}</span>
-                      {activeEventCategories.includes(key) && <Check size={11} />}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </FilterSection>
-          <FilterSection title={<span className="text-[11px] font-medium text-muted-foreground">Wiek dziecka</span>}>
+          <FilterSection title={<span className="text-[11px] font-medium text-muted-foreground">Wiek dziecka</span>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1.5">
               {AGE_GROUPS.map((group) => (
                 <button key={group.key} onClick={() => setActiveAgeGroup(activeAgeGroup === group.key ? null : group.key)}
@@ -406,6 +496,42 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
                   {group.icon} {group.label}
                 </button>
               ))}
+            </div>
+          </FilterSection>
+
+          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Kategoria</span>}>
+            <div className="flex flex-wrap gap-1">
+              {categoryOptions.map((option) => {
+                const selected = activeCategories.includes(option.value);
+                return (
+                  <button key={option.value} onClick={() => toggleCategory(option.value)}
+                    className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
+                      selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
+                    <span>{option.icon}</span>
+                    <span>{option.label}</span>
+                    <span className="text-[10px] opacity-60">{option.count}</span>
+                    {selected && <Check size={11} />}
+                  </button>
+                );
+              })}
+            </div>
+          </FilterSection>
+
+          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><MapPin size={11} /> Dzielnica</span>}>
+            <div className="flex flex-wrap gap-1">
+              {districtOptions.map((option) => {
+                const selected = activeDistricts.includes(option.value);
+                return (
+                  <button key={option.value} onClick={() => toggleDistrict(option.value)}
+                    className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
+                      selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
+                    <span>{option.icon}</span>
+                    <span>{option.label}</span>
+                    <span className="text-[10px] opacity-60">{option.count}</span>
+                    {selected && <Check size={11} />}
+                  </button>
+                );
+              })}
             </div>
           </FilterSection>
           {hasActiveFilters && (
@@ -438,12 +564,12 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
 
             <div className="border-t border-border" />
 
-            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Typ wydarzeń</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
+            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Grupa</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5" defaultCollapsed={false}>
               <div className="flex flex-col gap-0.5">
-                {eventMainCategoryOptions.map((option) => {
-                  const selected = activeEventMainCategories.includes(option.value);
+                {typeLevel2Options.map((option) => {
+                  const selected = activeTypeLevel2.includes(option.value);
                   return (
-                    <button key={option.value} onClick={() => toggleEventMainCategory(option.value)}
+                    <button key={option.value} onClick={() => toggleTypeLevel2(option.value)}
                       className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium text-left transition-all duration-200",
                         selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
                       <span>{option.icon}</span>
@@ -456,31 +582,12 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
               </div>
             </FilterSection>
 
-            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Kategoria wydarzeń</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
+            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Typ</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5" defaultCollapsed={false}>
               <div className="flex flex-col gap-0.5">
-                {categoryKeys.map((key) => {
-                  const count = events.filter((e) => e.category === key).length;
-                  if (count === 0) return null;
+                {typeOptions.map((option) => {
+                  const selected = activeTypes.includes(option.value);
                   return (
-                    <button key={key} onClick={() => toggleEventCategoryFilter(key)}
-                      className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium text-left transition-all duration-200",
-                        activeEventCategories.includes(key) ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
-                      <span>{CATEGORY_ICONS[key]}</span>
-                      <span className="flex-1">{CATEGORY_LABELS[key]}</span>
-                      {activeEventCategories.includes(key) && <Check size={10} />}
-                      <span className="text-[9px] opacity-40">{count}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </FilterSection>
-
-            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Tematyka wydarzeń</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
-              <div className="flex flex-col gap-0.5">
-                {eventSubcategoryOptions.map((option) => {
-                  const selected = activeEventSubcategories.includes(option.value);
-                  return (
-                    <button key={option.value} onClick={() => toggleEventSubcategory(option.value)}
+                    <button key={option.value} onClick={() => toggleType(option.value)}
                       className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium text-left transition-all duration-200",
                         selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
                       <span>{option.icon}</span>
@@ -493,43 +600,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
               </div>
             </FilterSection>
 
-            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Typ miejsc</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
-              <div className="flex flex-col gap-0.5">
-                {placeMainCategoryOptions.map((option) => {
-                  const selected = activePlaceMainCategories.includes(option.value);
-                  return (
-                    <button key={option.value} onClick={() => togglePlaceMainCategory(option.value)}
-                      className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium text-left transition-all duration-200",
-                        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
-                      <span>{option.icon}</span>
-                      <span className="flex-1">{option.label}</span>
-                      {selected && <Check size={10} />}
-                      <span className="text-[9px] opacity-40">{option.count}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </FilterSection>
-
-            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Kategoria miejsc</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
-              <div className="flex flex-col gap-0.5">
-                {placeCategoryOptions.map((option) => {
-                  const selected = activePlaceCategories.includes(option.value);
-                  return (
-                    <button key={option.value} onClick={() => togglePlaceCategory(option.value)}
-                      className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium text-left transition-all duration-200",
-                        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
-                      <span>{option.icon}</span>
-                      <span className="flex-1">{option.label}</span>
-                      {selected && <Check size={10} />}
-                      <span className="text-[9px] opacity-40">{option.count}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </FilterSection>
-
-            <FilterSection title={<span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Wiek</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
+            <FilterSection title={<span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Wiek</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5" defaultCollapsed={false}>
               <div className="flex flex-col gap-0.5">
                 {AGE_GROUPS.map((group) => (
                   <button key={group.key} onClick={() => setActiveAgeGroup(activeAgeGroup === group.key ? null : group.key)}
@@ -539,6 +610,42 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
                     <span>{group.label}</span>
                   </button>
                 ))}
+              </div>
+            </FilterSection>
+
+            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Kategoria</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
+              <div className="flex flex-col gap-0.5">
+                {categoryOptions.map((option) => {
+                  const selected = activeCategories.includes(option.value);
+                  return (
+                    <button key={option.value} onClick={() => toggleCategory(option.value)}
+                      className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium text-left transition-all duration-200",
+                        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
+                      <span>{option.icon}</span>
+                      <span className="flex-1">{option.label}</span>
+                      {selected && <Check size={10} />}
+                      <span className="text-[9px] opacity-40">{option.count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </FilterSection>
+
+            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><MapPin size={10} /> Dzielnica</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
+              <div className="flex flex-col gap-0.5">
+                {districtOptions.map((option) => {
+                  const selected = activeDistricts.includes(option.value);
+                  return (
+                    <button key={option.value} onClick={() => toggleDistrict(option.value)}
+                      className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium text-left transition-all duration-200",
+                        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
+                      <span>{option.icon}</span>
+                      <span className="flex-1">{option.label}</span>
+                      {selected && <Check size={10} />}
+                      <span className="text-[9px] opacity-40">{option.count}</span>
+                    </button>
+                  );
+                })}
               </div>
             </FilterSection>
 
@@ -570,13 +677,18 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-[15px] font-semibold text-foreground">
                   Ciekawe miejsca
-                  {hasPlaceFilters && <span className="ml-2 text-[12px] font-normal text-muted-foreground">({filteredPlaces.length})</span>}
+                  {hasActiveFilters && <span className="ml-2 text-[12px] font-normal text-muted-foreground">({filteredPlaces.length})</span>}
                 </h2>
                 <SectionLink href="/miejsca">Wszystkie</SectionLink>
               </div>
+              <HomeSectionSubmissionCta
+                title="Masz miejsce warte polecenia?"
+                description="Dodaj je do mapy rodzinnych adresów i pomóż odkrywać kolejne sprawdzone miejscówki."
+                buttonLabel="Dodaj miejsce"
+              />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {visiblePlaces.map((place, idx) => (
-                  <div key={place.id} className={!hasPlaceFilters && idx >= 4 ? "hidden sm:block" : ""}>
+                  <div key={place.id} className={!hasActiveFilters && idx >= 4 ? "hidden sm:block" : ""}>
                     <ContentCard item={place} />
                   </div>
                 ))}
@@ -590,13 +702,18 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-[15px] font-semibold text-foreground">
                   Nadchodzące wydarzenia
-                  {hasEventFilters && <span className="ml-2 text-[12px] font-normal text-muted-foreground">({filteredEvents.length})</span>}
+                  {hasActiveFilters && <span className="ml-2 text-[12px] font-normal text-muted-foreground">({filteredEvents.length})</span>}
                 </h2>
                 <SectionLink href="/wydarzenia">Wszystkie</SectionLink>
               </div>
+              <HomeSectionSubmissionCta
+                title="Tworzysz wydarzenie dla dzieci?"
+                description="Dodaj je do kalendarza, żeby rodziny szybciej trafiły na wartościowe wydarzenia w mieście."
+                buttonLabel="Dodaj wydarzenie"
+              />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {visibleEvents.map((event, idx) => (
-                  <div key={event.id} className={!hasEventFilters && idx >= 4 ? "hidden sm:block" : ""}>
+                  <div key={event.id} className={!hasActiveFilters && idx >= 4 ? "hidden sm:block" : ""}>
                     <ContentCard item={event} />
                   </div>
                 ))}
@@ -605,15 +722,23 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
           )}
 
           {/* Camps section */}
-          {!hasActiveFilters && organizers.length > 0 && (
+          {showCamps && (
             <section>
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-[15px] font-semibold text-foreground">Kolonie dla dzieci</h2>
+                <h2 className="text-[15px] font-semibold text-foreground">
+                  Kolonie dla dzieci
+                  {hasActiveFilters && <span className="ml-2 text-[12px] font-normal text-muted-foreground">({organizers.length})</span>}
+                </h2>
                 <SectionLink href="/kolonie">Wszystkie</SectionLink>
               </div>
+              <HomeSectionSubmissionCta
+                title="Prowadzisz kolonie lub półkolonie?"
+                description="Pokaż swoją ofertę w miejscu, gdzie rodzice szukają sprawdzonych wyjazdów i turnusów."
+                buttonLabel="Dodaj ofertę"
+              />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {organizers.map((organizer, idx) => (
-                  <div key={organizer.key} className={idx >= 4 ? "hidden sm:block" : ""}>
+                {visibleOrganizers.map((organizer, idx) => (
+                  <div key={organizer.key} className={!hasActiveFilters && idx >= 4 ? "hidden sm:block" : ""}>
                     <article className="rounded-xl border border-border bg-card shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5 transition-all duration-200 overflow-hidden">
                       <Link href={`/kolonie/${organizer.leadCamp.slug}`} className="group flex overflow-hidden h-[160px]">
                         <div className="w-[160px] shrink-0 relative self-stretch bg-accent">
@@ -672,15 +797,23 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
           )}
 
           {/* Activities section */}
-          {!hasActiveFilters && activities.length > 0 && (
+          {showActivities && (
             <section>
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-[15px] font-semibold text-foreground">Zajęcia pozaszkolne</h2>
+                <h2 className="text-[15px] font-semibold text-foreground">
+                  Zajęcia pozaszkolne
+                  {hasActiveFilters && <span className="ml-2 text-[12px] font-normal text-muted-foreground">({filteredActivities.length})</span>}
+                </h2>
                 <SectionLink href="/zajecia">Wszystkie</SectionLink>
               </div>
+              <HomeSectionSubmissionCta
+                title="Prowadzisz zajęcia dla dzieci?"
+                description="Dodaj je do katalogu i daj rodzicom prosty sposób na znalezienie regularnych aktywności."
+                buttonLabel="Dodaj zajęcia"
+              />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {activities.map((activity, idx) => (
-                  <div key={activity.id} className={idx >= 4 ? "hidden sm:block" : ""}>
+                {visibleActivities.map((activity, idx) => (
+                  <div key={activity.id} className={!hasActiveFilters && idx >= 4 ? "hidden sm:block" : ""}>
                     <ContentCard item={activity} />
                   </div>
                 ))}
