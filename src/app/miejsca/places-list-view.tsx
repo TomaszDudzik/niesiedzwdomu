@@ -46,7 +46,7 @@ interface PlacesListViewProps {
 }
 
 function getPlaceTypeValue(place: Place): string {
-  return place.category_lvl_1 ?? place.main_category ?? place.place_type ?? "Bez kategorii";
+  return place.category_lvl_1 ?? "Bez kategorii";
 }
 
 export function PlacesListView({ places }: PlacesListViewProps) {
@@ -112,7 +112,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
 
   const filtered = categorySource;
 
-  // Group by place_type preserving order
+  // Group by category level 1 preserving order
   const grouped = useMemo(() => {
     const groups: { type: string; label: string; icon: string; places: Place[] }[] = [];
     const seen = new Set<string>();

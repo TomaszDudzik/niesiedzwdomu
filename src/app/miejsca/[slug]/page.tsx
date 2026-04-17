@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, MapPin, ExternalLink, Home, Globe, Users, FileText } from "lucide-react";
-import { PLACE_TYPE_LABELS, PLACE_TYPE_ICONS } from "@/lib/mock-data";
 import { formatAgeRange } from "@/lib/utils";
 import { FeedbackButtons } from "@/components/ui/feedback-buttons";
 import { AiLearnMoreLink } from "@/components/ui/ai-learn-more-link";
@@ -19,13 +18,11 @@ export const revalidate = 60;
 interface PageProps { params: Promise<{ slug: string }>; }
 
 function getPlaceCategoryLabel(value: string | null | undefined) {
-  if (!value) return "Miejsce";
-  return PLACE_TYPE_LABELS[value as keyof typeof PLACE_TYPE_LABELS] ?? value;
+  return value || "Miejsce";
 }
 
 function getPlaceCategoryIcon(value: string | null | undefined) {
-  if (!value) return "📍";
-  return PLACE_TYPE_ICONS[value as keyof typeof PLACE_TYPE_ICONS] ?? "📍";
+  return value ? "🏷️" : "📍";
 }
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.niesiedzwdomu.pl";
@@ -73,7 +70,7 @@ export default async function PlaceDetailPage({ params }: PageProps) {
   const { slug } = await params;
   const place = await getPlaceBySlug(slug);
   if (!place) notFound();
-  const placeCategory = place.category_lvl_1 ?? place.main_category ?? place.place_type;
+  const placeCategory = place.category_lvl_1;
 
   const placeUrl = `${SITE_URL}/miejsca/${place.slug}`;
   const sameAsLinks = [place.source_url, place.facebook_url].filter(

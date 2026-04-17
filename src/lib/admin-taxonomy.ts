@@ -39,6 +39,99 @@ export interface AdminTaxonomyResponse {
   category_lvl_3: AdminCategoryLevel3[];
 }
 
+export const PUBLIC_SUBMISSION_TAXONOMY_FALLBACK: AdminTaxonomyResponse = {
+  type_lvl_1: [
+    { id: "dzieci", name: "Dzieci", slug: "dzieci" },
+    { id: "sportowcy", name: "Sportowcy", slug: "sportowcy" },
+  ],
+  type_lvl_2: [
+    { id: "kolonie", type_lvl_1_id: null, name: "Kolonie", slug: "kolonie" },
+    { id: "kursy", type_lvl_1_id: null, name: "Kursy", slug: "kursy" },
+    { id: "miejsca", type_lvl_1_id: null, name: "Miejsca", slug: "miejsca" },
+    { id: "obozy", type_lvl_1_id: null, name: "Obozy", slug: "obozy" },
+    { id: "polkolonie", type_lvl_1_id: null, name: "Półkolonie", slug: "polkolonie" },
+    { id: "warsztaty", type_lvl_1_id: null, name: "Warsztaty", slug: "warsztaty" },
+    { id: "warsztaty-wakacyjne", type_lvl_1_id: null, name: "Warsztaty wakacyjne", slug: "warsztaty_wakacyjne" },
+    { id: "wydarzenia", type_lvl_1_id: null, name: "Wydarzenia", slug: "wydarzenia" },
+    { id: "wyjazdy-weekendowe", type_lvl_1_id: null, name: "Wyjazdy weekendowe", slug: "wyjazdy-weekendowe" },
+    { id: "zajecia", type_lvl_1_id: null, name: "Zajęcia", slug: "zajecia" },
+  ],
+  category_lvl_1: [
+    { id: "edukacja", name: "Edukacja", slug: "edukacja" },
+    { id: "integracja", name: "Integracja", slug: "integracja" },
+    { id: "kreatywnosc", name: "Kreatywność", slug: "kreatywnosc" },
+    { id: "kulinaria", name: "Kulinaria", slug: "kulinaria" },
+    { id: "kultura", name: "Kultura", slug: "kultura" },
+    { id: "nauka", name: "Nauka", slug: "nauka" },
+    { id: "plac-zabaw", name: "Plac Zabaw", slug: "plac_zabaw" },
+    { id: "przygoda", name: "Przygoda", slug: "przygoda" },
+    { id: "przyroda", name: "Przyroda", slug: "przyroda" },
+    { id: "relaks", name: "Relaks", slug: "relaks" },
+    { id: "sala-zabaw", name: "Sala Zabaw", slug: "sala_zabaw" },
+    { id: "sport", name: "Sport", slug: "sport" },
+    { id: "technologia", name: "Technologia", slug: "technologia" },
+  ],
+  category_lvl_2: [
+    { id: "czytanie-i-pisanie", category_lvl_1_id: "edukacja", name: "Czytanie i pisanie", slug: "czytanie-i-pisanie" },
+    { id: "ekologia", category_lvl_1_id: "przyroda", name: "Ekologia", slug: "ekologia" },
+    { id: "film-i-fotografia", category_lvl_1_id: "kultura", name: "Film i fotografia", slug: "film-i-fotografia" },
+    { id: "gaming-i-e-sport", category_lvl_1_id: "technologia", name: "Gaming i e-sport", slug: "gaming-i-e-sport" },
+    { id: "gimnastyka-i-akrobatyka", category_lvl_1_id: "sport", name: "Gimnastyka i akrobatyka", slug: "gimnastyka-i-akrobatyka" },
+    { id: "gokarty", category_lvl_1_id: "sport", name: "Gokarty", slug: "gokarty" },
+    { id: "gotowanie", category_lvl_1_id: "kulinaria", name: "Gotowanie", slug: "gotowanie" },
+    { id: "gory-i-trekking", category_lvl_1_id: "przygoda", name: "Góry i trekking", slug: "gory-i-trekking" },
+    { id: "gry-i-zabawy-grupowe", category_lvl_1_id: "integracja", name: "Gry i zabawy grupowe", slug: "gry-i-zabawy-grupowe" },
+    { id: "jazda-konna", category_lvl_1_id: "sport", name: "Jazda konna", slug: "jazda-konna" },
+    { id: "jezyki-obce", category_lvl_1_id: "edukacja", name: "Języki obce", slug: "jezyki-obce" },
+    { id: "kompetencje-miekkie", category_lvl_1_id: "integracja", name: "Kompetencje miękkie", slug: "kompetencje-miekkie" },
+    { id: "lego", category_lvl_1_id: "kreatywnosc", name: "Lego", slug: "lego" },
+    { id: "lesna-edukacja", category_lvl_1_id: "przyroda", name: "Leśna edukacja", slug: "lesna-edukacja" },
+    { id: "matematyka-i-logika", category_lvl_1_id: "edukacja", name: "Matematyka i logika", slug: "matematyka-i-logika" },
+    { id: "muzyka", category_lvl_1_id: "kultura", name: "Muzyka", slug: "muzyka" },
+    { id: "nauka-i-eksperymenty", category_lvl_1_id: "edukacja", name: "Nauka i eksperymenty", slug: "nauka-i-eksperymenty" },
+    { id: "nowe-technologie", category_lvl_1_id: "technologia", name: "Nowe technologie", slug: "nowe-technologie" },
+    { id: "ogolnosportowe", category_lvl_1_id: "sport", name: "Ogólnosportowe", slug: "ogolnosportowe" },
+    { id: "outdoor-i-aktywnosci-terenowe", category_lvl_1_id: "przygoda", name: "Outdoor i aktywności terenowe", slug: "outdoor-i-aktywnosci-terenowe" },
+    { id: "park-linowy", category_lvl_1_id: "sport", name: "Park Linowy", slug: "park-linowy" },
+    { id: "pieczenie-i-cukiernictwo", category_lvl_1_id: "kulinaria", name: "Pieczenie i cukiernictwo", slug: "pieczenie-i-cukiernictwo" },
+    { id: "pilka-nozna", category_lvl_1_id: "sport", name: "Piłka nożna", slug: "pilka-nozna" },
+    { id: "plywanie", category_lvl_1_id: "sport", name: "Pływanie", slug: "plywanie" },
+    { id: "programowanie-i-robotyka", category_lvl_1_id: "edukacja", name: "Programowanie i robotyka", slug: "programowanie-i-robotyka" },
+    { id: "rosliny-i-ogrodnictwo", category_lvl_1_id: "przyroda", name: "Rośliny i ogrodnictwo", slug: "rosliny-i-ogrodnictwo" },
+    { id: "rowery-i-rolki", category_lvl_1_id: "sport", name: "Rowery i rolki", slug: "rowery-i-rolki" },
+    { id: "rozwoj-osobisty", category_lvl_1_id: "edukacja", name: "Rozwój osobisty", slug: "rozwoj-osobisty" },
+    { id: "spacer", category_lvl_1_id: "relaks", name: "Spacer", slug: "spacer" },
+    { id: "sporty-walki", category_lvl_1_id: "sport", name: "Sporty walki", slug: "sporty-walki" },
+    { id: "sporty-zimowe", category_lvl_1_id: "sport", name: "Sporty zimowe", slug: "sporty-zimowe" },
+    { id: "survival-i-bushcraft", category_lvl_1_id: "przygoda", name: "Survival i bushcraft", slug: "survival-i-bushcraft" },
+    { id: "sztuka-i-rekodzielo", category_lvl_1_id: "kultura", name: "Sztuka i rękodzieło", slug: "sztuka-i-rekodzielo" },
+    { id: "taniec", category_lvl_1_id: "sport", name: "Taniec", slug: "taniec" },
+    { id: "taniec-sceniczny", category_lvl_1_id: "kultura", name: "Taniec sceniczny", slug: "taniec-sceniczny" },
+    { id: "teatr", category_lvl_1_id: "kultura", name: "Teatr", slug: "teatr" },
+    { id: "tenis-i-sporty-rakietowe", category_lvl_1_id: "sport", name: "Tenis i sporty rakietowe", slug: "tenis-i-sporty-rakietowe" },
+    { id: "tworzenie-cyfrowe", category_lvl_1_id: "technologia", name: "Tworzenie cyfrowe", slug: "tworzenie-cyfrowe" },
+    { id: "wodne-przygody", category_lvl_1_id: "przygoda", name: "Wodne przygody", slug: "wodne-przygody" },
+    { id: "zajecia-spoleczne", category_lvl_1_id: "integracja", name: "Zajęcia społeczne", slug: "zajecia-spoleczne" },
+    { id: "zdrowe-odzywianie", category_lvl_1_id: "kulinaria", name: "Zdrowe odżywianie", slug: "zdrowe-odzywianie" },
+    { id: "zwierzeta", category_lvl_1_id: "przyroda", name: "Zwierzęta", slug: "zwierzeta" },
+  ],
+  category_lvl_3: [],
+};
+
+function hasEntries<T>(entries: T[]) {
+  return Array.isArray(entries) && entries.length > 0;
+}
+
+export function withPublicSubmissionTaxonomyFallback(taxonomy: AdminTaxonomyResponse): AdminTaxonomyResponse {
+  return {
+    type_lvl_1: hasEntries(taxonomy.type_lvl_1) ? taxonomy.type_lvl_1 : PUBLIC_SUBMISSION_TAXONOMY_FALLBACK.type_lvl_1,
+    type_lvl_2: hasEntries(taxonomy.type_lvl_2) ? taxonomy.type_lvl_2 : PUBLIC_SUBMISSION_TAXONOMY_FALLBACK.type_lvl_2,
+    category_lvl_1: hasEntries(taxonomy.category_lvl_1) ? taxonomy.category_lvl_1 : PUBLIC_SUBMISSION_TAXONOMY_FALLBACK.category_lvl_1,
+    category_lvl_2: hasEntries(taxonomy.category_lvl_2) ? taxonomy.category_lvl_2 : PUBLIC_SUBMISSION_TAXONOMY_FALLBACK.category_lvl_2,
+    category_lvl_3: hasEntries(taxonomy.category_lvl_3) ? taxonomy.category_lvl_3 : PUBLIC_SUBMISSION_TAXONOMY_FALLBACK.category_lvl_3,
+  };
+}
+
 type RawRecord = Record<string, unknown>;
 
 function pickString(record: RawRecord, keys: string[]): string | null {

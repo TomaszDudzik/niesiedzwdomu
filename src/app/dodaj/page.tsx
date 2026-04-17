@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { PublicSubmissionForms } from "@/components/ui/public-submission-forms";
 import { loadAdminTaxonomy } from "@/lib/admin-taxonomy-server";
+import { withPublicSubmissionTaxonomyFallback } from "@/lib/admin-taxonomy";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,7 @@ export const metadata: Metadata = {
 export default async function AddContentPage({ searchParams }: AddContentPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const initialType = normalizeInitialType(resolvedSearchParams?.type);
-  const initialTaxonomy = await loadAdminTaxonomy();
+  const initialTaxonomy = withPublicSubmissionTaxonomyFallback(await loadAdminTaxonomy());
 
   return (
     <section className="container-page py-8 md:py-10">

@@ -61,25 +61,28 @@ function normalizePlacesPayload(input: Record<string, unknown>, categoryMaps: Aw
   }
   delete payload.subtype_id;
 
-  const hasCategoryLevel1 = "category_lvl_1" in payload || "main_category" in payload;
-  const categoryLevel1 = payload.category_lvl_1 ?? payload.main_category ?? null;
+  const hasCategoryLevel1 = "category_lvl_1_id" in payload || "category_lvl_1" in payload || "main_category" in payload;
+  const categoryLevel1Id = payload.category_lvl_1_id ?? null;
   if (hasCategoryLevel1) {
-    payload.category_lvl_1 = categoryLevel1;
+    payload.category_lvl_1_id = categoryLevel1Id;
   }
+  delete payload.category_lvl_1;
   delete payload.main_category;
 
-  const hasCategoryLevel2 = "category_lvl_2" in payload || "category" in payload;
-  const categoryLevel2 = payload.category_lvl_2 ?? payload.category ?? null;
+  const hasCategoryLevel2 = "category_lvl_2_id" in payload || "category_lvl_2" in payload || "category" in payload;
+  const categoryLevel2Id = payload.category_lvl_2_id ?? null;
   if (hasCategoryLevel2) {
-    payload.category_lvl_2 = categoryLevel2;
+    payload.category_lvl_2_id = categoryLevel2Id;
   }
+  delete payload.category_lvl_2;
   delete payload.category;
 
-  const hasCategoryLevel3 = "category_lvl_3" in payload || "subcategory" in payload;
-  const categoryLevel3 = payload.category_lvl_3 ?? payload.subcategory ?? null;
+  const hasCategoryLevel3 = "category_lvl_3_id" in payload || "category_lvl_3" in payload || "subcategory" in payload;
+  const categoryLevel3Id = payload.category_lvl_3_id ?? null;
   if (hasCategoryLevel3) {
-    payload.category_lvl_3 = categoryLevel3;
+    payload.category_lvl_3_id = categoryLevel3Id;
   }
+  delete payload.category_lvl_3;
   delete payload.subcategory;
 
   return payload;
@@ -88,9 +91,9 @@ function normalizePlacesPayload(input: Record<string, unknown>, categoryMaps: Aw
 function normalizePlaceRecord(record: Record<string, unknown>) {
   const typeLevel1 = record.type_lvl_1_id ?? record.type_id ?? null;
   const typeLevel2 = record.type_lvl_2_id ?? record.subtype_id ?? null;
-  const categoryLevel1 = record.category_lvl_1 ?? record.main_category ?? null;
-  const categoryLevel2 = record.category_lvl_2 ?? record.category ?? null;
-  const categoryLevel3 = record.category_lvl_3 ?? record.subcategory ?? null;
+  const categoryLevel1 = record.category_lvl_1 ?? null;
+  const categoryLevel2 = record.category_lvl_2 ?? null;
+  const categoryLevel3 = record.category_lvl_3 ?? null;
   const organizerData = record.organizer_data as Record<string, unknown> | null | undefined;
 
   return {
@@ -102,9 +105,6 @@ function normalizePlaceRecord(record: Record<string, unknown>) {
     category_lvl_1: categoryLevel1,
     category_lvl_2: categoryLevel2,
     category_lvl_3: categoryLevel3,
-    main_category: categoryLevel1,
-    category: categoryLevel2,
-    subcategory: categoryLevel3,
     organizer_data: organizerData ?? null,
   };
 }

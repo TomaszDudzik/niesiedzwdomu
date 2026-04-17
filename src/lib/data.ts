@@ -148,17 +148,13 @@ function toEvent(row: Record<string, unknown>, maps: AdminCategoryMaps): Event {
 
 function toPlace(row: Record<string, unknown>, maps: AdminCategoryMaps): Place {
   const normalized = normalizeCategoryFields(row, maps);
-  const placeType =
-    pickString(normalized.category_lvl_1) ??
-    pickString(normalized.main_category) ??
-    pickString(normalized.place_type) ??
-    "Bez kategorii";
+  const placeType = pickString(normalized.category_lvl_1) ?? "Bez kategorii";
 
   return {
     ...normalized,
     content_type: "place",
     place_type: placeType,
-    main_category: getUncategorizedLabel(pickString(normalized.category_lvl_1) ?? placeType),
+    main_category: getUncategorizedLabel(pickString(normalized.category_lvl_1)),
     category: pickString(normalized.category_lvl_2),
     subcategory: pickString(normalized.category_lvl_3),
   } as unknown as Place;
