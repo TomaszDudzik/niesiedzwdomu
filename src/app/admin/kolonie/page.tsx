@@ -37,6 +37,10 @@ const STATUS_ORDER: Record<DerivedCampStatus, number> = {
   draft: 0, published: 1, outdated: 2, cancelled: 3, deleted: 4,
 };
 
+function isUUID(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
 const inputClass = "w-full px-2 py-1.5 rounded-md border border-border text-[12px] bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30";
 const labelClass = "block text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1";
 
@@ -213,7 +217,7 @@ export default function AdminCampsPage() {
   useEffect(() => { fetchCamps(); }, [fetchCamps]);
 
   useEffect(() => {
-    fetch("/api/admin/organizers")
+    fetch("/api/admin/organizers?status=published")
       .then((r) => r.json())
       .then((data) => { if (Array.isArray(data)) setOrganizers(data); });
   }, []);
@@ -632,8 +636,8 @@ export default function AdminCampsPage() {
       age_max:            editForm.age_max == null || editForm.age_max === "" ? null : Number(editForm.age_max),
       price_from:         editForm.price_from == null || editForm.price_from === "" ? null : Number(editForm.price_from),
       price_to:           editForm.price_to == null || editForm.price_to === "" ? null : Number(editForm.price_to),
-      organizer:          String(editForm.organizer || ""),
-      organizer_id:       editForm.organizer_id || null,
+      organizer:          editForm.organizer_id && !isUUID(String(editForm.organizer_id)) ? String(editForm.organizer_id) : String(editForm.organizer || ""),
+      organizer_id:       editForm.organizer_id && isUUID(String(editForm.organizer_id)) ? editForm.organizer_id : null,
       source_url:         editForm.source_url ? String(editForm.source_url) : null,
       facebook_url:       editForm.facebook_url ? String(editForm.facebook_url) : null,
       venue_name:         String(editForm.venue_name || ""),
@@ -934,7 +938,7 @@ export default function AdminCampsPage() {
                                       onChange={(organizerId) => {
                                         const organizer = organizers.find((item) => item.id === organizerId);
                                         updateField("organizer_id", organizerId);
-                                        updateField("organizer", organizer ? organizer.name : "");
+                                        updateField("organizer", organizer ? organizer.organizer_name : "");
                                       }}
                                       inputClassName={inputClass}
                                     />

@@ -22,7 +22,7 @@ interface OrganizerTile {
 }
 
 function getOrganizerName(camp: Camp): string {
-  return camp.organizer_data?.name?.trim() || camp.organizer?.trim() || "";
+  return camp.organizer_data?.organizer_name?.trim() || camp.organizer?.trim() || "";
 }
 
 function getSessionLabel(count: number): string {

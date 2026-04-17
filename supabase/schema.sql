@@ -40,6 +40,12 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- ============================================
+-- Organizers
+-- Note: This table is managed externally
+-- and is not defined in this schema file.
+-- ============================================
+
+-- ============================================
 -- Venues
 -- ============================================
 CREATE TABLE venues (

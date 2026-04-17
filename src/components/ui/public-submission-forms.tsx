@@ -22,6 +22,7 @@ type ContactState = {
   submitter_name: string;
   submitter_email: string;
   submitter_phone: string;
+  submitter_phone_country_code: string;
   organization_name: string;
   notes: string;
 };
@@ -220,6 +221,7 @@ const EMPTY_CONTACT: ContactState = {
   submitter_name: "",
   submitter_email: "",
   submitter_phone: "",
+  submitter_phone_country_code: "+48",
   organization_name: "",
   notes: "",
 };
@@ -535,11 +537,27 @@ function ContactFields({
         />
       </Field>
       <Field label="Telefon">
-        <input
-          value={contact.submitter_phone}
-          onChange={(event) => setContact((prev) => ({ ...prev, submitter_phone: event.target.value }))}
-          className={inputClass}
-        />
+        <div className="flex gap-2">
+          <select
+            value={contact.submitter_phone_country_code}
+            onChange={(event) => setContact((prev) => ({ ...prev, submitter_phone_country_code: event.target.value }))}
+            className="w-20 px-3 py-2.5 rounded-xl border border-border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+          >
+            <option value="+48">+48</option>
+            <option value="+1">+1</option>
+            <option value="+44">+44</option>
+            <option value="+33">+33</option>
+            <option value="+49">+49</option>
+            <option value="+39">+39</option>
+          </select>
+          <input
+            type="tel"
+            value={contact.submitter_phone}
+            onChange={(event) => setContact((prev) => ({ ...prev, submitter_phone: event.target.value }))}
+            className={inputClass}
+            placeholder="Numer telefonu"
+          />
+        </div>
       </Field>
       {showOrganizationField ? (
         <Field label="Organizacja / marka" required>
@@ -604,10 +622,18 @@ async function submitForm(contentType: SubmissionKind, payload: unknown, contact
     }
   }
 
+  // Concatenate country code with phone number
+  const contactToSend = {
+    ...contact,
+    submitter_phone: contact.submitter_phone
+      ? `${contact.submitter_phone_country_code}${contact.submitter_phone.replace(/^\+?48/, "").replace(/^0+/, "")}`
+      : "",
+  };
+
   const response = await fetch("/api/submissions", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ contentType, payload: normalizedPayload, contact }),
+    body: JSON.stringify({ contentType, payload: normalizedPayload, contact: contactToSend }),
   });
 
   const result = await response.json();

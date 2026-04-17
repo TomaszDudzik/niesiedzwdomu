@@ -295,7 +295,7 @@ export default function AdminActivitiesPage() {
   }, [fetchActivities]);
 
   useEffect(() => {
-    fetch("/api/admin/organizers")
+    fetch("/api/admin/organizers?status=published")
       .then((response) => response.json())
       .then((data) => {
         if (Array.isArray(data)) setOrganizers(data);
@@ -476,7 +476,7 @@ export default function AdminActivitiesPage() {
       const scheduleSummary = mapped.schedule_summary || [mapped.days_of_week, mapped.time_start && mapped.time_end ? `${mapped.time_start}-${mapped.time_end}` : mapped.time_start].filter(Boolean).join(", ");
       const organizerName = mapped.organizer?.trim() || mapped.venue_name?.trim() || "Organizator";
       const matchedOrganizer = organizerName
-        ? organizers.find((organizer) => organizer.name.toLowerCase() === organizerName.toLowerCase())
+        ? organizers.find((organizer) => organizer.organizer_name.toLowerCase() === organizerName.toLowerCase())
         : null;
 
       const payload = {
@@ -924,7 +924,7 @@ export default function AdminActivitiesPage() {
                                         setEditForm((current) => ({
                                           ...current,
                                           organizer_id: organizerId,
-                                          organizer: organizer ? organizer.name : "",
+                                          organizer: organizer ? organizer.organizer_name : "",
                                         }));
                                       }}
                                       inputClassName={inputClass}

@@ -100,7 +100,7 @@ export interface Event {
   lng: number | null;
   organizer: string | null;
   organizer_id?: string | null;
-  organizer_data?: Company | null;
+  organizer_data?: Organizer | null;
   source_url: string | null;
   facebook_url: string | null;
   is_featured: boolean;
@@ -117,26 +117,23 @@ export interface Event {
 }
 
 // ============================================
-// Camp & Place — frontend types (DB tables TBD)
+// Organizers
 // ============================================
 
-export interface Company {
+export interface Organizer {
   id: string;
-  name: string;
-  business_name: string | null;
+  organizer_name: string;
+  company_name: string | null;
+  email: string | null;
+  phone: string | null;
   street: string;
   postcode: string;
   city: string;
-  email: string | null;
-  phone: string | null;
-  website_url: string | null;
   note: string | null;
-  status: "draft" | "published";
+  status: "draft" | "published" | "archived";
   created_at: string;
   updated_at: string;
 }
-
-export type Organizer = Company;
 
 export interface Camp {
   content_type: "camp";
@@ -171,7 +168,7 @@ export interface Camp {
   lng: number | null;
   organizer: string;
   organizer_id?: string | null;
-  organizer_data?: Company | null;
+  organizer_data?: Organizer | null;
   source_url: string | null;
   facebook_url: string | null;
   is_featured: boolean;
@@ -220,7 +217,7 @@ export interface Activity {
   venue_address: string;
   organizer: string;
   organizer_id?: string | null;
-  organizer_data?: Company | null;
+  organizer_data?: Organizer | null;
   source_url: string | null;
   facebook_url: string | null;
   is_featured: boolean;
@@ -267,7 +264,7 @@ export interface Place {
   amenities: string[];
   opening_hours: string | null;
   organizer_id?: string | null;
-  organizer_data?: Company | null;
+  organizer_data?: Organizer | null;
   source_url: string | null;
   facebook_url: string | null;
   is_featured: boolean;

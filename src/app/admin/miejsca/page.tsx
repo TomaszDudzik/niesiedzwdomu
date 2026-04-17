@@ -49,6 +49,10 @@ function sortPlaceGroupKeys(keys: string[]) {
   });
 }
 
+function isUUID(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
 export default function AdminPlacesPage() {
   const { typeLevel1Options, typeLevel2Options, categoryLevel1Options, categoryLevel2Options, categoryLevel3Options, loading: taxonomyLoading } = useAdminTaxonomy();
   const [places, setPlaces] = useState<Place[]>([]);
@@ -202,7 +206,7 @@ export default function AdminPlacesPage() {
       }
       const organizerName = typeof place.organizer === "string" ? place.organizer.trim() : "";
       const matchedOrganizer = organizerName
-        ? organizers.find((organizer) => organizer.name.toLowerCase() === organizerName.toLowerCase())
+        ? organizers.find((organizer) => organizer.organizer_name.toLowerCase() === organizerName.toLowerCase())
         : null;
       if (matchedOrganizer) {
         place.organizer_id = matchedOrganizer.id;
@@ -281,7 +285,7 @@ export default function AdminPlacesPage() {
   useEffect(() => { fetchPlaces(); }, [fetchPlaces]);
 
   useEffect(() => {
-    fetch("/api/admin/organizers")
+    fetch("/api/admin/organizers?status=published")
       .then((response) => response.json())
       .then((data) => {
         if (Array.isArray(data)) setOrganizers(data);
@@ -456,7 +460,8 @@ export default function AdminPlacesPage() {
       age_max: editForm.age_max ?? null,
       source_url: editForm.source_url || null,
       facebook_url: editForm.facebook_url ? String(editForm.facebook_url) : null,
-      organizer_id: editForm.organizer_id || null,
+      organizer_id: editForm.organizer_id && isUUID(String(editForm.organizer_id)) ? editForm.organizer_id : null,
+      organizer: editForm.organizer_id && !isUUID(String(editForm.organizer_id)) ? String(editForm.organizer_id) : (editForm.organizer || null),
       is_featured: Boolean(editForm.is_featured),
       likes: Number(editForm.likes) || 0,
       dislikes: Number(editForm.dislikes) || 0,

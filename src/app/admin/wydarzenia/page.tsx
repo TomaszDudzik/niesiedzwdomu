@@ -21,6 +21,14 @@ const UNCATEGORIZED_GROUP = "__uncategorized__";
 
 const MiniMapLazy = lazy(() => import("../miejsca/mini-map").then((module) => ({ default: module.MiniMap })));
 
+function isUUID(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
+function isUUID(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // Main page
 // ═══════════════════════════════════════════════════════════════════
@@ -259,7 +267,7 @@ function AdminCanonicalEventsPanel() {
       const city = mapped.city?.trim() || "Kraków";
       const organizerName = mapped.organizer?.trim() || "";
       const matchedOrganizer = organizerName
-        ? organizers.find((organizer) => organizer.name.toLowerCase() === organizerName.toLowerCase())
+        ? organizers.find((organizer) => organizer.organizer_name.toLowerCase() === organizerName.toLowerCase())
         : null;
       const payload = {
         content_type: "event",
@@ -351,7 +359,7 @@ function AdminCanonicalEventsPanel() {
   }, [fetchEvents]);
 
   useEffect(() => {
-    fetch("/api/admin/organizers")
+    fetch("/api/admin/organizers?status=published")
       .then((response) => response.json())
       .then((data) => {
         if (Array.isArray(data)) setOrganizers(data);
@@ -710,8 +718,8 @@ function AdminCanonicalEventsPanel() {
       city: String(editForm.city || "Kraków").trim() || "Kraków",
       lat: editForm.lat === "" || editForm.lat === null ? null : Number(editForm.lat),
       lng: editForm.lng === "" || editForm.lng === null ? null : Number(editForm.lng),
-      organizer: editForm.organizer ? String(editForm.organizer) : null,
-      organizer_id: editForm.organizer_id || null,
+      organizer: editForm.organizer_id && !isUUID(String(editForm.organizer_id)) ? String(editForm.organizer_id) : (editForm.organizer ? String(editForm.organizer) : null),
+      organizer_id: editForm.organizer_id && isUUID(String(editForm.organizer_id)) ? editForm.organizer_id : null,
       source_url: editForm.source_url ? String(editForm.source_url) : null,
       facebook_url: editForm.facebook_url ? String(editForm.facebook_url) : null,
       category_lvl_1: editForm.category_lvl_1 ? String(editForm.category_lvl_1) : null,
@@ -909,7 +917,7 @@ function AdminCanonicalEventsPanel() {
                                     onChange={(organizerId) => {
                                       const organizer = organizers.find((item) => item.id === organizerId);
                                       updateField("organizer_id", organizerId);
-                                      updateField("organizer", organizer ? organizer.name : null);
+                                      updateField("organizer", organizer ? organizer.organizer_name : null);
                                     }}
                                     inputClassName={inputClass}
                                   />
