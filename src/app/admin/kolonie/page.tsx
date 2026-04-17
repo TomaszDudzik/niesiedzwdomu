@@ -18,7 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { CAMP_CATEGORY_LABELS, CAMP_MAIN_CATEGORY_ICONS, CAMP_MAIN_CATEGORY_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
-import { cn, formatDateShort, formatPrice, thumbUrl } from "@/lib/utils";
+import { cn, formatDateShort, formatPrice, thumbUrl, withCacheBust } from "@/lib/utils";
 import type { Camp, Organizer } from "@/types/database";
 import { ImageSection } from "@/components/admin/image-section";
 import { OrganizerCombobox } from "@/components/admin/organizer-combobox";
@@ -674,7 +674,13 @@ export default function AdminCampsPage() {
     if (data.updated) {
       setCamps((prev) => prev.map((c) =>
         c.id === id
-          ? { ...mapCampRow(data.updated as Record<string, unknown>), lat: (editForm.lat as number) ?? c.lat, lng: (editForm.lng as number) ?? c.lng }
+          ? {
+              ...mapCampRow(data.updated as Record<string, unknown>),
+              image_cover: withCacheBust(typeof data.updated.image_cover === "string" ? data.updated.image_cover : null),
+              image_thumb: withCacheBust(typeof data.updated.image_thumb === "string" ? data.updated.image_thumb : null),
+              lat: (editForm.lat as number) ?? c.lat,
+              lng: (editForm.lng as number) ?? c.lng,
+            }
           : c
       ));
     }

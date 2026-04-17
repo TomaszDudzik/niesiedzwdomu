@@ -336,7 +336,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
       )}
 
       {/* Desktop layout: sidebar + content */}
-      <div className="lg:flex lg:gap-6 lg:items-start">
+      <div className="lg:flex lg:gap-10 lg:items-start">
 
         {/* Sidebar filters — desktop only, sticky */}
         <aside className="hidden lg:block w-52 shrink-0">

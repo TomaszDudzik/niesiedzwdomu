@@ -6,7 +6,7 @@ import {
   ExternalLink, Save, X, Upload, XCircle, MapPin, Plus, ClipboardPaste, ChevronDown, ChevronRight, Star,
 } from "lucide-react";
 import { PLACE_TYPE_LABELS, PLACE_TYPE_ICONS, DISTRICT_LIST } from "@/lib/mock-data";
-import { cn, thumbUrl } from "@/lib/utils";
+import { cn, thumbUrl, withCacheBust } from "@/lib/utils";
 import type { Organizer, Place } from "@/types/database";
 import { ImageSection } from "@/components/admin/image-section";
 import { OrganizerCombobox } from "@/components/admin/organizer-combobox";
@@ -499,7 +499,12 @@ export default function AdminPlacesPage() {
     const updatedPlace = saveData.updated as Record<string, unknown> | undefined;
     setPlaces((prev) => prev.map((p) => p.id === id ? (
       updatedPlace
-        ? ({ ...updatedPlace, content_type: "place" } as Place)
+        ? ({
+            ...updatedPlace,
+            image_cover: typeof updatedPlace.image_cover === "string" ? withCacheBust(updatedPlace.image_cover) : updatedPlace.image_cover,
+            image_thumb: typeof updatedPlace.image_thumb === "string" ? withCacheBust(updatedPlace.image_thumb) : updatedPlace.image_thumb,
+            content_type: "place",
+          } as Place)
         : {
             ...p,
             ...dbPayload,

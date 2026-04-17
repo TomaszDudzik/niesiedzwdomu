@@ -8,7 +8,7 @@ import {
   Star, ClipboardPaste, Upload, MapPin,
 } from "lucide-react";
 import { CATEGORY_ICONS, CATEGORY_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
-import { cn, formatDateShort, formatPrice, slugify, thumbUrl } from "@/lib/utils";
+import { cn, formatDateShort, formatPrice, slugify, thumbUrl, withCacheBust } from "@/lib/utils";
 import type { Event, Organizer } from "@/types/database";
 import { ImageSection } from "@/components/admin/image-section";
 import { OrganizerCombobox } from "@/components/admin/organizer-combobox";
@@ -757,7 +757,12 @@ function AdminCanonicalEventsPanel() {
     setEvents((prev) => prev.map((event) => (
       event.id === id
         ? (updatedEvent
-            ? ({ ...event, ...updatedEvent } as Event)
+            ? ({
+                ...event,
+                ...updatedEvent,
+                image_cover: typeof updatedEvent.image_cover === "string" ? withCacheBust(updatedEvent.image_cover) : updatedEvent.image_cover,
+                image_thumb: typeof updatedEvent.image_thumb === "string" ? withCacheBust(updatedEvent.image_thumb) : updatedEvent.image_thumb,
+              } as Event)
           : { ...event, ...updates, ...(newImageCover ? { image_cover: newImageCover } : {}) } as Event)
         : event
     )));

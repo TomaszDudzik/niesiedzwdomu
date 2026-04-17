@@ -20,7 +20,7 @@ import {
 
 const MiniMapLazy = lazy(() => import("../miejsca/mini-map").then((module) => ({ default: module.MiniMap })));
 import { ACTIVITY_TYPE_ICONS, ACTIVITY_TYPE_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
-import { cn, formatDateShort, thumbUrl } from "@/lib/utils";
+import { cn, formatDateShort, thumbUrl, withCacheBust } from "@/lib/utils";
 import type { Activity, Organizer } from "@/types/database";
 import { ImageSection } from "@/components/admin/image-section";
 import { OrganizerCombobox } from "@/components/admin/organizer-combobox";
@@ -694,7 +694,13 @@ export default function AdminActivitiesPage() {
 
     if (data.updated) {
       setActivities((current) => current.map((activity) => (
-        activity.id === id ? mapActivityRow(data.updated as Record<string, unknown>) : activity
+        activity.id === id
+          ? {
+              ...mapActivityRow(data.updated as Record<string, unknown>),
+              image_cover: withCacheBust(typeof data.updated.image_cover === "string" ? data.updated.image_cover : null),
+              image_thumb: withCacheBust(typeof data.updated.image_thumb === "string" ? data.updated.image_thumb : null),
+            }
+          : activity
       )));
     }
 

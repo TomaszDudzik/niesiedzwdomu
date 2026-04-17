@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ImagePlus, Loader2, RefreshCw, X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, withCacheBust } from "@/lib/utils";
 
 const inputClass = "w-full px-2 py-1.5 rounded-md border border-border text-[12px] bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30";
 const btnClass = "inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-muted border border-border rounded hover:text-foreground hover:border-primary/30 transition-colors";
@@ -74,7 +74,7 @@ export function ImageSection({
       const res = await fetch("/api/admin/upload-image", { method: "POST", body: formData });
       const data = await res.json();
       if (data.image_thumb) {
-        onRandomPhoto(coverSrc, data.image_thumb, null);
+        onRandomPhoto(coverSrc, withCacheBust(data.image_thumb), null);
         clearThumb();
       } else {
         alert(data.error || "Błąd wgrywania thumb");
@@ -106,7 +106,7 @@ export function ImageSection({
       });
       const data = await res.json();
       if (data.image_cover) {
-        onRandomPhoto(data.image_cover, data.image_thumb ?? null, data.image_set ?? null);
+        onRandomPhoto(withCacheBust(data.image_cover) ?? data.image_cover, withCacheBust(data.image_thumb ?? null), data.image_set ?? null);
       } else {
         alert(data.error || "Brak zdjęć w tej kategorii");
       }

@@ -79,6 +79,16 @@ export function thumbUrl(imageThumb: string | null | undefined, imageUrl: string
   return imageUrl || null;
 }
 
+export function withCacheBust(url: string | null | undefined): string | null {
+  if (!url) return null;
+
+  const [path, query = ""] = url.split("?");
+  const params = new URLSearchParams(query);
+  params.set("t", Date.now().toString());
+
+  return `${path}?${params.toString()}`;
+}
+
 export function toLocalDateKey(date: Date): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
