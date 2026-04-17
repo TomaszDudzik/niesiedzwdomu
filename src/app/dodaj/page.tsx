@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { PublicSubmissionForms } from "@/components/ui/public-submission-forms";
 import { loadAdminTaxonomy } from "@/lib/admin-taxonomy-server";
 
+export const dynamic = "force-dynamic";
+
 type AddContentPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };

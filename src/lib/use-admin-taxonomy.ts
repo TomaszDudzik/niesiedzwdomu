@@ -36,6 +36,11 @@ export function useAdminTaxonomy(initialTaxonomy: AdminTaxonomyResponse = EMPTY_
   const [loading, setLoading] = useState(!hasInitialTaxonomy);
 
   useEffect(() => {
+    if (hasInitialTaxonomy) {
+      setLoading(false);
+      return;
+    }
+
     let active = true;
 
     fetch("/api/admin/taxonomy")
@@ -71,7 +76,7 @@ export function useAdminTaxonomy(initialTaxonomy: AdminTaxonomyResponse = EMPTY_
     return () => {
       active = false;
     };
-  }, []);
+  }, [hasInitialTaxonomy]);
 
   return {
     typeLevel1Options,
