@@ -788,52 +788,87 @@ export default function AdminPlacesPage() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-6 gap-3 mb-4">
-                      <div>
-                        <label className={labelClass}>Wiek od</label>
-                        <input type="number" min={0} max={18} className={inputClass} value={(editForm.age_min as number) ?? ""} onChange={(e) => updateField("age_min", e.target.value ? Number(e.target.value) : null)} />
-                      </div>
-                      <div>
-                        <label className={labelClass}>Wiek do</label>
-                        <input type="number" min={0} max={18} className={inputClass} value={(editForm.age_max as number) ?? ""} onChange={(e) => updateField("age_max", e.target.value ? Number(e.target.value) : null)} />
-                      </div>
-                      <div className="md:col-span-3 flex items-center gap-4 pt-5">
-                        <label className="flex items-center gap-2 text-[12px] cursor-pointer">
-                          <input type="checkbox" checked={Boolean(editForm.is_free)} onChange={(e) => updateField("is_free", e.target.checked)} className="rounded border-border" />
-                          Bezpłatne
-                        </label>
-                        <label className="flex items-center gap-2 text-[12px] cursor-pointer">
-                          <input type="checkbox" checked={Boolean(editForm.is_featured)} onChange={(e) => updateField("is_featured", e.target.checked)} className="rounded border-border" />
-                          Wyróżnione
-                        </label>
-                        <div className="flex gap-1.5">
-                          <button type="button" onClick={() => updateField("is_indoor", true)}
-                            className={cn("px-2.5 py-1 rounded text-[11px] font-medium border transition-colors cursor-pointer", (editForm.is_indoor as boolean) ? "bg-primary text-white border-primary" : "border-border text-muted hover:border-primary/30")}>
-                            Wewnątrz
-                          </button>
-                          <button type="button" onClick={() => updateField("is_indoor", false)}
-                            className={cn("px-2.5 py-1 rounded text-[11px] font-medium border transition-colors cursor-pointer", !(editForm.is_indoor as boolean) ? "bg-primary text-white border-primary" : "border-border text-muted hover:border-primary/30")}>
-                            Na zewnątrz
-                          </button>
+                    <div className="rounded-lg border border-border/50 p-3 mb-4 space-y-3">
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Linki</p>
+                      <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+                        <div className="md:col-span-3">
+                          <label className={labelClass}>URL źródła</label>
+                          <input
+                            className={inputClass}
+                            value={(editForm.source_url as string) || ""}
+                            onChange={(e) => updateField("source_url", e.target.value)}
+                            placeholder="https://..."
+                          />
+                        </div>
+                        <div className="md:col-span-3">
+                          <label className={labelClass}>Facebook</label>
+                          <input
+                            className={inputClass}
+                            value={(editForm.facebook_url as string) || ""}
+                            onChange={(e) => updateField("facebook_url", e.target.value)}
+                            placeholder="https://facebook.com/..."
+                          />
                         </div>
                       </div>
+                    </div>
 
-                      <div className="md:col-span-3">
-                        <label className={labelClass}>URL źródła</label>
-                        <input className={inputClass} value={(editForm.source_url as string) || ""} onChange={(e) => updateField("source_url", e.target.value)} placeholder="https://..." />
+                    <div className="rounded-lg border border-border/50 p-3 mb-4 space-y-3">
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Szczegóły</p>
+                      <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+                        <div>
+                          <label className={labelClass}>Wiek od</label>
+                          <input type="number" min={0} max={18} className={inputClass} value={(editForm.age_min as number) ?? ""} onChange={(e) => updateField("age_min", e.target.value ? Number(e.target.value) : null)} />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Wiek do</label>
+                          <input type="number" min={0} max={18} className={inputClass} value={(editForm.age_max as number) ?? ""} onChange={(e) => updateField("age_max", e.target.value ? Number(e.target.value) : null)} />
+                        </div>
+                        <div className="md:col-span-4 flex items-center gap-4 pt-5">
+                          <label className="flex items-center gap-2 text-[12px] cursor-pointer">
+                            <input type="checkbox" checked={Boolean(editForm.is_free)} onChange={(e) => updateField("is_free", e.target.checked)} className="rounded border-border" />
+                            Bezpłatne
+                          </label>
+                          <label className="flex items-center gap-2 text-[12px] cursor-pointer">
+                            <input type="checkbox" checked={Boolean(editForm.is_featured)} onChange={(e) => updateField("is_featured", e.target.checked)} className="rounded border-border" />
+                            Wyróżnione
+                          </label>
+                          <div className="flex gap-1.5">
+                            <button type="button" onClick={() => updateField("is_indoor", true)}
+                              className={cn("px-2.5 py-1 rounded text-[11px] font-medium border transition-colors cursor-pointer", (editForm.is_indoor as boolean) ? "bg-primary text-white border-primary" : "border-border text-muted hover:border-primary/30")}>
+                              Wewnątrz
+                            </button>
+                            <button type="button" onClick={() => updateField("is_indoor", false)}
+                              className={cn("px-2.5 py-1 rounded text-[11px] font-medium border transition-colors cursor-pointer", !(editForm.is_indoor as boolean) ? "bg-primary text-white border-primary" : "border-border text-muted hover:border-primary/30")}>
+                              Na zewnątrz
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                      <div className="md:col-span-3">
-                        <label className={labelClass}>Facebook</label>
-                        <input className={inputClass} value={(editForm.facebook_url as string) || ""} onChange={(e) => updateField("facebook_url", e.target.value)} placeholder="https://facebook.com/..." />
-                      </div>
+                    </div>
 
-                      <div>
-                        <label className={labelClass}>Likes</label>
-                        <input type="number" min={0} className={inputClass} value={(editForm.likes as number) ?? 0} onChange={(e) => updateField("likes", Number(e.target.value) || 0)} />
-                      </div>
-                      <div>
-                        <label className={labelClass}>Dislikes</label>
-                        <input type="number" min={0} className={inputClass} value={(editForm.dislikes as number) ?? 0} onChange={(e) => updateField("dislikes", Number(e.target.value) || 0)} />
+                    <div className="rounded-lg border border-border/50 p-3 mb-4 space-y-3">
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Feedback</p>
+                      <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+                        <div className="md:col-span-3">
+                          <label className={labelClass}>Likes</label>
+                          <input
+                            type="number"
+                            min={0}
+                            className={inputClass}
+                            value={(editForm.likes as number) ?? 0}
+                            onChange={(e) => updateField("likes", Number(e.target.value) || 0)}
+                          />
+                        </div>
+                        <div className="md:col-span-3">
+                          <label className={labelClass}>Dislikes</label>
+                          <input
+                            type="number"
+                            min={0}
+                            className={inputClass}
+                            value={(editForm.dislikes as number) ?? 0}
+                            onChange={(e) => updateField("dislikes", Number(e.target.value) || 0)}
+                          />
+                        </div>
                       </div>
                     </div>
 

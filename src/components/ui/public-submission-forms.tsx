@@ -386,6 +386,10 @@ function TaxonomyFields({
   state,
   onChange,
   showTypeFields = true,
+  categoryLevel1Label = "Kategoria",
+  categoryLevel2Label = "Podkategoria",
+  showCategoryLevel3 = true,
+  categoryLevel1Required = false,
 }: {
   typeLevel1Options: AdminTypeLevel1[];
   typeLevel2Options: AdminTypeLevel2[];
@@ -395,6 +399,10 @@ function TaxonomyFields({
   state: TaxonomyState;
   onChange: (patch: Partial<TaxonomyState>) => void;
   showTypeFields?: boolean;
+  categoryLevel1Label?: string;
+  categoryLevel2Label?: string;
+  showCategoryLevel3?: boolean;
+  categoryLevel1Required?: boolean;
 }) {
   const availableTypeLevel2 = useMemo(
     () => getTypeLevel2ForTypeLevel1(typeLevel2Options, state.type_lvl_1_id || null),
@@ -414,7 +422,7 @@ function TaxonomyFields({
   );
 
   return (
-    <div className={cn("grid gap-4 md:grid-cols-2", showTypeFields ? "xl:grid-cols-5" : "xl:grid-cols-3")}>
+    <div className={cn("grid gap-4 md:grid-cols-2", showTypeFields ? "xl:grid-cols-5" : showCategoryLevel3 ? "xl:grid-cols-3" : "xl:grid-cols-2")}>
       {showTypeFields ? (
         <>
           <Field label="Grupa">
@@ -446,11 +454,12 @@ function TaxonomyFields({
         </>
       ) : null}
 
-      <Field label="Kategoria">
+      <Field label={categoryLevel1Label} required={categoryLevel1Required}>
         <select
           value={state.category_lvl_1}
           onChange={(event) => onChange({ category_lvl_1: event.target.value, category_lvl_2: "", category_lvl_3: "" })}
           className={inputClass}
+          required={categoryLevel1Required}
         >
           <option value="">Wybierz</option>
           {categoryLevel1Options.map((entry) => (
@@ -459,33 +468,35 @@ function TaxonomyFields({
         </select>
       </Field>
 
-      <Field label="Podkategoria">
+      <Field label={categoryLevel2Label}>
         <select
           value={state.category_lvl_2}
           onChange={(event) => onChange({ category_lvl_2: event.target.value, category_lvl_3: "" })}
           className={inputClass}
           disabled={!state.category_lvl_1}
         >
-          <option value="">{state.category_lvl_1 ? "Wybierz" : "Najpierw kategoria"}</option>
+          <option value="">{state.category_lvl_1 ? "Wybierz" : `Najpierw ${categoryLevel1Label.toLowerCase()}`}</option>
           {availableCategoryLevel2.map((entry) => (
             <option key={entry.id} value={entry.name}>{entry.name}</option>
           ))}
         </select>
       </Field>
 
-      <Field label="Temat">
-        <select
-          value={state.category_lvl_3}
-          onChange={(event) => onChange({ category_lvl_3: event.target.value })}
-          className={inputClass}
-          disabled={!state.category_lvl_2}
-        >
-          <option value="">{state.category_lvl_2 ? "Wybierz" : "Najpierw podkategoria"}</option>
-          {availableCategoryLevel3.map((entry) => (
-            <option key={entry.id} value={entry.name}>{entry.name}</option>
-          ))}
-        </select>
-      </Field>
+      {showCategoryLevel3 ? (
+        <Field label="Temat">
+          <select
+            value={state.category_lvl_3}
+            onChange={(event) => onChange({ category_lvl_3: event.target.value })}
+            className={inputClass}
+            disabled={!state.category_lvl_2}
+          >
+            <option value="">{state.category_lvl_2 ? "Wybierz" : `Najpierw ${categoryLevel2Label.toLowerCase()}`}</option>
+            {availableCategoryLevel3.map((entry) => (
+              <option key={entry.id} value={entry.name}>{entry.name}</option>
+            ))}
+          </select>
+        </Field>
+      ) : null}
     </div>
   );
 }
@@ -612,7 +623,7 @@ function EventSubmissionForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className={panelClass}>
-        <SectionTitle title="Szczegóły wydarzenia" description="Formularz dla wydarzeń jednorazowych, warsztatów, spektakli i innych aktywności w kalendarzu." />
+        <SectionTitle title="Opis wydarzenia" description="Formularz dla wydarzeń jednorazowych, warsztatów, spektakli i innych aktywności w kalendarzu." />
         <div className="mt-5 grid gap-4 md:grid-cols-2">
           <Field label="Tytuł" required>
             <input value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} className={inputClass} required />
@@ -635,7 +646,7 @@ function EventSubmissionForm() {
 
       <div className={panelClass}>
         <SectionTitle title="Klasyfikacja" description="Pomaga umieścić zgłoszenie we właściwej części serwisu i filtrach." />
-        <div className="mt-5 space-y-4">
+        <div className="mt-5">
           <TaxonomyFields
             typeLevel1Options={typeLevel1Options}
             typeLevel2Options={typeLevel2Options}
@@ -645,21 +656,50 @@ function EventSubmissionForm() {
             state={form}
             onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
           />
-          <div className="max-w-sm">
-            <Field label="Kategoria wydarzenia" required>
-              <select value={form.category} onChange={(event) => setForm((prev) => ({ ...prev, category: event.target.value }))} className={inputClass} required>
-                {EVENT_CATEGORY_OPTIONS.map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </select>
-            </Field>
-          </div>
         </div>
       </div>
 
       <div className={panelClass}>
-        <SectionTitle title="Termin i miejsce" />
+        <SectionTitle title="Linki" />
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
+          <Field label="Strona WWW">
+            <input type="url" value={form.source_url} onChange={(event) => setForm((prev) => ({ ...prev, source_url: event.target.value }))} className={inputClass} placeholder="https://..." />
+          </Field>
+          <Field label="Facebook">
+            <input type="url" value={form.facebook_url} onChange={(event) => setForm((prev) => ({ ...prev, facebook_url: event.target.value }))} className={inputClass} placeholder="https://facebook.com/..." />
+          </Field>
+        </div>
+      </div>
+
+      <div className={panelClass}>
+        <SectionTitle title="Adres" />
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
+          <Field label="Miejsce" required>
+            <input value={form.venue_name} onChange={(event) => setForm((prev) => ({ ...prev, venue_name: event.target.value }))} className={inputClass} required />
+          </Field>
+          <Field label="Adres" required>
+            <input value={form.venue_address} onChange={(event) => setForm((prev) => ({ ...prev, venue_address: event.target.value }))} className={inputClass} required />
+          </Field>
+        </div>
+      </div>
+
+      <div className={panelClass}>
+        <SectionTitle title="Szczegóły" />
         <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <Field label="Kategoria wydarzenia" required>
+            <select value={form.category} onChange={(event) => setForm((prev) => ({ ...prev, category: event.target.value }))} className={inputClass} required>
+              {EVENT_CATEGORY_OPTIONS.map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Dzielnica" required>
+            <select value={form.district} onChange={(event) => setForm((prev) => ({ ...prev, district: event.target.value }))} className={inputClass} required>
+              {DISTRICT_LIST.map((district) => (
+                <option key={district} value={district}>{district}</option>
+              ))}
+            </select>
+          </Field>
           <Field label="Data od" required>
             <input type="date" value={form.date_start} onChange={(event) => setForm((prev) => ({ ...prev, date_start: event.target.value }))} className={inputClass} required />
           </Field>
@@ -672,27 +712,6 @@ function EventSubmissionForm() {
           <Field label="Godzina do">
             <input type="time" value={form.time_end} onChange={(event) => setForm((prev) => ({ ...prev, time_end: event.target.value }))} className={inputClass} />
           </Field>
-          <Field label="Dzielnica" required>
-            <select value={form.district} onChange={(event) => setForm((prev) => ({ ...prev, district: event.target.value }))} className={inputClass} required>
-              {DISTRICT_LIST.map((district) => (
-                <option key={district} value={district}>{district}</option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Miejsce" required>
-            <input value={form.venue_name} onChange={(event) => setForm((prev) => ({ ...prev, venue_name: event.target.value }))} className={inputClass} required />
-          </Field>
-          <div className="md:col-span-2">
-            <Field label="Adres" required>
-              <input value={form.venue_address} onChange={(event) => setForm((prev) => ({ ...prev, venue_address: event.target.value }))} className={inputClass} required />
-            </Field>
-          </div>
-        </div>
-      </div>
-
-      <div className={panelClass}>
-        <SectionTitle title="Dodatkowe informacje" />
-        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Field label="Wiek od">
             <input type="number" min="0" value={form.age_min} onChange={(event) => setForm((prev) => ({ ...prev, age_min: event.target.value }))} className={inputClass} />
           </Field>
@@ -706,17 +725,7 @@ function EventSubmissionForm() {
             <input type="checkbox" checked={form.is_free} onChange={(event) => setForm((prev) => ({ ...prev, is_free: event.target.checked, price: event.target.checked ? "" : prev.price }))} />
             Bezpłatne wydarzenie
           </label>
-          <div className="md:col-span-2">
-            <Field label="Link do strony źródłowej">
-              <input type="url" value={form.source_url} onChange={(event) => setForm((prev) => ({ ...prev, source_url: event.target.value }))} className={inputClass} placeholder="https://..." />
-            </Field>
-          </div>
-          <div className="md:col-span-2">
-            <Field label="Link do Facebooka">
-              <input type="url" value={form.facebook_url} onChange={(event) => setForm((prev) => ({ ...prev, facebook_url: event.target.value }))} className={inputClass} placeholder="https://facebook.com/..." />
-            </Field>
-          </div>
-          <div className="md:col-span-2">
+          <div className="md:col-span-2 xl:col-span-4">
             <Field label="Zdjęcie (URL)">
               <input type="url" value={form.image_url} onChange={(event) => setForm((prev) => ({ ...prev, image_url: event.target.value }))} className={inputClass} placeholder="https://..." />
             </Field>
@@ -725,7 +734,7 @@ function EventSubmissionForm() {
       </div>
 
       <div className={panelClass}>
-        <SectionTitle title="Dane kontaktowe zgłaszającego" description="Te dane nie będą publikowane. Służą wyłącznie do weryfikacji zgłoszenia." />
+        <SectionTitle title="Dane kontaktowe zgłaszającego" description="Te dane zostają tylko do weryfikacji zgłoszenia." />
         <div className="mt-5">
           <ContactFields contact={contact} setContact={setContact} />
         </div>
@@ -797,8 +806,8 @@ function PlaceSubmissionForm() {
             </Field>
           </div>
           <div className="md:col-span-2">
-            <Field label="Pełny opis">
-              <textarea value={form.description_long} onChange={(event) => setForm((prev) => ({ ...prev, description_long: event.target.value }))} className={textareaClass} />
+            <Field label="Pełny opis" required>
+              <textarea value={form.description_long} onChange={(event) => setForm((prev) => ({ ...prev, description_long: event.target.value }))} className={textareaClass} required />
             </Field>
           </div>
         </div>
@@ -816,23 +825,41 @@ function PlaceSubmissionForm() {
             state={form}
             onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
             showTypeFields={false}
+            categoryLevel1Label="Typ"
+            categoryLevel2Label="Kategoria"
+            showCategoryLevel3={false}
+            categoryLevel1Required={true}
           />
         </div>
       </div>
 
       <div className={panelClass}>
-        <SectionTitle title="Adres i szczegóły" />
-        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <div className="xl:col-span-2">
-            <Field label="Ulica i numer" required>
-              <input value={form.street} onChange={(event) => setForm((prev) => ({ ...prev, street: event.target.value }))} className={inputClass} required />
-            </Field>
-          </div>
-          <div className="xl:col-span-2">
-            <Field label="Miasto" required>
+        <SectionTitle title="Linki" />
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
+          <Field label="Strona WWW">
+            <input type="url" value={form.source_url} onChange={(event) => setForm((prev) => ({ ...prev, source_url: event.target.value }))} className={inputClass} placeholder="https://..." />
+          </Field>
+          <Field label="Facebook">
+            <input type="url" value={form.facebook_url} onChange={(event) => setForm((prev) => ({ ...prev, facebook_url: event.target.value }))} className={inputClass} placeholder="https://facebook.com/..." />
+          </Field>
+        </div>
+      </div>
+
+      <div className={panelClass}>
+        <SectionTitle title="Adres" />
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
+          <Field label="Ulica i numer" required>
+            <input value={form.street} onChange={(event) => setForm((prev) => ({ ...prev, street: event.target.value }))} className={inputClass} required />
+          </Field>
+          <Field label="Miasto" required>
             <input value={form.city} onChange={(event) => setForm((prev) => ({ ...prev, city: event.target.value }))} className={inputClass} required />
-            </Field>
-          </div>
+          </Field>
+        </div>
+      </div>
+
+      <div className={panelClass}>
+        <SectionTitle title="Szczegóły" />
+        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Field label="Godziny otwarcia">
             <input value={form.opening_hours} onChange={(event) => setForm((prev) => ({ ...prev, opening_hours: event.target.value }))} className={inputClass} placeholder="np. pn-pt 10:00-18:00" />
           </Field>
@@ -858,18 +885,6 @@ function PlaceSubmissionForm() {
               <textarea value={form.amenities} onChange={(event) => setForm((prev) => ({ ...prev, amenities: event.target.value }))} className={textareaClass} placeholder="np. przewijak, toaleta, parking, ogródek" />
             </Field>
           </div>
-        </div>
-      </div>
-
-      <div className={panelClass}>
-        <SectionTitle title="Linki" />
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
-          <Field label="Strona WWW">
-            <input type="url" value={form.source_url} onChange={(event) => setForm((prev) => ({ ...prev, source_url: event.target.value }))} className={inputClass} placeholder="https://..." />
-          </Field>
-          <Field label="Facebook">
-            <input type="url" value={form.facebook_url} onChange={(event) => setForm((prev) => ({ ...prev, facebook_url: event.target.value }))} className={inputClass} placeholder="https://facebook.com/..." />
-          </Field>
         </div>
       </div>
 
@@ -919,7 +934,7 @@ function CampSubmissionForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className={panelClass}>
-        <SectionTitle title="Oferta kolonii lub półkolonii" description="Formularz dla turnusów wakacyjnych, półkolonii oraz wyjazdów dla dzieci." />
+        <SectionTitle title="Opis oferty" description="Formularz dla turnusów wakacyjnych, półkolonii oraz wyjazdów dla dzieci." />
         <div className="mt-5 grid gap-4 md:grid-cols-2">
           <Field label="Nazwa oferty" required>
             <input value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} className={inputClass} required />
@@ -956,7 +971,31 @@ function CampSubmissionForm() {
       </div>
 
       <div className={panelClass}>
-        <SectionTitle title="Termin i logistyka" />
+        <SectionTitle title="Linki" />
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
+          <Field label="Strona WWW">
+            <input type="url" value={form.source_url} onChange={(event) => setForm((prev) => ({ ...prev, source_url: event.target.value }))} className={inputClass} placeholder="https://..." />
+          </Field>
+          <Field label="Facebook">
+            <input type="url" value={form.facebook_url} onChange={(event) => setForm((prev) => ({ ...prev, facebook_url: event.target.value }))} className={inputClass} placeholder="https://facebook.com/..." />
+          </Field>
+        </div>
+      </div>
+
+      <div className={panelClass}>
+        <SectionTitle title="Adres" />
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
+          <Field label="Miejsce" required>
+            <input value={form.venue_name} onChange={(event) => setForm((prev) => ({ ...prev, venue_name: event.target.value }))} className={inputClass} required />
+          </Field>
+          <Field label="Adres" required>
+            <input value={form.venue_address} onChange={(event) => setForm((prev) => ({ ...prev, venue_address: event.target.value }))} className={inputClass} required />
+          </Field>
+        </div>
+      </div>
+
+      <div className={panelClass}>
+        <SectionTitle title="Szczegóły" />
         <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Field label="Data od" required>
             <input type="date" value={form.date_start} onChange={(event) => setForm((prev) => ({ ...prev, date_start: event.target.value }))} className={inputClass} required />
@@ -981,28 +1020,6 @@ function CampSubmissionForm() {
               ))}
             </select>
           </Field>
-          <Field label="Miejsce" required>
-            <input value={form.venue_name} onChange={(event) => setForm((prev) => ({ ...prev, venue_name: event.target.value }))} className={inputClass} required />
-          </Field>
-          <div className="md:col-span-2">
-            <Field label="Adres" required>
-              <input value={form.venue_address} onChange={(event) => setForm((prev) => ({ ...prev, venue_address: event.target.value }))} className={inputClass} required />
-            </Field>
-          </div>
-          <label className="flex items-center gap-3 rounded-xl border border-border px-3 py-2.5 text-[14px] text-foreground">
-            <input type="checkbox" checked={form.meals_included} onChange={(event) => setForm((prev) => ({ ...prev, meals_included: event.target.checked }))} />
-            Wyżywienie w cenie
-          </label>
-          <label className="flex items-center gap-3 rounded-xl border border-border px-3 py-2.5 text-[14px] text-foreground">
-            <input type="checkbox" checked={form.transport_included} onChange={(event) => setForm((prev) => ({ ...prev, transport_included: event.target.checked }))} />
-            Transport w cenie
-          </label>
-        </div>
-      </div>
-
-      <div className={panelClass}>
-        <SectionTitle title="Cena i grupa wiekowa" />
-        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           <Field label="Wiek od">
             <input type="number" min="0" value={form.age_min} onChange={(event) => setForm((prev) => ({ ...prev, age_min: event.target.value }))} className={inputClass} />
           </Field>
@@ -1019,19 +1036,15 @@ function CampSubmissionForm() {
             <input type="checkbox" checked={form.is_free} onChange={(event) => setForm((prev) => ({ ...prev, is_free: event.target.checked, price_from: event.target.checked ? "" : prev.price_from, price_to: event.target.checked ? "" : prev.price_to }))} />
             Bezpłatna oferta
           </label>
-        </div>
-      </div>
-
-      <div className={panelClass}>
-        <SectionTitle title="Linki i zdjęcie" />
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
-          <Field label="Strona WWW">
-            <input type="url" value={form.source_url} onChange={(event) => setForm((prev) => ({ ...prev, source_url: event.target.value }))} className={inputClass} placeholder="https://..." />
-          </Field>
-          <Field label="Facebook">
-            <input type="url" value={form.facebook_url} onChange={(event) => setForm((prev) => ({ ...prev, facebook_url: event.target.value }))} className={inputClass} placeholder="https://facebook.com/..." />
-          </Field>
-          <div className="md:col-span-2">
+          <label className="flex items-center gap-3 rounded-xl border border-border px-3 py-2.5 text-[14px] text-foreground">
+            <input type="checkbox" checked={form.meals_included} onChange={(event) => setForm((prev) => ({ ...prev, meals_included: event.target.checked }))} />
+            Wyżywienie w cenie
+          </label>
+          <label className="flex items-center gap-3 rounded-xl border border-border px-3 py-2.5 text-[14px] text-foreground">
+            <input type="checkbox" checked={form.transport_included} onChange={(event) => setForm((prev) => ({ ...prev, transport_included: event.target.checked }))} />
+            Transport w cenie
+          </label>
+          <div className="md:col-span-2 xl:col-span-4">
             <Field label="Zdjęcie (URL)">
               <input type="url" value={form.image_url} onChange={(event) => setForm((prev) => ({ ...prev, image_url: event.target.value }))} className={inputClass} placeholder="https://..." />
             </Field>
@@ -1040,7 +1053,7 @@ function CampSubmissionForm() {
       </div>
 
       <div className={panelClass}>
-        <SectionTitle title="Dane kontaktowe zgłaszającego" />
+        <SectionTitle title="Dane kontaktowe zgłaszającego" description="Te dane zostają tylko do weryfikacji zgłoszenia." />
         <div className="mt-5">
           <ContactFields contact={contact} setContact={setContact} />
         </div>
@@ -1102,20 +1115,6 @@ function ActivitySubmissionForm() {
           <Field label="Organizator" required>
             <input value={form.organizer} onChange={(event) => setForm((prev) => ({ ...prev, organizer: event.target.value }))} className={inputClass} required />
           </Field>
-          <Field label="Typ zajęć" required>
-            <select value={form.activity_type} onChange={(event) => setForm((prev) => ({ ...prev, activity_type: event.target.value }))} className={inputClass} required>
-              {ACTIVITY_TYPE_OPTIONS.map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Dzielnica" required>
-            <select value={form.district} onChange={(event) => setForm((prev) => ({ ...prev, district: event.target.value }))} className={inputClass} required>
-              {DISTRICT_LIST.map((district) => (
-                <option key={district} value={district}>{district}</option>
-              ))}
-            </select>
-          </Field>
           <div className="md:col-span-2">
             <Field label="Krótki opis" required>
               <textarea value={form.description_short} onChange={(event) => setForm((prev) => ({ ...prev, description_short: event.target.value }))} className={textareaClass} required />
@@ -1145,8 +1144,46 @@ function ActivitySubmissionForm() {
       </div>
 
       <div className={panelClass}>
-        <SectionTitle title="Harmonogram i miejsce" />
+        <SectionTitle title="Linki" />
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
+          <Field label="Strona WWW">
+            <input type="url" value={form.source_url} onChange={(event) => setForm((prev) => ({ ...prev, source_url: event.target.value }))} className={inputClass} placeholder="https://..." />
+          </Field>
+          <Field label="Facebook">
+            <input type="url" value={form.facebook_url} onChange={(event) => setForm((prev) => ({ ...prev, facebook_url: event.target.value }))} className={inputClass} placeholder="https://facebook.com/..." />
+          </Field>
+        </div>
+      </div>
+
+      <div className={panelClass}>
+        <SectionTitle title="Adres" />
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
+          <Field label="Miejsce" required>
+            <input value={form.venue_name} onChange={(event) => setForm((prev) => ({ ...prev, venue_name: event.target.value }))} className={inputClass} required />
+          </Field>
+          <Field label="Adres" required>
+            <input value={form.venue_address} onChange={(event) => setForm((prev) => ({ ...prev, venue_address: event.target.value }))} className={inputClass} required />
+          </Field>
+        </div>
+      </div>
+
+      <div className={panelClass}>
+        <SectionTitle title="Szczegóły" />
         <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <Field label="Typ zajęć" required>
+            <select value={form.activity_type} onChange={(event) => setForm((prev) => ({ ...prev, activity_type: event.target.value }))} className={inputClass} required>
+              {ACTIVITY_TYPE_OPTIONS.map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Dzielnica" required>
+            <select value={form.district} onChange={(event) => setForm((prev) => ({ ...prev, district: event.target.value }))} className={inputClass} required>
+              {DISTRICT_LIST.map((district) => (
+                <option key={district} value={district}>{district}</option>
+              ))}
+            </select>
+          </Field>
           <Field label="Opis harmonogramu">
             <input value={form.schedule_summary} onChange={(event) => setForm((prev) => ({ ...prev, schedule_summary: event.target.value }))} className={inputClass} placeholder="np. wtorki i czwartki 17:00" />
           </Field>
@@ -1162,14 +1199,22 @@ function ActivitySubmissionForm() {
           <Field label="Godzina do">
             <input type="time" value={form.time_end} onChange={(event) => setForm((prev) => ({ ...prev, time_end: event.target.value }))} className={inputClass} />
           </Field>
-          <Field label="Miejsce" required>
-            <input value={form.venue_name} onChange={(event) => setForm((prev) => ({ ...prev, venue_name: event.target.value }))} className={inputClass} required />
+          <Field label="Wiek od">
+            <input type="number" min="0" value={form.age_min} onChange={(event) => setForm((prev) => ({ ...prev, age_min: event.target.value }))} className={inputClass} />
           </Field>
-          <div className="md:col-span-2">
-            <Field label="Adres" required>
-              <input value={form.venue_address} onChange={(event) => setForm((prev) => ({ ...prev, venue_address: event.target.value }))} className={inputClass} required />
-            </Field>
-          </div>
+          <Field label="Wiek do">
+            <input type="number" min="0" value={form.age_max} onChange={(event) => setForm((prev) => ({ ...prev, age_max: event.target.value }))} className={inputClass} />
+          </Field>
+          <Field label="Cena od">
+            <input type="number" min="0" step="0.01" value={form.price_from} onChange={(event) => setForm((prev) => ({ ...prev, price_from: event.target.value }))} className={inputClass} disabled={form.is_free} />
+          </Field>
+          <Field label="Cena do">
+            <input type="number" min="0" step="0.01" value={form.price_to} onChange={(event) => setForm((prev) => ({ ...prev, price_to: event.target.value }))} className={inputClass} disabled={form.is_free} />
+          </Field>
+          <label className="flex items-center gap-3 rounded-xl border border-border px-3 py-2.5 text-[14px] text-foreground xl:col-span-2">
+            <input type="checkbox" checked={form.is_free} onChange={(event) => setForm((prev) => ({ ...prev, is_free: event.target.checked, price_from: event.target.checked ? "" : prev.price_from, price_to: event.target.checked ? "" : prev.price_to }))} />
+            Bezpłatne zajęcia
+          </label>
           <div className="md:col-span-2 xl:col-span-4">
             <Field label="Dni tygodnia">
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
@@ -1192,34 +1237,6 @@ function ActivitySubmissionForm() {
               </div>
             </Field>
           </div>
-        </div>
-      </div>
-
-      <div className={panelClass}>
-        <SectionTitle title="Wiek, cena i linki" />
-        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <Field label="Wiek od">
-            <input type="number" min="0" value={form.age_min} onChange={(event) => setForm((prev) => ({ ...prev, age_min: event.target.value }))} className={inputClass} />
-          </Field>
-          <Field label="Wiek do">
-            <input type="number" min="0" value={form.age_max} onChange={(event) => setForm((prev) => ({ ...prev, age_max: event.target.value }))} className={inputClass} />
-          </Field>
-          <Field label="Cena od">
-            <input type="number" min="0" step="0.01" value={form.price_from} onChange={(event) => setForm((prev) => ({ ...prev, price_from: event.target.value }))} className={inputClass} disabled={form.is_free} />
-          </Field>
-          <Field label="Cena do">
-            <input type="number" min="0" step="0.01" value={form.price_to} onChange={(event) => setForm((prev) => ({ ...prev, price_to: event.target.value }))} className={inputClass} disabled={form.is_free} />
-          </Field>
-          <label className="flex items-center gap-3 rounded-xl border border-border px-3 py-2.5 text-[14px] text-foreground xl:col-span-2">
-            <input type="checkbox" checked={form.is_free} onChange={(event) => setForm((prev) => ({ ...prev, is_free: event.target.checked, price_from: event.target.checked ? "" : prev.price_from, price_to: event.target.checked ? "" : prev.price_to }))} />
-            Bezpłatne zajęcia
-          </label>
-          <Field label="Strona WWW">
-            <input type="url" value={form.source_url} onChange={(event) => setForm((prev) => ({ ...prev, source_url: event.target.value }))} className={inputClass} placeholder="https://..." />
-          </Field>
-          <Field label="Facebook">
-            <input type="url" value={form.facebook_url} onChange={(event) => setForm((prev) => ({ ...prev, facebook_url: event.target.value }))} className={inputClass} placeholder="https://facebook.com/..." />
-          </Field>
           <div className="md:col-span-2 xl:col-span-4">
             <Field label="Zdjęcie (URL)">
               <input type="url" value={form.image_url} onChange={(event) => setForm((prev) => ({ ...prev, image_url: event.target.value }))} className={inputClass} placeholder="https://..." />
@@ -1229,7 +1246,7 @@ function ActivitySubmissionForm() {
       </div>
 
       <div className={panelClass}>
-        <SectionTitle title="Dane kontaktowe zgłaszającego" />
+        <SectionTitle title="Dane kontaktowe zgłaszającego" description="Te dane zostają tylko do weryfikacji zgłoszenia." />
         <div className="mt-5">
           <ContactFields contact={contact} setContact={setContact} />
         </div>
