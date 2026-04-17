@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { PublicSubmissionForms } from "@/components/ui/public-submission-forms";
+import { loadAdminTaxonomy } from "@/lib/admin-taxonomy-server";
 
 type AddContentPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -21,6 +22,7 @@ export const metadata: Metadata = {
 export default async function AddContentPage({ searchParams }: AddContentPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const initialType = normalizeInitialType(resolvedSearchParams?.type);
+  const initialTaxonomy = await loadAdminTaxonomy();
 
   return (
     <section className="container-page py-8 md:py-10">
@@ -38,7 +40,7 @@ export default async function AddContentPage({ searchParams }: AddContentPagePro
           </p>
         </header>
 
-        <PublicSubmissionForms initialTab={initialType} />
+        <PublicSubmissionForms initialTab={initialType} initialTaxonomy={initialTaxonomy} />
       </div>
     </section>
   );

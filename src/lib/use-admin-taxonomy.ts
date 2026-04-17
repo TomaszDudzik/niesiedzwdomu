@@ -18,13 +18,19 @@ const EMPTY_TAXONOMY: AdminTaxonomyResponse = {
   category_lvl_3: [],
 };
 
-export function useAdminTaxonomy() {
-  const [typeLevel1Options, setTypeLevel1Options] = useState<AdminTypeLevel1[]>([]);
-  const [typeLevel2Options, setTypeLevel2Options] = useState<AdminTypeLevel2[]>([]);
-  const [categoryLevel1Options, setCategoryLevel1Options] = useState<AdminCategoryLevel1[]>([]);
-  const [categoryLevel2Options, setCategoryLevel2Options] = useState<AdminCategoryLevel2[]>([]);
-  const [categoryLevel3Options, setCategoryLevel3Options] = useState<AdminCategoryLevel3[]>([]);
-  const [loading, setLoading] = useState(true);
+export function useAdminTaxonomy(initialTaxonomy: AdminTaxonomyResponse = EMPTY_TAXONOMY) {
+  const [typeLevel1Options, setTypeLevel1Options] = useState<AdminTypeLevel1[]>(initialTaxonomy.type_lvl_1);
+  const [typeLevel2Options, setTypeLevel2Options] = useState<AdminTypeLevel2[]>(initialTaxonomy.type_lvl_2);
+  const [categoryLevel1Options, setCategoryLevel1Options] = useState<AdminCategoryLevel1[]>(initialTaxonomy.category_lvl_1);
+  const [categoryLevel2Options, setCategoryLevel2Options] = useState<AdminCategoryLevel2[]>(initialTaxonomy.category_lvl_2);
+  const [categoryLevel3Options, setCategoryLevel3Options] = useState<AdminCategoryLevel3[]>(initialTaxonomy.category_lvl_3);
+  const [loading, setLoading] = useState(
+    initialTaxonomy.type_lvl_1.length === 0
+      && initialTaxonomy.type_lvl_2.length === 0
+      && initialTaxonomy.category_lvl_1.length === 0
+      && initialTaxonomy.category_lvl_2.length === 0
+      && initialTaxonomy.category_lvl_3.length === 0,
+  );
 
   useEffect(() => {
     let active = true;

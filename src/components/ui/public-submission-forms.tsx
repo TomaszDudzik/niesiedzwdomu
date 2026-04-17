@@ -9,6 +9,7 @@ import {
   type AdminCategoryLevel1,
   type AdminCategoryLevel2,
   type AdminCategoryLevel3,
+  type AdminTaxonomyResponse,
   type AdminTypeLevel1,
   type AdminTypeLevel2,
   getCategoryLevel2ForCategoryLevel1,
@@ -350,6 +351,108 @@ type TaxonomyState = {
   category_lvl_3: string;
 };
 
+type FormControl = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+
+function isFormControl(target: EventTarget | null): target is FormControl {
+  return target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement;
+}
+
+function getFieldLabel(control: FormControl) {
+  const label = control.closest("label");
+  const text = label?.querySelector("span")?.textContent?.replace("*", "").trim();
+  return text || control.getAttribute("aria-label") || "To pole";
+}
+
+function getValidationMessage(control: FormControl) {
+  const { validity } = control;
+  const label = getFieldLabel(control);
+
+  if (validity.valueMissing) {
+    return `Uzupełnij pole \"${label}\".`;
+  }
+
+  if (validity.typeMismatch) {
+    if (control instanceof HTMLInputElement && control.type === "email") {
+      return "Wpisz poprawny adres e-mail.";
+    }
+    if (control instanceof HTMLInputElement && control.type === "url") {
+      return "Wpisz poprawny adres URL, np. https://example.com.";
+    }
+  }
+
+  if (validity.badInput) {
+    return `Wpisz poprawną wartość w polu \"${label}\".`;
+  }
+
+  if (validity.rangeUnderflow) {
+    return `Wartość w polu \"${label}\" jest zbyt mała.`;
+  }
+
+  if (validity.rangeOverflow) {
+    return `Wartość w polu \"${label}\" jest zbyt duża.`;
+  }
+
+  if (validity.stepMismatch) {
+    return `Wartość w polu \"${label}\" ma niepoprawny format.`;
+  }
+
+  return control.validationMessage;
+}
+
+function syncValidationMessage(control: FormControl) {
+  control.setCustomValidity("");
+  if (!control.disabled && !control.validity.valid) {
+    control.setCustomValidity(getValidationMessage(control));
+  }
+}
+
+function focusFirstInvalidControl(form: HTMLFormElement) {
+  const firstInvalid = form.querySelector(":invalid");
+  if (!(firstInvalid instanceof HTMLElement)) {
+    return;
+  }
+
+  firstInvalid.focus({ preventScroll: true });
+  firstInvalid.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+function validateSubmissionForm(form: HTMLFormElement) {
+  const controls = Array.from(form.elements).filter(isFormControl);
+  controls.forEach(syncValidationMessage);
+
+  if (form.checkValidity()) {
+    return true;
+  }
+
+  focusFirstInvalidControl(form);
+  form.reportValidity();
+  return false;
+}
+
+function createFormValidationProps() {
+  return {
+    noValidate: true,
+    onInvalidCapture: (event: React.InvalidEvent<HTMLFormElement>) => {
+      if (!isFormControl(event.target)) {
+        return;
+      }
+      syncValidationMessage(event.target);
+    },
+    onInputCapture: (event: React.FormEvent<HTMLFormElement>) => {
+      if (!isFormControl(event.target)) {
+        return;
+      }
+      event.target.setCustomValidity("");
+    },
+    onChangeCapture: (event: React.FormEvent<HTMLFormElement>) => {
+      if (!isFormControl(event.target)) {
+        return;
+      }
+      event.target.setCustomValidity("");
+    },
+  };
+}
+
 function Field({
   label,
   required,
@@ -385,6 +488,7 @@ function TaxonomyFields({
   categoryLevel1Options,
   categoryLevel2Options,
   categoryLevel3Options,
+  taxonomyLoading = false,
   state,
   onChange,
   showTypeFields = true,
@@ -398,6 +502,7 @@ function TaxonomyFields({
   categoryLevel1Options: AdminCategoryLevel1[];
   categoryLevel2Options: AdminCategoryLevel2[];
   categoryLevel3Options: AdminCategoryLevel3[];
+  taxonomyLoading?: boolean;
   state: TaxonomyState;
   onChange: (patch: Partial<TaxonomyState>) => void;
   showTypeFields?: boolean;
@@ -422,6 +527,11 @@ function TaxonomyFields({
     () => getCategoryLevel3ForCategoryLevel2(categoryLevel3Options, selectedCategoryLevel2?.id),
     [categoryLevel3Options, selectedCategoryLevel2?.id],
   );
+  const categoryLevel1Placeholder = taxonomyLoading
+    ? "Ładowanie typów..."
+    : categoryLevel1Options.length > 0
+      ? "Wybierz"
+      : "Brak dostępnych wartości";
 
   return (
     <div className={cn("grid gap-3 md:grid-cols-2", showTypeFields ? "xl:grid-cols-5" : showCategoryLevel3 ? "xl:grid-cols-3" : "xl:grid-cols-2")}>
@@ -462,8 +572,9 @@ function TaxonomyFields({
           onChange={(event) => onChange({ category_lvl_1: event.target.value, category_lvl_2: "", category_lvl_3: "" })}
           className={inputClass}
           required={categoryLevel1Required}
+          disabled={taxonomyLoading || categoryLevel1Options.length === 0}
         >
-          <option value="">Wybierz</option>
+          <option value="">{categoryLevel1Placeholder}</option>
           {categoryLevel1Options.map((entry) => (
             <option key={entry.id} value={entry.name}>{entry.name}</option>
           ))}
@@ -475,7 +586,7 @@ function TaxonomyFields({
           value={state.category_lvl_2}
           onChange={(event) => onChange({ category_lvl_2: event.target.value, category_lvl_3: "" })}
           className={inputClass}
-          disabled={!state.category_lvl_1}
+          disabled={taxonomyLoading || !state.category_lvl_1}
         >
           <option value="">{state.category_lvl_1 ? "Wybierz" : `Najpierw ${categoryLevel1Label.toLowerCase()}`}</option>
           {availableCategoryLevel2.map((entry) => (
@@ -490,7 +601,7 @@ function TaxonomyFields({
             value={state.category_lvl_3}
             onChange={(event) => onChange({ category_lvl_3: event.target.value })}
             className={inputClass}
-            disabled={!state.category_lvl_2}
+            disabled={taxonomyLoading || !state.category_lvl_2}
           >
             <option value="">{state.category_lvl_2 ? "Wybierz" : `Najpierw ${categoryLevel2Label.toLowerCase()}`}</option>
             {availableCategoryLevel3.map((entry) => (
@@ -498,6 +609,12 @@ function TaxonomyFields({
             ))}
           </select>
         </Field>
+      ) : null}
+
+      {!taxonomyLoading && categoryLevel1Options.length === 0 ? (
+        <p className="md:col-span-2 text-[13px] leading-6 text-rose-700 xl:col-span-full">
+          Nie udało się załadować listy typów. Odśwież stronę i spróbuj ponownie.
+        </p>
       ) : null}
     </div>
   );
@@ -700,16 +817,20 @@ async function submitForm(contentType: SubmissionKind, payload: unknown, contact
   return result;
 }
 
-function EventSubmissionForm() {
+function EventSubmissionForm({ initialTaxonomy }: { initialTaxonomy: AdminTaxonomyResponse }) {
   const [form, setForm] = useState<EventFormState>(EMPTY_EVENT_FORM);
   const [contact, setContact] = useState<ContactState>(EMPTY_CONTACT);
   const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const { typeLevel1Options, typeLevel2Options, categoryLevel1Options, categoryLevel2Options, categoryLevel3Options } = useAdminTaxonomy();
+  const taxonomyValidationProps = createFormValidationProps();
+  const { typeLevel1Options, typeLevel2Options, categoryLevel1Options, categoryLevel2Options, categoryLevel3Options, loading } = useAdminTaxonomy(initialTaxonomy);
 
-  async function handleSubmit(event: React.FormEvent) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!validateSubmissionForm(event.currentTarget)) {
+      return;
+    }
     setSubmitting(true);
     setSuccessMessage(null);
     setErrorMessage(null);
@@ -727,7 +848,7 @@ function EventSubmissionForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-5" {...taxonomyValidationProps}>
       <div className={panelClass}>
         <SectionTitle title="Opis wydarzenia" description="Formularz dla wydarzeń jednorazowych, warsztatów, spektakli i innych aktywności w kalendarzu." />
         <div className={twoColumnGridClass}>
@@ -768,6 +889,7 @@ function EventSubmissionForm() {
             categoryLevel1Options={categoryLevel1Options}
             categoryLevel2Options={categoryLevel2Options}
             categoryLevel3Options={categoryLevel3Options}
+            taxonomyLoading={loading}
             state={form}
             onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
             showTypeFields={false}
@@ -869,13 +991,14 @@ function EventSubmissionForm() {
   );
 }
 
-function PlaceSubmissionForm() {
+function PlaceSubmissionForm({ initialTaxonomy }: { initialTaxonomy: AdminTaxonomyResponse }) {
   const [form, setForm] = useState<PlaceFormState>(EMPTY_PLACE_FORM);
   const [contact, setContact] = useState<ContactState>(EMPTY_CONTACT);
   const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const { typeLevel1Options, typeLevel2Options, categoryLevel1Options, categoryLevel2Options, categoryLevel3Options } = useAdminTaxonomy();
+  const taxonomyValidationProps = createFormValidationProps();
+  const { typeLevel1Options, typeLevel2Options, categoryLevel1Options, categoryLevel2Options, categoryLevel3Options, loading } = useAdminTaxonomy(initialTaxonomy);
   const defaultPlaceTypeLevel1Id = useMemo(
     () => typeLevel1Options.find((entry) => entry.name === "Dzieci")?.id ?? "",
     [typeLevel1Options],
@@ -887,8 +1010,11 @@ function PlaceSubmissionForm() {
     [typeLevel2Options, defaultPlaceTypeLevel1Id],
   );
 
-  async function handleSubmit(event: React.FormEvent) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!validateSubmissionForm(event.currentTarget)) {
+      return;
+    }
     setSubmitting(true);
     setSuccessMessage(null);
     setErrorMessage(null);
@@ -910,7 +1036,7 @@ function PlaceSubmissionForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-5" {...taxonomyValidationProps}>
       <div className={panelClass}>
         <SectionTitle title="Opis miejsca" description="Formularz dla sal zabaw, muzeów, parków, kawiarni rodzinnych i innych miejsc przyjaznych dzieciom." />
         <div className={twoColumnGridClass}>
@@ -951,6 +1077,7 @@ function PlaceSubmissionForm() {
             categoryLevel1Options={categoryLevel1Options}
             categoryLevel2Options={categoryLevel2Options}
             categoryLevel3Options={categoryLevel3Options}
+            taxonomyLoading={loading}
             state={form}
             onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
             showTypeFields={false}
@@ -1053,16 +1180,20 @@ function PlaceSubmissionForm() {
   );
 }
 
-function CampSubmissionForm() {
+function CampSubmissionForm({ initialTaxonomy }: { initialTaxonomy: AdminTaxonomyResponse }) {
   const [form, setForm] = useState<CampFormState>(EMPTY_CAMP_FORM);
   const [contact, setContact] = useState<ContactState>(EMPTY_CONTACT);
   const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const { typeLevel1Options, typeLevel2Options, categoryLevel1Options, categoryLevel2Options, categoryLevel3Options } = useAdminTaxonomy();
+  const taxonomyValidationProps = createFormValidationProps();
+  const { typeLevel1Options, typeLevel2Options, categoryLevel1Options, categoryLevel2Options, categoryLevel3Options, loading } = useAdminTaxonomy(initialTaxonomy);
 
-  async function handleSubmit(event: React.FormEvent) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!validateSubmissionForm(event.currentTarget)) {
+      return;
+    }
     setSubmitting(true);
     setSuccessMessage(null);
     setErrorMessage(null);
@@ -1080,7 +1211,7 @@ function CampSubmissionForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-5" {...taxonomyValidationProps}>
       <div className={panelClass}>
         <SectionTitle title="Opis oferty" description="Formularz dla turnusów wakacyjnych, półkolonii oraz wyjazdów dla dzieci." />
         <div className={twoColumnGridClass}>
@@ -1121,6 +1252,7 @@ function CampSubmissionForm() {
             categoryLevel1Options={categoryLevel1Options}
             categoryLevel2Options={categoryLevel2Options}
             categoryLevel3Options={categoryLevel3Options}
+            taxonomyLoading={loading}
             state={form}
             onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
             showTypeFields={false}
@@ -1230,16 +1362,20 @@ function CampSubmissionForm() {
   );
 }
 
-function ActivitySubmissionForm() {
+function ActivitySubmissionForm({ initialTaxonomy }: { initialTaxonomy: AdminTaxonomyResponse }) {
   const [form, setForm] = useState<ActivityFormState>(EMPTY_ACTIVITY_FORM);
   const [contact, setContact] = useState<ContactState>(EMPTY_CONTACT);
   const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const { typeLevel1Options, typeLevel2Options, categoryLevel1Options, categoryLevel2Options, categoryLevel3Options } = useAdminTaxonomy();
+  const taxonomyValidationProps = createFormValidationProps();
+  const { typeLevel1Options, typeLevel2Options, categoryLevel1Options, categoryLevel2Options, categoryLevel3Options, loading } = useAdminTaxonomy(initialTaxonomy);
 
-  async function handleSubmit(event: React.FormEvent) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!validateSubmissionForm(event.currentTarget)) {
+      return;
+    }
     setSubmitting(true);
     setSuccessMessage(null);
     setErrorMessage(null);
@@ -1266,7 +1402,7 @@ function ActivitySubmissionForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-5" {...taxonomyValidationProps}>
       <div className={panelClass}>
         <SectionTitle title="Opis zajęć" description="Formularz dla kursów, warsztatów cyklicznych i zajęć pozalekcyjnych." />
         <div className={twoColumnGridClass}>
@@ -1307,6 +1443,7 @@ function ActivitySubmissionForm() {
             categoryLevel1Options={categoryLevel1Options}
             categoryLevel2Options={categoryLevel2Options}
             categoryLevel3Options={categoryLevel3Options}
+            taxonomyLoading={loading}
             state={form}
             onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
             showTypeFields={false}
@@ -1436,7 +1573,13 @@ function ActivitySubmissionForm() {
   );
 }
 
-export function PublicSubmissionForms({ initialTab = "event" }: { initialTab?: SubmissionKind }) {
+export function PublicSubmissionForms({
+  initialTab = "event",
+  initialTaxonomy,
+}: {
+  initialTab?: SubmissionKind;
+  initialTaxonomy: AdminTaxonomyResponse;
+}) {
   const [activeTab, setActiveTab] = useState<SubmissionKind>(initialTab);
 
   return (
@@ -1473,10 +1616,10 @@ export function PublicSubmissionForms({ initialTab = "event" }: { initialTab?: S
         })}
       </div>
 
-      {activeTab === "event" ? <EventSubmissionForm /> : null}
-      {activeTab === "place" ? <PlaceSubmissionForm /> : null}
-      {activeTab === "camp" ? <CampSubmissionForm /> : null}
-      {activeTab === "activity" ? <ActivitySubmissionForm /> : null}
+      {activeTab === "event" ? <EventSubmissionForm initialTaxonomy={initialTaxonomy} /> : null}
+      {activeTab === "place" ? <PlaceSubmissionForm initialTaxonomy={initialTaxonomy} /> : null}
+      {activeTab === "camp" ? <CampSubmissionForm initialTaxonomy={initialTaxonomy} /> : null}
+      {activeTab === "activity" ? <ActivitySubmissionForm initialTaxonomy={initialTaxonomy} /> : null}
     </div>
   );
 }
