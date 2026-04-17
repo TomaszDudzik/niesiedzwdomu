@@ -25,10 +25,6 @@ function isUUID(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 }
 
-function isUUID(value: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
-}
-
 // ═══════════════════════════════════════════════════════════════════
 // Main page
 // ═══════════════════════════════════════════════════════════════════
@@ -674,7 +670,7 @@ function AdminCanonicalEventsPanel() {
   };
 
   const saveEdit = async (id: string) => {
-    let newImageUrl: string | null = null;
+    let newImageCover: string | null = null;
 
     if (pendingFile) {
       setUploadingImage(id);
@@ -685,8 +681,8 @@ function AdminCanonicalEventsPanel() {
         formData.append("target", "events");
         const res = await fetch("/api/admin/upload-image", { method: "POST", body: formData });
         const data = await res.json();
-        if (data.image_url) {
-          newImageUrl = `${data.image_url.split("?")[0]}?t=${Date.now()}`;
+        if (data.image_cover) {
+          newImageCover = `${data.image_cover.split("?")[0]}?t=${Date.now()}`;
         } else {
           alert(`Błąd obrazka: ${data.error || "Nie udało się"}`);
         }
@@ -730,7 +726,10 @@ function AdminCanonicalEventsPanel() {
       dislikes: Number(editForm.dislikes) || 0,
     };
 
-    if (newImageUrl) updates.image_url = newImageUrl;
+    if (newImageCover) {
+      updates.image_cover = newImageCover;
+      updates.image_set = null;
+    }
 
     let res = await fetch("/api/admin/events", {
       method: "PATCH",
@@ -759,7 +758,7 @@ function AdminCanonicalEventsPanel() {
       event.id === id
         ? (updatedEvent
             ? ({ ...event, ...updatedEvent } as Event)
-            : { ...event, ...updates, ...(newImageUrl ? { image_url: newImageUrl } : {}) } as Event)
+          : { ...event, ...updates, ...(newImageCover ? { image_cover: newImageCover } : {}) } as Event)
         : event
     )));
     clearPendingFile();
@@ -1093,7 +1092,7 @@ function AdminCanonicalEventsPanel() {
                                   categoryLvl1={String(editForm.category_lvl_1 || event.category_lvl_1 || event.main_category || "")}
                                   categoryLvl2={String(editForm.category_lvl_2 || event.category_lvl_2 || event.category || "")}
                                   categoryLvl3={String(editForm.category_lvl_3 || event.category_lvl_3 || event.subcategory || "")}
-                                  onRandomPhoto={(url, thumb) => setEvents((prev) => prev.map((e) => e.id === event.id ? { ...e, image_url: url, image_thumb: thumb } : e))}
+                                  onRandomPhoto={(cover, thumb, setId) => setEvents((prev) => prev.map((e) => e.id === event.id ? { ...e, image_cover: cover, image_thumb: thumb, image_set: setId ?? e.image_set } : e))}
                                 />
                               </div>
 

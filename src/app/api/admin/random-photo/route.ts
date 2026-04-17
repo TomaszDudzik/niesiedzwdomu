@@ -165,7 +165,6 @@ export async function POST(request: NextRequest) {
   const { error: dbError } = await db
     .from(table)
     .update({
-      image_url: coverUrl,
       image_cover: coverUrl,
       image_thumb: thumbUrl,
       image_set: setId,
@@ -176,5 +175,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: dbError.message }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, image_url: coverUrl, thumb_url: thumbUrl, set_id: setId });
+  return NextResponse.json({ ok: true, image_cover: coverUrl, image_thumb: thumbUrl, image_set: setId });
 }

@@ -1,8 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import nodemailer from "nodemailer";
 import { slugify } from "@/lib/utils";
 
 type SubmissionContentType = "event" | "place" | "camp" | "activity";
+
+const DEFAULT_SUBMISSIONS_FROM_EMAIL = "dudziktomasz@googlemail.com";
+
+const SUBMISSION_LABELS: Record<SubmissionContentType, string> = {
+  event: "wydarzenie",
+  place: "miejsce",
+  camp: "kolonię lub półkolonię",
+  activity: "zajęcia",
+};
 
 function getDb() {
   return createClient(
@@ -10,6 +20,29 @@ function getDb() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { persistSession: false } },
   );
+}
+
+function getSubmissionMailer() {
+  const host = process.env.SUBMISSIONS_SMTP_HOST ?? "smtp.gmail.com";
+  const port = Number(process.env.SUBMISSIONS_SMTP_PORT ?? "465");
+  const secure = (process.env.SUBMISSIONS_SMTP_SECURE ?? "true").toLowerCase() !== "false";
+  const user = process.env.SUBMISSIONS_SMTP_USER ?? DEFAULT_SUBMISSIONS_FROM_EMAIL;
+  const pass = process.env.SUBMISSIONS_SMTP_PASS;
+
+  if (!pass) {
+    return null;
+  }
+
+  return {
+    transporter: nodemailer.createTransport({
+      host,
+      port,
+      secure,
+      auth: { user, pass },
+    }),
+    fromEmail: process.env.SUBMISSIONS_FROM_EMAIL ?? user,
+    replyTo: process.env.SUBMISSIONS_REPLY_TO ?? user,
+  };
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -153,10 +186,7 @@ function buildAdminPayload(contentType: SubmissionContentType, payload: Record<s
       district: normalizeDistrict(payload.district),
       age_min: nullableNumber(payload.age_min),
       age_max: nullableNumber(payload.age_max),
-      price: nullableNumber(payload.price),
-      is_free: asBoolean(payload.is_free),
-      amenities: asStringArray(payload.amenities),
-      opening_hours: nullableString(payload.opening_hours),
+      note: nullableString(payload.note),
       source_url: nullableString(payload.source_url),
       facebook_url: nullableString(payload.facebook_url),
       is_featured: false,
@@ -249,14 +279,155 @@ function getAdminPath(contentType: SubmissionContentType) {
   return "/api/admin/activities";
 }
 
+async function sendSubmissionThankYouEmail(
+  contentType: SubmissionContentType,
+  payload: Record<string, unknown>,
+  contact: Record<string, unknown>,
+) {
+  const mailer = getSubmissionMailer();
+  if (!mailer) {
+    return false;
+  }
+
+  const recipientEmail = nullableString(contact.submitter_email);
+  if (!recipientEmail) {
+    return false;
+  }
+
+  const submitterName = [nullableString(contact.submitter_first_name), nullableString(contact.submitter_last_name)]
+    .filter(Boolean)
+    .join(" ") || "Dziękujemy";
+  const title = nullableString(payload.title) ?? "Twoje zgłoszenie";
+  const submissionLabel = SUBMISSION_LABELS[contentType];
+  const organizationName = nullableString(contact.organization_name);
+
+  const subject = `Dziękujemy za zgłoszenie: ${title}`;
+  const text = [
+    `Cześć ${submitterName},`,
+    "",
+    `dziękujemy za przesłanie zgłoszenia przez NieSiedzWDomu. Otrzymaliśmy ${submissionLabel} "${title}" i dodaliśmy je do weryfikacji.`,
+    "",
+    "Teraz sprawdzimy kompletność danych i jeśli wszystko będzie się zgadzało, opublikujemy wpis w serwisie.",
+    organizationName ? `Zgłoszona organizacja / marka: ${organizationName}` : null,
+    "",
+    "Dziękujemy, że pomagasz rozwijać bazę wartościowych miejsc i aktywności dla rodzin.",
+    "",
+    "Pozdrawiamy,",
+    "Zespół NieSiedzWDomu",
+  ].filter(Boolean).join("\n");
+
+  const html = `
+    <div style="margin:0;padding:32px 16px;background:#f6efe5;font-family:Arial,Helvetica,sans-serif;color:#1f2937;">
+      <div style="max-width:620px;margin:0 auto;background:#ffffff;border:1px solid #eadbc8;border-radius:24px;overflow:hidden;box-shadow:0 24px 60px -40px rgba(15,23,42,0.45);">
+        <div style="padding:28px 32px;background:linear-gradient(135deg,#0f4c6b 0%,#12708c 55%,#f2b84b 100%);color:#ffffff;">
+          <div style="display:inline-block;padding:6px 12px;border-radius:999px;background:rgba(255,255,255,0.16);font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">Dziękujemy za zgłoszenie</div>
+          <h1 style="margin:16px 0 10px;font-size:30px;line-height:1.15;">Super, mamy to.</h1>
+          <p style="margin:0;font-size:16px;line-height:1.6;color:rgba(255,255,255,0.92);">Twoje zgłoszenie trafiło już do kolejki weryfikacji i czeka na nasz przegląd.</p>
+        </div>
+        <div style="padding:28px 32px;">
+          <p style="margin:0 0 14px;font-size:16px;line-height:1.7;">Cześć ${submitterName},</p>
+          <p style="margin:0 0 16px;font-size:15px;line-height:1.7;">dziękujemy za przesłanie ${submissionLabel} <strong>${title}</strong> przez formularz NieSiedzWDomu.</p>
+          <div style="margin:0 0 18px;padding:18px;border-radius:18px;background:#fff7ed;border:1px solid #fed7aa;">
+            <p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#9a3412;">Co dalej</p>
+            <p style="margin:0;font-size:15px;line-height:1.7;color:#7c2d12;">Sprawdzimy kompletność danych, zweryfikujemy wpis i jeśli wszystko będzie grało, opublikujemy go w serwisie.</p>
+          </div>
+          ${organizationName ? `<p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:#475569;"><strong>Organizacja / marka:</strong> ${organizationName}</p>` : ""}
+          <p style="margin:0;font-size:15px;line-height:1.7;color:#475569;">Dziękujemy, że pomagasz rozwijać bazę wartościowych miejsc i aktywności dla rodzin.</p>
+        </div>
+        <div style="padding:18px 32px;background:#f8fafc;border-top:1px solid #e2e8f0;font-size:13px;line-height:1.6;color:#64748b;">
+          Pozdrawiamy,<br />Zespół NieSiedzWDomu
+        </div>
+      </div>
+    </div>
+  `;
+
+  await mailer.transporter.sendMail({
+    from: `NieSiedzWDomu <${mailer.fromEmail}>`,
+    to: recipientEmail,
+    replyTo: mailer.replyTo,
+    subject,
+    text,
+    html,
+  });
+
+  return true;
+}
+
+async function upsertOrganizerForPlace(db: ReturnType<typeof getDb>, contact: Record<string, unknown>) {
+  const organizerName = requiredString(contact.organization_name, "organizacja / marka");
+  const contactFirstName = nullableString(contact.submitter_first_name);
+  const contactLastName = nullableString(contact.submitter_last_name);
+  const email = nullableString(contact.submitter_email);
+  const phone = nullableString(contact.submitter_phone);
+  const organizerNote = nullableString(contact.notes);
+
+  const { data: existingOrganizers, error: fetchError } = await db
+    .from("organizers")
+    .select("id")
+    .ilike("organizer_name", organizerName)
+    .limit(1);
+
+  if (fetchError) {
+    throw new Error(fetchError.message);
+  }
+
+  const existingOrganizer = Array.isArray(existingOrganizers) ? existingOrganizers[0] : null;
+
+  if (existingOrganizer?.id) {
+    const patch = {
+      contact_first_name: contactFirstName,
+      contact_last_name: contactLastName,
+      email,
+      phone,
+      organizer_note: organizerNote,
+    };
+
+    const { data: updatedOrganizer, error: updateError } = await db
+      .from("organizers")
+      .update(patch)
+      .eq("id", existingOrganizer.id)
+      .select("id")
+      .single();
+
+    if (updateError) {
+      throw new Error(updateError.message);
+    }
+
+    return updatedOrganizer.id as string;
+  }
+
+  const { data: newOrganizer, error: insertError } = await db
+    .from("organizers")
+    .insert({
+      organizer_name: organizerName,
+      contact_first_name: contactFirstName,
+      contact_last_name: contactLastName,
+      email,
+      phone,
+      organizer_note: organizerNote,
+      status: "draft",
+    })
+    .select("id")
+    .single();
+
+  if (insertError) {
+    throw new Error(insertError.message);
+  }
+
+  return newOrganizer.id as string;
+}
+
 function buildContactInsert(contentType: SubmissionContentType, itemId: string, contact: Record<string, unknown>) {
+  const submitterFirstName = requiredString(contact.submitter_first_name, "imię");
+  const submitterLastName = requiredString(contact.submitter_last_name, "nazwisko");
+
   return {
     content_type: contentType,
     event_id: contentType === "event" ? itemId : null,
     place_id: contentType === "place" ? itemId : null,
     camp_id: contentType === "camp" ? itemId : null,
     activity_id: contentType === "activity" ? itemId : null,
-    submitter_name: nullableString(contact.submitter_name) ?? "Nie podano",
+    submitter_name: `${submitterFirstName} ${submitterLastName}`,
     submitter_email: requiredString(contact.submitter_email, "email"),
     submitter_phone: nullableString(contact.submitter_phone),
     organization_name: requiredString(contact.organization_name, "organizacja / marka"),
@@ -272,7 +443,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Nieprawidłowy typ zgłoszenia." }, { status: 400 });
     }
 
-    const payload = buildAdminPayload(contentType as SubmissionContentType, asRecord(body.payload));
+    const db = getDb();
+    const payload = buildAdminPayload(contentType as SubmissionContentType, asRecord(body.payload)) as Record<string, unknown>;
+    if (contentType === "place") {
+      const organizerId = await upsertOrganizerForPlace(db, asRecord(body.contact));
+      payload.organizer_id = organizerId;
+    }
     const adminUrl = new URL(getAdminPath(contentType as SubmissionContentType), request.url);
 
     const adminResponse = await fetch(adminUrl, {
@@ -289,18 +465,27 @@ export async function POST(request: NextRequest) {
 
     const itemId = typeof adminJson?.id === "string" ? adminJson.id : null;
     let contactSaved = false;
+    let emailSent = false;
 
     if (itemId) {
-      const db = getDb();
       const { error: contactError } = await db.from("submission_contacts").insert(buildContactInsert(contentType as SubmissionContentType, itemId, asRecord(body.contact)));
       contactSaved = !contactError;
+    }
+
+    try {
+      emailSent = await sendSubmissionThankYouEmail(contentType as SubmissionContentType, payload, asRecord(body.contact));
+    } catch (emailError) {
+      console.error("Failed to send submission thank-you email", emailError);
     }
 
     return NextResponse.json({
       ok: true,
       contactSaved,
+      emailSent,
       item: adminJson,
-      message: "Zgłoszenie zostało zapisane jako szkic i czeka na weryfikację.",
+      message: emailSent
+        ? "Super, dziękujemy. Zgłoszenie zapisaliśmy do weryfikacji i wysłaliśmy potwierdzenie mailem."
+        : "Super, dziękujemy. Zgłoszenie zapisaliśmy do weryfikacji i damy mu zielone światło po sprawdzeniu.",
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Nie udało się wysłać formularza.";

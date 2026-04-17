@@ -632,7 +632,7 @@ export default function AdminActivitiesPage() {
   };
 
   const saveEdit = async (id: string) => {
-    let newImageUrl: string | null = null;
+    let newImageCover: string | null = null;
     if (pendingFile) {
       setUploadingImage(id);
       const formData = new FormData();
@@ -642,7 +642,7 @@ export default function AdminActivitiesPage() {
       try {
         const res = await fetch("/api/admin/upload-image", { method: "POST", body: formData });
         const data = await res.json();
-        if (data.image_url) newImageUrl = `${data.image_url.split("?")[0]}?t=${Date.now()}`;
+        if (data.image_cover) newImageCover = `${data.image_cover.split("?")[0]}?t=${Date.now()}`;
       } catch { /* ignore */ }
       setUploadingImage(null);
       clearPendingFile();
@@ -677,7 +677,7 @@ export default function AdminActivitiesPage() {
       district: editForm.district,
       is_featured: Boolean(editForm.is_featured),
       is_free: Boolean(editForm.is_free),
-      ...(newImageUrl ? { image_url: newImageUrl } : {}),
+      ...(newImageCover ? { image_cover: newImageCover, image_set: null } : {}),
     };
 
     const response = await fetch("/api/admin/activities", {
@@ -1097,7 +1097,7 @@ export default function AdminActivitiesPage() {
                                     categoryLvl1={String(editForm.category_lvl_1 || activity.category_lvl_1 || activity.main_category || "")}
                                     categoryLvl2={String(editForm.category_lvl_2 || activity.category_lvl_2 || activity.category || "")}
                                     categoryLvl3={String(editForm.category_lvl_3 || activity.category_lvl_3 || activity.subcategory || "")}
-                                    onRandomPhoto={(url, thumb) => setActivities((prev) => prev.map((a) => a.id === activity.id ? { ...a, image_url: url, image_thumb: thumb } : a))}
+                                    onRandomPhoto={(cover, thumb, setId) => setActivities((prev) => prev.map((a) => a.id === activity.id ? { ...a, image_cover: cover, image_thumb: thumb, image_set: setId ?? a.image_set } : a))}
                                   />
                                 </div>
 

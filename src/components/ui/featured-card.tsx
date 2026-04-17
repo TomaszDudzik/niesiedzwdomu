@@ -19,7 +19,7 @@ function getFeaturedPriceText(item: DiscoveryItem): string {
     return "Cena do sprawdzenia";
   }
 
-  return formatPrice(item.price);
+  return formatPrice(item.price ?? null);
 }
 
 export function FeaturedCard({ item }: FeaturedCardProps) {

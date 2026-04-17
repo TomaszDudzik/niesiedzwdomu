@@ -9,27 +9,59 @@ type StatusFilter = "all" | "published" | "draft" | "archived";
 
 type OrganizerFormState = {
   organizer_name: string;
-  company_name: string;
+  description: string;
+  contact_first_name: string;
+  contact_last_name: string;
+  phone_country_code: string;
+  phone_number: string;
   street: string;
   postcode: string;
   city: string;
   email: string;
   phone: string;
   note: string;
+  organizer_note: string;
 };
 
 type FormErrors = Partial<Record<keyof OrganizerFormState, string>>;
 
 const EMPTY_FORM: OrganizerFormState = {
   organizer_name: "",
-  company_name: "",
+  description: "",
+  contact_first_name: "",
+  contact_last_name: "",
+  phone_country_code: "+48",
+  phone_number: "",
   street: "",
   postcode: "",
   city: "Kraków",
   email: "",
   phone: "",
   note: "",
+  organizer_note: "",
 };
+
+function splitPhone(phone: string | null | undefined) {
+  const normalized = (phone || "").trim();
+  if (!normalized) {
+    return { phone_country_code: "+48", phone_number: "" };
+  }
+
+  const cleaned = normalized.replace(/[\s\-().]/g, "");
+  if (cleaned.startsWith("+48")) {
+    return { phone_country_code: "+48", phone_number: cleaned.slice(3) };
+  }
+
+  const match = cleaned.match(/^(\+[1-9][0-9]{0,2})([0-9]+)$/);
+  if (!match) {
+    return { phone_country_code: "+48", phone_number: cleaned.replace(/^\+?48/, "") };
+  }
+
+  return {
+    phone_country_code: match[1],
+    phone_number: match[2],
+  };
+}
 
 // Validation functions
 function validateEmail(email: string): boolean {
@@ -40,24 +72,24 @@ function validateEmail(email: string): boolean {
 
 function validatePhone(phone: string): boolean {
   if (!phone) return true;
-  const phoneRegex = /^\+48[0-9]{9}$/;
+  const phoneRegex = /^\+[1-9][0-9]{5,14}$/;
   return phoneRegex.test(phone);
 }
 
 function normalizePhone(phone: string): string {
   if (!phone) return phone;
   let cleaned = phone.replace(/[\s\-().]/g, "");
-  if (cleaned.startsWith("0")) {
-    cleaned = "+48" + cleaned.substring(1);
-  }
-  if (!cleaned.startsWith("+48")) {
-    cleaned = "+48" + cleaned;
+  if (!cleaned.startsWith("+")) {
+    cleaned = `+${cleaned.replace(/^\+/, "")}`;
   }
   return cleaned;
 }
 
 function validateForm(form: OrganizerFormState): FormErrors {
   const errors: FormErrors = {};
+  const phoneValue = form.phone_number.trim()
+    ? `${form.phone_country_code.trim() || "+48"}${form.phone_number.trim().replace(/^0+/, "")}`
+    : "";
   
   if (!form.organizer_name.trim()) {
     errors.organizer_name = "Nazwa organizatora jest wymagana";
@@ -67,8 +99,8 @@ function validateForm(form: OrganizerFormState): FormErrors {
     errors.email = "Niepoprawny format email";
   }
   
-  if (form.phone && !validatePhone(form.phone)) {
-    errors.phone = "Format: +48XXXXXXXXX (10 cyfr)";
+  if (phoneValue && !validatePhone(phoneValue)) {
+    errors.phone = "Format międzynarodowy, np. +48123456789";
   }
   
   return errors;
@@ -76,38 +108,59 @@ function validateForm(form: OrganizerFormState): FormErrors {
 
 const FIELD_ALIASES: Record<keyof OrganizerFormState, string[]> = {
   organizer_name: ["organizer_name", "organizer", "name", "nazwa", "organizator"],
-  company_name: ["company_name", "company", "firma", "nazwa_firmy"],
+  description: ["description", "opis organizatora", "description_long", "opis"],
+  contact_first_name: ["contact_first_name", "first_name", "imie", "imię"],
+  contact_last_name: ["contact_last_name", "last_name", "nazwisko", "surname"],
+  phone_country_code: ["phone_country_code", "prefix", "prefiks", "prefix_phone"],
+  phone_number: ["phone_number", "numer telefonu", "numer", "phone_local"],
   street: ["street", "ulica", "adres", "address"],
   postcode: ["postcode", "zip", "kod", "kod_pocztowy", "kod pocztowy"],
   city: ["city", "miasto"],
   email: ["email", "e-mail", "mail"],
   phone: ["phone", "telefon", "tel"],
-  note: ["note", "notes", "uwagi", "opis", "notatka"],
+  note: ["note", "notes", "uwagi", "notatka"],
+  organizer_note: ["organizer_note", "additional_note", "notatka organizatora", "dodatkowa notatka", "notatka dla redakcji"],
 };
 
 function toFormState(organizer: Organizer): OrganizerFormState {
+  const { phone_country_code, phone_number } = splitPhone(organizer.phone);
+
   return {
     organizer_name: organizer.organizer_name,
-    company_name: organizer.company_name ?? "",
+    description: organizer.description ?? "",
+    contact_first_name: organizer.contact_first_name ?? "",
+    contact_last_name: organizer.contact_last_name ?? "",
+    phone_country_code,
+    phone_number,
     street: organizer.street,
     postcode: organizer.postcode,
     city: organizer.city,
     email: organizer.email ?? "",
     phone: organizer.phone ?? "",
     note: organizer.note ?? "",
+    organizer_note: organizer.organizer_note ?? "",
   };
 }
 
 function toPayload(form: OrganizerFormState) {
+  const phone = form.phone_number.trim()
+    ? `${(form.phone_country_code.trim() || "+48").replace(/^\+?/, "+")}${form.phone_number.trim().replace(/^0+/, "")}`
+    : form.phone.trim()
+      ? normalizePhone(form.phone.trim())
+      : null;
+
   return {
     organizer_name: form.organizer_name.trim(),
-    company_name: form.company_name.trim() || null,
+    description: form.description.trim() || null,
+    contact_first_name: form.contact_first_name.trim() || null,
+    contact_last_name: form.contact_last_name.trim() || null,
     street: form.street.trim(),
     postcode: form.postcode.trim(),
     city: form.city.trim() || "Kraków",
     email: form.email.trim() || null,
-    phone: form.phone.trim() || null,
+    phone,
     note: form.note.trim() || null,
+    organizer_note: form.organizer_note.trim() || null,
   };
 }
 
@@ -210,14 +263,13 @@ export default function AdminOrganizatorsPage() {
   };
 
   const updateField = <K extends keyof OrganizerFormState>(field: K, value: OrganizerFormState[K]) => {
-    setEditForm((current) => ({ ...current, [field]: value }));
-    // Normalize phone on change
-    if (field === "phone" && value) {
-      const normalized = normalizePhone(value as string);
-      setEditForm((current) => ({ ...current, phone: normalized }));
-    }
-    // Validate field as user types
     const updated = { ...editForm, [field]: value };
+    if (field === "phone_country_code") {
+      updated.phone_country_code = String(value || "+48").startsWith("+")
+        ? String(value || "+48")
+        : `+${String(value || "+48").replace(/^\+/, "")}`;
+    }
+    setEditForm(updated);
     const errors = validateForm(updated);
     setFormErrors(errors);
   };
@@ -278,13 +330,16 @@ export default function AdminOrganizatorsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         organizer_name: "Nowy organizator",
-        company_name: null,
+        description: null,
+        contact_first_name: null,
+        contact_last_name: null,
         street: "",
         postcode: "",
         city: "Kraków",
         email: null,
         phone: null,
         note: null,
+        organizer_note: null,
         status: "draft",
       }),
     });
@@ -331,6 +386,11 @@ export default function AdminOrganizatorsPage() {
         const field = resolveField(header);
         if (!field || !row[header]) continue;
         nextForm[field] = row[header];
+      }
+      if (nextForm.phone && !nextForm.phone_number) {
+        const { phone_country_code, phone_number } = splitPhone(nextForm.phone);
+        nextForm.phone_country_code = phone_country_code;
+        nextForm.phone_number = phone_number;
       }
       if (!nextForm.organizer_name.trim()) {
         setImportProgress({ done: index + 1, total: pastePreview.length });
@@ -408,7 +468,8 @@ export default function AdminOrganizatorsPage() {
         <div className="space-y-1.5">
           {filteredCompanies.map((company, index) => {
             const isEditing = editing === company.id;
-            const subtitle = [company.company_name, company.city, company.email].filter(Boolean).join(" · ");
+            const contactName = [company.contact_first_name, company.contact_last_name].filter(Boolean).join(" ");
+            const subtitle = [contactName, company.city, company.email].filter(Boolean).join(" · ");
 
             return (
               <div key={company.id} className="rounded-lg border border-border/70 bg-white">
@@ -433,56 +494,96 @@ export default function AdminOrganizatorsPage() {
 
                 {isEditing && (
                   <div className="border-t border-border/50 px-3 pb-3 pt-2">
-                    <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-6">
-                      <div className="md:col-span-3">
-                        <label className={labelClass}>Organizator *</label>
-                        <input className={inputClass} value={editForm.organizer_name} onChange={(event) => updateField("organizer_name", event.target.value)} list="organizers-list" />
-                        <datalist id="organizers-list">
-                          {companies.map((org) => (
-                            <option key={org.id} value={org.organizer_name} />
-                          ))}
-                        </datalist>
+                    <div className="mb-4 space-y-4">
+                      <div className="rounded-lg border border-border/60 p-3">
+                        <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Opis organizatora</p>
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
+                          <div className="md:col-span-6">
+                            <label className={labelClass}>Nazwa Organizatora *</label>
+                            <input className={inputClass} value={editForm.organizer_name} onChange={(event) => updateField("organizer_name", event.target.value)} list="organizers-list" />
+                            <datalist id="organizers-list">
+                              {companies.map((org) => (
+                                <option key={org.id} value={org.organizer_name} />
+                              ))}
+                            </datalist>
+                          </div>
+                          <div className="md:col-span-6">
+                            <label className={labelClass}>Opis Organizatora</label>
+                            <textarea rows={4} className={inputClass} value={editForm.description} onChange={(event) => updateField("description", event.target.value)} />
+                          </div>
+                          <div className="md:col-span-3">
+                            <label className={labelClass}>Notatka</label>
+                            <textarea rows={4} className={inputClass} value={editForm.note} onChange={(event) => updateField("note", event.target.value)} />
+                          </div>
+                          <div className="md:col-span-3">
+                            <label className={labelClass}>Notatka Organizatora</label>
+                            <textarea rows={4} className={inputClass} value={editForm.organizer_note} onChange={(event) => updateField("organizer_note", event.target.value)} />
+                          </div>
+                        </div>
                       </div>
-                      <div className="md:col-span-3">
-                        <label className={labelClass}>Nazwa firmy</label>
-                        <input className={inputClass} value={editForm.company_name} onChange={(event) => updateField("company_name", event.target.value)} />
+
+                      <div className="rounded-lg border border-border/60 p-3">
+                        <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Dane</p>
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
+                          <div className="md:col-span-2">
+                            <label className={labelClass}>Email</label>
+                            <input 
+                              className={cn(inputClass, formErrors.email && "border-red-500 bg-red-50")} 
+                              value={editForm.email} 
+                              onChange={(event) => updateField("email", event.target.value)} 
+                            />
+                            {formErrors.email && <p className="mt-1 text-[10px] text-red-600">{formErrors.email}</p>}
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className={labelClass}>Imię</label>
+                            <input className={inputClass} value={editForm.contact_first_name} onChange={(event) => updateField("contact_first_name", event.target.value)} />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className={labelClass}>Nazwisko</label>
+                            <input className={inputClass} value={editForm.contact_last_name} onChange={(event) => updateField("contact_last_name", event.target.value)} />
+                          </div>
+                          <div className="md:col-span-3">
+                            <div className="grid grid-cols-[3.25rem_minmax(0,1fr)] gap-2">
+                              <label className="block">
+                                <span className={labelClass}>Prefix</span>
+                                <input
+                                  className={cn("w-full rounded-md border border-border bg-white px-2 py-1.5 text-[12px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30", formErrors.phone && "border-red-500 bg-red-50")}
+                                  value={editForm.phone_country_code}
+                                  onChange={(event) => updateField("phone_country_code", event.target.value)}
+                                  placeholder="+48"
+                                />
+                              </label>
+                              <label className="block">
+                                <span className={labelClass}>Telefon</span>
+                                <input
+                                  className={cn(inputClass, formErrors.phone && "border-red-500 bg-red-50")}
+                                  value={editForm.phone_number}
+                                  onChange={(event) => updateField("phone_number", event.target.value)}
+                                  placeholder="Numer telefonu"
+                                />
+                              </label>
+                            </div>
+                            {formErrors.phone && <p className="mt-1 text-[10px] text-red-600">{formErrors.phone}</p>}
+                          </div>
+                        </div>
                       </div>
-                      <div className="md:col-span-3">
-                        <label className={labelClass}>Ulica</label>
-                        <input className={inputClass} value={editForm.street} onChange={(event) => updateField("street", event.target.value)} />
-                      </div>
-                      <div>
-                        <label className={labelClass}>Kod pocztowy</label>
-                        <input className={inputClass} value={editForm.postcode} onChange={(event) => updateField("postcode", event.target.value)} />
-                      </div>
-                      <div className="md:col-span-2">
-                        <label className={labelClass}>Miasto</label>
-                        <input className={inputClass} value={editForm.city} onChange={(event) => updateField("city", event.target.value)} />
-                      </div>
-                      <div className="md:col-span-2">
-                        <label className={labelClass}>Email</label>
-                        <input 
-                          className={cn(inputClass, formErrors.email && "border-red-500 bg-red-50")} 
-                          value={editForm.email} 
-                          onChange={(event) => updateField("email", event.target.value)} 
-                        />
-                        {formErrors.email && <p className="mt-1 text-[10px] text-red-600">{formErrors.email}</p>}
-                      </div>
-                      <div className="md:col-span-2">
-                        <label className={labelClass}>Telefon</label>
-                        <input 
-                          className={cn(inputClass, formErrors.phone && "border-red-500 bg-red-50")} 
-                          value={editForm.phone} 
-                          onChange={(event) => updateField("phone", event.target.value)} 
-                          placeholder="+48..."
-                        />
-                        {formErrors.phone && <p className="mt-1 text-[10px] text-red-600">{formErrors.phone}</p>}
-                      </div>
-                      <div className="md:col-span-2">
-                      </div>
-                      <div className="md:col-span-6">
-                        <label className={labelClass}>Notatka</label>
-                        <textarea rows={4} className={inputClass} value={editForm.note} onChange={(event) => updateField("note", event.target.value)} />
+
+                      <div className="rounded-lg border border-border/60 p-3">
+                        <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Adres</p>
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
+                          <div className="md:col-span-3">
+                            <label className={labelClass}>Ulica</label>
+                            <input className={inputClass} value={editForm.street} onChange={(event) => updateField("street", event.target.value)} />
+                          </div>
+                          <div className="md:col-span-1">
+                            <label className={labelClass}>Kod Pocztowy</label>
+                            <input className={inputClass} value={editForm.postcode} onChange={(event) => updateField("postcode", event.target.value)} />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className={labelClass}>Miasto</label>
+                            <input className={inputClass} value={editForm.city} onChange={(event) => updateField("city", event.target.value)} />
+                          </div>
+                        </div>
                       </div>
                     </div>
 

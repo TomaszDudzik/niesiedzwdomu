@@ -169,10 +169,10 @@ export default function AdminPlacesPage() {
     lng: ["lng", "lon", "longitude"],
     age_min: ["age_min", "wiek od", "wiek_min"],
     age_max: ["age_max", "wiek do", "wiek_max"],
+    note: ["note", "notatka", "uwagi", "dodatkowe informacje"],
     source_url: ["source_url", "url", "strona", "website", "link"],
     facebook_url: ["facebook_url", "facebook", "fb", "facebook page"],
     is_indoor: ["is_indoor", "wewnątrz", "indoor"],
-    is_free: ["is_free", "darmowe", "free"],
   };
 
   const resolveField = (header: string): string | null => {
@@ -198,7 +198,7 @@ export default function AdminPlacesPage() {
         const val = row[header];
         if (["lat", "lng", "age_min", "age_max"].includes(field)) {
           place[field] = Number(val) || null;
-        } else if (["is_indoor", "is_free"].includes(field)) {
+        } else if (["is_indoor"].includes(field)) {
           place[field] = val.toLowerCase() === "true" || val === "1" || val.toLowerCase() === "tak";
         } else {
           place[field] = val;
@@ -406,11 +406,11 @@ export default function AdminPlacesPage() {
       lng: place.lng,
       age_min: place.age_min,
       age_max: place.age_max,
+      note: place.note ?? "",
       source_url: place.source_url,
       facebook_url: place.facebook_url ?? "",
       organizer_id: place.organizer_id ?? null,
       is_indoor: place.is_indoor,
-      is_free: place.is_free,
       is_featured: place.is_featured,
       likes: place.likes,
       dislikes: place.dislikes,
@@ -418,7 +418,7 @@ export default function AdminPlacesPage() {
   };
 
   const saveEdit = async (id: string) => {
-    let newImageUrl: string | null = null;
+    let newImageCover: string | null = null;
 
     // Upload pending image first
     if (pendingFile) {
@@ -430,8 +430,8 @@ export default function AdminPlacesPage() {
         formData.append("target", "places");
         const res = await fetch("/api/admin/upload-image", { method: "POST", body: formData });
         const data = await res.json();
-        if (data.image_url) {
-          newImageUrl = `${data.image_url.split("?")[0]}?t=${Date.now()}`;
+        if (data.image_cover) {
+          newImageCover = `${data.image_cover.split("?")[0]}?t=${Date.now()}`;
         } else {
           alert(`Błąd obrazka: ${data.error || "Nie udało się"}`);
         }
@@ -449,7 +449,6 @@ export default function AdminPlacesPage() {
       category_lvl_2: editForm.category_lvl_2 ? String(editForm.category_lvl_2) : null,
       category_lvl_3: editForm.category_lvl_3 ? String(editForm.category_lvl_3) : null,
       is_indoor: editForm.is_indoor,
-      is_free: Boolean(editForm.is_free),
       street: editForm.street || "",
       postcode: editForm.postcode || "",
       city: editForm.city || "Kraków",
@@ -458,6 +457,7 @@ export default function AdminPlacesPage() {
       lng: editForm.lng ?? null,
       age_min: editForm.age_min ?? null,
       age_max: editForm.age_max ?? null,
+      note: editForm.note ? String(editForm.note) : null,
       source_url: editForm.source_url || null,
       facebook_url: editForm.facebook_url ? String(editForm.facebook_url) : null,
       organizer_id: editForm.organizer_id && isUUID(String(editForm.organizer_id)) ? editForm.organizer_id : null,
@@ -468,8 +468,9 @@ export default function AdminPlacesPage() {
     };
 
     // Include new image_url in DB payload if image was uploaded
-    if (newImageUrl) {
-      dbPayload.image_url = newImageUrl;
+    if (newImageCover) {
+      dbPayload.image_cover = newImageCover;
+      dbPayload.image_set = null;
     }
 
     let saveRes = await fetch("/api/admin/places", {
@@ -502,7 +503,7 @@ export default function AdminPlacesPage() {
         : {
             ...p,
             ...dbPayload,
-            ...(newImageUrl ? { image_url: newImageUrl } : {}),
+            ...(newImageCover ? { image_cover: newImageCover } : {}),
           } as Place
     ) : p));
     setPendingFile(null);
@@ -743,6 +744,9 @@ export default function AdminPlacesPage() {
                     {place.description_short && (
                       <p><span className="font-medium text-foreground">Opis:</span> {place.description_short}</p>
                     )}
+                    {place.note && (
+                      <p><span className="font-medium text-foreground">Notatka:</span> {place.note}</p>
+                    )}
                     {(place.street || place.city) && (
                       <p><span className="font-medium text-foreground">Adres:</span> {[place.street, place.city].filter(Boolean).join(", ")}</p>
                     )}
@@ -859,14 +863,6 @@ export default function AdminPlacesPage() {
                           <input type="number" min={0} max={18} className={inputClass} value={(editForm.age_max as number) ?? ""} onChange={(e) => updateField("age_max", e.target.value ? Number(e.target.value) : null)} />
                         </div>
                         <div className="md:col-span-4 flex items-center gap-4 pt-5">
-                          <label className="flex items-center gap-2 text-[12px] cursor-pointer">
-                            <input type="checkbox" checked={Boolean(editForm.is_free)} onChange={(e) => updateField("is_free", e.target.checked)} className="rounded border-border" />
-                            Bezpłatne
-                          </label>
-                          <label className="flex items-center gap-2 text-[12px] cursor-pointer">
-                            <input type="checkbox" checked={Boolean(editForm.is_featured)} onChange={(e) => updateField("is_featured", e.target.checked)} className="rounded border-border" />
-                            Wyróżnione
-                          </label>
                           <div className="flex gap-1.5">
                             <button type="button" onClick={() => updateField("is_indoor", true)}
                               className={cn("px-2.5 py-1 rounded text-[11px] font-medium border transition-colors cursor-pointer", (editForm.is_indoor as boolean) ? "bg-primary text-white border-primary" : "border-border text-muted hover:border-primary/30")}>
@@ -877,6 +873,16 @@ export default function AdminPlacesPage() {
                               Na zewnątrz
                             </button>
                           </div>
+                        </div>
+                        <div className="md:col-span-6">
+                          <label className={labelClass}>Notatka</label>
+                          <textarea
+                            className={inputClass}
+                            rows={4}
+                            value={(editForm.note as string) || ""}
+                            onChange={(e) => updateField("note", e.target.value)}
+                            placeholder="Dodatkowe informacje o miejscu, które warto pokazać na stronie."
+                          />
                         </div>
                       </div>
                     </div>
@@ -985,7 +991,7 @@ export default function AdminPlacesPage() {
                         categoryLvl1={String(editForm.category_lvl_1 || place.category_lvl_1 || place.main_category || "")}
                         categoryLvl2={String(editForm.category_lvl_2 || place.category_lvl_2 || place.category || "")}
                         categoryLvl3={String(editForm.category_lvl_3 || place.category_lvl_3 || place.subcategory || "")}
-                        onRandomPhoto={(url, thumb) => setPlaces((prev) => prev.map((p) => p.id === place.id ? { ...p, image_url: url, image_thumb: thumb } : p))}
+                        onRandomPhoto={(cover, thumb, setId) => setPlaces((prev) => prev.map((p) => p.id === place.id ? { ...p, image_cover: cover, image_thumb: thumb, image_set: setId ?? p.image_set } : p))}
                       />
                     </div>
 

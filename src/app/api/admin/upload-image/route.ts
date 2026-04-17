@@ -53,12 +53,17 @@ export async function POST(request: NextRequest) {
   // Update the correct column based on variant
   const updateField = variant === "thumb"
     ? { image_thumb: imageUrl }
-    : { image_url: imageUrl, image_cover: imageUrl };
+    : { image_cover: imageUrl, image_set: null };
 
   const { error: dbError } = await db.from(target).update(updateField).eq("id", id);
   if (dbError) {
     return NextResponse.json({ error: dbError.message }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, image_url: imageUrl, variant });
+  return NextResponse.json({
+    ok: true,
+    variant,
+    image_cover: variant === "cover" ? imageUrl : null,
+    image_thumb: variant === "thumb" ? imageUrl : null,
+  });
 }

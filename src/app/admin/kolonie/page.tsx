@@ -250,7 +250,7 @@ export default function AdminCampsPage() {
       const organizerGroups = new Map<string, { organizer: string; items: Camp[] }>();
 
       typeItems.forEach((camp) => {
-        const organizer = (camp.organizer_data?.name ?? camp.organizer) || "Brak organizatora";
+        const organizer = (camp.organizer_data?.organizer_name ?? camp.organizer) || "Brak organizatora";
         const key = camp.organizer_id ? `id:${camp.organizer_id}` : organizer.toLowerCase();
         const existing = organizerGroups.get(key);
         if (existing) {
@@ -438,7 +438,7 @@ export default function AdminCampsPage() {
       const venueAddress = mapped.venue_address?.trim() || "";
       const cityHint   = mapped.city?.trim() || "";
       const organizerName = mapped.organizer || mapped.venue_name || "Organizator";
-      const matchedOrg = organizers.find((o) => o.name.toLowerCase() === organizerName.toLowerCase());
+      const matchedOrg = organizers.find((o) => o.organizer_name.toLowerCase() === organizerName.toLowerCase());
 
       try {
         // Step 1 — create camp with core data
@@ -595,7 +595,7 @@ export default function AdminCampsPage() {
   };
 
   const saveEdit = async (id: string) => {
-    let newImageUrl: string | null = null;
+    let newImageCover: string | null = null;
 
     if (pendingFile) {
       setUploadingImage(id);
@@ -606,8 +606,8 @@ export default function AdminCampsPage() {
         formData.append("target", "camps");
         const res = await fetch("/api/admin/upload-image", { method: "POST", body: formData });
         const data = await res.json();
-        if (data.image_url) {
-          newImageUrl = `${String(data.image_url).split("?")[0]}?t=${Date.now()}`;
+        if (data.image_cover) {
+          newImageCover = `${String(data.image_cover).split("?")[0]}?t=${Date.now()}`;
         } else {
           alert(`Błąd obrazka: ${data.error || "Nie udało się"}`);
         }
@@ -649,7 +649,10 @@ export default function AdminCampsPage() {
       transport_included: Boolean(editForm.transport_included),
       status:             editForm.status,
     };
-    if (newImageUrl) updates.image_url = newImageUrl;
+    if (newImageCover) {
+      updates.image_cover = newImageCover;
+      updates.image_set = null;
+    }
 
     const res = await fetch("/api/admin/camps", {
       method: "PATCH",
@@ -1094,7 +1097,7 @@ export default function AdminCampsPage() {
                                     categoryLvl1={String(editForm.category_lvl_1 || camp.category_lvl_1 || camp.main_category || "")}
                                     categoryLvl2={String(editForm.category_lvl_2 || camp.category_lvl_2 || camp.category || "")}
                                     categoryLvl3={String(editForm.category_lvl_3 || camp.category_lvl_3 || camp.subcategory || "")}
-                                    onRandomPhoto={(url, thumb) => setCamps((prev) => prev.map((c) => c.id === camp.id ? { ...c, image_url: url, image_thumb: thumb } : c))}
+                                    onRandomPhoto={(cover, thumb, setId) => setCamps((prev) => prev.map((c) => c.id === camp.id ? { ...c, image_cover: cover, image_thumb: thumb, image_set: setId ?? c.image_set } : c))}
                                   />
                                 </div>
 

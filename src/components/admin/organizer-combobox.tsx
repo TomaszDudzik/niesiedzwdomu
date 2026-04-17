@@ -37,7 +37,7 @@ export function OrganizerCombobox({
     if (!normalizedQuery) return organizers;
 
     return organizers.filter((organizer) => {
-      const haystack = [organizer.organizer_name, organizer.company_name, organizer.city]
+      const haystack = [organizer.organizer_name, organizer.city]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
@@ -155,9 +155,6 @@ export function OrganizerCombobox({
                   >
                     <div className="min-w-0 flex-1">
                       <span className="truncate block">{organizer.organizer_name}</span>
-                      {organizer.company_name && (
-                        <span className="text-[10px] text-muted truncate block">{organizer.company_name}</span>
-                      )}
                     </div>
                     {isSelected && <Check size={12} className="shrink-0 text-primary" />}
                   </button>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CalendarDays, MapPin, Tent, Users, Send, CheckCircle2 } from "lucide-react";
+import { CalendarDays, MapPin, Tent, Users, Send, CheckCircle2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DISTRICT_LIST } from "@/lib/mock-data";
 import { useAdminTaxonomy } from "@/lib/use-admin-taxonomy";
@@ -19,7 +19,8 @@ import {
 type SubmissionKind = "event" | "place" | "camp" | "activity";
 
 type ContactState = {
-  submitter_name: string;
+  submitter_first_name: string;
+  submitter_last_name: string;
   submitter_email: string;
   submitter_phone: string;
   submitter_phone_country_code: string;
@@ -70,10 +71,7 @@ type PlaceFormState = {
   district: string;
   age_min: string;
   age_max: string;
-  price: string;
-  is_free: boolean;
-  amenities: string;
-  opening_hours: string;
+  note: string;
   source_url: string;
   facebook_url: string;
   image_url: string;
@@ -218,7 +216,8 @@ const TAB_CONFIG = {
 } as const;
 
 const EMPTY_CONTACT: ContactState = {
-  submitter_name: "",
+  submitter_first_name: "",
+  submitter_last_name: "",
   submitter_email: "",
   submitter_phone: "",
   submitter_phone_country_code: "+48",
@@ -269,10 +268,7 @@ const EMPTY_PLACE_FORM: PlaceFormState = {
   district: DISTRICT_LIST[0],
   age_min: "",
   age_max: "",
-  price: "",
-  is_free: false,
-  amenities: "",
-  opening_hours: "",
+  note: "",
   source_url: "",
   facebook_url: "",
   image_url: "",
@@ -529,36 +525,55 @@ function ContactFields({
           />
         </Field>
       </div>
-      <Field label="Imię i nazwisko">
+      <Field label="Imię" required>
         <input
-          value={contact.submitter_name}
-          onChange={(event) => setContact((prev) => ({ ...prev, submitter_name: event.target.value }))}
+          value={contact.submitter_first_name}
+          onChange={(event) => setContact((prev) => ({ ...prev, submitter_first_name: event.target.value }))}
           className={inputClass}
+          required
         />
       </Field>
-      <Field label="Telefon">
-        <div className="flex gap-2">
-          <select
-            value={contact.submitter_phone_country_code}
-            onChange={(event) => setContact((prev) => ({ ...prev, submitter_phone_country_code: event.target.value }))}
-            className="w-20 px-3 py-2.5 rounded-xl border border-border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-          >
-            <option value="+48">+48</option>
-            <option value="+1">+1</option>
-            <option value="+44">+44</option>
-            <option value="+33">+33</option>
-            <option value="+49">+49</option>
-            <option value="+39">+39</option>
-          </select>
-          <input
-            type="tel"
-            value={contact.submitter_phone}
-            onChange={(event) => setContact((prev) => ({ ...prev, submitter_phone: event.target.value }))}
-            className={inputClass}
-            placeholder="Numer telefonu"
-          />
-        </div>
+      <Field label="Nazwisko" required>
+        <input
+          value={contact.submitter_last_name}
+          onChange={(event) => setContact((prev) => ({ ...prev, submitter_last_name: event.target.value }))}
+          className={inputClass}
+          required
+        />
       </Field>
+      <div className="block">
+        <div className="grid grid-cols-[3.25rem_minmax(0,1fr)] gap-2">
+          <label className="block">
+            <span className={labelClass}>Prefix</span>
+            <input
+              type="tel"
+              value={contact.submitter_phone_country_code}
+              onChange={(event) => {
+                const rawValue = event.target.value;
+                if (!rawValue) {
+                  setContact((prev) => ({ ...prev, submitter_phone_country_code: "+48" }));
+                  return;
+                }
+
+                const normalizedValue = rawValue.startsWith("+") ? rawValue : `+${rawValue.replace(/^\+/, "")}`;
+                setContact((prev) => ({ ...prev, submitter_phone_country_code: normalizedValue }));
+              }}
+              className="w-full rounded-xl border border-border bg-background px-2 py-2 text-[14px] text-foreground outline-none transition-colors focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+              placeholder="+48"
+            />
+          </label>
+          <label className="block">
+            <span className={labelClass}>Telefon</span>
+            <input
+              type="tel"
+              value={contact.submitter_phone}
+              onChange={(event) => setContact((prev) => ({ ...prev, submitter_phone: event.target.value }))}
+              className={inputClass}
+              placeholder="Numer telefonu"
+            />
+          </label>
+        </div>
+      </div>
       {showOrganizationField ? (
         <Field label="Organizacja / marka" required>
           <input
@@ -584,6 +599,41 @@ function ContactFields({
 
 function FormNotice({ message, error }: { message: string | null; error?: boolean }) {
   if (!message) return null;
+
+  if (!error) {
+    const sparkles = [
+      { className: "left-5 top-5 bg-amber-300", delay: "0s" },
+      { className: "right-8 top-8 bg-sky-300", delay: "0.35s" },
+      { className: "left-16 bottom-7 bg-emerald-300", delay: "0.2s" },
+      { className: "right-14 bottom-10 bg-rose-300", delay: "0.5s" },
+      { className: "left-1/2 top-4 bg-white/80", delay: "0.15s" },
+      { className: "right-1/3 bottom-4 bg-amber-200", delay: "0.45s" },
+    ];
+
+    return (
+      <div className="relative overflow-hidden rounded-[28px] border border-emerald-200 bg-[linear-gradient(135deg,#0f4c6b_0%,#14718e_45%,#f3b550_100%)] px-5 py-5 text-white shadow-[0_24px_70px_-45px_rgba(15,23,42,0.7)]">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.22),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.14),transparent_30%)]" />
+        {sparkles.map((sparkle, index) => (
+          <span
+            key={index}
+            className={cn("pointer-events-none absolute h-2.5 w-2.5 rounded-full opacity-80 animate-pulse", sparkle.className)}
+            style={{ animationDelay: sparkle.delay }}
+          />
+        ))}
+        <div className="relative flex items-start gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/14 backdrop-blur-sm">
+            <Sparkles size={22} />
+          </div>
+          <div className="space-y-1.5">
+            <p className="text-[12px] font-semibold uppercase tracking-[0.18em] text-white/72">Dziękujemy</p>
+            <h3 className="text-[22px] font-semibold leading-tight">Super, zgłoszenie właśnie do nas poleciało.</h3>
+            <p className="max-w-2xl text-[14px] leading-6 text-white/88">{message}</p>
+            <p className="text-[13px] leading-6 text-white/78">Jak tylko skończymy weryfikację, opublikujemy wpis i puścimy go dalej w świat.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={cn(
@@ -612,21 +662,27 @@ async function submitForm(contentType: SubmissionKind, payload: unknown, contact
   const normalizedPayload = typeof payload === "object" && payload !== null
     ? { ...(payload as Record<string, unknown>) }
     : payload;
+  const normalizedCountryCode = (contact.submitter_phone_country_code || "+48").trim().replace(/^\+?/, "+");
+  const rawPhone = contact.submitter_phone.trim();
+  const normalizedPhone = rawPhone.startsWith(normalizedCountryCode)
+    ? rawPhone.slice(normalizedCountryCode.length)
+    : rawPhone;
+  const submitterName = [contact.submitter_first_name.trim(), contact.submitter_last_name.trim()].filter(Boolean).join(" ");
 
   if (contentType !== "place" && typeof normalizedPayload === "object" && normalizedPayload !== null) {
     const normalizedPayloadRecord = normalizedPayload as Record<string, unknown>;
     const currentOrganizer = typeof normalizedPayloadRecord.organizer === "string" ? normalizedPayloadRecord.organizer.trim() : "";
-    const fallbackOrganizer = contact.organization_name.trim() || contact.submitter_name.trim() || "";
+    const fallbackOrganizer = contact.organization_name.trim() || submitterName || "";
     if (!currentOrganizer && fallbackOrganizer) {
       normalizedPayloadRecord.organizer = fallbackOrganizer;
     }
   }
 
-  // Concatenate country code with phone number
   const contactToSend = {
     ...contact,
+    submitter_name: submitterName,
     submitter_phone: contact.submitter_phone
-      ? `${contact.submitter_phone_country_code}${contact.submitter_phone.replace(/^\+?48/, "").replace(/^0+/, "")}`
+      ? `${normalizedCountryCode}${normalizedPhone.replace(/^0+/, "")}`
       : "",
   };
 
@@ -749,7 +805,7 @@ function EventSubmissionForm() {
 
       <div className={panelClass}>
         <SectionTitle title="Szczegóły" description="Uzupełnij termin, grupę wiekową, cenę i podstawowe informacje organizacyjne." />
-        <div className={detailGridClass}>
+        <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(15rem,1.2fr)]">
           <Field label="Kategoria wydarzenia" required>
             <select value={form.category} onChange={(event) => setForm((prev) => ({ ...prev, category: event.target.value }))} className={inputClass} required>
               {EVENT_CATEGORY_OPTIONS.map(([value, label]) => (
@@ -808,7 +864,6 @@ function EventSubmissionForm() {
       <FormNotice message={errorMessage} error />
       <div className="flex items-center gap-3">
         <SubmitButton loading={submitting} />
-        {successMessage ? <span className="inline-flex items-center gap-2 text-[13px] text-emerald-700"><CheckCircle2 size={16} />Zapisane jako szkic</span> : null}
       </div>
     </form>
   );
@@ -932,31 +987,51 @@ function PlaceSubmissionForm() {
       </div>
 
       <div className={panelClass}>
-        <SectionTitle title="Szczegóły" description="Uzupełnij godziny, przedział wieku, cenę i najważniejsze udogodnienia." />
+        <SectionTitle title="Szczegóły" description="Uzupełnij przedział wieku, określ czy miejsce jest wewnątrz czy na zewnątrz i dodaj ważne dodatkowe informacje." />
         <div className={detailGridClass}>
-          <Field label="Godziny otwarcia">
-            <input value={form.opening_hours} onChange={(event) => setForm((prev) => ({ ...prev, opening_hours: event.target.value }))} className={inputClass} placeholder="np. pn-pt 10:00-18:00" />
-          </Field>
-          <label className={checkboxCardClass}>
-            <input type="checkbox" checked={form.is_indoor} onChange={(event) => setForm((prev) => ({ ...prev, is_indoor: event.target.checked }))} />
-            Miejsce pod dachem
-          </label>
           <Field label="Wiek od">
             <input type="number" min="0" value={form.age_min} onChange={(event) => setForm((prev) => ({ ...prev, age_min: event.target.value }))} className={inputClass} />
           </Field>
           <Field label="Wiek do">
             <input type="number" min="0" value={form.age_max} onChange={(event) => setForm((prev) => ({ ...prev, age_max: event.target.value }))} className={inputClass} />
           </Field>
-          <Field label="Cena (zł)">
-            <input type="number" min="0" step="0.01" value={form.price} onChange={(event) => setForm((prev) => ({ ...prev, price: event.target.value }))} className={inputClass} disabled={form.is_free} />
-          </Field>
-          <label className={checkboxCardClass}>
-            <input type="checkbox" checked={form.is_free} onChange={(event) => setForm((prev) => ({ ...prev, is_free: event.target.checked, price: event.target.checked ? "" : prev.price }))} />
-            Bezpłatne miejsce
-          </label>
-          <div className="md:col-span-2 xl:col-span-4">
-            <Field label="Udogodnienia">
-              <textarea value={form.amenities} onChange={(event) => setForm((prev) => ({ ...prev, amenities: event.target.value }))} className={textareaClass} placeholder="np. przewijak, toaleta, parking, ogródek" />
+          <div>
+            <span className={labelClass}>Gdzie znajduje się miejsce</span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setForm((prev) => ({ ...prev, is_indoor: true }))}
+                className={cn(
+                  "rounded-xl border px-3 py-2 text-[13px] font-medium transition-colors",
+                  form.is_indoor
+                    ? "border-sky-900 bg-sky-900 text-white"
+                    : "border-border bg-background text-foreground hover:border-sky-300"
+                )}
+              >
+                Wewnątrz
+              </button>
+              <button
+                type="button"
+                onClick={() => setForm((prev) => ({ ...prev, is_indoor: false }))}
+                className={cn(
+                  "rounded-xl border px-3 py-2 text-[13px] font-medium transition-colors",
+                  !form.is_indoor
+                    ? "border-sky-900 bg-sky-900 text-white"
+                    : "border-border bg-background text-foreground hover:border-sky-300"
+                )}
+              >
+                Na zewnątrz
+              </button>
+            </div>
+          </div>
+          <div className="md:col-span-3">
+            <Field label="Notatka">
+              <textarea
+                value={form.note}
+                onChange={(event) => setForm((prev) => ({ ...prev, note: event.target.value }))}
+                className={textareaClass}
+                placeholder="Tutaj wpisz dodatkowe informacje, np. ważne zasady, warunki wejścia, parking, toaleta albo inne rzeczy, które rodzic powinien wiedzieć."
+              />
             </Field>
           </div>
         </div>
@@ -973,7 +1048,6 @@ function PlaceSubmissionForm() {
       <FormNotice message={errorMessage} error />
       <div className="flex items-center gap-3">
         <SubmitButton loading={submitting} />
-        {successMessage ? <span className="inline-flex items-center gap-2 text-[13px] text-emerald-700"><CheckCircle2 size={16} />Zapisane jako szkic</span> : null}
       </div>
     </form>
   );
@@ -1151,7 +1225,6 @@ function CampSubmissionForm() {
       <FormNotice message={errorMessage} error />
       <div className="flex items-center gap-3">
         <SubmitButton loading={submitting} />
-        {successMessage ? <span className="inline-flex items-center gap-2 text-[13px] text-emerald-700"><CheckCircle2 size={16} />Zapisane jako szkic</span> : null}
       </div>
     </form>
   );
@@ -1358,7 +1431,6 @@ function ActivitySubmissionForm() {
       <FormNotice message={errorMessage} error />
       <div className="flex items-center gap-3">
         <SubmitButton loading={submitting} />
-        {successMessage ? <span className="inline-flex items-center gap-2 text-[13px] text-emerald-700"><CheckCircle2 size={16} />Zapisane jako szkic</span> : null}
       </div>
     </form>
   );

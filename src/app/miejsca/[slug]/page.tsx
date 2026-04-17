@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, MapPin, ExternalLink, Home, Globe, Users, Clock } from "lucide-react";
+import { ArrowLeft, MapPin, ExternalLink, Home, Globe, Users, FileText } from "lucide-react";
 import { PLACE_TYPE_LABELS, PLACE_TYPE_ICONS } from "@/lib/mock-data";
 import { formatAgeRange } from "@/lib/utils";
 import { FeedbackButtons } from "@/components/ui/feedback-buttons";
@@ -108,8 +108,6 @@ export default async function PlaceDetailPage({ params }: PageProps) {
     geo: place.lat !== null && place.lng !== null
       ? { "@type": "GeoCoordinates", latitude: place.lat, longitude: place.lng }
       : undefined,
-    isAccessibleForFree: place.is_free,
-    openingHours: place.opening_hours || undefined,
     sameAs: sameAsLinks.length > 0 ? sameAsLinks : undefined,
     audience: place.age_min !== null || place.age_max !== null
       ? { "@type": "PeopleAudience", suggestedMinAge: place.age_min ?? undefined, suggestedMaxAge: place.age_max ?? undefined }
@@ -209,12 +207,12 @@ export default async function PlaceDetailPage({ params }: PageProps) {
                 </div>
               </div>
 
-              {place.opening_hours && (
+              {place.note && (
                 <div className="flex items-center gap-2.5">
-                  <Clock size={14} className="text-secondary/60 shrink-0" />
+                  <FileText size={14} className="text-secondary/60 shrink-0" />
                   <div>
-                    <p className="text-[10px] text-muted uppercase tracking-wider leading-none mb-0.5">Godziny otwarcia</p>
-                    <p className="text-[13px] font-medium text-foreground">{place.opening_hours}</p>
+                    <p className="text-[10px] text-muted uppercase tracking-wider leading-none mb-0.5">Notatka</p>
+                    <p className="text-[13px] font-medium text-foreground">{place.note}</p>
                   </div>
                 </div>
               )}

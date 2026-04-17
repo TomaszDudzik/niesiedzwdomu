@@ -23,7 +23,7 @@ interface ImageSectionProps {
   categoryLvl1: string | null;
   categoryLvl2: string | null;
   categoryLvl3: string | null;
-  onRandomPhoto: (imageUrl: string, thumbUrl: string | null) => void;
+  onRandomPhoto: (imageCover: string, imageThumb: string | null, imageSet?: string | null) => void;
 }
 
 export function ImageSection({
@@ -73,8 +73,8 @@ export function ImageSection({
       formData.append("variant", "thumb");
       const res = await fetch("/api/admin/upload-image", { method: "POST", body: formData });
       const data = await res.json();
-      if (data.image_url) {
-        onRandomPhoto(coverSrc, data.image_url);
+      if (data.image_thumb) {
+        onRandomPhoto(coverSrc, data.image_thumb, null);
         clearThumb();
       } else {
         alert(data.error || "Błąd wgrywania thumb");
@@ -105,8 +105,8 @@ export function ImageSection({
         }),
       });
       const data = await res.json();
-      if (data.image_url) {
-        onRandomPhoto(data.image_url, data.thumb_url);
+      if (data.image_cover) {
+        onRandomPhoto(data.image_cover, data.image_thumb ?? null, data.image_set ?? null);
       } else {
         alert(data.error || "Brak zdjęć w tej kategorii");
       }

@@ -11,13 +11,16 @@ function getDb() {
 
 const ALLOWED_FIELDS = new Set([
   "organizer_name",
-  "company_name",
+  "description",
+  "contact_first_name",
+  "contact_last_name",
   "email",
   "phone",
   "street",
   "postcode",
   "city",
   "note",
+  "organizer_note",
   "status",
 ]);
 
@@ -35,21 +38,15 @@ function validateEmail(email: string | undefined | null): boolean {
 
 function validatePhone(phone: string | undefined | null): boolean {
   if (!phone) return true;
-  const phoneRegex = /^\+48[0-9]{9}$/;
+  const phoneRegex = /^\+[1-9][0-9]{5,14}$/;
   return phoneRegex.test(phone);
 }
 
 function normalizePhone(phone: string | undefined): string | undefined {
   if (!phone) return phone;
-  // Usunąć spacje i znaki specjalne z wyjątkiem +
   let cleaned = phone.replace(/[\s\-().]/g, "");
-  // Jeśli zaczyna się od 0, zamień na +48
-  if (cleaned.startsWith("0")) {
-    cleaned = "+48" + cleaned.substring(1);
-  }
-  // Jeśli nie zaczyna się od +48, dodaj
-  if (!cleaned.startsWith("+48")) {
-    cleaned = "+48" + cleaned;
+  if (!cleaned.startsWith("+")) {
+    cleaned = `+${cleaned.replace(/^\+/, "")}`;
   }
   return cleaned;
 }
@@ -86,7 +83,7 @@ export async function POST(request: NextRequest) {
   if (payload.phone) {
     const phone = payload.phone as string;
     if (!validatePhone(phone)) {
-      return NextResponse.json({ error: "Phone must be in format +48XXXXXXXXX" }, { status: 400 });
+      return NextResponse.json({ error: "Phone must be in international format, e.g. +48123456789" }, { status: 400 });
     }
     payload.phone = normalizePhone(phone);
   }
@@ -123,7 +120,7 @@ export async function PATCH(request: NextRequest) {
   if (patch.phone) {
     const phone = patch.phone as string;
     if (!validatePhone(phone)) {
-      return NextResponse.json({ error: "Phone must be in format +48XXXXXXXXX" }, { status: 400 });
+      return NextResponse.json({ error: "Phone must be in international format, e.g. +48123456789" }, { status: 400 });
     }
     patch.phone = normalizePhone(phone);
   }

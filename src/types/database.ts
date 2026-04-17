@@ -123,13 +123,16 @@ export interface Event {
 export interface Organizer {
   id: string;
   organizer_name: string;
-  company_name: string | null;
+  description?: string | null;
+  contact_first_name?: string | null;
+  contact_last_name?: string | null;
   email: string | null;
   phone: string | null;
   street: string;
   postcode: string;
   city: string;
-  note: string | null;
+  note?: string | null;
+  organizer_note?: string | null;
   status: "draft" | "published" | "archived";
   created_at: string;
   updated_at: string;
@@ -259,10 +262,11 @@ export interface Place {
   lng: number | null;
   age_min: number | null;
   age_max: number | null;
-  price: number | null;
-  is_free: boolean;
-  amenities: string[];
-  opening_hours: string | null;
+  note?: string | null;
+  price?: number | null;
+  is_free?: boolean;
+  amenities?: string[];
+  opening_hours?: string | null;
   organizer_id?: string | null;
   organizer_data?: Organizer | null;
   source_url: string | null;
