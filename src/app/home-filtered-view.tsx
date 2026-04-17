@@ -439,7 +439,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
 
       {/* Mobile filters dropdown */}
       {filtersOpen && (
-        <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 space-y-2.5 max-h-[calc(100dvh-8rem)] overflow-y-auto overscroll-contain">
+        <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 space-y-2.5">
           <div className="flex items-center justify-between gap-3 pb-1 border-b border-border/70">
             <p className="text-[11px] font-semibold text-foreground">Filtry strony głównej</p>
             <button
@@ -554,8 +554,8 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
       <div className="lg:flex lg:gap-6 lg:items-start">
 
         {/* Sidebar — desktop only */}
-        <aside className="hidden lg:block w-56 shrink-0 sticky top-20">
-          <div className="rounded-xl border border-border bg-card p-3 space-y-3 max-h-[calc(100vh-6rem)] overflow-y-auto overscroll-contain pr-1">
+        <aside className="hidden lg:block w-56 shrink-0">
+          <div className="rounded-xl border border-border bg-card p-3 space-y-3">
             <div className="relative">
               <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
               <input type="text" placeholder="Szukaj..." value={search} onChange={(e) => setSearch(e.target.value)}

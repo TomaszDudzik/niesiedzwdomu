@@ -813,7 +813,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
       )}
 
       <div className="lg:flex lg:gap-6 lg:items-start">
-        <aside className="hidden lg:block w-52 shrink-0 sticky top-20">
+        <aside className="hidden lg:block w-52 shrink-0">
           <div className="rounded-xl border border-border bg-card p-2.5 space-y-2.5">
             <div className="relative">
               <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
@@ -996,128 +996,130 @@ export function CampsListView({ camps }: CampsListViewProps) {
         </aside>
 
         <div className="flex-1 min-w-0">
-          <SubmissionCta
-            title="Prowadzisz kolonie lub półkolonie?"
-            description="Pokaż ofertę rodzinom szukającym sprawdzonych wyjazdów i turnusów w Krakowie."
-            buttonLabel="Dodaj ofertę"
-            href="/dodaj?type=camp"
-          />
+          <div className="space-y-3">
+            <SubmissionCta
+              title="Prowadzisz kolonie lub półkolonie?"
+              description="Pokaż ofertę rodzinom szukającym sprawdzonych wyjazdów i turnusów w Krakowie."
+              buttonLabel="Dodaj ofertę"
+              href="/dodaj?type=camp"
+            />
 
-          <div ref={calendarRef} className="rounded-xl border border-border bg-white overflow-hidden mb-4 scroll-mt-24">
-            <div className="px-3 pt-2 pb-1 border-b border-border/50">
-              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: "none" }}>
-                {monthOptions.map((opt) => {
-                  const isActive = opt.month === currentMonth && opt.year === currentYear;
+            <div className="rounded-xl border border-border bg-card px-2.5 py-2">
+              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide whitespace-nowrap" style={{ scrollbarWidth: "none" }}>
+                <p className="shrink-0 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Filtry:</p>
+                {activeFilterBadges.length > 0 ? (
+                  <>
+                    {activeFilterBadges.map((badge) => (
+                      <span
+                        key={badge.id}
+                        className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-accent/60 px-2 py-0.5 text-[10px] font-medium text-foreground"
+                      >
+                        <span>{badge.label}</span>
+                        <button
+                          type="button"
+                          onClick={badge.onRemove}
+                          className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-muted-foreground hover:bg-border/70 hover:text-foreground transition-colors"
+                          aria-label={`Usuń filtr ${badge.label}`}
+                          title={`Usuń: ${badge.label}`}
+                        >
+                          <X size={9} />
+                        </button>
+                      </span>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={clearFilters}
+                      className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                    >
+                      <X size={9} />
+                      Wyczyść
+                    </button>
+                  </>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground">Brak aktywnych filtrów.</p>
+                )}
+              </div>
+            </div>
+
+            <div ref={calendarRef} className="rounded-xl border border-border bg-white overflow-hidden mb-4 scroll-mt-24">
+              <div className="px-3 pt-2 pb-1 border-b border-border/50">
+                <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: "none" }}>
+                  {monthOptions.map((opt) => {
+                    const isActive = opt.month === currentMonth && opt.year === currentYear;
+                    return (
+                      <button
+                        key={opt.key}
+                        onClick={() => updateDisplayedMonth(opt.year, opt.month)}
+                        className={cn(
+                          "shrink-0 rounded-full px-3 py-1 text-[11px] font-medium transition-colors",
+                          isActive ? "bg-primary text-primary-foreground" : "bg-accent text-foreground hover:bg-accent/70"
+                        )}
+                        title={`${MONTHS_PL[opt.month]} ${opt.year}`}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex lg:grid lg:grid-flow-col lg:auto-cols-fr overflow-x-auto lg:overflow-visible scrollbar-hide py-2 px-2 gap-1.5 lg:gap-0.5" style={{ scrollbarWidth: "none" }}>
+                {monthDays.map((date) => {
+                  const key = toLocalDateKey(date);
+                  const selected = selectedDate ? isSameDay(date, selectedDate) : false;
+                  const rangeStart = parseDateOnly(rangeFrom);
+                  const rangeEnd = parseDateOnly(rangeTo);
+                  const inRange = !!(rangeStart && rangeEnd && date >= rangeStart && date <= rangeEnd);
+                  const rangeEdge = !!(
+                    rangeStart && rangeEnd && (isSameDay(date, rangeStart) || isSameDay(date, rangeEnd))
+                  );
+                  const todayFlag = isToday(date);
+                  const weekend = isWeekend(date);
+                  const count = campCountMap.get(key) || 0;
+                  const isPast = date < today;
+
                   return (
                     <button
-                      key={opt.key}
-                      onClick={() => updateDisplayedMonth(opt.year, opt.month)}
+                      key={key}
+                      onClick={() => handleCalendarDateClick(date)}
+                      title={`${date.toLocaleDateString("pl-PL")}${count > 0 ? ` • ${count} kolonii` : ""}`}
                       className={cn(
-                        "shrink-0 rounded-full px-3 py-1 text-[11px] font-medium transition-colors",
-                        isActive ? "bg-primary text-primary-foreground" : "bg-accent text-foreground hover:bg-accent/70"
+                        "flex flex-col items-center justify-center min-w-[54px] lg:min-w-0 px-2 lg:px-0.5 py-2 lg:py-1 rounded-lg lg:rounded-md transition-all relative shrink-0 lg:shrink",
+                        selected || rangeEdge
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : inRange
+                            ? "bg-primary/15 text-foreground ring-1 ring-primary/20"
+                            : todayFlag
+                              ? "bg-accent/80 text-foreground ring-1 ring-primary/30"
+                              : isPast
+                                ? "text-muted-foreground/40 hover:bg-accent/40"
+                                : weekend
+                                  ? "text-foreground hover:bg-accent/60 bg-accent/20"
+                                  : "text-foreground hover:bg-accent/50"
                       )}
-                      title={`${MONTHS_PL[opt.month]} ${opt.year}`}
                     >
-                      {opt.label}
+                      <span className={cn("text-[9px] lg:text-[8px] font-medium uppercase leading-none", selected ? "text-white/70" : "text-muted-foreground")}>
+                        {DAYS_PL[date.getDay()]}
+                      </span>
+                      <span className={cn("text-[12px] lg:text-[11px] font-semibold leading-tight mt-0.5", selected && "text-white")}>
+                        {date.getDate()}
+                      </span>
+                      <span
+                        className={cn(
+                          "mt-0.5 text-[9px] lg:text-[8px] leading-none font-semibold",
+                          selected
+                            ? "text-primary-foreground/85"
+                            : count > 0
+                              ? "text-primary/80"
+                              : "text-muted-foreground/55"
+                        )}
+                      >
+                        {count > 99 ? "99+" : count}
+                      </span>
                     </button>
                   );
                 })}
               </div>
-            </div>
-
-            <div className="flex lg:grid lg:grid-flow-col lg:auto-cols-fr overflow-x-auto lg:overflow-visible scrollbar-hide py-2 px-2 gap-1.5 lg:gap-0.5" style={{ scrollbarWidth: "none" }}>
-              {monthDays.map((date) => {
-                const key = toLocalDateKey(date);
-                const selected = selectedDate ? isSameDay(date, selectedDate) : false;
-                const rangeStart = parseDateOnly(rangeFrom);
-                const rangeEnd = parseDateOnly(rangeTo);
-                const inRange = !!(rangeStart && rangeEnd && date >= rangeStart && date <= rangeEnd);
-                const rangeEdge = !!(
-                  rangeStart && rangeEnd && (isSameDay(date, rangeStart) || isSameDay(date, rangeEnd))
-                );
-                const todayFlag = isToday(date);
-                const weekend = isWeekend(date);
-                const count = campCountMap.get(key) || 0;
-                const isPast = date < today;
-
-                return (
-                  <button
-                    key={key}
-                    onClick={() => handleCalendarDateClick(date)}
-                    title={`${date.toLocaleDateString("pl-PL")}${count > 0 ? ` • ${count} kolonii` : ""}`}
-                    className={cn(
-                      "flex flex-col items-center justify-center min-w-[54px] lg:min-w-0 px-2 lg:px-0.5 py-2 lg:py-1 rounded-lg lg:rounded-md transition-all relative shrink-0 lg:shrink",
-                      selected || rangeEdge
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : inRange
-                          ? "bg-primary/15 text-foreground ring-1 ring-primary/20"
-                          : todayFlag
-                            ? "bg-accent/80 text-foreground ring-1 ring-primary/30"
-                            : isPast
-                              ? "text-muted-foreground/40 hover:bg-accent/40"
-                              : weekend
-                                ? "text-foreground hover:bg-accent/60 bg-accent/20"
-                                : "text-foreground hover:bg-accent/50"
-                    )}
-                  >
-                    <span className={cn("text-[9px] lg:text-[8px] font-medium uppercase leading-none", selected ? "text-white/70" : "text-muted-foreground")}>
-                      {DAYS_PL[date.getDay()]}
-                    </span>
-                    <span className={cn("text-[12px] lg:text-[11px] font-semibold leading-tight mt-0.5", selected && "text-white")}>
-                      {date.getDate()}
-                    </span>
-                    <span
-                      className={cn(
-                        "mt-0.5 text-[9px] lg:text-[8px] leading-none font-semibold",
-                        selected
-                          ? "text-primary-foreground/85"
-                          : count > 0
-                            ? "text-primary/80"
-                            : "text-muted-foreground/55"
-                      )}
-                    >
-                      {count > 99 ? "99+" : count}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="mb-4 rounded-xl border border-border bg-card px-2.5 py-2">
-            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide whitespace-nowrap" style={{ scrollbarWidth: "none" }}>
-              <p className="shrink-0 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Filtry:</p>
-              {activeFilterBadges.length > 0 ? (
-                <>
-                  {activeFilterBadges.map((badge) => (
-                    <span
-                      key={badge.id}
-                      className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-accent/60 px-2 py-0.5 text-[10px] font-medium text-foreground"
-                    >
-                      <span>{badge.label}</span>
-                      <button
-                        type="button"
-                        onClick={badge.onRemove}
-                        className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-muted-foreground hover:bg-border/70 hover:text-foreground transition-colors"
-                        aria-label={`Usuń filtr ${badge.label}`}
-                        title={`Usuń: ${badge.label}`}
-                      >
-                        <X size={9} />
-                      </button>
-                    </span>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={clearFilters}
-                    className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                  >
-                    <X size={9} />
-                    Wyczyść
-                  </button>
-                </>
-              ) : (
-                <p className="text-[11px] text-muted-foreground">Brak aktywnych filtrów.</p>
-              )}
             </div>
           </div>
 

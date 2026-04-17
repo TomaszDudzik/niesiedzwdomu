@@ -338,7 +338,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
       <div className="lg:flex lg:gap-6 lg:items-start">
 
         {/* Sidebar filters — desktop only, sticky */}
-        <aside className="hidden lg:block w-52 shrink-0 sticky top-20">
+        <aside className="hidden lg:block w-52 shrink-0">
           <div className="rounded-xl border border-border bg-card p-2.5 space-y-2.5">
             <div className="flex items-center gap-1 rounded-lg border border-border p-0.5 bg-accent/50">
               <button onClick={() => setView("list")} className={cn("flex-1 inline-flex items-center justify-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all duration-200", view === "list" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
@@ -427,47 +427,49 @@ export function PlacesListView({ places }: PlacesListViewProps) {
 
         {/* Main content */}
         <div className="flex-1 min-w-0">
-          <SubmissionCta
-            title="Chcesz stworzyć z nami mapę miejsc?"
-            description="Dodaj swoje miejsce i pomóż rodzicom odkrywać wartościowe adresy w Krakowie."
-            buttonLabel="Wypełnij formularz"
-            href="/dodaj?type=place"
-          />
+          <div className="space-y-3">
+            <SubmissionCta
+              title="Chcesz stworzyć z nami mapę miejsc?"
+              description="Dodaj swoje miejsce i pomóż rodzicom odkrywać wartościowe adresy w Krakowie."
+              buttonLabel="Wypełnij formularz"
+              href="/dodaj?type=place"
+            />
 
-          <div className="mb-4 rounded-xl border border-border bg-card px-2.5 py-2">
-            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide whitespace-nowrap" style={{ scrollbarWidth: "none" }}>
-              <p className="shrink-0 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Filtry:</p>
-              {activeFilterBadges.length > 0 ? (
-                <>
-                  {activeFilterBadges.map((badge) => (
-                    <span
-                      key={badge.id}
-                      className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-accent/60 px-2 py-0.5 text-[10px] font-medium text-foreground"
-                    >
-                      <span>{badge.label}</span>
-                      <button
-                        type="button"
-                        onClick={badge.onRemove}
-                        className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-muted-foreground hover:bg-border/70 hover:text-foreground transition-colors"
-                        aria-label={`Usuń filtr ${badge.label}`}
-                        title={`Usuń: ${badge.label}`}
+            <div className="rounded-xl border border-border bg-card px-2.5 py-2">
+              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide whitespace-nowrap" style={{ scrollbarWidth: "none" }}>
+                <p className="shrink-0 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Filtry:</p>
+                {activeFilterBadges.length > 0 ? (
+                  <>
+                    {activeFilterBadges.map((badge) => (
+                      <span
+                        key={badge.id}
+                        className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-accent/60 px-2 py-0.5 text-[10px] font-medium text-foreground"
                       >
-                        <X size={9} />
-                      </button>
-                    </span>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={clearFilters}
-                    className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                  >
-                    <X size={9} />
-                    Wyczyść
-                  </button>
-                </>
-              ) : (
-                <p className="text-[11px] text-muted-foreground">Brak aktywnych filtrów.</p>
-              )}
+                        <span>{badge.label}</span>
+                        <button
+                          type="button"
+                          onClick={badge.onRemove}
+                          className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-muted-foreground hover:bg-border/70 hover:text-foreground transition-colors"
+                          aria-label={`Usuń filtr ${badge.label}`}
+                          title={`Usuń: ${badge.label}`}
+                        >
+                          <X size={9} />
+                        </button>
+                      </span>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={clearFilters}
+                      className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                    >
+                      <X size={9} />
+                      Wyczyść
+                    </button>
+                  </>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground">Brak aktywnych filtrów.</p>
+                )}
+              </div>
             </div>
           </div>
 
