@@ -18,19 +18,22 @@ const EMPTY_TAXONOMY: AdminTaxonomyResponse = {
   category_lvl_3: [],
 };
 
+function hasTaxonomyData(taxonomy: AdminTaxonomyResponse) {
+  return taxonomy.type_lvl_1.length > 0
+    || taxonomy.type_lvl_2.length > 0
+    || taxonomy.category_lvl_1.length > 0
+    || taxonomy.category_lvl_2.length > 0
+    || taxonomy.category_lvl_3.length > 0;
+}
+
 export function useAdminTaxonomy(initialTaxonomy: AdminTaxonomyResponse = EMPTY_TAXONOMY) {
+  const hasInitialTaxonomy = hasTaxonomyData(initialTaxonomy);
   const [typeLevel1Options, setTypeLevel1Options] = useState<AdminTypeLevel1[]>(initialTaxonomy.type_lvl_1);
   const [typeLevel2Options, setTypeLevel2Options] = useState<AdminTypeLevel2[]>(initialTaxonomy.type_lvl_2);
   const [categoryLevel1Options, setCategoryLevel1Options] = useState<AdminCategoryLevel1[]>(initialTaxonomy.category_lvl_1);
   const [categoryLevel2Options, setCategoryLevel2Options] = useState<AdminCategoryLevel2[]>(initialTaxonomy.category_lvl_2);
   const [categoryLevel3Options, setCategoryLevel3Options] = useState<AdminCategoryLevel3[]>(initialTaxonomy.category_lvl_3);
-  const [loading, setLoading] = useState(
-    initialTaxonomy.type_lvl_1.length === 0
-      && initialTaxonomy.type_lvl_2.length === 0
-      && initialTaxonomy.category_lvl_1.length === 0
-      && initialTaxonomy.category_lvl_2.length === 0
-      && initialTaxonomy.category_lvl_3.length === 0,
-  );
+  const [loading, setLoading] = useState(!hasInitialTaxonomy);
 
   useEffect(() => {
     let active = true;
@@ -52,11 +55,13 @@ export function useAdminTaxonomy(initialTaxonomy: AdminTaxonomyResponse = EMPTY_
       })
       .catch(() => {
         if (!active) return;
-        setTypeLevel1Options(EMPTY_TAXONOMY.type_lvl_1);
-        setTypeLevel2Options(EMPTY_TAXONOMY.type_lvl_2);
-        setCategoryLevel1Options(EMPTY_TAXONOMY.category_lvl_1);
-        setCategoryLevel2Options(EMPTY_TAXONOMY.category_lvl_2);
-        setCategoryLevel3Options(EMPTY_TAXONOMY.category_lvl_3);
+        if (!hasInitialTaxonomy) {
+          setTypeLevel1Options(EMPTY_TAXONOMY.type_lvl_1);
+          setTypeLevel2Options(EMPTY_TAXONOMY.type_lvl_2);
+          setCategoryLevel1Options(EMPTY_TAXONOMY.category_lvl_1);
+          setCategoryLevel2Options(EMPTY_TAXONOMY.category_lvl_2);
+          setCategoryLevel3Options(EMPTY_TAXONOMY.category_lvl_3);
+        }
       })
       .finally(() => {
         if (!active) return;
