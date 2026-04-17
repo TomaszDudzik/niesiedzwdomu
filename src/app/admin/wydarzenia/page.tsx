@@ -8,9 +8,10 @@ import {
   Star, ClipboardPaste, Upload, MapPin,
 } from "lucide-react";
 import { CATEGORY_ICONS, CATEGORY_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
-import { cn, formatDateShort, formatPrice, slugify } from "@/lib/utils";
-import type { Event } from "@/types/database";
+import { cn, formatDateShort, formatPrice, slugify, thumbUrl } from "@/lib/utils";
+import type { Event, Organizer } from "@/types/database";
 import { ImageSection } from "@/components/admin/image-section";
+import { OrganizerCombobox } from "@/components/admin/organizer-combobox";
 import { TaxonomyFields } from "@/components/admin/taxonomy-fields";
 import { useAdminTaxonomy } from "@/lib/use-admin-taxonomy";
 
@@ -47,6 +48,7 @@ function AdminCanonicalEventsPanel() {
   const [pastePreview, setPastePreview] = useState<Record<string, string>[]>([]);
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState({ done: 0, total: 0 });
+  const [organizers, setOrganizers] = useState<Organizer[]>([]);
 
   const FIELD_ALIASES: Record<string, string[]> = {
     title: ["title", "tytul", "tytuł", "nazwa", "name"],
@@ -62,8 +64,8 @@ function AdminCanonicalEventsPanel() {
     price: ["price", "cena", "koszt", "price_from", "price_to", "price from", "price to"],
     is_free: ["is_free", "free", "darmowe", "bezplatne", "bezpłatne"],
     district: ["district", "dzielnica"],
-    venue_name: ["venue_name", "miejsce", "lokalizacja", "venue"],
-    venue_address: ["venue_address", "adres", "address"],
+    street: ["street", "ulica", "adres", "address", "venue_address"],
+    city: ["city", "miasto"],
     organizer: ["organizer", "organizator"],
     source_url: ["source_url", "url", "link", "zrodlo", "źródło"],
     facebook_url: ["facebook_url", "facebook", "fb", "facebook page"],
@@ -253,6 +255,12 @@ function AdminCanonicalEventsPanel() {
 
       const price = asNumber(mapped.price) ?? asNumber(row.price_from) ?? asNumber(row.price_to);
       const isFree = mapped.is_free ? asBoolean(mapped.is_free) : price === null || price === 0;
+      const street = mapped.street?.trim() || "";
+      const city = mapped.city?.trim() || "Kraków";
+      const organizerName = mapped.organizer?.trim() || "";
+      const matchedOrganizer = organizerName
+        ? organizers.find((organizer) => organizer.name.toLowerCase() === organizerName.toLowerCase())
+        : null;
       const payload = {
         content_type: "event",
         title: mapped.title.trim(),
@@ -270,11 +278,12 @@ function AdminCanonicalEventsPanel() {
         is_free: isFree,
         category: normalizeCategory(mapped.category),
         district: normalizeDistrict(mapped.district),
-        venue_name: mapped.venue_name || "Miejsce wydarzenia",
-        venue_address: mapped.venue_address || "Kraków",
+        street,
+        city,
         lat: null,
         lng: null,
-        organizer: mapped.organizer || null,
+        organizer: organizerName || null,
+        organizer_id: matchedOrganizer?.id ?? null,
         source_url: mapped.source_url || null,
         facebook_url: mapped.facebook_url || null,
         is_featured: asBoolean(mapped.is_featured),
@@ -292,14 +301,13 @@ function AdminCanonicalEventsPanel() {
           imported.push({ ...data, content_type: "event" } as Event);
 
           // Geocode address to fill lat/lng/district
-          const venueAddress = mapped.venue_address?.trim();
-          if (venueAddress && venueAddress !== "Kraków") {
+          if (street) {
             try {
               if (index > 0) await new Promise((r) => setTimeout(r, 1100));
               const geoRes = await fetch("/api/admin/geocode", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ address: venueAddress, city: "Kraków" }),
+                body: JSON.stringify({ address: street, city }),
               });
               const geo = await geoRes.json();
               if (geo.lat && geo.lng) {
@@ -341,6 +349,14 @@ function AdminCanonicalEventsPanel() {
   useEffect(() => {
     fetchEvents();
   }, [fetchEvents]);
+
+  useEffect(() => {
+    fetch("/api/admin/organizers")
+      .then((response) => response.json())
+      .then((data) => {
+        if (Array.isArray(data)) setOrganizers(data);
+      });
+  }, []);
 
   const visibleEvents = useMemo(() => events.filter((event) => event.status !== "deleted"), [events]);
 
@@ -494,24 +510,7 @@ function AdminCanonicalEventsPanel() {
     setEditForm((prev) => ({ ...prev, [key]: value }));
   };
 
-  const parseVenueAddress = (venueAddress: string | null) => {
-    const raw = (venueAddress || "").trim();
-    if (!raw) return { street: "", city: "Kraków" };
-    if (raw.toLowerCase() === "kraków") return { street: "", city: "Kraków" };
-
-    const parts = raw.split(",").map((part) => part.trim()).filter(Boolean);
-    if (parts.length >= 2) {
-      return {
-        street: parts.slice(0, -1).join(", "),
-        city: parts[parts.length - 1] || "Kraków",
-      };
-    }
-
-    return { street: raw, city: "Kraków" };
-  };
-
   const startEditing = (event: Event) => {
-    const { street, city } = parseVenueAddress(event.venue_address);
     if (pendingPreview) URL.revokeObjectURL(pendingPreview);
     setPendingFile(null);
     setPendingPreview(null);
@@ -532,12 +531,12 @@ function AdminCanonicalEventsPanel() {
       price: event.price,
       is_free: event.is_free,
       district: event.district,
-      venue_name: event.venue_name,
-      street,
-      city,
+      street: event.street,
+      city: event.city,
       lat: event.lat,
       lng: event.lng,
       organizer: event.organizer,
+      organizer_id: event.organizer_id ?? null,
       source_url: event.source_url,
       facebook_url: event.facebook_url ?? "",
       category_lvl_1: event.category_lvl_1 ?? event.main_category ?? null,
@@ -569,11 +568,12 @@ function AdminCanonicalEventsPanel() {
       is_free: true,
       category: "inne",
       district: "Inne",
-      venue_name: "Miejsce wydarzenia",
-      venue_address: "Kraków",
+      street: "",
+      city: "Kraków",
       lat: null,
       lng: null,
       organizer: null,
+      organizer_id: null,
       source_url: null,
       facebook_url: null,
       is_featured: false,
@@ -689,7 +689,6 @@ function AdminCanonicalEventsPanel() {
     }
 
     const priceValue = editForm.price === "" || editForm.price === null ? null : Number(editForm.price);
-    const combinedAddress = [String(editForm.street || "").trim(), String(editForm.city || "").trim()].filter(Boolean).join(", ");
     const updates: Record<string, unknown> = {
       title: String(editForm.title || ""),
       slug: slugify(String(editForm.title || "")),
@@ -707,11 +706,12 @@ function AdminCanonicalEventsPanel() {
       price: Number.isFinite(priceValue) ? priceValue : null,
       is_free: Boolean(editForm.is_free),
       district: editForm.district,
-      venue_name: String(editForm.venue_name || ""),
-      venue_address: combinedAddress,
+      street: String(editForm.street || "").trim(),
+      city: String(editForm.city || "Kraków").trim() || "Kraków",
       lat: editForm.lat === "" || editForm.lat === null ? null : Number(editForm.lat),
       lng: editForm.lng === "" || editForm.lng === null ? null : Number(editForm.lng),
       organizer: editForm.organizer ? String(editForm.organizer) : null,
+      organizer_id: editForm.organizer_id || null,
       source_url: editForm.source_url ? String(editForm.source_url) : null,
       facebook_url: editForm.facebook_url ? String(editForm.facebook_url) : null,
       category_lvl_1: editForm.category_lvl_1 ? String(editForm.category_lvl_1) : null,
@@ -833,8 +833,8 @@ function AdminCanonicalEventsPanel() {
                             <span className="shrink-0 w-6 text-center text-[11px] font-mono text-muted-foreground">{index + 1}</span>
                             <span className="shrink-0 text-lg">{CATEGORY_ICONS[event.category]}</span>
 
-                            {event.image_url ? (
-                              <img src={event.image_url} alt="" className="w-8 h-8 rounded object-cover shrink-0" />
+                            {thumbUrl(event.image_thumb, event.image_url) ? (
+                              <img src={thumbUrl(event.image_thumb, event.image_url) || ""} alt="" className="w-8 h-8 rounded object-cover shrink-0" />
                             ) : (
                               <span className="w-8 h-8 rounded bg-stone-100 shrink-0 flex items-center justify-center text-[10px] text-stone-400">—</span>
                             )}
@@ -854,7 +854,7 @@ function AdminCanonicalEventsPanel() {
                                 <span className="opacity-40">·</span>
                                 <span>{event.is_free ? "Bezpłatnie" : formatPrice(event.price)}</span>
                                 <span className="opacity-40">·</span>
-                                <span className="truncate max-w-[180px]">{event.venue_name}</span>
+                                <span className="truncate max-w-[180px]">{[event.street, event.city].filter(Boolean).join(", ") || event.district}</span>
                               </div>
                             </div>
 
@@ -897,9 +897,22 @@ function AdminCanonicalEventsPanel() {
                           {isEditing && (
                             <div className="px-3 pb-3 pt-2 border-t border-border/50">
                               <div className="grid grid-cols-1 md:grid-cols-6 gap-3 mb-4">
-                                <div className="md:col-span-6">
+                                <div className="md:col-span-3">
                                   <label className={labelClass}>Tytuł</label>
                                   <input className={inputClass} value={(editForm.title as string) || ""} onChange={(e) => updateField("title", e.target.value)} />
+                                </div>
+                                <div className="md:col-span-3">
+                                  <label className={labelClass}>Organizator</label>
+                                  <OrganizerCombobox
+                                    organizers={organizers}
+                                    value={(editForm.organizer_id as string) || null}
+                                    onChange={(organizerId) => {
+                                      const organizer = organizers.find((item) => item.id === organizerId);
+                                      updateField("organizer_id", organizerId);
+                                      updateField("organizer", organizer ? organizer.name : null);
+                                    }}
+                                    inputClassName={inputClass}
+                                  />
                                 </div>
                                 <div className="md:col-span-6">
                                   <label className={labelClass}>Krótki opis</label>
@@ -992,10 +1005,6 @@ function AdminCanonicalEventsPanel() {
                                   onCategoryLevel3Change={(value) => updateField("category_lvl_3", value)}
                                 />
 
-                                <div className="md:col-span-4">
-                                  <label className={labelClass}>Organizator</label>
-                                  <input className={inputClass} value={(editForm.organizer as string) || ""} onChange={(e) => updateField("organizer", e.target.value)} />
-                                </div>
                                 <div>
                                   <label className={labelClass}>Likes</label>
                                   <input type="number" min={0} className={inputClass} value={(editForm.likes as number) ?? 0} onChange={(e) => updateField("likes", Number(e.target.value) || 0)} />
@@ -1064,6 +1073,7 @@ function AdminCanonicalEventsPanel() {
 
                                 <ImageSection
                                   imageUrl={event.image_url}
+                                  imageCover={event.image_cover}
                                   imageThumb={event.image_thumb}
                                   pendingPreview={pendingPreview}
                                   onFileSelect={handleFileSelect}

@@ -17,7 +17,7 @@ L.Marker.prototype.options.icon = defaultIcon;
 
 export interface MarkerGroup {
   coords: [number, number];
-  events: { id: string; title: string; slug: string; venue_name: string; image_url?: string | null }[];
+  events: { id: string; title: string; slug: string; street: string; city: string; image_url?: string | null }[];
   label: string;
 }
 
@@ -58,8 +58,8 @@ export function MapLeaflet({ groups, basePath = "/wydarzenia" }: MapLeafletProps
               >
                 {group.label}
               </a>
-              {group.events[0]?.venue_name && (
-                <p className="text-[11px] text-gray-500 mb-2">{group.events[0].venue_name}</p>
+              {(group.events[0]?.street || group.events[0]?.city) && (
+                <p className="text-[11px] text-gray-500 mb-2">{[group.events[0].street, group.events[0].city].filter(Boolean).join(", ")}</p>
               )}
               {group.events.length > 1 && (
                 <>

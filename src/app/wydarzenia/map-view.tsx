@@ -41,7 +41,7 @@ function groupByLocation(events: Event[]): MarkerGroup[] {
     const coords = getEventCoords(event);
     const key = `${coords[0]},${coords[1]}`;
     if (!groups[key]) {
-      groups[key] = { coords, events: [], label: event.venue_name || event.district };
+      groups[key] = { coords, events: [], label: event.street || event.city || event.district };
     }
     groups[key].events.push(event);
   }
@@ -110,10 +110,10 @@ export function MapView({ events }: MapViewProps) {
                       {event.time_end && ` – ${event.time_end}`}
                     </span>
                   )}
-                  {event.venue_name && (
+                  {(event.street || event.city) && (
                     <span className="flex items-center gap-1">
                       <MapPin size={10} />
-                      {event.venue_name}
+                      {[event.street, event.city].filter(Boolean).join(", ")}
                     </span>
                   )}
                 </div>

@@ -20,9 +20,10 @@ import {
 
 const MiniMapLazy = lazy(() => import("../miejsca/mini-map").then((module) => ({ default: module.MiniMap })));
 import { ACTIVITY_TYPE_ICONS, ACTIVITY_TYPE_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
-import { cn, formatDateShort } from "@/lib/utils";
-import type { Activity } from "@/types/database";
+import { cn, formatDateShort, thumbUrl } from "@/lib/utils";
+import type { Activity, Organizer } from "@/types/database";
 import { ImageSection } from "@/components/admin/image-section";
+import { OrganizerCombobox } from "@/components/admin/organizer-combobox";
 import { TaxonomyFields } from "@/components/admin/taxonomy-fields";
 import { useAdminTaxonomy } from "@/lib/use-admin-taxonomy";
 
@@ -269,6 +270,7 @@ export default function AdminActivitiesPage() {
   const [pendingPreview, setPendingPreview] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState<string | null>(null);
   const [geocoding, setGeocoding] = useState(false);
+  const [organizers, setOrganizers] = useState<Organizer[]>([]);
 
   const mapActivityRow = useCallback((row: Record<string, unknown>): Activity => ({
     ...row,
@@ -291,6 +293,14 @@ export default function AdminActivitiesPage() {
   useEffect(() => {
     fetchActivities();
   }, [fetchActivities]);
+
+  useEffect(() => {
+    fetch("/api/admin/organizers")
+      .then((response) => response.json())
+      .then((data) => {
+        if (Array.isArray(data)) setOrganizers(data);
+      });
+  }, []);
 
   const getEffectiveStatus = useCallback((activity: Activity): DerivedActivityStatus => {
     const today = new Date().toISOString().slice(0, 10);
@@ -464,6 +474,10 @@ export default function AdminActivitiesPage() {
       const priceTo = asNumber(mapped.price_to);
       const venueAddress = mapped.venue_address || "Krakow";
       const scheduleSummary = mapped.schedule_summary || [mapped.days_of_week, mapped.time_start && mapped.time_end ? `${mapped.time_start}-${mapped.time_end}` : mapped.time_start].filter(Boolean).join(", ");
+      const organizerName = mapped.organizer?.trim() || mapped.venue_name?.trim() || "Organizator";
+      const matchedOrganizer = organizerName
+        ? organizers.find((organizer) => organizer.name.toLowerCase() === organizerName.toLowerCase())
+        : null;
 
       const payload = {
         title: mapped.title.trim(),
@@ -485,7 +499,8 @@ export default function AdminActivitiesPage() {
         district: detectDistrict(venueAddress),
         venue_name: mapped.venue_name || mapped.organizer || "Miejsce",
         venue_address: venueAddress,
-        organizer: mapped.organizer || mapped.venue_name || "Organizator",
+        organizer: organizerName,
+        organizer_id: matchedOrganizer?.id ?? null,
         source_url: mapped.source_url || null,
         facebook_url: mapped.facebook_url || null,
         is_featured: false,
@@ -602,6 +617,7 @@ export default function AdminActivitiesPage() {
       price_from: activity.price_from,
       price_to: activity.price_to,
       organizer: activity.organizer,
+      organizer_id: activity.organizer_id ?? null,
       source_url: activity.source_url,
       facebook_url: activity.facebook_url || "",
       category_lvl_1: activity.category_lvl_1 ?? activity.main_category ?? null,
@@ -650,6 +666,7 @@ export default function AdminActivitiesPage() {
       price_from: editForm.price_from === "" || editForm.price_from === null ? null : Number(editForm.price_from),
       price_to: editForm.price_to === "" || editForm.price_to === null ? null : Number(editForm.price_to),
       organizer: String(editForm.organizer || ""),
+      organizer_id: editForm.organizer_id || null,
       source_url: editForm.source_url ? String(editForm.source_url) : null,
       facebook_url: editForm.facebook_url ? String(editForm.facebook_url) : null,
       category_lvl_1: editForm.category_lvl_1 ? String(editForm.category_lvl_1) : null,
@@ -707,6 +724,7 @@ export default function AdminActivitiesPage() {
       venue_name: "Miejsce",
       venue_address: "Krakow",
       organizer: "Organizator",
+      organizer_id: null,
       source_url: null,
       facebook_url: null,
       is_featured: false,
@@ -848,6 +866,11 @@ export default function AdminActivitiesPage() {
                             <div className="flex items-center gap-2.5 px-3 py-2.5">
                               <span className="shrink-0 w-6 text-center text-[11px] font-mono text-muted-foreground">{index + 1}</span>
                               <span className="shrink-0 text-lg">{ACTIVITY_TYPE_ICONS[activity.activity_type]}</span>
+                              {thumbUrl(activity.image_thumb, activity.image_url) ? (
+                                <img src={thumbUrl(activity.image_thumb, activity.image_url) || ""} alt="" className="w-8 h-8 rounded object-cover shrink-0" />
+                              ) : (
+                                <span className="w-8 h-8 rounded bg-stone-100 shrink-0 flex items-center justify-center text-[10px] text-stone-400">—</span>
+                              )}
                               <div className="flex-1 min-w-0">
                                 <p className="text-[13px] font-medium text-foreground truncate">{activity.title}</p>
                                 <div className="flex items-center gap-1.5 text-[11px] text-muted mt-0.5">
@@ -887,9 +910,25 @@ export default function AdminActivitiesPage() {
                             {isEditing && (
                               <div className="px-3 pb-3 pt-2 border-t border-border/50">
                                 <div className="grid grid-cols-1 md:grid-cols-6 gap-3 mb-3">
-                                  <div className="md:col-span-6">
+                                  <div className="md:col-span-3">
                                     <label className={labelClass}>Tytuł</label>
                                     <input className={inputClass} value={(editForm.title as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, title: event.target.value }))} />
+                                  </div>
+                                  <div className="md:col-span-3">
+                                    <label className={labelClass}>Organizator</label>
+                                    <OrganizerCombobox
+                                      organizers={organizers}
+                                      value={(editForm.organizer_id as string) || null}
+                                      onChange={(organizerId) => {
+                                        const organizer = organizers.find((item) => item.id === organizerId);
+                                        setEditForm((current) => ({
+                                          ...current,
+                                          organizer_id: organizerId,
+                                          organizer: organizer ? organizer.name : "",
+                                        }));
+                                      }}
+                                      inputClassName={inputClass}
+                                    />
                                   </div>
                                   <div className="md:col-span-6">
                                     <label className={labelClass}>Krótki opis</label>
@@ -982,10 +1021,6 @@ export default function AdminActivitiesPage() {
                                     onCategoryLevel3Change={(value) => setEditForm((current) => ({ ...current, category_lvl_3: value }))}
                                   />
 
-                                  <div className="md:col-span-4">
-                                    <label className={labelClass}>Organizator</label>
-                                    <input className={inputClass} value={(editForm.organizer as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, organizer: event.target.value }))} />
-                                  </div>
                                   <div>
                                     <label className={labelClass}>Likes</label>
                                     <input type="number" min={0} className={inputClass} value={(editForm.likes as number) ?? 0} onChange={(e) => setEditForm((c) => ({ ...c, likes: Number(e.target.value) || 0 }))} />
@@ -1050,6 +1085,7 @@ export default function AdminActivitiesPage() {
 
                                   <ImageSection
                                     imageUrl={activity.image_url}
+                                    imageCover={activity.image_cover}
                                     imageThumb={activity.image_thumb}
                                     pendingPreview={pendingPreview}
                                     onFileSelect={handleFileSelect}

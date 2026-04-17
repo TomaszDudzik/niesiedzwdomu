@@ -141,7 +141,7 @@ function getCampsForDate(camps: Camp[], date: Date): Camp[] {
 }
 
 function getOrganizerName(camp: Camp): string {
-  return camp.organizer?.trim() || camp.venue_name?.trim() || camp.title;
+  return camp.organizer_data?.name?.trim() || camp.organizer?.trim() || "";
 }
 
 function getSessionLabel(count: number): string {
@@ -352,7 +352,10 @@ export function CampsListView({ camps }: CampsListViewProps) {
           const organizerKey = camp.organizer_id
             ? `id:${camp.organizer_id}`
             : getOrganizerName(camp).toLowerCase();
-          const organizerName = camp.organizer_data?.name ?? getOrganizerName(camp);
+          const organizerName = getOrganizerName(camp);
+          if (!organizerName) {
+            return;
+          }
           const existing = organizerMap.get(organizerKey);
 
           if (!existing) {

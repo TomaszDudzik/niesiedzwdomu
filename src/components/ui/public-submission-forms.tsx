@@ -46,8 +46,8 @@ type EventFormState = {
   price: string;
   is_free: boolean;
   district: string;
-  venue_name: string;
-  venue_address: string;
+  street: string;
+  city: string;
   source_url: string;
   facebook_url: string;
   image_url: string;
@@ -244,8 +244,8 @@ const EMPTY_EVENT_FORM: EventFormState = {
   price: "",
   is_free: false,
   district: DISTRICT_LIST[0],
-  venue_name: "",
-  venue_address: "",
+  street: "",
+  city: "Kraków",
   source_url: "",
   facebook_url: "",
   image_url: "",
@@ -335,10 +335,14 @@ const EMPTY_ACTIVITY_FORM: ActivityFormState = {
   image_url: "",
 };
 
-const panelClass = "rounded-3xl border border-border bg-card p-5 shadow-[0_18px_45px_-38px_rgba(15,23,42,0.45)] md:p-6";
-const labelClass = "mb-1.5 block text-[12px] font-medium text-foreground";
-const inputClass = "w-full rounded-xl border border-border bg-background px-3 py-2.5 text-[14px] text-foreground outline-none transition-colors focus:border-sky-400 focus:ring-2 focus:ring-sky-100";
-const textareaClass = `${inputClass} min-h-[112px] resize-y`;
+const panelClass = "rounded-3xl border border-border bg-card p-4 shadow-[0_18px_45px_-38px_rgba(15,23,42,0.45)] md:p-5";
+const labelClass = "mb-1 block text-[12px] font-medium text-foreground";
+const inputClass = "w-full rounded-xl border border-border bg-background px-3 py-2 text-[14px] text-foreground outline-none transition-colors focus:border-sky-400 focus:ring-2 focus:ring-sky-100";
+const textareaClass = `${inputClass} min-h-[96px] resize-y`;
+const sectionBodyClass = "mt-4";
+const twoColumnGridClass = "mt-4 grid gap-3 md:grid-cols-2";
+const detailGridClass = "mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4";
+const checkboxCardClass = "flex items-center gap-3 rounded-xl border border-border px-3 py-2 text-[13px] text-foreground";
 
 type TaxonomyState = {
   type_lvl_1_id: string;
@@ -370,9 +374,9 @@ function Field({
 
 function SectionTitle({ title, description }: { title: string; description?: string }) {
   return (
-    <div className="space-y-1">
+    <div className="flex min-h-[64px] flex-col justify-start gap-1">
       <h3 className="text-[17px] font-semibold text-foreground">{title}</h3>
-      {description ? <p className="text-[13px] leading-6 text-muted">{description}</p> : null}
+      {description ? <p className="w-full text-[13px] leading-6 text-muted">{description}</p> : null}
     </div>
   );
 }
@@ -422,7 +426,7 @@ function TaxonomyFields({
   );
 
   return (
-    <div className={cn("grid gap-4 md:grid-cols-2", showTypeFields ? "xl:grid-cols-5" : showCategoryLevel3 ? "xl:grid-cols-3" : "xl:grid-cols-2")}>
+    <div className={cn("grid gap-3 md:grid-cols-2", showTypeFields ? "xl:grid-cols-5" : showCategoryLevel3 ? "xl:grid-cols-3" : "xl:grid-cols-2")}>
       {showTypeFields ? (
         <>
           <Field label="Grupa">
@@ -504,26 +508,30 @@ function TaxonomyFields({
 function ContactFields({
   contact,
   setContact,
+  showOrganizationField = true,
 }: {
   contact: ContactState;
   setContact: React.Dispatch<React.SetStateAction<ContactState>>;
+  showOrganizationField?: boolean;
 }) {
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className="grid gap-3 md:grid-cols-2">
+      <div className="md:col-span-2">
+        <Field label="Email" required>
+          <input
+            type="email"
+            value={contact.submitter_email}
+            onChange={(event) => setContact((prev) => ({ ...prev, submitter_email: event.target.value }))}
+            className={inputClass}
+            required
+          />
+        </Field>
+      </div>
       <Field label="Imię i nazwisko">
         <input
           value={contact.submitter_name}
           onChange={(event) => setContact((prev) => ({ ...prev, submitter_name: event.target.value }))}
           className={inputClass}
-        />
-      </Field>
-      <Field label="Email" required>
-        <input
-          type="email"
-          value={contact.submitter_email}
-          onChange={(event) => setContact((prev) => ({ ...prev, submitter_email: event.target.value }))}
-          className={inputClass}
-          required
         />
       </Field>
       <Field label="Telefon">
@@ -533,13 +541,16 @@ function ContactFields({
           className={inputClass}
         />
       </Field>
-      <Field label="Organizacja / marka">
-        <input
-          value={contact.organization_name}
-          onChange={(event) => setContact((prev) => ({ ...prev, organization_name: event.target.value }))}
-          className={inputClass}
-        />
-      </Field>
+      {showOrganizationField ? (
+        <Field label="Organizacja / marka" required>
+          <input
+            value={contact.organization_name}
+            onChange={(event) => setContact((prev) => ({ ...prev, organization_name: event.target.value }))}
+            className={inputClass}
+            required
+          />
+        </Field>
+      ) : null}
       <div className="md:col-span-2">
         <Field label="Dodatkowa notatka dla redakcji">
           <textarea
@@ -580,10 +591,23 @@ function SubmitButton({ loading }: { loading: boolean }) {
 }
 
 async function submitForm(contentType: SubmissionKind, payload: unknown, contact: ContactState) {
+  const normalizedPayload = typeof payload === "object" && payload !== null
+    ? { ...(payload as Record<string, unknown>) }
+    : payload;
+
+  if (contentType !== "place" && typeof normalizedPayload === "object" && normalizedPayload !== null) {
+    const normalizedPayloadRecord = normalizedPayload as Record<string, unknown>;
+    const currentOrganizer = typeof normalizedPayloadRecord.organizer === "string" ? normalizedPayloadRecord.organizer.trim() : "";
+    const fallbackOrganizer = contact.organization_name.trim() || contact.submitter_name.trim() || "";
+    if (!currentOrganizer && fallbackOrganizer) {
+      normalizedPayloadRecord.organizer = fallbackOrganizer;
+    }
+  }
+
   const response = await fetch("/api/submissions", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ contentType, payload, contact }),
+    body: JSON.stringify({ contentType, payload: normalizedPayload, contact }),
   });
 
   const result = await response.json();
@@ -621,16 +645,25 @@ function EventSubmissionForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-5">
       <div className={panelClass}>
         <SectionTitle title="Opis wydarzenia" description="Formularz dla wydarzeń jednorazowych, warsztatów, spektakli i innych aktywności w kalendarzu." />
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
-          <Field label="Tytuł" required>
+        <div className={twoColumnGridClass}>
+          <div>
+            <Field label="Nazwa" required>
             <input value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} className={inputClass} required />
-          </Field>
-          <Field label="Organizator">
-            <input value={form.organizer} onChange={(event) => setForm((prev) => ({ ...prev, organizer: event.target.value }))} className={inputClass} />
-          </Field>
+            </Field>
+          </div>
+          <div>
+            <Field label="Organizacja / marka" required>
+              <input
+                value={contact.organization_name}
+                onChange={(event) => setContact((prev) => ({ ...prev, organization_name: event.target.value }))}
+                className={inputClass}
+                required
+              />
+            </Field>
+          </div>
           <div className="md:col-span-2">
             <Field label="Krótki opis" required>
               <textarea value={form.description_short} onChange={(event) => setForm((prev) => ({ ...prev, description_short: event.target.value }))} className={textareaClass} required />
@@ -645,8 +678,8 @@ function EventSubmissionForm() {
       </div>
 
       <div className={panelClass}>
-        <SectionTitle title="Klasyfikacja" description="Pomaga umieścić zgłoszenie we właściwej części serwisu i filtrach." />
-        <div className="mt-5">
+        <SectionTitle title="Klasyfikacja" description="Dzięki temu miejsce trafi do właściwej kategorii i filtrów w serwisie." />
+        <div className={sectionBodyClass}>
           <TaxonomyFields
             typeLevel1Options={typeLevel1Options}
             typeLevel2Options={typeLevel2Options}
@@ -655,13 +688,18 @@ function EventSubmissionForm() {
             categoryLevel3Options={categoryLevel3Options}
             state={form}
             onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
+            showTypeFields={false}
+            categoryLevel1Label="Typ"
+            categoryLevel2Label="Kategoria"
+            showCategoryLevel3={false}
+            categoryLevel1Required={true}
           />
         </div>
       </div>
 
       <div className={panelClass}>
-        <SectionTitle title="Linki" />
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
+        <SectionTitle title="Linki" description="Dzięki tym informacjom użytkownik będzie mógł przejść bezpośrednio do Twojej strony. Najlepiej podaj konkretny link do wydarzenia." />
+        <div className={twoColumnGridClass}>
           <Field label="Strona WWW">
             <input type="url" value={form.source_url} onChange={(event) => setForm((prev) => ({ ...prev, source_url: event.target.value }))} className={inputClass} placeholder="https://..." />
           </Field>
@@ -672,20 +710,20 @@ function EventSubmissionForm() {
       </div>
 
       <div className={panelClass}>
-        <SectionTitle title="Adres" />
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
-          <Field label="Miejsce" required>
-            <input value={form.venue_name} onChange={(event) => setForm((prev) => ({ ...prev, venue_name: event.target.value }))} className={inputClass} required />
+        <SectionTitle title="Adres" description="Podaj ulicę i miasto wydarzenia, tak jak mają się wyświetlać w serwisie i na mapie." />
+        <div className={twoColumnGridClass}>
+          <Field label="Ulica i numer" required>
+            <input value={form.street} onChange={(event) => setForm((prev) => ({ ...prev, street: event.target.value }))} className={inputClass} required />
           </Field>
-          <Field label="Adres" required>
-            <input value={form.venue_address} onChange={(event) => setForm((prev) => ({ ...prev, venue_address: event.target.value }))} className={inputClass} required />
+          <Field label="Miasto" required>
+            <input value={form.city} onChange={(event) => setForm((prev) => ({ ...prev, city: event.target.value }))} className={inputClass} required />
           </Field>
         </div>
       </div>
 
       <div className={panelClass}>
-        <SectionTitle title="Szczegóły" />
-        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <SectionTitle title="Szczegóły" description="Uzupełnij termin, grupę wiekową, cenę i podstawowe informacje organizacyjne." />
+        <div className={detailGridClass}>
           <Field label="Kategoria wydarzenia" required>
             <select value={form.category} onChange={(event) => setForm((prev) => ({ ...prev, category: event.target.value }))} className={inputClass} required>
               {EVENT_CATEGORY_OPTIONS.map(([value, label]) => (
@@ -721,7 +759,7 @@ function EventSubmissionForm() {
           <Field label="Cena (zł)">
             <input type="number" min="0" step="0.01" value={form.price} onChange={(event) => setForm((prev) => ({ ...prev, price: event.target.value }))} className={inputClass} disabled={form.is_free} />
           </Field>
-          <label className="flex items-center gap-3 rounded-xl border border-border px-3 py-2.5 text-[14px] text-foreground">
+          <label className={checkboxCardClass}>
             <input type="checkbox" checked={form.is_free} onChange={(event) => setForm((prev) => ({ ...prev, is_free: event.target.checked, price: event.target.checked ? "" : prev.price }))} />
             Bezpłatne wydarzenie
           </label>
@@ -735,8 +773,8 @@ function EventSubmissionForm() {
 
       <div className={panelClass}>
         <SectionTitle title="Dane kontaktowe zgłaszającego" description="Te dane zostają tylko do weryfikacji zgłoszenia." />
-        <div className="mt-5">
-          <ContactFields contact={contact} setContact={setContact} />
+        <div className={sectionBodyClass}>
+          <ContactFields contact={contact} setContact={setContact} showOrganizationField={false} />
         </div>
       </div>
 
@@ -791,13 +829,23 @@ function PlaceSubmissionForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-5">
       <div className={panelClass}>
-        <SectionTitle title="Opis miejsca" />
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
-          <div className="md:col-span-2">
-            <Field label="Nazwa miejsca" required>
+        <SectionTitle title="Opis miejsca" description="Formularz dla sal zabaw, muzeów, parków, kawiarni rodzinnych i innych miejsc przyjaznych dzieciom." />
+        <div className={twoColumnGridClass}>
+          <div>
+            <Field label="Nazwa" required>
               <input value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} className={inputClass} required />
+            </Field>
+          </div>
+          <div>
+            <Field label="Organizacja / marka" required>
+              <input
+                value={contact.organization_name}
+                onChange={(event) => setContact((prev) => ({ ...prev, organization_name: event.target.value }))}
+                className={inputClass}
+                required
+              />
             </Field>
           </div>
           <div className="md:col-span-2">
@@ -814,8 +862,8 @@ function PlaceSubmissionForm() {
       </div>
 
       <div className={panelClass}>
-        <SectionTitle title="Klasyfikacja" />
-        <div className="mt-5">
+        <SectionTitle title="Klasyfikacja" description="Dzięki temu miejsce trafi do właściwej kategorii i filtrów w serwisie." />
+        <div className={sectionBodyClass}>
           <TaxonomyFields
             typeLevel1Options={typeLevel1Options}
             typeLevel2Options={typeLevel2Options}
@@ -834,8 +882,8 @@ function PlaceSubmissionForm() {
       </div>
 
       <div className={panelClass}>
-        <SectionTitle title="Linki" />
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
+        <SectionTitle title="Linki" description="Dzięki tym informacjom użytkownik będzie mógł przejść bezpośrednio do Twojej strony. Najlepiej podaj konkretny link do miejsca." />
+        <div className={twoColumnGridClass}>
           <Field label="Strona WWW">
             <input type="url" value={form.source_url} onChange={(event) => setForm((prev) => ({ ...prev, source_url: event.target.value }))} className={inputClass} placeholder="https://..." />
           </Field>
@@ -846,8 +894,8 @@ function PlaceSubmissionForm() {
       </div>
 
       <div className={panelClass}>
-        <SectionTitle title="Adres" />
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
+        <SectionTitle title="Adres" description="Podaj dokładny adres miejsca, który rodzice zobaczą na liście i stronie wpisu." />
+        <div className={twoColumnGridClass}>
           <Field label="Ulica i numer" required>
             <input value={form.street} onChange={(event) => setForm((prev) => ({ ...prev, street: event.target.value }))} className={inputClass} required />
           </Field>
@@ -858,12 +906,12 @@ function PlaceSubmissionForm() {
       </div>
 
       <div className={panelClass}>
-        <SectionTitle title="Szczegóły" />
-        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <SectionTitle title="Szczegóły" description="Uzupełnij godziny, przedział wieku, cenę i najważniejsze udogodnienia." />
+        <div className={detailGridClass}>
           <Field label="Godziny otwarcia">
             <input value={form.opening_hours} onChange={(event) => setForm((prev) => ({ ...prev, opening_hours: event.target.value }))} className={inputClass} placeholder="np. pn-pt 10:00-18:00" />
           </Field>
-          <label className="flex items-center gap-3 rounded-xl border border-border px-3 py-2.5 text-[14px] text-foreground">
+          <label className={checkboxCardClass}>
             <input type="checkbox" checked={form.is_indoor} onChange={(event) => setForm((prev) => ({ ...prev, is_indoor: event.target.checked }))} />
             Miejsce pod dachem
           </label>
@@ -876,7 +924,7 @@ function PlaceSubmissionForm() {
           <Field label="Cena (zł)">
             <input type="number" min="0" step="0.01" value={form.price} onChange={(event) => setForm((prev) => ({ ...prev, price: event.target.value }))} className={inputClass} disabled={form.is_free} />
           </Field>
-          <label className="flex items-center gap-3 rounded-xl border border-border px-3 py-2.5 text-[14px] text-foreground">
+          <label className={checkboxCardClass}>
             <input type="checkbox" checked={form.is_free} onChange={(event) => setForm((prev) => ({ ...prev, is_free: event.target.checked, price: event.target.checked ? "" : prev.price }))} />
             Bezpłatne miejsce
           </label>
@@ -890,8 +938,8 @@ function PlaceSubmissionForm() {
 
       <div className={panelClass}>
         <SectionTitle title="Dane kontaktowe zgłaszającego" description="Te dane zostają tylko do weryfikacji zgłoszenia." />
-        <div className="mt-5">
-          <ContactFields contact={contact} setContact={setContact} />
+        <div className={sectionBodyClass}>
+          <ContactFields contact={contact} setContact={setContact} showOrganizationField={false} />
         </div>
       </div>
 
@@ -932,16 +980,25 @@ function CampSubmissionForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-5">
       <div className={panelClass}>
         <SectionTitle title="Opis oferty" description="Formularz dla turnusów wakacyjnych, półkolonii oraz wyjazdów dla dzieci." />
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
-          <Field label="Nazwa oferty" required>
+        <div className={twoColumnGridClass}>
+          <div>
+            <Field label="Nazwa" required>
             <input value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} className={inputClass} required />
-          </Field>
-          <Field label="Organizator" required>
-            <input value={form.organizer} onChange={(event) => setForm((prev) => ({ ...prev, organizer: event.target.value }))} className={inputClass} required />
-          </Field>
+            </Field>
+          </div>
+          <div>
+            <Field label="Organizacja / marka" required>
+              <input
+                value={contact.organization_name}
+                onChange={(event) => setContact((prev) => ({ ...prev, organization_name: event.target.value }))}
+                className={inputClass}
+                required
+              />
+            </Field>
+          </div>
           <div className="md:col-span-2">
             <Field label="Krótki opis" required>
               <textarea value={form.description_short} onChange={(event) => setForm((prev) => ({ ...prev, description_short: event.target.value }))} className={textareaClass} required />
@@ -956,8 +1013,8 @@ function CampSubmissionForm() {
       </div>
 
       <div className={panelClass}>
-        <SectionTitle title="Klasyfikacja" />
-        <div className="mt-5">
+        <SectionTitle title="Klasyfikacja" description="Dzięki temu miejsce trafi do właściwej kategorii i filtrów w serwisie." />
+        <div className={sectionBodyClass}>
           <TaxonomyFields
             typeLevel1Options={typeLevel1Options}
             typeLevel2Options={typeLevel2Options}
@@ -966,13 +1023,18 @@ function CampSubmissionForm() {
             categoryLevel3Options={categoryLevel3Options}
             state={form}
             onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
+            showTypeFields={false}
+            categoryLevel1Label="Typ"
+            categoryLevel2Label="Kategoria"
+            showCategoryLevel3={false}
+            categoryLevel1Required={true}
           />
         </div>
       </div>
 
       <div className={panelClass}>
-        <SectionTitle title="Linki" />
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
+        <SectionTitle title="Linki" description="Dzięki tym informacjom użytkownik będzie mógł przejść bezpośrednio do Twojej strony. Najlepiej podaj konkretny link do oferty." />
+        <div className={twoColumnGridClass}>
           <Field label="Strona WWW">
             <input type="url" value={form.source_url} onChange={(event) => setForm((prev) => ({ ...prev, source_url: event.target.value }))} className={inputClass} placeholder="https://..." />
           </Field>
@@ -983,8 +1045,8 @@ function CampSubmissionForm() {
       </div>
 
       <div className={panelClass}>
-        <SectionTitle title="Adres" />
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
+        <SectionTitle title="Adres" description="Wpisz miejsce realizacji oferty, tak jak powinno pojawić się w publikacji." />
+        <div className={twoColumnGridClass}>
           <Field label="Miejsce" required>
             <input value={form.venue_name} onChange={(event) => setForm((prev) => ({ ...prev, venue_name: event.target.value }))} className={inputClass} required />
           </Field>
@@ -995,8 +1057,8 @@ function CampSubmissionForm() {
       </div>
 
       <div className={panelClass}>
-        <SectionTitle title="Szczegóły" />
-        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <SectionTitle title="Szczegóły" description="Uzupełnij termin, sezon, wiek uczestników, cenę oraz elementy oferty." />
+        <div className={detailGridClass}>
           <Field label="Data od" required>
             <input type="date" value={form.date_start} onChange={(event) => setForm((prev) => ({ ...prev, date_start: event.target.value }))} className={inputClass} required />
           </Field>
@@ -1032,15 +1094,15 @@ function CampSubmissionForm() {
           <Field label="Cena do">
             <input type="number" min="0" step="0.01" value={form.price_to} onChange={(event) => setForm((prev) => ({ ...prev, price_to: event.target.value }))} className={inputClass} disabled={form.is_free} />
           </Field>
-          <label className="flex items-center gap-3 rounded-xl border border-border px-3 py-2.5 text-[14px] text-foreground">
+          <label className={checkboxCardClass}>
             <input type="checkbox" checked={form.is_free} onChange={(event) => setForm((prev) => ({ ...prev, is_free: event.target.checked, price_from: event.target.checked ? "" : prev.price_from, price_to: event.target.checked ? "" : prev.price_to }))} />
             Bezpłatna oferta
           </label>
-          <label className="flex items-center gap-3 rounded-xl border border-border px-3 py-2.5 text-[14px] text-foreground">
+          <label className={checkboxCardClass}>
             <input type="checkbox" checked={form.meals_included} onChange={(event) => setForm((prev) => ({ ...prev, meals_included: event.target.checked }))} />
             Wyżywienie w cenie
           </label>
-          <label className="flex items-center gap-3 rounded-xl border border-border px-3 py-2.5 text-[14px] text-foreground">
+          <label className={checkboxCardClass}>
             <input type="checkbox" checked={form.transport_included} onChange={(event) => setForm((prev) => ({ ...prev, transport_included: event.target.checked }))} />
             Transport w cenie
           </label>
@@ -1054,8 +1116,8 @@ function CampSubmissionForm() {
 
       <div className={panelClass}>
         <SectionTitle title="Dane kontaktowe zgłaszającego" description="Te dane zostają tylko do weryfikacji zgłoszenia." />
-        <div className="mt-5">
-          <ContactFields contact={contact} setContact={setContact} />
+        <div className={sectionBodyClass}>
+          <ContactFields contact={contact} setContact={setContact} showOrganizationField={false} />
         </div>
       </div>
 
@@ -1105,16 +1167,25 @@ function ActivitySubmissionForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-5">
       <div className={panelClass}>
         <SectionTitle title="Opis zajęć" description="Formularz dla kursów, warsztatów cyklicznych i zajęć pozalekcyjnych." />
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
-          <Field label="Nazwa zajęć" required>
+        <div className={twoColumnGridClass}>
+          <div>
+            <Field label="Nazwa" required>
             <input value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} className={inputClass} required />
-          </Field>
-          <Field label="Organizator" required>
-            <input value={form.organizer} onChange={(event) => setForm((prev) => ({ ...prev, organizer: event.target.value }))} className={inputClass} required />
-          </Field>
+            </Field>
+          </div>
+          <div>
+            <Field label="Organizacja / marka" required>
+              <input
+                value={contact.organization_name}
+                onChange={(event) => setContact((prev) => ({ ...prev, organization_name: event.target.value }))}
+                className={inputClass}
+                required
+              />
+            </Field>
+          </div>
           <div className="md:col-span-2">
             <Field label="Krótki opis" required>
               <textarea value={form.description_short} onChange={(event) => setForm((prev) => ({ ...prev, description_short: event.target.value }))} className={textareaClass} required />
@@ -1129,8 +1200,8 @@ function ActivitySubmissionForm() {
       </div>
 
       <div className={panelClass}>
-        <SectionTitle title="Klasyfikacja" />
-        <div className="mt-5">
+        <SectionTitle title="Klasyfikacja" description="Dzięki temu miejsce trafi do właściwej kategorii i filtrów w serwisie." />
+        <div className={sectionBodyClass}>
           <TaxonomyFields
             typeLevel1Options={typeLevel1Options}
             typeLevel2Options={typeLevel2Options}
@@ -1139,13 +1210,18 @@ function ActivitySubmissionForm() {
             categoryLevel3Options={categoryLevel3Options}
             state={form}
             onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
+            showTypeFields={false}
+            categoryLevel1Label="Typ"
+            categoryLevel2Label="Kategoria"
+            showCategoryLevel3={false}
+            categoryLevel1Required={true}
           />
         </div>
       </div>
 
       <div className={panelClass}>
-        <SectionTitle title="Linki" />
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
+        <SectionTitle title="Linki" description="Dzięki tym informacjom użytkownik będzie mógł przejść bezpośrednio do Twojej strony. Najlepiej podaj konkretny link do zajęć." />
+        <div className={twoColumnGridClass}>
           <Field label="Strona WWW">
             <input type="url" value={form.source_url} onChange={(event) => setForm((prev) => ({ ...prev, source_url: event.target.value }))} className={inputClass} placeholder="https://..." />
           </Field>
@@ -1156,8 +1232,8 @@ function ActivitySubmissionForm() {
       </div>
 
       <div className={panelClass}>
-        <SectionTitle title="Adres" />
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
+        <SectionTitle title="Adres" description="Podaj nazwę miejsca i adres, pod którym faktycznie odbywają się zajęcia." />
+        <div className={twoColumnGridClass}>
           <Field label="Miejsce" required>
             <input value={form.venue_name} onChange={(event) => setForm((prev) => ({ ...prev, venue_name: event.target.value }))} className={inputClass} required />
           </Field>
@@ -1168,8 +1244,8 @@ function ActivitySubmissionForm() {
       </div>
 
       <div className={panelClass}>
-        <SectionTitle title="Szczegóły" />
-        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <SectionTitle title="Szczegóły" description="Uzupełnij harmonogram, grupę wiekową, cenę i sposób prowadzenia zajęć." />
+        <div className={detailGridClass}>
           <Field label="Typ zajęć" required>
             <select value={form.activity_type} onChange={(event) => setForm((prev) => ({ ...prev, activity_type: event.target.value }))} className={inputClass} required>
               {ACTIVITY_TYPE_OPTIONS.map(([value, label]) => (
@@ -1211,7 +1287,7 @@ function ActivitySubmissionForm() {
           <Field label="Cena do">
             <input type="number" min="0" step="0.01" value={form.price_to} onChange={(event) => setForm((prev) => ({ ...prev, price_to: event.target.value }))} className={inputClass} disabled={form.is_free} />
           </Field>
-          <label className="flex items-center gap-3 rounded-xl border border-border px-3 py-2.5 text-[14px] text-foreground xl:col-span-2">
+          <label className={`${checkboxCardClass} xl:col-span-2`}>
             <input type="checkbox" checked={form.is_free} onChange={(event) => setForm((prev) => ({ ...prev, is_free: event.target.checked, price_from: event.target.checked ? "" : prev.price_from, price_to: event.target.checked ? "" : prev.price_to }))} />
             Bezpłatne zajęcia
           </label>
@@ -1247,8 +1323,8 @@ function ActivitySubmissionForm() {
 
       <div className={panelClass}>
         <SectionTitle title="Dane kontaktowe zgłaszającego" description="Te dane zostają tylko do weryfikacji zgłoszenia." />
-        <div className="mt-5">
-          <ContactFields contact={contact} setContact={setContact} />
+        <div className={sectionBodyClass}>
+          <ContactFields contact={contact} setContact={setContact} showOrganizationField={false} />
         </div>
       </div>
 
@@ -1266,8 +1342,8 @@ export function PublicSubmissionForms({ initialTab = "event" }: { initialTab?: S
   const [activeTab, setActiveTab] = useState<SubmissionKind>(initialTab);
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+    <div className="space-y-5">
+      <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-4">
         {(Object.keys(TAB_CONFIG) as SubmissionKind[]).map((tabKey) => {
           const tab = TAB_CONFIG[tabKey];
           const Icon = tab.icon;
@@ -1279,7 +1355,7 @@ export function PublicSubmissionForms({ initialTab = "event" }: { initialTab?: S
               type="button"
               onClick={() => setActiveTab(tabKey)}
               className={cn(
-                "flex h-full items-start rounded-3xl border px-4 py-4 text-left transition-all duration-200",
+                "flex h-full items-start rounded-3xl border px-3.5 py-3.5 text-left transition-all duration-200",
                 selected
                   ? "border-sky-300 bg-[linear-gradient(180deg,rgba(240,249,255,0.98),rgba(236,253,255,0.98))] shadow-[0_18px_42px_-32px_rgba(2,132,199,0.4)]"
                   : "border-border bg-card hover:border-sky-200 hover:bg-sky-50/40",

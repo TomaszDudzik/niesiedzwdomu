@@ -65,7 +65,7 @@ function groupByLocation(events: Event[]): MarkerGroup[] {
       : (DISTRICT_COORDS[event.district] || KRAKOW_CENTER);
     const key = `${coords[0]},${coords[1]}`;
     if (!groups[key]) {
-      groups[key] = { coords, events: [], label: event.venue_name || event.district };
+      groups[key] = { coords, events: [], label: event.street || event.city || event.district };
     }
     groups[key].events.push(event);
   }
@@ -298,7 +298,7 @@ function EventCard({ event }: { event: Event }) {
   const timeLabel = event.time_start
     ? `${event.time_start}${event.time_end ? ` – ${event.time_end}` : ""}`
     : "Godzina wkrótce";
-  const addressLabel = event.venue_address || event.venue_name || event.district;
+  const addressLabel = [event.street, event.city].filter(Boolean).join(", ") || event.district;
 
   return (
     <Link

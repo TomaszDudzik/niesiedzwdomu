@@ -25,6 +25,27 @@ function sanitizeEventPayload(input: unknown): Record<string, unknown> {
   return safe;
 }
 
+function splitLegacyEventAddress(value: unknown) {
+  if (typeof value !== "string") {
+    return { street: null, city: null };
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return { street: null, city: null };
+  }
+
+  const parts = trimmed.split(",").map((part) => part.trim()).filter(Boolean);
+  if (parts.length >= 2) {
+    return {
+      street: parts.slice(0, -1).join(", "),
+      city: parts[parts.length - 1] ?? "Kraków",
+    };
+  }
+
+  return { street: trimmed, city: "Kraków" };
+}
+
 function normalizeEventPayload(input: unknown, categoryMaps: Awaited<ReturnType<typeof loadAdminCategoryMaps>>) {
   const payload = withCategoryIds(sanitizeEventPayload(input), categoryMaps);
 
@@ -62,6 +83,17 @@ function normalizeEventPayload(input: unknown, categoryMaps: Awaited<ReturnType<
     payload.category_lvl_3 = categoryLevel3;
   }
   delete payload.subcategory;
+
+  const legacyLocation = splitLegacyEventAddress(payload.venue_address);
+  if ("street" in payload || "city" in payload || "venue_address" in payload) {
+    payload.street = typeof payload.street === "string" ? payload.street.trim() : legacyLocation.street ?? "";
+    payload.city = typeof payload.city === "string" && payload.city.trim().length > 0
+      ? payload.city.trim()
+      : legacyLocation.city ?? "Kraków";
+  }
+
+  delete payload.venue_name;
+  delete payload.venue_address;
 
   return payload;
 }
@@ -106,6 +138,13 @@ function normalizeEventRecord(record: Record<string, unknown>) {
   const categoryLevel1 = record.category_lvl_1 ?? record.main_category ?? null;
   const categoryLevel2 = record.category_lvl_2 ?? record.category ?? null;
   const categoryLevel3 = record.category_lvl_3 ?? record.subcategory ?? null;
+  const legacyLocation = splitLegacyEventAddress(record.venue_address);
+  const street = typeof record.street === "string" && record.street.trim().length > 0 ? record.street : legacyLocation.street ?? "";
+  const city = typeof record.city === "string" && record.city.trim().length > 0 ? record.city : legacyLocation.city ?? "Kraków";
+  const organizerData = record.organizer_data as Record<string, unknown> | null | undefined;
+  const organizer = typeof organizerData?.name === "string" && organizerData.name.trim().length > 0
+    ? organizerData.name
+    : (typeof record.organizer === "string" ? record.organizer : null);
 
   return {
     ...record,
@@ -119,6 +158,10 @@ function normalizeEventRecord(record: Record<string, unknown>) {
     main_category: categoryLevel1,
     category: categoryLevel2,
     subcategory: categoryLevel3,
+    street,
+    city,
+    organizer,
+    organizer_data: organizerData ?? null,
   };
 }
 
@@ -215,7 +258,7 @@ export async function GET() {
   const categoryMaps = await loadAdminCategoryMaps(db);
   const { data, error } = await db
     .from("events")
-    .select("*")
+    .select("*, organizer_data:organizer_id(*)")
     .order("date_start", { ascending: false })
     .limit(200);
 

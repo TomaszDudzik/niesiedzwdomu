@@ -70,6 +70,7 @@ export default async function EventDetailPage({ params }: PageProps) {
       ? `${event.date_end}T${event.time_end}`
       : event.date_end
     : undefined;
+  const addressLabel = [event.street, event.city].filter(Boolean).join(", ");
 
   const breadcrumbSchema = {
     "@context": "https://schema.org",
@@ -94,11 +95,11 @@ export default async function EventDetailPage({ params }: PageProps) {
     eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
     location: {
       "@type": "Place",
-      name: event.venue_name || "Krakow",
+      name: addressLabel || event.city || "Krakow",
       address: {
         "@type": "PostalAddress",
-        streetAddress: event.venue_address || undefined,
-        addressLocality: "Krakow",
+        streetAddress: event.street || undefined,
+        addressLocality: event.city || "Krakow",
         addressCountry: "PL",
       },
       geo: event.lat !== null && event.lng !== null
@@ -217,9 +218,9 @@ export default async function EventDetailPage({ params }: PageProps) {
                 </div>
               )}
 
-              {event.venue_address && (
+              {addressLabel && (
                 <a
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.venue_address)}`}
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressLabel)}`}
                   target="_blank"
                   rel="noopener"
                   className="flex items-start gap-2.5 group"
@@ -227,7 +228,7 @@ export default async function EventDetailPage({ params }: PageProps) {
                   <MapPin size={14} className="text-secondary/60 group-hover:text-primary shrink-0 mt-0.5 transition-colors" />
                   <div>
                     <p className="text-[10px] text-muted uppercase tracking-wider leading-none mb-0.5">Adres</p>
-                    <p className="text-[13px] font-medium text-foreground group-hover:text-primary transition-colors">{event.venue_address}</p>
+                    <p className="text-[13px] font-medium text-foreground group-hover:text-primary transition-colors">{addressLabel}</p>
                   </div>
                 </a>
               )}

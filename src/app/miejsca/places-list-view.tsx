@@ -37,7 +37,7 @@ type ViewMode = "list" | "map";
 
 interface MarkerGroup {
   coords: [number, number];
-  events: { id: string; title: string; slug: string; venue_name: string; image_url?: string | null }[];
+  events: { id: string; title: string; slug: string; street: string; city: string; image_url?: string | null }[];
   label: string;
 }
 
@@ -146,7 +146,8 @@ export function PlacesListView({ places }: PlacesListViewProps) {
         id: place.id,
         title: place.title,
         slug: place.slug,
-        venue_name: [place.street, place.city].filter(Boolean).join(", "),
+        street: place.street,
+        city: place.city,
         image_url: place.image_url,
       });
     }
@@ -236,7 +237,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
         mobile
         title="Chcesz stworzyć z nami mapę miejsc?"
         description="Dodaj swoje miejsce i pomóż rodzicom odkrywać wartościowe adresy w Krakowie."
-        buttonLabel="Wypełnij formularz"
+        buttonLabel="Dodaj miejsce"
         href="/dodaj?type=place"
       />
 
@@ -431,7 +432,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
             <SubmissionCta
               title="Chcesz stworzyć z nami mapę miejsc?"
               description="Dodaj swoje miejsce i pomóż rodzicom odkrywać wartościowe adresy w Krakowie."
-              buttonLabel="Wypełnij formularz"
+              buttonLabel="Dodaj miejsce"
               href="/dodaj?type=place"
             />
 

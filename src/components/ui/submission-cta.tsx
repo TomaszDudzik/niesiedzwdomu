@@ -46,9 +46,10 @@ export function SubmissionCta({
   }
 
   return (
-    <div
+    <Link
+      href={href}
       className={cn(
-        "relative overflow-hidden rounded-2xl border border-sky-200/80 bg-[linear-gradient(180deg,rgba(240,249,255,0.98),rgba(236,253,255,0.98))] px-3 py-2 shadow-[0_14px_34px_-30px_rgba(14,116,144,0.35)]",
+        "group relative overflow-hidden rounded-2xl border border-sky-200/80 bg-[linear-gradient(180deg,rgba(240,249,255,0.98),rgba(236,253,255,0.98))] px-3 py-2 shadow-[0_14px_34px_-30px_rgba(14,116,144,0.35)] transition-colors duration-200 hover:border-sky-300/90",
         "mb-2 hidden lg:flex",
         className
       )}
@@ -63,15 +64,12 @@ export function SubmissionCta({
           <p className="mt-0.5 text-[10px] text-slate-600 sm:text-[11px]">{description}</p>
         </div>
         <div className="ml-auto shrink-0 pl-1 pr-0.5">
-          <Link
-            href={href}
-            className="group inline-flex items-center gap-1.5 rounded-full border border-cyan-700/20 bg-white/85 px-3 py-1.5 text-[10px] font-semibold text-cyan-800 shadow-[0_10px_22px_-18px_rgba(8,145,178,0.7)] transition-all duration-200 hover:border-cyan-700/35 hover:bg-cyan-700 hover:text-white sm:px-3.5 sm:text-[11px]"
-          >
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan-700/20 bg-white/85 px-3 py-1.5 text-[10px] font-semibold text-cyan-800 shadow-[0_10px_22px_-18px_rgba(8,145,178,0.7)] transition-all duration-200 group-hover:border-cyan-700/35 group-hover:bg-cyan-700 group-hover:text-white sm:px-3.5 sm:text-[11px]">
             {buttonLabel}
             <ArrowRight size={13} className="transition-transform duration-200 group-hover:translate-x-0.5" />
-          </Link>
+          </span>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }

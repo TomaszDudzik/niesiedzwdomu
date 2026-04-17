@@ -18,9 +18,10 @@ import {
   X,
 } from "lucide-react";
 import { CAMP_CATEGORY_LABELS, CAMP_MAIN_CATEGORY_ICONS, CAMP_MAIN_CATEGORY_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
-import { cn, formatDateShort, formatPrice } from "@/lib/utils";
+import { cn, formatDateShort, formatPrice, thumbUrl } from "@/lib/utils";
 import type { Camp, Organizer } from "@/types/database";
 import { ImageSection } from "@/components/admin/image-section";
+import { OrganizerCombobox } from "@/components/admin/organizer-combobox";
 import { TaxonomyFields } from "@/components/admin/taxonomy-fields";
 import { useAdminTaxonomy } from "@/lib/use-admin-taxonomy";
 
@@ -877,8 +878,8 @@ export default function AdminCampsPage() {
                               <span className="shrink-0 w-6 text-center text-[11px] font-mono text-muted-foreground">{index + 1}</span>
                               <span className="shrink-0 text-lg">{getCampGroupIcon(getCampGroupKey(camp))}</span>
 
-                              {camp.image_url ? (
-                                <img src={camp.image_url} alt="" className="w-8 h-8 rounded object-cover shrink-0" />
+                              {thumbUrl(camp.image_thumb, camp.image_url) ? (
+                                <img src={thumbUrl(camp.image_thumb, camp.image_url) || ""} alt="" className="w-8 h-8 rounded object-cover shrink-0" />
                               ) : (
                                 <span className="w-8 h-8 rounded bg-stone-100 shrink-0 flex items-center justify-center text-[10px] text-stone-400">—</span>
                               )}
@@ -921,9 +922,22 @@ export default function AdminCampsPage() {
                             {isEditing && (
                               <div className="px-3 pb-3 pt-2 border-t border-border/50">
                                 <div className="grid grid-cols-1 md:grid-cols-6 gap-3 mb-4">
-                                  <div className="md:col-span-6">
+                                  <div className="md:col-span-3">
                                     <label className={labelClass}>Tytuł</label>
                                     <input className={inputClass} value={(editForm.title as string) || ""} onChange={(e) => updateField("title", e.target.value)} />
+                                  </div>
+                                  <div className="md:col-span-3">
+                                    <label className={labelClass}>Organizator</label>
+                                    <OrganizerCombobox
+                                      organizers={organizers}
+                                      value={(editForm.organizer_id as string) || null}
+                                      onChange={(organizerId) => {
+                                        const organizer = organizers.find((item) => item.id === organizerId);
+                                        updateField("organizer_id", organizerId);
+                                        updateField("organizer", organizer ? organizer.name : "");
+                                      }}
+                                      inputClassName={inputClass}
+                                    />
                                   </div>
 
                                   <div className="md:col-span-6">
@@ -1005,23 +1019,6 @@ export default function AdminCampsPage() {
                                     onCategoryLevel3Change={(value) => updateField("category_lvl_3", value)}
                                   />
 
-                                  <div className="md:col-span-4">
-                                    <label className={labelClass}>Organizator</label>
-                                    <select
-                                      className={inputClass}
-                                      value={(editForm.organizer_id as string) || ""}
-                                      onChange={(e) => {
-                                        const org = organizers.find((o) => o.id === e.target.value);
-                                        updateField("organizer_id", e.target.value || null);
-                                        updateField("organizer", org ? org.name : "");
-                                      }}
-                                    >
-                                      <option value="">— brak —</option>
-                                      {organizers.map((o) => (
-                                        <option key={o.id} value={o.id}>{o.name}</option>
-                                      ))}
-                                    </select>
-                                  </div>
                                   <div>
                                     <label className={labelClass}>Likes</label>
                                     <input type="number" min={0} className={inputClass} value={(editForm.likes as number) ?? 0} onChange={(e) => updateField("likes", Number(e.target.value) || 0)} />
@@ -1081,6 +1078,7 @@ export default function AdminCampsPage() {
 
                                   <ImageSection
                                     imageUrl={camp.image_url}
+                                    imageCover={camp.image_cover}
                                     imageThumb={camp.image_thumb}
                                     pendingPreview={pendingPreview}
                                     onFileSelect={handleFileSelect}

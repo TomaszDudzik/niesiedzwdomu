@@ -31,7 +31,7 @@ function pickFields(input: Record<string, unknown>) {
 export async function GET() {
   const db = getDb();
   const { data, error } = await db
-    .from("companies")
+    .from("organizers")
     .select("*")
     .order("name", { ascending: true });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
   if (!payload.city) payload.city = "Kraków";
 
   const { data, error } = await db
-    .from("companies")
+    .from("organizers")
     .insert(payload)
     .select()
     .single();
@@ -68,7 +68,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "name required" }, { status: 400 });
   }
   const { data, error } = await db
-    .from("companies")
+    .from("organizers")
     .update(patch)
     .eq("id", id)
     .select()
@@ -83,7 +83,7 @@ export async function DELETE(request: NextRequest) {
   const db = getDb();
   const { id } = await request.json();
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
-  const { error } = await db.from("companies").delete().eq("id", id);
+  const { error } = await db.from("organizers").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }

@@ -6,9 +6,10 @@ import {
   ExternalLink, Save, X, Upload, XCircle, MapPin, Plus, ClipboardPaste, ChevronDown, ChevronRight, Star,
 } from "lucide-react";
 import { PLACE_TYPE_LABELS, PLACE_TYPE_ICONS, DISTRICT_LIST } from "@/lib/mock-data";
-import { cn } from "@/lib/utils";
-import type { Place } from "@/types/database";
+import { cn, thumbUrl } from "@/lib/utils";
+import type { Organizer, Place } from "@/types/database";
 import { ImageSection } from "@/components/admin/image-section";
+import { OrganizerCombobox } from "@/components/admin/organizer-combobox";
 import { TaxonomyFields } from "@/components/admin/taxonomy-fields";
 import { useAdminTaxonomy } from "@/lib/use-admin-taxonomy";
 
@@ -68,6 +69,7 @@ export default function AdminPlacesPage() {
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
   const [statusFilter, setStatusFilter] = useState<PlaceListFilter>("all");
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const [organizers, setOrganizers] = useState<Organizer[]>([]);
 
   const isCategoryExpanded = (type: string) => !collapsedCategories[type];
   const toggleCategory = (type: string) => {
@@ -151,6 +153,7 @@ export default function AdminPlacesPage() {
 
   const FIELD_ALIASES: Record<string, string[]> = {
     title: ["title", "tytuł", "tytul", "nazwa", "name"],
+    organizer: ["organizer", "organizator"],
     description_short: ["description_short", "krótki opis", "krotki opis", "opis krótki", "short description", "opis"],
     description_long: ["description_long", "długi opis", "dlugi opis", "opis długi", "long description"],
     category_lvl_1: ["category_lvl_1", "main_category", "place_type", "typ", "type", "kategoria glowna", "kategoria", "category"],
@@ -197,6 +200,14 @@ export default function AdminPlacesPage() {
           place[field] = val;
         }
       }
+      const organizerName = typeof place.organizer === "string" ? place.organizer.trim() : "";
+      const matchedOrganizer = organizerName
+        ? organizers.find((organizer) => organizer.name.toLowerCase() === organizerName.toLowerCase())
+        : null;
+      if (matchedOrganizer) {
+        place.organizer_id = matchedOrganizer.id;
+      }
+      delete place.organizer;
       if (!place.title) continue;
 
       try {
@@ -268,6 +279,14 @@ export default function AdminPlacesPage() {
   }, []);
 
   useEffect(() => { fetchPlaces(); }, [fetchPlaces]);
+
+  useEffect(() => {
+    fetch("/api/admin/organizers")
+      .then((response) => response.json())
+      .then((data) => {
+        if (Array.isArray(data)) setOrganizers(data);
+      });
+  }, []);
 
   const filteredPlaces = useMemo(() => {
     const scopedPlaces = typeFilter ? places.filter((place) => getPlaceGroupKey(place) === typeFilter) : places;
@@ -385,6 +404,7 @@ export default function AdminPlacesPage() {
       age_max: place.age_max,
       source_url: place.source_url,
       facebook_url: place.facebook_url ?? "",
+      organizer_id: place.organizer_id ?? null,
       is_indoor: place.is_indoor,
       is_free: place.is_free,
       is_featured: place.is_featured,
@@ -436,6 +456,7 @@ export default function AdminPlacesPage() {
       age_max: editForm.age_max ?? null,
       source_url: editForm.source_url || null,
       facebook_url: editForm.facebook_url ? String(editForm.facebook_url) : null,
+      organizer_id: editForm.organizer_id || null,
       is_featured: Boolean(editForm.is_featured),
       likes: Number(editForm.likes) || 0,
       dislikes: Number(editForm.dislikes) || 0,
@@ -653,8 +674,8 @@ export default function AdminPlacesPage() {
                   <span className="shrink-0 text-lg">{getPlaceCategoryIcon(getPlaceMainCategory(place))}</span>
 
                   {/* Image thumbnail */}
-                  {place.image_url ? (
-                    <img src={place.image_url} alt="" className="w-8 h-8 rounded object-cover shrink-0" />
+                  {thumbUrl(place.image_thumb, place.image_url) ? (
+                    <img src={thumbUrl(place.image_thumb, place.image_url) || ""} alt="" className="w-8 h-8 rounded object-cover shrink-0" />
                   ) : (
                     <span className="w-8 h-8 rounded bg-stone-100 shrink-0 flex items-center justify-center text-[10px] text-stone-400">—</span>
                   )}
@@ -732,9 +753,18 @@ export default function AdminPlacesPage() {
                     <div className="rounded-lg border border-border/50 p-3 mb-4 space-y-3">
                       <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Opis miejsca</p>
                       <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
-                        <div className="md:col-span-6">
+                        <div className="md:col-span-3">
                           <label className={labelClass}>Nazwa miejsca</label>
                           <input className={inputClass} value={(editForm.title as string) || ""} onChange={(e) => updateField("title", e.target.value)} />
+                        </div>
+                        <div className="md:col-span-3">
+                          <label className={labelClass}>Organizator</label>
+                          <OrganizerCombobox
+                            organizers={organizers}
+                            value={(editForm.organizer_id as string) || null}
+                            onChange={(organizerId) => updateField("organizer_id", organizerId)}
+                            inputClassName={inputClass}
+                          />
                         </div>
                         <div className="md:col-span-6">
                           <label className={labelClass}>Krótki opis</label>
@@ -938,6 +968,7 @@ export default function AdminPlacesPage() {
                       {/* Right: Image */}
                       <ImageSection
                         imageUrl={place.image_url}
+                        imageCover={place.image_cover}
                         imageThumb={place.image_thumb}
                         pendingPreview={pendingPreview}
                         onFileSelect={handleFileSelect}

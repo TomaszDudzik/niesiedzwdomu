@@ -94,11 +94,13 @@ export interface Event {
   is_free: boolean;
   category_lvl_2?: EventCategory;
   district: District;
-  venue_name: string;
-  venue_address: string;
+  street: string;
+  city: string;
   lat: number | null;
   lng: number | null;
   organizer: string | null;
+  organizer_id?: string | null;
+  organizer_data?: Company | null;
   source_url: string | null;
   facebook_url: string | null;
   is_featured: boolean;
@@ -217,6 +219,8 @@ export interface Activity {
   venue_name: string;
   venue_address: string;
   organizer: string;
+  organizer_id?: string | null;
+  organizer_data?: Company | null;
   source_url: string | null;
   facebook_url: string | null;
   is_featured: boolean;
@@ -262,6 +266,8 @@ export interface Place {
   is_free: boolean;
   amenities: string[];
   opening_hours: string | null;
+  organizer_id?: string | null;
+  organizer_data?: Company | null;
   source_url: string | null;
   facebook_url: string | null;
   is_featured: boolean;

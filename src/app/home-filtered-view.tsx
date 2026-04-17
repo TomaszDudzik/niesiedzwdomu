@@ -22,7 +22,7 @@ interface OrganizerTile {
 }
 
 function getOrganizerName(camp: Camp): string {
-  return camp.organizer?.trim() || camp.venue_name?.trim() || camp.title;
+  return camp.organizer_data?.name?.trim() || camp.organizer?.trim() || "";
 }
 
 function getSessionLabel(count: number): string {
@@ -256,7 +256,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
     if (search) {
       const q = search.toLowerCase();
       result = result.filter((e) =>
-        [e.title, e.description_short, e.venue_name, e.district].join(" ").toLowerCase().includes(q)
+        [e.title, e.description_short, e.street, e.city, e.district].join(" ").toLowerCase().includes(q)
       );
     }
     if (activeTypeLevel2.length > 0) {
@@ -391,7 +391,8 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
     [...filteredCamps]
       .sort((a, b) => new Date(a.date_start).getTime() - new Date(b.date_start).getTime())
       .forEach((camp) => {
-        const name = camp.organizer_data?.name ?? getOrganizerName(camp);
+        const name = getOrganizerName(camp);
+        if (!name) return;
         const key = camp.organizer_id ? `id:${camp.organizer_id}` : name.toLowerCase();
         const existing = map.get(key);
         if (!existing) {

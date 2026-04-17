@@ -91,6 +91,7 @@ function normalizePlaceRecord(record: Record<string, unknown>) {
   const categoryLevel1 = record.category_lvl_1 ?? record.main_category ?? null;
   const categoryLevel2 = record.category_lvl_2 ?? record.category ?? null;
   const categoryLevel3 = record.category_lvl_3 ?? record.subcategory ?? null;
+  const organizerData = record.organizer_data as Record<string, unknown> | null | undefined;
 
   return {
     ...record,
@@ -104,6 +105,7 @@ function normalizePlaceRecord(record: Record<string, unknown>) {
     main_category: categoryLevel1,
     category: categoryLevel2,
     subcategory: categoryLevel3,
+    organizer_data: organizerData ?? null,
   };
 }
 
@@ -200,7 +202,7 @@ export async function GET() {
   const categoryMaps = await loadAdminCategoryMaps(db);
   const { data, error } = await db
     .from("places")
-    .select("*")
+    .select("*, organizer_data:organizer_id(*)")
     .order("title", { ascending: true });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

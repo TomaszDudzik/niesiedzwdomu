@@ -29,8 +29,8 @@ const EMPTY_EVENT: Omit<Event, "id" | "created_at" | "updated_at"> = {
   is_free: false,
   category: "inne",
   district: "Stare Miasto",
-  venue_name: "",
-  venue_address: "",
+  street: "",
+  city: "Kraków",
   lat: null,
   lng: null,
   source_url: null,
@@ -286,32 +286,31 @@ export function AdminEventForm({ event, onSave, onCancel }: AdminEventFormProps)
           </select>
         </div>
 
-        {/* Venue name */}
         <div>
           <label className="block text-xs font-medium text-muted mb-1.5">
-            Nazwa miejsca *
+            Ulica i numer *
           </label>
           <input
             type="text"
-            value={form.venue_name}
-            onChange={(e) => update("venue_name", e.target.value)}
+            value={form.street}
+            onChange={(e) => update("street", e.target.value)}
             required
             className="w-full px-3 py-2.5 rounded-xl border border-border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            placeholder="np. Teatr Groteska"
+            placeholder="np. ul. Skarbowa 2"
           />
         </div>
 
-        {/* Venue address */}
         <div>
           <label className="block text-xs font-medium text-muted mb-1.5">
-            Adres
+            Miasto *
           </label>
           <input
             type="text"
-            value={form.venue_address}
-            onChange={(e) => update("venue_address", e.target.value)}
+            value={form.city}
+            onChange={(e) => update("city", e.target.value)}
+            required
             className="w-full px-3 py-2.5 rounded-xl border border-border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            placeholder="ul. Skarbowa 2, Kraków"
+            placeholder="np. Kraków"
           />
         </div>
 

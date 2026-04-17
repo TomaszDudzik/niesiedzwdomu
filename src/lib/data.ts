@@ -51,6 +51,53 @@ function pickString(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function normalizeImageFields(row: Record<string, unknown>) {
+  const imageUrl = pickString(row.image_url);
+  const imageCover = pickString(row.image_cover);
+  const effectiveCover = imageCover ?? imageUrl;
+  const imageThumb = pickString(row.image_thumb)
+    ?? (effectiveCover?.includes("-cover.webp") ? effectiveCover.replace("-cover.webp", "-thumb.webp") : null);
+
+  return {
+    image_url: effectiveCover,
+    image_cover: imageCover ?? effectiveCover,
+    image_thumb: imageThumb,
+  };
+}
+
+function normalizeEventLocationFields(row: Record<string, unknown>) {
+  const street = pickString(row.street);
+  const city = pickString(row.city);
+
+  if (street || city) {
+    return {
+      street: street ?? "",
+      city: city ?? "Kraków",
+    };
+  }
+
+  const legacyAddress = pickString(row.venue_address);
+  if (!legacyAddress) {
+    return {
+      street: "",
+      city: "Kraków",
+    };
+  }
+
+  const parts = legacyAddress.split(",").map((part) => part.trim()).filter(Boolean);
+  if (parts.length >= 2) {
+    return {
+      street: parts.slice(0, -1).join(", "),
+      city: parts[parts.length - 1] ?? "Kraków",
+    };
+  }
+
+  return {
+    street: legacyAddress,
+    city: "Kraków",
+  };
+}
+
 function normalizeCategoryFields(row: Record<string, unknown>, maps: AdminCategoryMaps): Record<string, unknown> {
   const normalized = withCategoryNames(row, maps);
 
@@ -60,6 +107,7 @@ function normalizeCategoryFields(row: Record<string, unknown>, maps: AdminCatego
 
   return {
     ...normalized,
+    ...normalizeImageFields(normalized),
     category_lvl_1: categoryLevel1,
     category_lvl_2: categoryLevel2,
     category_lvl_3: categoryLevel3,
@@ -81,12 +129,20 @@ function toEvent(row: Record<string, unknown>, maps: AdminCategoryMaps): Event {
     pickString(normalized.category_lvl_1) ??
     pickString(normalized.category) ??
     "Bez kategorii";
+  const location = normalizeEventLocationFields(normalized);
+  const organizerData = row.organizer_data as Record<string, unknown> | null | undefined;
+  const organizer = typeof organizerData?.name === "string" && organizerData.name.trim().length > 0
+    ? organizerData.name
+    : pickString(row.organizer);
 
   return {
     ...normalized,
+    ...location,
     content_type: "event",
     main_category: pickString(normalized.category_lvl_1),
     category: displayCategory,
+    organizer,
+    organizer_data: organizerData ?? null,
   } as unknown as Event;
 }
 
@@ -133,6 +189,10 @@ function toActivity(row: Record<string, unknown>, maps: AdminCategoryMaps): Acti
     pickString(normalized.category_lvl_1) ??
     pickString(normalized.activity_type) ??
     "Bez kategorii";
+  const organizerData = row.organizer_data as Record<string, unknown> | null | undefined;
+  const organizer = typeof organizerData?.name === "string" && organizerData.name.trim().length > 0
+    ? organizerData.name
+    : String(row.organizer || "");
 
   return {
     ...normalized,
@@ -144,6 +204,8 @@ function toActivity(row: Record<string, unknown>, maps: AdminCategoryMaps): Acti
     days_of_week: Array.isArray(row.days_of_week) ? row.days_of_week.map(String) : [],
     price_from: typeof row.price_from === "number" ? row.price_from : null,
     price_to: typeof row.price_to === "number" ? row.price_to : null,
+    organizer,
+    organizer_data: organizerData ?? null,
   } as unknown as Activity;
 }
 
@@ -153,7 +215,7 @@ export async function getPublishedEvents(limit = 50): Promise<Event[]> {
   const today = new Date().toISOString().slice(0, 10);
   const { data } = await db
     .from("events")
-    .select("*")
+    .select("*, organizer_data:organizer_id(*)")
     .eq("status", "published")
     .or(`date_start.gte.${today},date_end.gte.${today}`)
     .order("date_start", { ascending: true })
@@ -167,7 +229,7 @@ export async function getFeaturedEvent(): Promise<Event | null> {
   const today = new Date().toISOString().slice(0, 10);
   const { data } = await db
     .from("events")
-    .select("*")
+    .select("*, organizer_data:organizer_id(*)")
     .eq("status", "published")
     .eq("is_featured", true)
     .or(`date_start.gte.${today},date_end.gte.${today}`)
@@ -183,7 +245,7 @@ export async function getFreeEvents(limit = 3): Promise<Event[]> {
   const today = new Date().toISOString().slice(0, 10);
   const { data } = await db
     .from("events")
-    .select("*")
+    .select("*, organizer_data:organizer_id(*)")
     .eq("status", "published")
     .eq("is_free", true)
     .or(`date_start.gte.${today},date_end.gte.${today}`)
@@ -197,7 +259,7 @@ export async function getEventBySlug(slug: string): Promise<Event | null> {
   const maps = await getCategoryMaps();
   const { data } = await db
     .from("events")
-    .select("*")
+    .select("*, organizer_data:organizer_id(*)")
     .eq("slug", slug)
     .eq("status", "published")
     .single();
@@ -222,7 +284,7 @@ export async function getRelatedEvents(event: Event, limit = 3): Promise<Event[]
 
   const { data } = await db
     .from("events")
-    .select("*")
+    .select("*, organizer_data:organizer_id(*)")
     .eq("status", "published")
     .neq("id", event.id)
     .or(`date_start.gte.${today},date_end.gte.${today}`)
@@ -288,6 +350,10 @@ export async function getCampBySlug(slug: string): Promise<Camp | null> {
 }
 
 export async function getCampSessionsByOrganizer(organizerId: string | null | undefined, organizer: string, excludeId: string): Promise<Camp[]> {
+  if (!organizerId && !organizer) {
+    return [];
+  }
+
   const db = getDb();
   const maps = await getCategoryMaps();
   let query = db
@@ -311,7 +377,7 @@ export async function getPublishedActivities(limit = 120): Promise<Activity[]> {
   const today = new Date().toISOString().slice(0, 10);
   const { data } = await db
     .from("activities")
-    .select("*")
+    .select("*, organizer_data:organizer_id(*)")
     .eq("status", "published")
     .or(`date_end.is.null,date_end.gte.${today}`)
     .order("is_featured", { ascending: false })

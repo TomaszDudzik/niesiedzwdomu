@@ -60,7 +60,7 @@ export function getSubcategoryIcon(item: DiscoveryItem): string {
 /** Get the primary location text */
 export function getLocationText(item: DiscoveryItem): string {
   switch (item.content_type) {
-    case "event": return item.venue_name;
+    case "event": return [item.street, item.city].filter(Boolean).join(", ");
     case "camp": return item.venue_name;
     case "place": return [item.street, item.city].filter(Boolean).join(", ");
     case "activity": return item.venue_name;

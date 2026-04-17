@@ -105,6 +105,10 @@ function normalizeActivityRecord(record: Record<string, unknown>) {
   const categoryLevel1 = record.category_lvl_1 ?? record.main_category ?? null;
   const categoryLevel2 = record.category_lvl_2 ?? record.category ?? null;
   const categoryLevel3 = record.category_lvl_3 ?? record.subcategory ?? null;
+  const organizerData = record.organizer_data as Record<string, unknown> | null | undefined;
+  const organizer = typeof organizerData?.name === "string" && organizerData.name.trim().length > 0
+    ? organizerData.name
+    : (typeof record.organizer === "string" ? record.organizer : "");
 
   return {
     ...record,
@@ -118,6 +122,8 @@ function normalizeActivityRecord(record: Record<string, unknown>) {
     main_category: categoryLevel1,
     category: categoryLevel2,
     subcategory: categoryLevel3,
+    organizer,
+    organizer_data: organizerData ?? null,
   };
 }
 
@@ -238,6 +244,7 @@ function pickActivityFields(input: Record<string, unknown>) {
     venue_name: input.venue_name,
     venue_address: input.venue_address,
     organizer: input.organizer,
+    organizer_id: input.organizer_id ?? null,
     source_url: input.source_url,
     facebook_url: input.facebook_url,
     is_featured: input.is_featured,
@@ -250,7 +257,7 @@ function pickActivityFields(input: Record<string, unknown>) {
 export async function GET() {
   const db = getDb();
   const categoryMaps = await loadAdminCategoryMaps(db);
-  const { data, error } = await db.from("activities").select("*").order("title", { ascending: true });
+  const { data, error } = await db.from("activities").select("*, organizer_data:organizer_id(*)").order("title", { ascending: true });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(Array.isArray(data) ? data.map((record) => normalizeActivityRecord(withCategoryNames(record as Record<string, unknown>, categoryMaps))) : []);
@@ -288,7 +295,7 @@ const ALLOWED_ACTIVITY_FIELDS = new Set([
   "activity_type", "schedule_summary", "days_of_week",
   "date_start", "date_end", "time_start", "time_end",
   "age_min", "age_max", "price_from", "price_to", "is_free",
-  "district", "venue_name", "venue_address", "organizer",
+  "district", "venue_name", "venue_address", "organizer", "organizer_id",
   "source_url", "facebook_url", "is_featured", "status", "likes", "dislikes",
 ]);
 

@@ -69,7 +69,7 @@ export function filterEvents(events: Event[], filters: EventFilters): Event[] {
     if (filters.isFree && !event.is_free) return false;
     if (!matchesAge(event.age_min, event.age_max, filters.ageGroup)) return false;
     if (!matchesDateRange(event.date_start, filters.dateRange)) return false;
-    if (!matchesSearch([event.title, event.description_short, event.venue_name, event.district, event.organizer], filters.search)) return false;
+    if (!matchesSearch([event.title, event.description_short, event.street, event.city, event.district, event.organizer], filters.search)) return false;
     return true;
   });
 }

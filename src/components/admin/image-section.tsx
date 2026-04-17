@@ -11,6 +11,7 @@ type TableName = "camps" | "events" | "activities" | "places";
 
 interface ImageSectionProps {
   imageUrl: string | null;
+  imageCover?: string | null;
   imageThumb?: string | null;
   pendingPreview: string | null;
   onFileSelect: (file: File) => void;
@@ -27,6 +28,7 @@ interface ImageSectionProps {
 
 export function ImageSection({
   imageUrl,
+  imageCover,
   imageThumb,
   pendingPreview,
   onFileSelect,
@@ -43,9 +45,10 @@ export function ImageSection({
   const [pendingThumbFile, setPendingThumbFile] = useState<File | null>(null);
   const [pendingThumbPreview, setPendingThumbPreview] = useState<string | null>(null);
   const [uploadingThumb, setUploadingThumb] = useState(false);
+  const coverSrc = imageCover || imageUrl || "";
 
-  const hasThumb = pendingThumbPreview || imageThumb || imageUrl?.includes("-cover.webp");
-  const thumbSrc = pendingThumbPreview || imageThumb || imageUrl?.replace("-cover.webp", "-thumb.webp") || "";
+  const hasThumb = pendingThumbPreview || imageThumb || coverSrc.includes("-cover.webp");
+  const thumbSrc = pendingThumbPreview || imageThumb || coverSrc.replace("-cover.webp", "-thumb.webp") || "";
 
   const handleThumbSelect = (file: File) => {
     if (pendingThumbPreview) URL.revokeObjectURL(pendingThumbPreview);
@@ -71,7 +74,7 @@ export function ImageSection({
       const res = await fetch("/api/admin/upload-image", { method: "POST", body: formData });
       const data = await res.json();
       if (data.image_url) {
-        onRandomPhoto(imageUrl || "", data.image_url);
+        onRandomPhoto(coverSrc, data.image_url);
         clearThumb();
       } else {
         alert(data.error || "Błąd wgrywania thumb");
@@ -120,10 +123,10 @@ export function ImageSection({
         {/* Cover */}
         <div className="space-y-2">
           <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Cover</p>
-          {(pendingPreview || imageUrl) ? (
+          {(pendingPreview || coverSrc) ? (
             <div className="relative">
               <img
-                src={pendingPreview || imageUrl || ""}
+                src={pendingPreview || coverSrc}
                 alt=""
                 className={cn("w-full aspect-[3/2] rounded-lg object-cover border border-border", pendingPreview && "ring-2 ring-primary/40")}
               />

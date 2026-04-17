@@ -136,7 +136,7 @@ function groupByLocation(events: Event[]): MarkerGroup[] {
       : (DISTRICT_COORDS[event.district] || KRAKOW_CENTER);
     const key = `${coords[0]},${coords[1]}`;
     if (!groups[key]) {
-      groups[key] = { coords, events: [], label: event.venue_name || event.district };
+      groups[key] = { coords, events: [], label: event.street || event.city || event.district };
     }
     groups[key].events.push(event);
   }
@@ -213,7 +213,7 @@ export function EventsListView({ events }: EventsListViewProps) {
     if (search) {
       const q = search.toLowerCase();
       result = result.filter((e) =>
-        [e.title, e.description_short, e.venue_name, e.district].join(" ").toLowerCase().includes(q)
+        [e.title, e.description_short, e.street, e.city, e.district].join(" ").toLowerCase().includes(q)
       );
     }
     if (activeCategories.length > 0) {
