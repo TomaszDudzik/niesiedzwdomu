@@ -321,7 +321,7 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
 
       {filtersOpen && (
         <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 space-y-2.5">
-          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Typ</p>} defaultCollapsed={false}>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Typ</p>} defaultCollapsed>
             <div className="flex flex-wrap gap-1">
               {typeOptions.map((option) => {
                 const selected = activeTypes.includes(option.value);
@@ -338,7 +338,7 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
               })}
             </div>
           </FilterSection>
-          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Wiek dziecka</p>} defaultCollapsed={false}>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Wiek dziecka</p>} defaultCollapsed>
             <div className="flex flex-wrap gap-1">
               {AGE_GROUPS.map((group) => {
                 const selected = activeAgeGroups.includes(group.key);
@@ -354,7 +354,7 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
               })}
             </div>
           </FilterSection>
-          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Kategoria</p>} defaultCollapsed={false}>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Kategoria</p>} defaultCollapsed>
             <div className="flex flex-wrap gap-1">
               {categoryOptions.map((option) => {
                 const selected = activeCategories.includes(option.value);

@@ -452,7 +452,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
             </button>
           </div>
 
-          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Grupa</span>} defaultCollapsed={false}>
+          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Grupa</span>} defaultCollapsed>
             <div className="flex flex-wrap gap-1">
               {typeLevel2Options.map((option) => {
                 const selected = activeTypeLevel2.includes(option.value);
@@ -470,7 +470,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
             </div>
           </FilterSection>
 
-          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Typ</span>} defaultCollapsed={false}>
+          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Typ</span>} defaultCollapsed>
             <div className="flex flex-wrap gap-1">
               {typeOptions.map((option) => {
                 const selected = activeTypes.includes(option.value);
@@ -488,7 +488,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
             </div>
           </FilterSection>
 
-          <FilterSection title={<span className="text-[11px] font-medium text-muted-foreground">Wiek dziecka</span>} defaultCollapsed={false}>
+          <FilterSection title={<span className="text-[11px] font-medium text-muted-foreground">Wiek dziecka</span>} defaultCollapsed>
             <div className="flex flex-wrap gap-1.5">
               {AGE_GROUPS.map((group) => (
                 <button key={group.key} onClick={() => setActiveAgeGroup(activeAgeGroup === group.key ? null : group.key)}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +22,24 @@ export function FilterSection({
   contentClassName,
 }: FilterSectionProps) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const [contentHeight, setContentHeight] = useState(0);
+
+  useEffect(() => {
+    const element = contentRef.current;
+    if (!element) return;
+
+    const updateHeight = () => {
+      setContentHeight(element.scrollHeight);
+    };
+
+    updateHeight();
+
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, [children]);
 
   return (
     <div className={cn("rounded-lg border border-border/70 bg-background/40", className)}>
@@ -41,7 +59,18 @@ export function FilterSection({
         />
       </button>
 
-      {!collapsed && <div className={cn("px-2.5 pb-2.5", contentClassName)}>{children}</div>}
+      <div
+        className="overflow-hidden transition-[max-height,opacity] duration-300 ease-out"
+        style={{
+          maxHeight: collapsed ? 0 : contentHeight,
+          opacity: collapsed ? 0 : 1,
+        }}
+        aria-hidden={collapsed}
+      >
+        <div ref={contentRef} className={cn("px-2.5 pb-2.5", contentClassName)}>
+          {children}
+        </div>
+      </div>
     </div>
   );
 }
