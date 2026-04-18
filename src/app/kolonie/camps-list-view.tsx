@@ -819,32 +819,29 @@ export function CampsListView({ camps }: CampsListViewProps) {
                   >
                     <span>{icon}</span>
                     <span>{district}</span>
-
-              <div className="flex items-center gap-2 border-t border-border/70 pt-2">
-                {hasActiveFilters && (
-                  <button onClick={clearFilters} className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors">
-                    <X size={11} /> Wyczyść filtry
+                    <span className="text-[10px] opacity-60">{count}</span>
+                    {selected && <Check size={11} />}
                   </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setFiltersOpen(false)}
-                  className="ml-auto inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-[11px] font-medium text-foreground hover:bg-accent/60 transition-colors"
-                >
-                  Schowaj filtry
-                  <ChevronDown size={11} className="rotate-180" />
-                </button>
-              </div>
+                );
+              })}
+            </div>
           </FilterSection>
 
-          {hasActiveFilters && (
+          <div className="flex items-center gap-2 border-t border-border/70 pt-2">
+            {hasActiveFilters && (
+              <button onClick={clearFilters} className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors">
+                <X size={11} /> Wyczyść filtry
+              </button>
+            )}
             <button
-              onClick={clearFilters}
-              className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+              type="button"
+              onClick={() => setFiltersOpen(false)}
+              className="ml-auto inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-[11px] font-medium text-foreground hover:bg-accent/60 transition-colors"
             >
-              <X size={11} /> Wyczyść filtry
+              Schowaj filtry
+              <ChevronDown size={11} className="rotate-180" />
             </button>
-          )}
+          </div>
         </div>
       )}
 
