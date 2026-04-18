@@ -63,6 +63,10 @@ const FIELD_ALIASES: Record<string, string[]> = {
   organizer: ["organizer", "organizator"],
   venue_name: ["venue_name", "miejsce", "lokalizacja", "nazwa miejsca"],
   venue_address: ["venue_address", "adres", "address"],
+  street: ["street", "ulica", "adres", "address"],
+  postcode: ["postcode", "kod", "kod pocztowy", "zip", "postal code"],
+  city: ["city", "miasto"],
+  note: ["note", "notatka", "uwagi", "dodatkowe informacje"],
   source_url: ["source_url", "url", "link", "link_zrodlowy"],
   facebook_url: ["facebook_url", "facebook", "fb", "facebook page"],
 };
@@ -575,14 +579,15 @@ export default function AdminActivitiesPage() {
   };
 
   const geocodeAddress = async () => {
-    const address = String(editForm.venue_address || "").trim();
-    if (!address) return;
+    const street = String(editForm.street || editForm.venue_address || "").trim();
+    const city = String(editForm.city || "Kraków").trim() || "Kraków";
+    if (!street) return;
     setGeocoding(true);
     try {
       const res = await fetch("/api/admin/geocode", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address, city: "Kraków" }),
+        body: JSON.stringify({ address: street, city }),
       });
       const data = await res.json();
       if (data.lat && data.lng) {
@@ -590,6 +595,8 @@ export default function AdminActivitiesPage() {
           ...prev,
           lat: data.lat,
           lng: data.lng,
+          ...(data.city ? { city: data.city } : {}),
+          ...(data.postcode ? { postcode: data.postcode } : {}),
           ...(data.district ? { district: data.district } : {}),
         }));
       }
@@ -625,7 +632,13 @@ export default function AdminActivitiesPage() {
       category_lvl_3: activity.category_lvl_3 ?? activity.subcategory ?? null,
       venue_name: activity.venue_name,
       venue_address: activity.venue_address,
+      street: activity.street ?? activity.venue_address ?? "",
+      postcode: activity.postcode ?? "",
+      city: activity.city ?? "Kraków",
+      lat: activity.lat ?? null,
+      lng: activity.lng ?? null,
       district: activity.district,
+      note: activity.note ?? "",
       is_free: activity.is_free,
       is_featured: activity.is_featured,
     });
@@ -673,8 +686,14 @@ export default function AdminActivitiesPage() {
       category_lvl_2: editForm.category_lvl_2 ? String(editForm.category_lvl_2) : null,
       category_lvl_3: editForm.category_lvl_3 ? String(editForm.category_lvl_3) : null,
       venue_name: String(editForm.venue_name || ""),
-      venue_address: String(editForm.venue_address || ""),
+      venue_address: [String(editForm.street || editForm.venue_address || "").trim(), String(editForm.city || "Kraków").trim()].filter(Boolean).join(", "),
+      street: String(editForm.street || editForm.venue_address || "").trim(),
+      postcode: editForm.postcode ? String(editForm.postcode).trim() : null,
+      city: String(editForm.city || "Kraków").trim() || "Kraków",
+      lat: editForm.lat === "" || editForm.lat === null ? null : Number(editForm.lat),
+      lng: editForm.lng === "" || editForm.lng === null ? null : Number(editForm.lng),
       district: editForm.district,
+      note: editForm.note ? String(editForm.note) : null,
       is_featured: Boolean(editForm.is_featured),
       is_free: Boolean(editForm.is_free),
       ...(newImageCover ? { image_cover: newImageCover, image_set: null } : {}),
@@ -729,6 +748,12 @@ export default function AdminActivitiesPage() {
       district: "Inne",
       venue_name: "Miejsce",
       venue_address: "Krakow",
+      street: "",
+      postcode: null,
+      city: "Kraków",
+      lat: null,
+      lng: null,
+      note: null,
       organizer: "Organizator",
       organizer_id: null,
       source_url: null,
@@ -915,125 +940,143 @@ export default function AdminActivitiesPage() {
 
                             {isEditing && (
                               <div className="px-3 pb-3 pt-2 border-t border-border/50">
-                                <div className="grid grid-cols-1 md:grid-cols-6 gap-3 mb-3">
-                                  <div className="md:col-span-3">
-                                    <label className={labelClass}>Tytuł</label>
-                                    <input className={inputClass} value={(editForm.title as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, title: event.target.value }))} />
+                                <div className="rounded-lg border border-border/50 p-3 mb-4 space-y-3">
+                                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Opis zajęć</p>
+                                  <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+                                    <div className="md:col-span-3">
+                                      <label className={labelClass}>Tytuł</label>
+                                      <input className={inputClass} value={(editForm.title as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, title: event.target.value }))} />
+                                    </div>
+                                    <div className="md:col-span-3">
+                                      <label className={labelClass}>Organizator</label>
+                                      <OrganizerCombobox
+                                        organizers={organizers}
+                                        value={(editForm.organizer_id as string) || null}
+                                        onChange={(organizerId) => {
+                                          const organizer = organizers.find((item) => item.id === organizerId);
+                                          setEditForm((current) => ({
+                                            ...current,
+                                            organizer_id: organizerId,
+                                            organizer: organizer ? organizer.organizer_name : "",
+                                          }));
+                                        }}
+                                        inputClassName={inputClass}
+                                      />
+                                    </div>
+                                    <div className="md:col-span-6">
+                                      <label className={labelClass}>Krótki opis</label>
+                                      <textarea rows={2} className={inputClass} value={(editForm.description_short as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, description_short: event.target.value }))} />
+                                    </div>
+                                    <div className="md:col-span-6">
+                                      <label className={labelClass}>Długi opis</label>
+                                      <textarea rows={5} className={inputClass} value={(editForm.description_long as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, description_long: event.target.value }))} />
+                                    </div>
                                   </div>
-                                  <div className="md:col-span-3">
-                                    <label className={labelClass}>Organizator</label>
-                                    <OrganizerCombobox
-                                      organizers={organizers}
-                                      value={(editForm.organizer_id as string) || null}
-                                      onChange={(organizerId) => {
-                                        const organizer = organizers.find((item) => item.id === organizerId);
-                                        setEditForm((current) => ({
-                                          ...current,
-                                          organizer_id: organizerId,
-                                          organizer: organizer ? organizer.organizer_name : "",
-                                        }));
-                                      }}
-                                      inputClassName={inputClass}
+                                </div>
+
+                                <div className="rounded-lg border border-border/50 p-3 mb-4 space-y-3">
+                                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Klasyfikacja</p>
+                                  <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
+                                    <TaxonomyFields
+                                      typeLevel1Options={typeLevel1Options}
+                                      typeLevel2Options={typeLevel2Options}
+                                      categoryLevel1Options={categoryLevel1Options}
+                                      categoryLevel2Options={categoryLevel2Options}
+                                      categoryLevel3Options={categoryLevel3Options}
+                                      selectedTypeLevel1Id={typeof editForm.type_lvl_1_id === "string" ? editForm.type_lvl_1_id : null}
+                                      selectedTypeLevel2Id={typeof editForm.type_lvl_2_id === "string" ? editForm.type_lvl_2_id : null}
+                                      selectedCategoryLevel1={typeof editForm.category_lvl_1 === "string" ? editForm.category_lvl_1 : null}
+                                      selectedCategoryLevel2={typeof editForm.category_lvl_2 === "string" ? editForm.category_lvl_2 : null}
+                                      selectedCategoryLevel3={typeof editForm.category_lvl_3 === "string" ? editForm.category_lvl_3 : null}
+                                      loading={taxonomyLoading}
+                                      inputClass={inputClass}
+                                      labelClass={labelClass}
+                                      onTypeLevel1Change={(value) => setEditForm((current) => ({ ...current, type_lvl_1_id: value }))}
+                                      onTypeLevel2Change={(value) => setEditForm((current) => ({ ...current, type_lvl_2_id: value }))}
+                                      onCategoryLevel1Change={(value) => setEditForm((current) => ({ ...current, category_lvl_1: value, category_lvl_2: null, category_lvl_3: null }))}
+                                      onCategoryLevel2Change={(value) => setEditForm((current) => ({ ...current, category_lvl_2: value, category_lvl_3: null }))}
+                                      onCategoryLevel3Change={(value) => setEditForm((current) => ({ ...current, category_lvl_3: value }))}
                                     />
                                   </div>
-                                  <div className="md:col-span-6">
-                                    <label className={labelClass}>Krótki opis</label>
-                                    <textarea rows={2} className={inputClass} value={(editForm.description_short as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, description_short: event.target.value }))} />
-                                  </div>
-                                  <div className="md:col-span-6">
-                                    <label className={labelClass}>Długi opis</label>
-                                    <textarea rows={5} className={inputClass} value={(editForm.description_long as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, description_long: event.target.value }))} />
-                                  </div>
+                                </div>
 
-                                  <div>
-                                    <label className={labelClass}>Data od</label>
-                                    <input type="date" className={inputClass} value={(editForm.date_start as string) || ""} onChange={(e) => setEditForm((c) => ({ ...c, date_start: e.target.value }))} />
+                                <div className="rounded-lg border border-border/50 p-3 mb-4 space-y-3">
+                                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Linki</p>
+                                  <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+                                    <div className="md:col-span-3">
+                                      <label className={labelClass}>URL źródła</label>
+                                      <input className={inputClass} value={(editForm.source_url as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, source_url: event.target.value }))} placeholder="https://..." />
+                                    </div>
+                                    <div className="md:col-span-3">
+                                      <label className={labelClass}>Facebook</label>
+                                      <input className={inputClass} value={(editForm.facebook_url as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, facebook_url: event.target.value }))} placeholder="https://facebook.com/..." />
+                                    </div>
                                   </div>
-                                  <div>
-                                    <label className={labelClass}>Data do</label>
-                                    <input type="date" className={inputClass} value={(editForm.date_end as string) || ""} onChange={(e) => setEditForm((c) => ({ ...c, date_end: e.target.value || null }))} />
-                                  </div>
-                                  <div>
-                                    <label className={labelClass}>Godzina od</label>
-                                    <input type="time" className={inputClass} value={(editForm.time_start as string) || ""} onChange={(e) => setEditForm((c) => ({ ...c, time_start: e.target.value || null }))} />
-                                  </div>
-                                  <div>
-                                    <label className={labelClass}>Godzina do</label>
-                                    <input type="time" className={inputClass} value={(editForm.time_end as string) || ""} onChange={(e) => setEditForm((c) => ({ ...c, time_end: e.target.value || null }))} />
-                                  </div>
-                                  <div>
-                                    <label className={labelClass}>Wiek od</label>
-                                    <input type="number" min={0} max={18} className={inputClass} value={editForm.age_min === null ? "" : String(editForm.age_min ?? "")} onChange={(event) => setEditForm((current) => ({ ...current, age_min: event.target.value ? Number(event.target.value) : null }))} />
-                                  </div>
-                                  <div>
-                                    <label className={labelClass}>Wiek do</label>
-                                    <input type="number" min={0} max={18} className={inputClass} value={editForm.age_max === null ? "" : String(editForm.age_max ?? "")} onChange={(event) => setEditForm((current) => ({ ...current, age_max: event.target.value ? Number(event.target.value) : null }))} />
-                                  </div>
+                                </div>
 
-                                  <div>
-                                    <label className={labelClass}>Cena od</label>
-                                    <input type="number" min={0} className={inputClass} value={editForm.price_from === null ? "" : String(editForm.price_from ?? "")} onChange={(event) => setEditForm((current) => ({ ...current, price_from: event.target.value ? Number(event.target.value) : null }))} />
+                                <div className="rounded-lg border border-border/50 p-3 mb-4 space-y-3">
+                                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Szczegóły zajęć</p>
+                                  <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+                                    <div>
+                                      <label className={labelClass}>Data od</label>
+                                      <input type="date" className={inputClass} value={(editForm.date_start as string) || ""} onChange={(e) => setEditForm((c) => ({ ...c, date_start: e.target.value }))} />
+                                    </div>
+                                    <div>
+                                      <label className={labelClass}>Data do</label>
+                                      <input type="date" className={inputClass} value={(editForm.date_end as string) || ""} onChange={(e) => setEditForm((c) => ({ ...c, date_end: e.target.value || null }))} />
+                                    </div>
+                                    <div>
+                                      <label className={labelClass}>Godzina od</label>
+                                      <input type="time" className={inputClass} value={(editForm.time_start as string) || ""} onChange={(e) => setEditForm((c) => ({ ...c, time_start: e.target.value || null }))} />
+                                    </div>
+                                    <div>
+                                      <label className={labelClass}>Godzina do</label>
+                                      <input type="time" className={inputClass} value={(editForm.time_end as string) || ""} onChange={(e) => setEditForm((c) => ({ ...c, time_end: e.target.value || null }))} />
+                                    </div>
+                                    <div>
+                                      <label className={labelClass}>Wiek od</label>
+                                      <input type="number" min={0} max={18} className={inputClass} value={editForm.age_min === null ? "" : String(editForm.age_min ?? "")} onChange={(event) => setEditForm((current) => ({ ...current, age_min: event.target.value ? Number(event.target.value) : null }))} />
+                                    </div>
+                                    <div>
+                                      <label className={labelClass}>Wiek do</label>
+                                      <input type="number" min={0} max={18} className={inputClass} value={editForm.age_max === null ? "" : String(editForm.age_max ?? "")} onChange={(event) => setEditForm((current) => ({ ...current, age_max: event.target.value ? Number(event.target.value) : null }))} />
+                                    </div>
+                                    <div>
+                                      <label className={labelClass}>Cena od</label>
+                                      <input type="number" min={0} className={inputClass} value={editForm.price_from === null ? "" : String(editForm.price_from ?? "")} onChange={(event) => setEditForm((current) => ({ ...current, price_from: event.target.value ? Number(event.target.value) : null }))} />
+                                    </div>
+                                    <div>
+                                      <label className={labelClass}>Cena do</label>
+                                      <input type="number" min={0} className={inputClass} value={editForm.price_to === null ? "" : String(editForm.price_to ?? "")} onChange={(event) => setEditForm((current) => ({ ...current, price_to: event.target.value ? Number(event.target.value) : null }))} />
+                                    </div>
+                                    <div className="md:col-span-4 flex items-center gap-4 pt-5">
+                                      <label className="flex items-center gap-2 text-[12px] cursor-pointer">
+                                        <input type="checkbox" checked={Boolean(editForm.is_free)} onChange={(e) => setEditForm((c) => ({ ...c, is_free: e.target.checked }))} className="rounded border-border" />
+                                        Bezpłatne
+                                      </label>
+                                      <label className="flex items-center gap-2 text-[12px] cursor-pointer">
+                                        <input type="checkbox" checked={Boolean(editForm.is_featured)} onChange={(e) => setEditForm((c) => ({ ...c, is_featured: e.target.checked }))} className="rounded border-border" />
+                                        Wyróżnione
+                                      </label>
+                                    </div>
+                                    <div className="md:col-span-6">
+                                      <label className={labelClass}>Notatka</label>
+                                      <textarea rows={4} className={inputClass} value={(editForm.note as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, note: event.target.value }))} placeholder="Dodatkowe informacje o zajęciach." />
+                                    </div>
                                   </div>
-                                  <div>
-                                    <label className={labelClass}>Cena do</label>
-                                    <input type="number" min={0} className={inputClass} value={editForm.price_to === null ? "" : String(editForm.price_to ?? "")} onChange={(event) => setEditForm((current) => ({ ...current, price_to: event.target.value ? Number(event.target.value) : null }))} />
-                                  </div>
-                                  <div>
-                                    <label className={labelClass}>Typ</label>
-                                    <select className={inputClass} value={(editForm.activity_type as string) || activity.activity_type} onChange={(event) => setEditForm((current) => ({ ...current, activity_type: event.target.value }))}>
-                                      {ACTIVITY_ORDER.map((activityType) => (
-                                        <option key={activityType} value={activityType}>{ACTIVITY_TYPE_LABELS[activityType]}</option>
-                                      ))}
-                                    </select>
-                                  </div>
-                                  <div className="md:col-span-3 flex items-center gap-4 pt-5">
-                                    <label className="flex items-center gap-2 text-[12px] cursor-pointer">
-                                      <input type="checkbox" checked={Boolean(editForm.is_free)} onChange={(e) => setEditForm((c) => ({ ...c, is_free: e.target.checked }))} className="rounded border-border" />
-                                      Bezpłatne
-                                    </label>
-                                    <label className="flex items-center gap-2 text-[12px] cursor-pointer">
-                                      <input type="checkbox" checked={Boolean(editForm.is_featured)} onChange={(e) => setEditForm((c) => ({ ...c, is_featured: e.target.checked }))} className="rounded border-border" />
-                                      Wyróżnione
-                                    </label>
-                                  </div>
+                                </div>
 
-                                  <div className="md:col-span-3">
-                                    <label className={labelClass}>URL źródła</label>
-                                    <input className={inputClass} value={(editForm.source_url as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, source_url: event.target.value }))} placeholder="https://..." />
-                                  </div>
-                                  <div className="md:col-span-3">
-                                    <label className={labelClass}>Facebook</label>
-                                    <input className={inputClass} value={(editForm.facebook_url as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, facebook_url: event.target.value }))} placeholder="https://facebook.com/..." />
-                                  </div>
-
-                                  <TaxonomyFields
-                                    typeLevel1Options={typeLevel1Options}
-                                    typeLevel2Options={typeLevel2Options}
-                                    categoryLevel1Options={categoryLevel1Options}
-                                    categoryLevel2Options={categoryLevel2Options}
-                                    categoryLevel3Options={categoryLevel3Options}
-                                    selectedTypeLevel1Id={typeof editForm.type_lvl_1_id === "string" ? editForm.type_lvl_1_id : null}
-                                    selectedTypeLevel2Id={typeof editForm.type_lvl_2_id === "string" ? editForm.type_lvl_2_id : null}
-                                    selectedCategoryLevel1={typeof editForm.category_lvl_1 === "string" ? editForm.category_lvl_1 : null}
-                                    selectedCategoryLevel2={typeof editForm.category_lvl_2 === "string" ? editForm.category_lvl_2 : null}
-                                    selectedCategoryLevel3={typeof editForm.category_lvl_3 === "string" ? editForm.category_lvl_3 : null}
-                                    loading={taxonomyLoading}
-                                    inputClass={inputClass}
-                                    labelClass={labelClass}
-                                    onTypeLevel1Change={(value) => setEditForm((current) => ({ ...current, type_lvl_1_id: value }))}
-                                    onTypeLevel2Change={(value) => setEditForm((current) => ({ ...current, type_lvl_2_id: value }))}
-                                    onCategoryLevel1Change={(value) => setEditForm((current) => ({ ...current, category_lvl_1: value, category_lvl_2: null, category_lvl_3: null }))}
-                                    onCategoryLevel2Change={(value) => setEditForm((current) => ({ ...current, category_lvl_2: value, category_lvl_3: null }))}
-                                    onCategoryLevel3Change={(value) => setEditForm((current) => ({ ...current, category_lvl_3: value }))}
-                                  />
-
-                                  <div>
-                                    <label className={labelClass}>Likes</label>
-                                    <input type="number" min={0} className={inputClass} value={(editForm.likes as number) ?? 0} onChange={(e) => setEditForm((c) => ({ ...c, likes: Number(e.target.value) || 0 }))} />
-                                  </div>
-                                  <div>
-                                    <label className={labelClass}>Dislikes</label>
-                                    <input type="number" min={0} className={inputClass} value={(editForm.dislikes as number) ?? 0} onChange={(e) => setEditForm((c) => ({ ...c, dislikes: Number(e.target.value) || 0 }))} />
+                                <div className="rounded-lg border border-border/50 p-3 mb-4 space-y-3">
+                                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Feedback</p>
+                                  <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+                                    <div className="md:col-span-3">
+                                      <label className={labelClass}>Likes</label>
+                                      <input type="number" min={0} className={inputClass} value={(editForm.likes as number) ?? 0} onChange={(e) => setEditForm((c) => ({ ...c, likes: Number(e.target.value) || 0 }))} />
+                                    </div>
+                                    <div className="md:col-span-3">
+                                      <label className={labelClass}>Dislikes</label>
+                                      <input type="number" min={0} className={inputClass} value={(editForm.dislikes as number) ?? 0} onChange={(e) => setEditForm((c) => ({ ...c, dislikes: Number(e.target.value) || 0 }))} />
+                                    </div>
                                   </div>
                                 </div>
 
@@ -1050,15 +1093,23 @@ export default function AdminActivitiesPage() {
                                         <div className="relative">
                                           <input
                                             className={inputClass}
-                                            value={(editForm.venue_address as string) || ""}
-                                            placeholder="np. ul. Skarbowa 2, Kraków"
-                                            onChange={(event) => setEditForm((current) => ({ ...current, venue_address: event.target.value, lat: null, lng: null }))}
+                                            value={(editForm.street as string) || (editForm.venue_address as string) || ""}
+                                            placeholder="np. ul. Skarbowa 2"
+                                            onChange={(event) => setEditForm((current) => ({ ...current, street: event.target.value, venue_address: event.target.value, lat: null, lng: null }))}
                                             onBlur={geocodeAddress}
                                           />
                                           {geocoding && (
                                             <Loader2 size={12} className="animate-spin text-muted absolute right-2 top-1/2 -translate-y-1/2" />
                                           )}
                                         </div>
+                                      </div>
+                                      <div>
+                                        <label className={labelClass}>Kod pocztowy</label>
+                                        <input className={inputClass} value={(editForm.postcode as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, postcode: event.target.value }))} placeholder="np. 30-001" />
+                                      </div>
+                                      <div>
+                                        <label className={labelClass}>Miasto</label>
+                                        <input className={inputClass} value={(editForm.city as string) || "Kraków"} onChange={(event) => setEditForm((current) => ({ ...current, city: event.target.value }))} />
                                       </div>
                                       <div className="col-span-2">
                                         <label className={labelClass}>Współrzędne</label>

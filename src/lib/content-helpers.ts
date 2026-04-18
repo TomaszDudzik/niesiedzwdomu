@@ -40,7 +40,10 @@ export function getTypeBadgeColors(type: ContentType) {
 /** Get the sub-category label (event category, camp type, place type) */
 export function getSubcategoryLabel(item: DiscoveryItem): string {
   switch (item.content_type) {
-    case "event": return CATEGORY_LABELS[item.category_lvl_2 ?? item.category];
+    case "event": {
+      const key = item.category_lvl_2 ?? item.category;
+      return CATEGORY_LABELS[key as keyof typeof CATEGORY_LABELS] ?? key;
+    }
     case "camp": return CAMP_MAIN_CATEGORY_LABELS[item.category_lvl_1 ?? item.main_category];
     case "place": return getPlaceCategoryLabel(item.category_lvl_1 ?? item.main_category ?? item.place_type);
     case "activity": return ACTIVITY_TYPE_LABELS[item.activity_type];
@@ -50,7 +53,10 @@ export function getSubcategoryLabel(item: DiscoveryItem): string {
 /** Get the sub-category icon */
 export function getSubcategoryIcon(item: DiscoveryItem): string {
   switch (item.content_type) {
-    case "event": return CATEGORY_ICONS[item.category_lvl_2 ?? item.category];
+    case "event": {
+      const key = item.category_lvl_2 ?? item.category;
+      return CATEGORY_ICONS[key as keyof typeof CATEGORY_ICONS] ?? "📅";
+    }
     case "camp": return CAMP_MAIN_CATEGORY_ICONS[item.category_lvl_1 ?? item.main_category];
     case "place": return getPlaceCategoryIcon(item.category_lvl_1 ?? item.main_category ?? item.place_type);
     case "activity": return ACTIVITY_TYPE_ICONS[item.activity_type];
@@ -61,9 +67,9 @@ export function getSubcategoryIcon(item: DiscoveryItem): string {
 export function getLocationText(item: DiscoveryItem): string {
   switch (item.content_type) {
     case "event": return [item.street, item.city].filter(Boolean).join(", ");
-    case "camp": return item.venue_name;
+    case "camp": return item.venue_name || [item.street, item.city].filter(Boolean).join(", ");
     case "place": return [item.street, item.city].filter(Boolean).join(", ");
-    case "activity": return item.venue_name;
+    case "activity": return item.venue_name || [item.street, item.city].filter(Boolean).join(", ");
   }
 }
 

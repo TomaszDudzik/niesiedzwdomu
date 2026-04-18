@@ -25,7 +25,8 @@ const EMPTY_EVENT: Omit<Event, "id" | "created_at" | "updated_at"> = {
   time_end: "12:00",
   age_min: null,
   age_max: null,
-  price: null,
+  price_from: null,
+  price_to: null,
   is_free: false,
   category: "inne",
   district: "Stare Miasto",
@@ -250,23 +251,43 @@ export function AdminEventForm({ event, onSave, onCancel }: AdminEventFormProps)
           />
         </div>
 
-        {/* Price */}
+        {/* Price from */}
         <div>
           <label className="block text-xs font-medium text-muted mb-1.5">
-            Cena (zł)
+            Cena od (zł)
           </label>
           <input
             type="number"
-            value={form.price ?? ""}
+            value={form.price_from ?? ""}
             onChange={(e) => {
               const val = e.target.value ? Number(e.target.value) : null;
-              update("price", val);
-              update("is_free", val === null || val === 0);
+              update("price_from", val);
+              update("is_free", val === 0 || form.price_to === 0);
             }}
             min={0}
             step={0.01}
             className="w-full px-3 py-2.5 rounded-xl border border-border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            placeholder="0 = bezpłatnie"
+            placeholder="np. 20"
+          />
+        </div>
+
+        {/* Price to */}
+        <div>
+          <label className="block text-xs font-medium text-muted mb-1.5">
+            Cena do (zł)
+          </label>
+          <input
+            type="number"
+            value={form.price_to ?? ""}
+            onChange={(e) => {
+              const val = e.target.value ? Number(e.target.value) : null;
+              update("price_to", val);
+              update("is_free", form.price_from === 0 || val === 0);
+            }}
+            min={0}
+            step={0.01}
+            className="w-full px-3 py-2.5 rounded-xl border border-border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+            placeholder="np. 50"
           />
         </div>
 

@@ -67,7 +67,9 @@ const FIELD_ALIASES: Record<string, string[]> = {
   facebook_url:        ["facebook_url", "facebook", "fb", "facebook page"],
   venue_name:          ["venue_name", "miejsce", "nazwa miejsca"],
   venue_address:       ["venue_address", "adres", "address", "lokalizacja", "ulica"],
+  postcode:            ["postcode", "kod", "kod pocztowy", "zip", "postal code"],
   city:                ["city", "miasto", "places"],
+  note:                ["note", "notatka", "uwagi", "dodatkowe informacje"],
   care_hours:          ["care_hours", "godziny_opieki", "godziny", "hours"],
   seats:               ["seats", "liczba_miejsc", "liczba_miejsc (jesli dostepna)", "liczba_miejsc (jeśli dostępna)", "miejsca"],
 };
@@ -556,7 +558,9 @@ export default function AdminCampsPage() {
     setPendingFile(null);
     setPendingPreview(null);
     setEditing(camp.id);
-    const { street, city } = splitAddress(camp.venue_address || "");
+    const legacyAddress = splitAddress(camp.venue_address || "");
+    const street = typeof camp.street === "string" && camp.street.trim().length > 0 ? camp.street : legacyAddress.street;
+    const city = typeof camp.city === "string" && camp.city.trim().length > 0 ? camp.city : legacyAddress.city;
     const row = camp as unknown as Record<string, unknown>;
     setEditForm({
       title:              camp.title,
@@ -582,10 +586,12 @@ export default function AdminCampsPage() {
       venue_name:         camp.venue_name,
       venue_address:      camp.venue_address,
       street,
+      postcode:           camp.postcode ?? "",
       city,
       district:           camp.district,
       lat:                camp.lat ?? null,
       lng:                camp.lng ?? null,
+      note:               camp.note ?? "",
       is_free:            camp.is_free,
       is_featured:        camp.is_featured,
       meals_included:     camp.meals_included,
@@ -642,7 +648,11 @@ export default function AdminCampsPage() {
       facebook_url:       editForm.facebook_url ? String(editForm.facebook_url) : null,
       venue_name:         String(editForm.venue_name || ""),
       venue_address:      [String(editForm.street || "").trim(), String(editForm.city || "Kraków").trim()].filter(Boolean).join(", "),
+      street:             String(editForm.street || "").trim(),
+      postcode:           editForm.postcode ? String(editForm.postcode).trim() : null,
+      city:               String(editForm.city || "Kraków").trim() || "Kraków",
       district:           editForm.district,
+      note:               editForm.note ? String(editForm.note) : null,
       is_featured:        Boolean(editForm.is_featured),
       is_free:            Boolean(editForm.is_free),
       meals_included:     Boolean(editForm.meals_included),
@@ -715,6 +725,10 @@ export default function AdminCampsPage() {
         district:           "Inne",
         venue_name:         "Miejsce",
         venue_address:      "Kraków",
+        street:             "",
+        postcode:           null,
+        city:               "Kraków",
+        note:               null,
         organizer:          "Organizator",
         source_url:         null,
         facebook_url:       null,
@@ -792,6 +806,7 @@ export default function AdminCampsPage() {
           ...prev,
           lat: data.lat,
           lng: data.lng,
+          ...(data.postcode ? { postcode: data.postcode } : {}),
           ...(data.district ? { district: data.district } : {}),
         }));
       }
@@ -934,111 +949,136 @@ export default function AdminCampsPage() {
 
                             {isEditing && (
                               <div className="px-3 pb-3 pt-2 border-t border-border/50">
-                                <div className="grid grid-cols-1 md:grid-cols-6 gap-3 mb-4">
-                                  <div className="md:col-span-3">
-                                    <label className={labelClass}>Tytuł</label>
-                                    <input className={inputClass} value={(editForm.title as string) || ""} onChange={(e) => updateField("title", e.target.value)} />
+                                <div className="rounded-lg border border-border/50 p-3 mb-4 space-y-3">
+                                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Opis oferty</p>
+                                  <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+                                    <div className="md:col-span-3">
+                                      <label className={labelClass}>Tytuł</label>
+                                      <input className={inputClass} value={(editForm.title as string) || ""} onChange={(e) => updateField("title", e.target.value)} />
+                                    </div>
+                                    <div className="md:col-span-3">
+                                      <label className={labelClass}>Organizator</label>
+                                      <OrganizerCombobox
+                                        organizers={organizers}
+                                        value={(editForm.organizer_id as string) || null}
+                                        onChange={(organizerId) => {
+                                          const organizer = organizers.find((item) => item.id === organizerId);
+                                          updateField("organizer_id", organizerId);
+                                          updateField("organizer", organizer ? organizer.organizer_name : "");
+                                        }}
+                                        inputClassName={inputClass}
+                                      />
+                                    </div>
+                                    <div className="md:col-span-6">
+                                      <label className={labelClass}>Krótki opis</label>
+                                      <textarea rows={2} className={inputClass} value={(editForm.description_short as string) || ""} onChange={(e) => updateField("description_short", e.target.value)} />
+                                    </div>
+                                    <div className="md:col-span-6">
+                                      <label className={labelClass}>Długi opis</label>
+                                      <textarea rows={5} className={inputClass} value={(editForm.description_long as string) || ""} onChange={(e) => updateField("description_long", e.target.value)} />
+                                    </div>
                                   </div>
-                                  <div className="md:col-span-3">
-                                    <label className={labelClass}>Organizator</label>
-                                    <OrganizerCombobox
-                                      organizers={organizers}
-                                      value={(editForm.organizer_id as string) || null}
-                                      onChange={(organizerId) => {
-                                        const organizer = organizers.find((item) => item.id === organizerId);
-                                        updateField("organizer_id", organizerId);
-                                        updateField("organizer", organizer ? organizer.organizer_name : "");
-                                      }}
-                                      inputClassName={inputClass}
+                                </div>
+
+                                <div className="rounded-lg border border-border/50 p-3 mb-4 space-y-3">
+                                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Klasyfikacja</p>
+                                  <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
+                                    <TaxonomyFields
+                                      typeLevel1Options={typeLevel1Options}
+                                      typeLevel2Options={typeLevel2Options}
+                                      categoryLevel1Options={categoryLevel1Options}
+                                      categoryLevel2Options={categoryLevel2Options}
+                                      categoryLevel3Options={categoryLevel3Options}
+                                      selectedTypeLevel1Id={typeof editForm.type_lvl_1_id === "string" ? editForm.type_lvl_1_id : null}
+                                      selectedTypeLevel2Id={typeof editForm.type_lvl_2_id === "string" ? editForm.type_lvl_2_id : null}
+                                      selectedCategoryLevel1={typeof editForm.category_lvl_1 === "string" ? editForm.category_lvl_1 : null}
+                                      selectedCategoryLevel2={typeof editForm.category_lvl_2 === "string" ? editForm.category_lvl_2 : null}
+                                      selectedCategoryLevel3={typeof editForm.category_lvl_3 === "string" ? editForm.category_lvl_3 : null}
+                                      loading={taxonomyLoading}
+                                      inputClass={inputClass}
+                                      labelClass={labelClass}
+                                      onTypeLevel1Change={(value) => updateField("type_lvl_1_id", value)}
+                                      onTypeLevel2Change={(value) => updateField("type_lvl_2_id", value)}
+                                      onCategoryLevel1Change={(value) => updateField("category_lvl_1", value)}
+                                      onCategoryLevel2Change={(value) => updateField("category_lvl_2", value)}
+                                      onCategoryLevel3Change={(value) => updateField("category_lvl_3", value)}
                                     />
                                   </div>
+                                </div>
 
-                                  <div className="md:col-span-6">
-                                    <label className={labelClass}>Krótki opis</label>
-                                    <textarea rows={2} className={inputClass} value={(editForm.description_short as string) || ""} onChange={(e) => updateField("description_short", e.target.value)} />
+                                <div className="rounded-lg border border-border/50 p-3 mb-4 space-y-3">
+                                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Linki</p>
+                                  <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+                                    <div className="md:col-span-3">
+                                      <label className={labelClass}>URL źródła</label>
+                                      <input className={inputClass} value={(editForm.source_url as string) || ""} onChange={(e) => updateField("source_url", e.target.value)} placeholder="https://..." />
+                                    </div>
+                                    <div className="md:col-span-3">
+                                      <label className={labelClass}>Facebook</label>
+                                      <input className={inputClass} value={(editForm.facebook_url as string) || ""} onChange={(e) => updateField("facebook_url", e.target.value)} placeholder="https://facebook.com/..." />
+                                    </div>
                                   </div>
-                                  <div className="md:col-span-6">
-                                    <label className={labelClass}>Długi opis</label>
-                                    <textarea rows={5} className={inputClass} value={(editForm.description_long as string) || ""} onChange={(e) => updateField("description_long", e.target.value)} />
-                                  </div>
+                                </div>
 
-                                  <div>
-                                    <label className={labelClass}>Data od</label>
-                                    <input type="date" className={inputClass} value={(editForm.date_start as string) || ""} onChange={(e) => updateField("date_start", e.target.value)} />
+                                <div className="rounded-lg border border-border/50 p-3 mb-4 space-y-3">
+                                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Szczegóły oferty</p>
+                                  <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+                                    <div>
+                                      <label className={labelClass}>Data od</label>
+                                      <input type="date" className={inputClass} value={(editForm.date_start as string) || ""} onChange={(e) => updateField("date_start", e.target.value)} />
+                                    </div>
+                                    <div>
+                                      <label className={labelClass}>Data do</label>
+                                      <input type="date" className={inputClass} value={(editForm.date_end as string) || ""} onChange={(e) => updateField("date_end", e.target.value || null)} />
+                                    </div>
+                                    <div>
+                                      <label className={labelClass}>Wiek od</label>
+                                      <input type="number" min={0} max={18} className={inputClass} value={editForm.age_min == null ? "" : String(editForm.age_min)} onChange={(e) => updateField("age_min", e.target.value ? Number(e.target.value) : null)} />
+                                    </div>
+                                    <div>
+                                      <label className={labelClass}>Wiek do</label>
+                                      <input type="number" min={0} max={18} className={inputClass} value={editForm.age_max == null ? "" : String(editForm.age_max)} onChange={(e) => updateField("age_max", e.target.value ? Number(e.target.value) : null)} />
+                                    </div>
+                                    <div>
+                                      <label className={labelClass}>Cena od (zł)</label>
+                                      <input type="number" min={0} className={inputClass} value={editForm.price_from == null ? "" : String(editForm.price_from)} onChange={(e) => updateField("price_from", e.target.value ? Number(e.target.value) : null)} />
+                                    </div>
+                                    <div>
+                                      <label className={labelClass}>Cena do (zł)</label>
+                                      <input type="number" min={0} className={inputClass} value={editForm.price_to == null ? "" : String(editForm.price_to)} onChange={(e) => updateField("price_to", e.target.value ? Number(e.target.value) : null)} />
+                                    </div>
+                                    <div className="md:col-span-6 flex items-center gap-4 pt-2">
+                                      <label className="flex items-center gap-2 text-[12px] cursor-pointer">
+                                        <input type="checkbox" checked={Boolean(editForm.is_free)} onChange={(e) => updateField("is_free", e.target.checked)} className="rounded border-border" />
+                                        Bezpłatne
+                                      </label>
+                                      <label className="flex items-center gap-2 text-[12px] cursor-pointer">
+                                        <input type="checkbox" checked={Boolean(editForm.meals_included)} onChange={(e) => updateField("meals_included", e.target.checked)} className="rounded border-border" />
+                                        Wyżywienie
+                                      </label>
+                                      <label className="flex items-center gap-2 text-[12px] cursor-pointer">
+                                        <input type="checkbox" checked={Boolean(editForm.transport_included)} onChange={(e) => updateField("transport_included", e.target.checked)} className="rounded border-border" />
+                                        Transport
+                                      </label>
+                                    </div>
+                                    <div className="md:col-span-6">
+                                      <label className={labelClass}>Notatka</label>
+                                      <textarea rows={4} className={inputClass} value={(editForm.note as string) || ""} onChange={(e) => updateField("note", e.target.value)} placeholder="Dodatkowe informacje o ofercie." />
+                                    </div>
                                   </div>
-                                  <div>
-                                    <label className={labelClass}>Data do</label>
-                                    <input type="date" className={inputClass} value={(editForm.date_end as string) || ""} onChange={(e) => updateField("date_end", e.target.value || null)} />
-                                  </div>
-                                  <div>
-                                    <label className={labelClass}>Wiek od</label>
-                                    <input type="number" min={0} max={18} className={inputClass} value={editForm.age_min == null ? "" : String(editForm.age_min)} onChange={(e) => updateField("age_min", e.target.value ? Number(e.target.value) : null)} />
-                                  </div>
-                                  <div>
-                                    <label className={labelClass}>Wiek do</label>
-                                    <input type="number" min={0} max={18} className={inputClass} value={editForm.age_max == null ? "" : String(editForm.age_max)} onChange={(e) => updateField("age_max", e.target.value ? Number(e.target.value) : null)} />
-                                  </div>
+                                </div>
 
-                                  <div>
-                                    <label className={labelClass}>Cena od (zł)</label>
-                                    <input type="number" min={0} className={inputClass} value={editForm.price_from == null ? "" : String(editForm.price_from)} onChange={(e) => updateField("price_from", e.target.value ? Number(e.target.value) : null)} />
-                                  </div>
-                                  <div>
-                                    <label className={labelClass}>Cena do (zł)</label>
-                                    <input type="number" min={0} className={inputClass} value={editForm.price_to == null ? "" : String(editForm.price_to)} onChange={(e) => updateField("price_to", e.target.value ? Number(e.target.value) : null)} />
-                                  </div>
-                                  <div className="md:col-span-4 flex items-center gap-4 pt-5">
-                                    <label className="flex items-center gap-2 text-[12px] cursor-pointer">
-                                      <input type="checkbox" checked={Boolean(editForm.is_free)} onChange={(e) => updateField("is_free", e.target.checked)} className="rounded border-border" />
-                                      Bezpłatne
-                                    </label>
-                                    <label className="flex items-center gap-2 text-[12px] cursor-pointer">
-                                      <input type="checkbox" checked={Boolean(editForm.meals_included)} onChange={(e) => updateField("meals_included", e.target.checked)} className="rounded border-border" />
-                                      Wyżywienie
-                                    </label>
-                                    <label className="flex items-center gap-2 text-[12px] cursor-pointer">
-                                      <input type="checkbox" checked={Boolean(editForm.transport_included)} onChange={(e) => updateField("transport_included", e.target.checked)} className="rounded border-border" />
-                                      Transport
-                                    </label>
-                                  </div>
-
-                                  <div className="md:col-span-3">
-                                    <label className={labelClass}>URL źródła</label>
-                                    <input className={inputClass} value={(editForm.source_url as string) || ""} onChange={(e) => updateField("source_url", e.target.value)} placeholder="https://..." />
-                                  </div>
-                                  <div className="md:col-span-3">
-                                    <label className={labelClass}>Facebook</label>
-                                    <input className={inputClass} value={(editForm.facebook_url as string) || ""} onChange={(e) => updateField("facebook_url", e.target.value)} placeholder="https://facebook.com/..." />
-                                  </div>
-
-                                  <TaxonomyFields
-                                    typeLevel1Options={typeLevel1Options}
-                                    typeLevel2Options={typeLevel2Options}
-                                    categoryLevel1Options={categoryLevel1Options}
-                                    categoryLevel2Options={categoryLevel2Options}
-                                    categoryLevel3Options={categoryLevel3Options}
-                                    selectedTypeLevel1Id={typeof editForm.type_lvl_1_id === "string" ? editForm.type_lvl_1_id : null}
-                                    selectedTypeLevel2Id={typeof editForm.type_lvl_2_id === "string" ? editForm.type_lvl_2_id : null}
-                                    selectedCategoryLevel1={typeof editForm.category_lvl_1 === "string" ? editForm.category_lvl_1 : null}
-                                    selectedCategoryLevel2={typeof editForm.category_lvl_2 === "string" ? editForm.category_lvl_2 : null}
-                                    selectedCategoryLevel3={typeof editForm.category_lvl_3 === "string" ? editForm.category_lvl_3 : null}
-                                    loading={taxonomyLoading}
-                                    inputClass={inputClass}
-                                    labelClass={labelClass}
-                                    onTypeLevel1Change={(value) => updateField("type_lvl_1_id", value)}
-                                    onTypeLevel2Change={(value) => updateField("type_lvl_2_id", value)}
-                                    onCategoryLevel1Change={(value) => updateField("category_lvl_1", value)}
-                                    onCategoryLevel2Change={(value) => updateField("category_lvl_2", value)}
-                                    onCategoryLevel3Change={(value) => updateField("category_lvl_3", value)}
-                                  />
-
-                                  <div>
-                                    <label className={labelClass}>Likes</label>
-                                    <input type="number" min={0} className={inputClass} value={(editForm.likes as number) ?? 0} onChange={(e) => updateField("likes", Number(e.target.value) || 0)} />
-                                  </div>
-                                  <div>
-                                    <label className={labelClass}>Dislikes</label>
-                                    <input type="number" min={0} className={inputClass} value={(editForm.dislikes as number) ?? 0} onChange={(e) => updateField("dislikes", Number(e.target.value) || 0)} />
+                                <div className="rounded-lg border border-border/50 p-3 mb-4 space-y-3">
+                                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Feedback</p>
+                                  <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+                                    <div className="md:col-span-3">
+                                      <label className={labelClass}>Likes</label>
+                                      <input type="number" min={0} className={inputClass} value={(editForm.likes as number) ?? 0} onChange={(e) => updateField("likes", Number(e.target.value) || 0)} />
+                                    </div>
+                                    <div className="md:col-span-3">
+                                      <label className={labelClass}>Dislikes</label>
+                                      <input type="number" min={0} className={inputClass} value={(editForm.dislikes as number) ?? 0} onChange={(e) => updateField("dislikes", Number(e.target.value) || 0)} />
+                                    </div>
                                   </div>
                                 </div>
 
@@ -1059,6 +1099,10 @@ export default function AdminCampsPage() {
                                       </div>
                                     </div>
                                     <div className="grid grid-cols-2 gap-2">
+                                      <div>
+                                        <label className={labelClass}>Kod pocztowy</label>
+                                        <input className={inputClass} value={(editForm.postcode as string) || ""} onChange={(e) => updateField("postcode", e.target.value)} placeholder="np. 30-001" />
+                                      </div>
                                       <div>
                                         <label className={labelClass}>Miasto</label>
                                         <input className={inputClass} value={(editForm.city as string) || "Kraków"} onChange={(e) => updateField("city", e.target.value)} />

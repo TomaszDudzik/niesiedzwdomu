@@ -134,6 +134,9 @@ function toEvent(row: Record<string, unknown>, maps: AdminCategoryMaps): Event {
   const organizer = typeof organizerData?.name === "string" && organizerData.name.trim().length > 0
     ? organizerData.name
     : pickString(row.organizer);
+  const priceFrom = typeof row.price_from === "number" ? row.price_from : null;
+  const priceTo = typeof row.price_to === "number" ? row.price_to : null;
+  const isFree = Boolean(row.is_free) || priceFrom === 0 || priceTo === 0;
 
   return {
     ...normalized,
@@ -141,6 +144,9 @@ function toEvent(row: Record<string, unknown>, maps: AdminCategoryMaps): Event {
     content_type: "event",
     main_category: pickString(normalized.category_lvl_1),
     category: displayCategory,
+    price_from: priceFrom,
+    price_to: priceTo,
+    is_free: isFree,
     organizer,
     organizer_data: organizerData ?? null,
   } as unknown as Event;

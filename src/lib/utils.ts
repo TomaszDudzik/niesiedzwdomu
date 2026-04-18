@@ -32,6 +32,29 @@ export function formatPrice(price: number | null): string {
   return `${price} zł`;
 }
 
+export function formatPriceRange(priceFrom: number | null, priceTo: number | null, isFree = false): string {
+  if (isFree || ((priceFrom === null || priceFrom === 0) && (priceTo === null || priceTo === 0))) {
+    return "Bezpłatnie";
+  }
+  if (priceFrom !== null && priceTo !== null) {
+    if (priceFrom === priceTo) {
+      return `${priceFrom} zł`;
+    }
+    return `${priceFrom}-${priceTo} zł`;
+  }
+  if (priceFrom !== null) {
+    return `od ${priceFrom} zł`;
+  }
+  if (priceTo !== null) {
+    return `do ${priceTo} zł`;
+  }
+  return "Cena do sprawdzenia";
+}
+
+export function getRangeFreeFlag(priceFrom: number | null, priceTo: number | null): boolean {
+  return (priceFrom !== null && priceFrom === 0) || (priceTo !== null && priceTo === 0);
+}
+
 export function formatAgeRange(min: number | null, max: number | null): string {
   if (min === null && max === null) return "Wszyscy";
   if (min !== null && max !== null) return `${min}–${max} lat`;

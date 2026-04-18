@@ -90,14 +90,17 @@ export interface Event {
   time_end: string | null;
   age_min: number | null;
   age_max: number | null;
-  price: number | null;
+  price_from: number | null;
+  price_to: number | null;
   is_free: boolean;
-  category_lvl_2?: EventCategory;
+  category_lvl_2?: string | null;
   district: District;
   street: string;
+  postcode?: string | null;
   city: string;
   lat: number | null;
   lng: number | null;
+  note?: string | null;
   organizer: string | null;
   organizer_id?: string | null;
   organizer_data?: Organizer | null;
@@ -112,7 +115,7 @@ export interface Event {
   type_id?: string | null;
   subtype_id?: string | null;
   main_category?: string | null;
-  category: EventCategory;
+  category: string;
   subcategory?: string | null;
 }
 
@@ -165,8 +168,12 @@ export interface Camp {
   price: number | null;
   is_free: boolean;
   district: District;
-  venue_name: string;
-  venue_address: string;
+  venue_name?: string | null;
+  venue_address?: string | null;
+  street?: string;
+  postcode?: string | null;
+  city?: string;
+  note?: string | null;
   lat: number | null;
   lng: number | null;
   organizer: string;
@@ -216,8 +223,14 @@ export interface Activity {
   price_to: number | null;
   is_free: boolean;
   district: District;
-  venue_name: string;
-  venue_address: string;
+  venue_name?: string | null;
+  venue_address?: string | null;
+  street?: string;
+  postcode?: string | null;
+  city?: string;
+  lat?: number | null;
+  lng?: number | null;
+  note?: string | null;
   organizer: string;
   organizer_id?: string | null;
   organizer_data?: Organizer | null;

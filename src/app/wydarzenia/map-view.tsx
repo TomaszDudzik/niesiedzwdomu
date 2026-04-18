@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { MapPin, Clock, ExternalLink } from "lucide-react";
 import Link from "next/link";
-import { cn, formatPrice, formatAgeRange } from "@/lib/utils";
+import { cn, formatPriceRange, formatAgeRange } from "@/lib/utils";
 import type { Event } from "@/types/database";
 
 /* ── Kraków centre & district rough coords for fallback ── */
@@ -119,7 +119,7 @@ export function MapView({ events }: MapViewProps) {
                 </div>
                 <div className="flex items-center justify-between mt-1.5">
                   <span className="text-[11px] text-muted">{formatAgeRange(event.age_min, event.age_max)}</span>
-                  <span className="text-[12px] font-medium text-foreground">{formatPrice(event.price)}</span>
+                  <span className="text-[12px] font-medium text-foreground">{formatPriceRange(event.price_from, event.price_to, event.is_free)}</span>
                 </div>
               </Link>
             ))}

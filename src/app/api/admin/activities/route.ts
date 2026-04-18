@@ -251,6 +251,12 @@ function pickActivityFields(input: Record<string, unknown>) {
     price_to: input.price_to,
     is_free: input.is_free,
     district: input.district,
+    street: input.street,
+    postcode: input.postcode,
+    city: input.city,
+    lat: input.lat,
+    lng: input.lng,
+    note: input.note,
     venue_name: input.venue_name,
     venue_address: input.venue_address,
     organizer: input.organizer,
@@ -305,7 +311,7 @@ const ALLOWED_ACTIVITY_FIELDS = new Set([
   "activity_type", "schedule_summary", "days_of_week",
   "date_start", "date_end", "time_start", "time_end",
   "age_min", "age_max", "price_from", "price_to", "is_free",
-  "district", "venue_name", "venue_address", "organizer", "organizer_id",
+  "district", "street", "postcode", "city", "lat", "lng", "note", "venue_name", "venue_address", "organizer", "organizer_id",
   "source_url", "facebook_url", "is_featured", "status", "likes", "dislikes",
 ]);
 

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, Calendar, Clock, MapPin, Users, ExternalLink, Globe } from "lucide-react";
 import { CATEGORY_LABELS } from "@/lib/mock-data";
-import { formatDate, formatAgeRange } from "@/lib/utils";
+import { formatDate, formatAgeRange, formatPriceRange } from "@/lib/utils";
 import { FeedbackButtons } from "@/components/ui/feedback-buttons";
 import { ContentCard } from "@/components/ui/content-card";
 import { AiLearnMoreLink } from "@/components/ui/ai-learn-more-link";
@@ -63,7 +63,7 @@ export default async function EventDetailPage({ params }: PageProps) {
   const eventUrl = `${SITE_URL}/wydarzenia/${event.slug}`;
   const eventCategory = event.category_lvl_2 ?? event.category;
   const eventCategoryLabel = CATEGORY_LABELS[eventCategory as keyof typeof CATEGORY_LABELS] ?? eventCategory;
-  const hasOfferPrice = event.is_free || event.price !== null;
+  const hasOfferPrice = event.is_free || event.price_from !== null || event.price_to !== null;
   const eventStart = event.time_start ? `${event.date_start}T${event.time_start}` : event.date_start;
   const eventEnd = event.date_end
     ? event.time_end
@@ -115,7 +115,7 @@ export default async function EventDetailPage({ params }: PageProps) {
           url: event.source_url || eventUrl,
           priceCurrency: "PLN",
           availability: "https://schema.org/InStock",
-          price: event.is_free ? 0 : event.price,
+          price: event.is_free ? 0 : event.price_from ?? event.price_to,
           validFrom: event.created_at,
         }
       : undefined,
@@ -247,6 +247,16 @@ export default async function EventDetailPage({ params }: PageProps) {
                   <div>
                     <p className="text-[10px] text-muted uppercase tracking-wider leading-none mb-0.5">Organizator</p>
                     <p className="text-[13px] font-medium text-foreground">{event.organizer}</p>
+                  </div>
+                </div>
+              )}
+
+              {(event.is_free || event.price_from !== null || event.price_to !== null) && (
+                <div className="flex items-center gap-2.5">
+                  <Globe size={14} className="text-secondary/60 shrink-0" />
+                  <div>
+                    <p className="text-[10px] text-muted uppercase tracking-wider leading-none mb-0.5">Cena</p>
+                    <p className="text-[13px] font-medium text-foreground">{formatPriceRange(event.price_from, event.price_to, event.is_free)}</p>
                   </div>
                 </div>
               )}

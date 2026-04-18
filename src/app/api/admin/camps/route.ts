@@ -246,6 +246,10 @@ function pickCampFields(input: Record<string, unknown>) {
     price_to: input.price_to,
     is_free: input.is_free,
     district: input.district,
+    street: input.street,
+    postcode: input.postcode,
+    city: input.city,
+    note: input.note,
     venue_name: input.venue_name,
     venue_address: input.venue_address,
     organizer: input.organizer,
@@ -297,7 +301,7 @@ const ALLOWED_CAMP_FIELDS = new Set([
   "date_start", "date_end", "category_lvl_1", "category_lvl_2", "category_lvl_3", "main_category", "category", "subcategory", "season",
   "duration_days", "meals_included", "transport_included",
   "age_min", "age_max", "price_from", "price_to", "is_free",
-  "district", "venue_name", "venue_address", "organizer", "organizer_id",
+  "district", "street", "postcode", "city", "note", "venue_name", "venue_address", "organizer", "organizer_id",
   "source_url", "facebook_url", "is_featured", "status", "likes", "dislikes",
 ]);
 

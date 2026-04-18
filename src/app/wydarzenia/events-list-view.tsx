@@ -157,10 +157,6 @@ function getEventCategoryValue(event: Event): string | null {
   return event.category_lvl_2 ?? null;
 }
 
-function getEventSubcategoryValue(event: Event): string | null {
-  return event.category_lvl_3 ?? event.subcategory ?? null;
-}
-
 export function EventsListView({ events }: EventsListViewProps) {
   const today = getTodayStart();
   const startYear = today.getFullYear();
@@ -171,7 +167,6 @@ export function EventsListView({ events }: EventsListViewProps) {
   const [search, setSearch] = useState("");
   const [activeTypes, setActiveTypes] = useState<string[]>([]);
   const [activeCategories, setActiveCategories] = useState<string[]>([]);
-  const [activeSubcategories, setActiveSubcategories] = useState<string[]>([]);
   const [activeDistricts, setActiveDistricts] = useState<District[]>([]);
   const [activeAgeGroups, setActiveAgeGroups] = useState<string[]>([]);
   const [view, setView] = useState<ViewMode>("list");
@@ -207,7 +202,7 @@ export function EventsListView({ events }: EventsListViewProps) {
   );
   const hasDateFilters = !!singleDate || !!rangeFrom || !!rangeTo;
   const hasActiveFilters =
-    !!search || activeTypes.length > 0 || activeCategories.length > 0 || activeSubcategories.length > 0 || activeDistricts.length > 0 || activeAgeGroups.length > 0 || hasDateFilters;
+    !!search || activeTypes.length > 0 || activeCategories.length > 0 || activeDistricts.length > 0 || activeAgeGroups.length > 0 || hasDateFilters;
   function matchesSearch(event: Event) {
     if (!search) {
       return true;
@@ -246,7 +241,7 @@ export function EventsListView({ events }: EventsListViewProps) {
     return true;
   }
 
-  function matchesEventFilters(event: Event, excluded: Array<"type" | "category" | "subcategory" | "district" | "age" | "date"> = []) {
+  function matchesEventFilters(event: Event, excluded: Array<"type" | "category" | "district" | "age" | "date"> = []) {
     if (!matchesSearch(event)) {
       return false;
     }
@@ -254,9 +249,6 @@ export function EventsListView({ events }: EventsListViewProps) {
       return false;
     }
     if (!excluded.includes("category") && !matchesTaxonomyFilter(getEventCategoryValue(event), activeCategories)) {
-      return false;
-    }
-    if (!excluded.includes("subcategory") && !matchesTaxonomyFilter(getEventSubcategoryValue(event), activeSubcategories)) {
       return false;
     }
     if (!excluded.includes("district") && activeDistricts.length > 0 && !activeDistricts.includes(event.district)) {
@@ -273,12 +265,12 @@ export function EventsListView({ events }: EventsListViewProps) {
 
   const listEvents = useMemo(
     () => events.filter((event) => matchesEventFilters(event)),
-    [events, search, activeTypes, activeCategories, activeSubcategories, activeDistricts, ageGroups, rangeFrom, rangeTo, singleDate]
+    [events, search, activeTypes, activeCategories, activeDistricts, ageGroups, rangeFrom, rangeTo, singleDate]
   );
 
   const typeOptionsSource = useMemo(
     () => events.filter((event) => matchesEventFilters(event, ["type"])),
-    [events, search, activeCategories, activeSubcategories, activeDistricts, ageGroups, rangeFrom, rangeTo, singleDate]
+    [events, search, activeCategories, activeDistricts, ageGroups, rangeFrom, rangeTo, singleDate]
   );
 
   const typeOptions = useMemo(
@@ -296,25 +288,12 @@ export function EventsListView({ events }: EventsListViewProps) {
       getTaxonomyOptions(events.filter((event) => matchesEventFilters(event, ["category"])), getEventCategoryValue),
       activeCategories,
     ),
-    [events, search, activeTypes, activeSubcategories, activeDistricts, ageGroups, rangeFrom, rangeTo, singleDate, activeCategories]
+    [events, search, activeTypes, activeDistricts, ageGroups, rangeFrom, rangeTo, singleDate, activeCategories]
   );
 
   const categoryOptionsByValue = useMemo(
     () => new Map(categoryOptions.map((option) => [option.value, option])),
     [categoryOptions]
-  );
-
-  const subcategoryOptions = useMemo(
-    () => mergeSelectedTaxonomyOptions(
-      getTaxonomyOptions(events.filter((event) => matchesEventFilters(event, ["subcategory"])), getEventSubcategoryValue),
-      activeSubcategories,
-    ),
-    [events, search, activeTypes, activeCategories, activeDistricts, ageGroups, rangeFrom, rangeTo, singleDate, activeSubcategories]
-  );
-
-  const subcategoryOptionsByValue = useMemo(
-    () => new Map(subcategoryOptions.map((option) => [option.value, option])),
-    [subcategoryOptions]
   );
 
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
@@ -344,7 +323,7 @@ export function EventsListView({ events }: EventsListViewProps) {
       counts.set(key, getEventsForDate(dateOptionEvents, date).length);
     }
     return counts;
-  }, [events, search, activeTypes, activeCategories, activeSubcategories, activeDistricts, ageGroups, monthDays]);
+  }, [events, search, activeTypes, activeCategories, activeDistricts, ageGroups, monthDays]);
 
   const ageOptions = useMemo(
     () => getAgeGroupOptions(
@@ -353,7 +332,7 @@ export function EventsListView({ events }: EventsListViewProps) {
       (event) => event.age_max,
       AGE_GROUPS,
     ),
-    [events, search, activeTypes, activeCategories, activeSubcategories, activeDistricts, rangeFrom, rangeTo, singleDate]
+    [events, search, activeTypes, activeCategories, activeDistricts, rangeFrom, rangeTo, singleDate]
   );
 
   const sidebarMapGroups = useMemo(() => groupByLocation(listEvents), [listEvents]);
@@ -402,15 +381,6 @@ export function EventsListView({ events }: EventsListViewProps) {
       });
     });
 
-    activeSubcategories.forEach((subcategory) => {
-      const subcategoryOption = subcategoryOptionsByValue.get(subcategory);
-      badges.push({
-        id: `subcategory-${subcategory}`,
-        label: `Tematyka: ${subcategoryOption?.label || subcategory}`,
-        onRemove: () => setActiveSubcategories((prev) => prev.filter((item) => item !== subcategory)),
-      });
-    });
-
     activeAgeGroups.forEach((ageKey) => {
       const age = AGE_GROUPS.find((g) => g.key === ageKey);
       if (age) {
@@ -451,13 +421,13 @@ export function EventsListView({ events }: EventsListViewProps) {
     }
 
     return badges;
-  }, [search, activeTypes, activeCategories, activeSubcategories, activeAgeGroups, activeDistricts, singleDate, rangeFrom, rangeTo, typeOptionsByValue, categoryOptionsByValue, subcategoryOptionsByValue]);
+  }, [search, activeTypes, activeCategories, activeAgeGroups, activeDistricts, singleDate, rangeFrom, rangeTo, typeOptionsByValue, categoryOptionsByValue]);
 
   const availableDistricts = useMemo(() => {
     const set = new Set<string>();
     events.filter((event) => matchesEventFilters(event, ["district"])).forEach((event) => set.add(event.district));
     return DISTRICT_LIST.filter((district) => set.has(district) || activeDistricts.includes(district));
-  }, [events, search, activeTypes, activeCategories, activeSubcategories, ageGroups, rangeFrom, rangeTo, singleDate, activeDistricts]);
+  }, [events, search, activeTypes, activeCategories, ageGroups, rangeFrom, rangeTo, singleDate, activeDistricts]);
 
   const districtCounts = useMemo(() => {
     const counts = new Map<District, number>();
@@ -465,13 +435,12 @@ export function EventsListView({ events }: EventsListViewProps) {
       counts.set(event.district, (counts.get(event.district) || 0) + 1);
     });
     return counts;
-  }, [events, search, activeTypes, activeCategories, activeSubcategories, ageGroups, rangeFrom, rangeTo, singleDate]);
+  }, [events, search, activeTypes, activeCategories, ageGroups, rangeFrom, rangeTo, singleDate]);
 
   function clearFilters() {
     setSearch("");
     setActiveTypes([]);
     setActiveCategories([]);
-    setActiveSubcategories([]);
     setActiveDistricts([]);
     setActiveAgeGroups([]);
     setSingleDate("");
@@ -485,19 +454,11 @@ export function EventsListView({ events }: EventsListViewProps) {
       prev.includes(type) ? prev.filter((item) => item !== type) : [...prev, type]
     );
     setActiveCategories([]);
-    setActiveSubcategories([]);
   }
 
   function toggleCategory(category: string) {
     setActiveCategories((prev) =>
       prev.includes(category) ? prev.filter((c) => c !== category) : [...prev, category]
-    );
-    setActiveSubcategories([]);
-  }
-
-  function toggleSubcategory(subcategory: string) {
-    setActiveSubcategories((prev) =>
-      prev.includes(subcategory) ? prev.filter((item) => item !== subcategory) : [...prev, subcategory]
     );
   }
 
@@ -683,24 +644,6 @@ export function EventsListView({ events }: EventsListViewProps) {
             </div>
           </FilterSection>
 
-          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Tematyka</p>} defaultCollapsed={false}>
-            <div className="flex flex-wrap gap-1">
-              {subcategoryOptions.map((option) => {
-                const selected = activeSubcategories.includes(option.value);
-                return (
-                  <button key={option.value} onClick={() => toggleSubcategory(option.value)}
-                    className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
-                      selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
-                    <span>{option.icon}</span>
-                    <span>{option.label}</span>
-                    <span className="text-[10px] opacity-60">{option.count}</span>
-                    {selected && <Check size={11} />}
-                  </button>
-                );
-              })}
-            </div>
-          </FilterSection>
-
           <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Dzielnica</p>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
               {availableDistricts.map((district) => {
@@ -851,24 +794,6 @@ export function EventsListView({ events }: EventsListViewProps) {
                   const selected = activeCategories.includes(option.value);
                   return (
                     <button key={option.value} onClick={() => toggleCategory(option.value)}
-                      className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
-                        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
-                      <span>{option.icon}</span>
-                      <span className="flex-1">{option.label}</span>
-                      {selected && <Check size={10} />}
-                      <span className="text-[8px] opacity-40">{option.count}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </FilterSection>
-
-            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Tematyka</p>} defaultCollapsed>
-              <div className="flex flex-col gap-0.5">
-                {subcategoryOptions.map((option) => {
-                  const selected = activeSubcategories.includes(option.value);
-                  return (
-                    <button key={option.value} onClick={() => toggleSubcategory(option.value)}
                       className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
                         selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
                       <span>{option.icon}</span>
@@ -1049,14 +974,24 @@ export function EventsListView({ events }: EventsListViewProps) {
 
             <div className="mt-4">
               {view === "map" ? (
-                <div className="rounded-xl border border-border overflow-hidden h-[420px] lg:h-[560px] bg-accent/10">
-                  {MapComponent ? (
-                    <MapComponent groups={sidebarMapGroups} />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-[13px] text-muted-foreground">
-                      Ładowanie mapy...
-                    </div>
-                  )}
+                <div className="space-y-3">
+                  <div className="rounded-xl border border-border bg-card px-4 py-3">
+                    <h2 className="text-[15px] font-semibold text-foreground">Mapa wydarzeń w Krakowie</h2>
+                    <p className="mt-1 text-[12px] leading-5 text-muted">
+                      Sprawdź, gdzie odbywają się wydarzenia dla dzieci i rodzin. Kliknij pinezkę,
+                      aby zobaczyć szczegóły lokalizacji i szybko przejść do wybranego wydarzenia.
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-border overflow-hidden h-[420px] lg:h-[560px] bg-accent/10">
+                    {MapComponent ? (
+                      <MapComponent groups={sidebarMapGroups} />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-[13px] text-muted-foreground">
+                        Ładowanie mapy...
+                      </div>
+                    )}
+                  </div>
                 </div>
               ) : listEvents.length === 0 ? (
                 <div className="text-center py-16">

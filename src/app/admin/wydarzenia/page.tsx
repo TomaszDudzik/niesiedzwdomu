@@ -8,7 +8,7 @@ import {
   Star, ClipboardPaste, Upload, MapPin,
 } from "lucide-react";
 import { CATEGORY_ICONS, CATEGORY_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
-import { cn, formatDateShort, formatPrice, slugify, thumbUrl, withCacheBust } from "@/lib/utils";
+import { cn, formatDateShort, formatPriceRange, slugify, thumbUrl, withCacheBust } from "@/lib/utils";
 import type { Event, Organizer } from "@/types/database";
 import { ImageSection } from "@/components/admin/image-section";
 import { OrganizerCombobox } from "@/components/admin/organizer-combobox";
@@ -65,11 +65,14 @@ function AdminCanonicalEventsPanel() {
     time_end: ["time_end", "godzina do", "end time", "czas do"],
     age_min: ["age_min", "wiek od", "minimalny wiek"],
     age_max: ["age_max", "wiek do", "maksymalny wiek"],
-    price: ["price", "cena", "koszt", "price_from", "price_to", "price from", "price to"],
+    price_from: ["price_from", "cena od", "price from", "od", "koszt od", "price"],
+    price_to: ["price_to", "cena do", "price to", "do", "koszt do"],
     is_free: ["is_free", "free", "darmowe", "bezplatne", "bezpłatne"],
     district: ["district", "dzielnica"],
     street: ["street", "ulica", "adres", "address", "venue_address"],
+    postcode: ["postcode", "kod", "kod pocztowy", "zip", "postal code"],
     city: ["city", "miasto"],
+    note: ["note", "notatka", "uwagi", "dodatkowe informacje"],
     organizer: ["organizer", "organizator"],
     source_url: ["source_url", "url", "link", "zrodlo", "źródło"],
     facebook_url: ["facebook_url", "facebook", "fb", "facebook page"],
@@ -257,8 +260,9 @@ function AdminCanonicalEventsPanel() {
         continue;
       }
 
-      const price = asNumber(mapped.price) ?? asNumber(row.price_from) ?? asNumber(row.price_to);
-      const isFree = mapped.is_free ? asBoolean(mapped.is_free) : price === null || price === 0;
+      const priceFrom = asNumber(mapped.price_from) ?? asNumber(row.price_from) ?? asNumber(mapped.price);
+      const priceTo = asNumber(mapped.price_to) ?? asNumber(row.price_to);
+      const isFree = mapped.is_free ? asBoolean(mapped.is_free) : priceFrom === 0 || priceTo === 0;
       const street = mapped.street?.trim() || "";
       const city = mapped.city?.trim() || "Kraków";
       const organizerName = mapped.organizer?.trim() || "";
@@ -278,7 +282,8 @@ function AdminCanonicalEventsPanel() {
         time_end: mapped.time_end || null,
         age_min: asNumber(mapped.age_min),
         age_max: asNumber(mapped.age_max),
-        price,
+        price_from: priceFrom,
+        price_to: priceTo,
         is_free: isFree,
         category: normalizeCategory(mapped.category),
         district: normalizeDistrict(mapped.district),
@@ -532,13 +537,16 @@ function AdminCanonicalEventsPanel() {
       time_end: event.time_end,
       age_min: event.age_min,
       age_max: event.age_max,
-      price: event.price,
+      price_from: event.price_from,
+      price_to: event.price_to,
       is_free: event.is_free,
       district: event.district,
       street: event.street,
+      postcode: event.postcode ?? "",
       city: event.city,
       lat: event.lat,
       lng: event.lng,
+      note: event.note ?? "",
       organizer: event.organizer,
       organizer_id: event.organizer_id ?? null,
       source_url: event.source_url,
@@ -568,14 +576,17 @@ function AdminCanonicalEventsPanel() {
       time_end: null,
       age_min: null,
       age_max: null,
-      price: null,
-      is_free: true,
+      price_from: null,
+      price_to: null,
+      is_free: false,
       category: "inne",
       district: "Inne",
       street: "",
+      postcode: null,
       city: "Kraków",
       lat: null,
       lng: null,
+      note: null,
       organizer: null,
       organizer_id: null,
       source_url: null,
@@ -662,6 +673,7 @@ function AdminCanonicalEventsPanel() {
           lat: data.lat,
           lng: data.lng,
           ...(data.city ? { city: data.city } : {}),
+          ...(data.postcode ? { postcode: data.postcode } : {}),
           ...(data.district ? { district: data.district } : {}),
         }));
       }
@@ -692,7 +704,8 @@ function AdminCanonicalEventsPanel() {
       setUploadingImage(null);
     }
 
-    const priceValue = editForm.price === "" || editForm.price === null ? null : Number(editForm.price);
+    const priceFromValue = editForm.price_from === "" || editForm.price_from === null ? null : Number(editForm.price_from);
+    const priceToValue = editForm.price_to === "" || editForm.price_to === null ? null : Number(editForm.price_to);
     const updates: Record<string, unknown> = {
       title: String(editForm.title || ""),
       slug: slugify(String(editForm.title || "")),
@@ -707,13 +720,16 @@ function AdminCanonicalEventsPanel() {
       time_end: editForm.time_end || null,
       age_min: editForm.age_min === "" || editForm.age_min === null ? null : Number(editForm.age_min),
       age_max: editForm.age_max === "" || editForm.age_max === null ? null : Number(editForm.age_max),
-      price: Number.isFinite(priceValue) ? priceValue : null,
-      is_free: Boolean(editForm.is_free),
+      price_from: Number.isFinite(priceFromValue) ? priceFromValue : null,
+      price_to: Number.isFinite(priceToValue) ? priceToValue : null,
+      is_free: Boolean(editForm.is_free) || priceFromValue === 0 || priceToValue === 0,
       district: editForm.district,
       street: String(editForm.street || "").trim(),
+      postcode: editForm.postcode ? String(editForm.postcode).trim() : null,
       city: String(editForm.city || "Kraków").trim() || "Kraków",
       lat: editForm.lat === "" || editForm.lat === null ? null : Number(editForm.lat),
       lng: editForm.lng === "" || editForm.lng === null ? null : Number(editForm.lng),
+      note: editForm.note ? String(editForm.note) : null,
       organizer: editForm.organizer_id && !isUUID(String(editForm.organizer_id)) ? String(editForm.organizer_id) : (editForm.organizer ? String(editForm.organizer) : null),
       organizer_id: editForm.organizer_id && isUUID(String(editForm.organizer_id)) ? editForm.organizer_id : null,
       source_url: editForm.source_url ? String(editForm.source_url) : null,
@@ -843,7 +859,7 @@ function AdminCanonicalEventsPanel() {
                         <div key={event.id} className={cn("rounded-lg border border-border/70", isDraft ? "bg-stone-100 opacity-70" : "bg-white")}>
                           <div className="flex items-center gap-2.5 px-3 py-2.5">
                             <span className="shrink-0 w-6 text-center text-[11px] font-mono text-muted-foreground">{index + 1}</span>
-                            <span className="shrink-0 text-lg">{CATEGORY_ICONS[event.category]}</span>
+                            <span className="shrink-0 text-lg">{CATEGORY_ICONS[event.category as keyof typeof CATEGORY_ICONS] ?? "📅"}</span>
 
                             {thumbUrl(event.image_thumb, event.image_url) ? (
                               <img src={thumbUrl(event.image_thumb, event.image_url) || ""} alt="" className="w-8 h-8 rounded object-cover shrink-0" />
@@ -854,7 +870,7 @@ function AdminCanonicalEventsPanel() {
                             <div className="flex-1 min-w-0">
                               <p className="text-[13px] font-medium text-foreground truncate">{event.title}</p>
                               <div className="flex items-center gap-1.5 text-[11px] text-muted mt-0.5 flex-wrap">
-                                <span>{CATEGORY_LABELS[event.category]}</span>
+                                <span>{CATEGORY_LABELS[event.category as keyof typeof CATEGORY_LABELS] ?? event.category}</span>
                                 <span className="opacity-40">·</span>
                                 <span>{formatDateShort(event.date_start)}{event.date_end ? ` - ${formatDateShort(event.date_end)}` : ""}</span>
                                 {(event.time_start || event.time_end) && (
@@ -864,7 +880,7 @@ function AdminCanonicalEventsPanel() {
                                   </>
                                 )}
                                 <span className="opacity-40">·</span>
-                                <span>{event.is_free ? "Bezpłatnie" : formatPrice(event.price)}</span>
+                                <span>{formatPriceRange(event.price_from, event.price_to, event.is_free)}</span>
                                 <span className="opacity-40">·</span>
                                 <span className="truncate max-w-[180px]">{[event.street, event.city].filter(Boolean).join(", ") || event.district}</span>
                               </div>
@@ -908,122 +924,138 @@ function AdminCanonicalEventsPanel() {
 
                           {isEditing && (
                             <div className="px-3 pb-3 pt-2 border-t border-border/50">
-                              <div className="grid grid-cols-1 md:grid-cols-6 gap-3 mb-4">
-                                <div className="md:col-span-3">
-                                  <label className={labelClass}>Tytuł</label>
-                                  <input className={inputClass} value={(editForm.title as string) || ""} onChange={(e) => updateField("title", e.target.value)} />
+                              <div className="rounded-lg border border-border/50 p-3 mb-4 space-y-3">
+                                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Opis wydarzenia</p>
+                                <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+                                  <div className="md:col-span-3">
+                                    <label className={labelClass}>Tytuł</label>
+                                    <input className={inputClass} value={(editForm.title as string) || ""} onChange={(e) => updateField("title", e.target.value)} />
+                                  </div>
+                                  <div className="md:col-span-3">
+                                    <label className={labelClass}>Organizator</label>
+                                    <OrganizerCombobox
+                                      organizers={organizers}
+                                      value={(editForm.organizer_id as string) || null}
+                                      onChange={(organizerId) => {
+                                        const organizer = organizers.find((item) => item.id === organizerId);
+                                        updateField("organizer_id", organizerId);
+                                        updateField("organizer", organizer ? organizer.organizer_name : null);
+                                      }}
+                                      inputClassName={inputClass}
+                                    />
+                                  </div>
+                                  <div className="md:col-span-6">
+                                    <label className={labelClass}>Krótki opis</label>
+                                    <textarea rows={2} className={inputClass} value={(editForm.description_short as string) || ""} onChange={(e) => updateField("description_short", e.target.value)} />
+                                  </div>
+                                  <div className="md:col-span-6">
+                                    <label className={labelClass}>Długi opis</label>
+                                    <textarea rows={5} className={inputClass} value={(editForm.description_long as string) || ""} onChange={(e) => updateField("description_long", e.target.value)} />
+                                  </div>
                                 </div>
-                                <div className="md:col-span-3">
-                                  <label className={labelClass}>Organizator</label>
-                                  <OrganizerCombobox
-                                    organizers={organizers}
-                                    value={(editForm.organizer_id as string) || null}
-                                    onChange={(organizerId) => {
-                                      const organizer = organizers.find((item) => item.id === organizerId);
-                                      updateField("organizer_id", organizerId);
-                                      updateField("organizer", organizer ? organizer.organizer_name : null);
-                                    }}
-                                    inputClassName={inputClass}
+                              </div>
+
+                              <div className="rounded-lg border border-border/50 p-3 mb-4 space-y-3">
+                                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Klasyfikacja</p>
+                                <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
+                                  <TaxonomyFields
+                                    typeLevel1Options={typeLevel1Options}
+                                    typeLevel2Options={typeLevel2Options}
+                                    categoryLevel1Options={categoryLevel1Options}
+                                    categoryLevel2Options={categoryLevel2Options}
+                                    categoryLevel3Options={categoryLevel3Options}
+                                    selectedTypeLevel1Id={typeof editForm.type_lvl_1_id === "string" ? editForm.type_lvl_1_id : null}
+                                    selectedTypeLevel2Id={typeof editForm.type_lvl_2_id === "string" ? editForm.type_lvl_2_id : null}
+                                    selectedCategoryLevel1={typeof editForm.category_lvl_1 === "string" ? editForm.category_lvl_1 : null}
+                                    selectedCategoryLevel2={typeof editForm.category_lvl_2 === "string" ? editForm.category_lvl_2 : null}
+                                    selectedCategoryLevel3={typeof editForm.category_lvl_3 === "string" ? editForm.category_lvl_3 : null}
+                                    loading={taxonomyLoading}
+                                    inputClass={inputClass}
+                                    labelClass={labelClass}
+                                    onTypeLevel1Change={(value) => updateField("type_lvl_1_id", value)}
+                                    onTypeLevel2Change={(value) => updateField("type_lvl_2_id", value)}
+                                    onCategoryLevel1Change={(value) => updateField("category_lvl_1", value)}
+                                    onCategoryLevel2Change={(value) => updateField("category_lvl_2", value)}
+                                    onCategoryLevel3Change={(value) => updateField("category_lvl_3", value)}
                                   />
                                 </div>
-                                <div className="md:col-span-6">
-                                  <label className={labelClass}>Krótki opis</label>
-                                  <textarea rows={2} className={inputClass} value={(editForm.description_short as string) || ""} onChange={(e) => updateField("description_short", e.target.value)} />
-                                </div>
-                                <div className="md:col-span-6">
-                                  <label className={labelClass}>Długi opis</label>
-                                  <textarea rows={5} className={inputClass} value={(editForm.description_long as string) || ""} onChange={(e) => updateField("description_long", e.target.value)} />
-                                </div>
+                              </div>
 
-                                <div>
-                                  <label className={labelClass}>Data od</label>
-                                  <input type="date" className={inputClass} value={(editForm.date_start as string) || ""} onChange={(e) => updateField("date_start", e.target.value)} />
+                              <div className="rounded-lg border border-border/50 p-3 mb-4 space-y-3">
+                                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Linki</p>
+                                <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+                                  <div className="md:col-span-3">
+                                    <label className={labelClass}>URL źródła</label>
+                                    <input className={inputClass} value={(editForm.source_url as string) || ""} onChange={(e) => updateField("source_url", e.target.value)} placeholder="https://..." />
+                                  </div>
+                                  <div className="md:col-span-3">
+                                    <label className={labelClass}>Facebook</label>
+                                    <input className={inputClass} value={(editForm.facebook_url as string) || ""} onChange={(e) => updateField("facebook_url", e.target.value)} placeholder="https://facebook.com/..." />
+                                  </div>
                                 </div>
-                                <div>
-                                  <label className={labelClass}>Data do</label>
-                                  <input type="date" className={inputClass} value={(editForm.date_end as string) || ""} onChange={(e) => updateField("date_end", e.target.value || null)} />
-                                </div>
-                                <div>
-                                  <label className={labelClass}>Godzina od</label>
-                                  <input type="time" className={inputClass} value={(editForm.time_start as string) || ""} onChange={(e) => updateField("time_start", e.target.value || null)} />
-                                </div>
-                                <div>
-                                  <label className={labelClass}>Godzina do</label>
-                                  <input type="time" className={inputClass} value={(editForm.time_end as string) || ""} onChange={(e) => updateField("time_end", e.target.value || null)} />
-                                </div>
-                                <div>
-                                  <label className={labelClass}>Wiek od</label>
-                                  <input type="number" min={0} max={18} className={inputClass} value={editForm.age_min === null ? "" : String(editForm.age_min ?? "")} onChange={(e) => updateField("age_min", e.target.value ? Number(e.target.value) : null)} />
-                                </div>
-                                <div>
-                                  <label className={labelClass}>Wiek do</label>
-                                  <input type="number" min={0} max={18} className={inputClass} value={editForm.age_max === null ? "" : String(editForm.age_max ?? "")} onChange={(e) => updateField("age_max", e.target.value ? Number(e.target.value) : null)} />
-                                </div>
+                              </div>
 
-                                <div>
-                                  <label className={labelClass}>Cena</label>
-                                  <input type="number" min={0} className={inputClass} value={editForm.price === null ? "" : String(editForm.price ?? "")} onChange={(e) => {
-                                    const value = e.target.value ? Number(e.target.value) : null;
-                                    updateField("price", value);
-                                    updateField("is_free", value === null || value === 0);
-                                  }} />
+                              <div className="rounded-lg border border-border/50 p-3 mb-4 space-y-3">
+                                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Szczegóły wydarzenia</p>
+                                <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+                                  <div>
+                                    <label className={labelClass}>Data od</label>
+                                    <input type="date" className={inputClass} value={(editForm.date_start as string) || ""} onChange={(e) => updateField("date_start", e.target.value)} />
+                                  </div>
+                                  <div>
+                                    <label className={labelClass}>Data do</label>
+                                    <input type="date" className={inputClass} value={(editForm.date_end as string) || ""} onChange={(e) => updateField("date_end", e.target.value || null)} />
+                                  </div>
+                                  <div>
+                                    <label className={labelClass}>Godzina od</label>
+                                    <input type="time" className={inputClass} value={(editForm.time_start as string) || ""} onChange={(e) => updateField("time_start", e.target.value || null)} />
+                                  </div>
+                                  <div>
+                                    <label className={labelClass}>Godzina do</label>
+                                    <input type="time" className={inputClass} value={(editForm.time_end as string) || ""} onChange={(e) => updateField("time_end", e.target.value || null)} />
+                                  </div>
+                                  <div>
+                                    <label className={labelClass}>Wiek od</label>
+                                    <input type="number" min={0} max={18} className={inputClass} value={editForm.age_min === null ? "" : String(editForm.age_min ?? "")} onChange={(e) => updateField("age_min", e.target.value ? Number(e.target.value) : null)} />
+                                  </div>
+                                  <div>
+                                    <label className={labelClass}>Wiek do</label>
+                                    <input type="number" min={0} max={18} className={inputClass} value={editForm.age_max === null ? "" : String(editForm.age_max ?? "")} onChange={(e) => updateField("age_max", e.target.value ? Number(e.target.value) : null)} />
+                                  </div>
+                                  <div>
+                                    <label className={labelClass}>Cena od</label>
+                                    <input type="number" min={0} step="0.01" className={inputClass} value={editForm.price_from === null ? "" : String(editForm.price_from ?? "")} onChange={(e) => {
+                                      const value = e.target.value ? Number(e.target.value) : null;
+                                      updateField("price_from", value);
+                                      updateField("is_free", value === 0 || editForm.price_to === 0);
+                                    }} />
+                                  </div>
+                                  <div>
+                                    <label className={labelClass}>Cena do</label>
+                                    <input type="number" min={0} step="0.01" className={inputClass} value={editForm.price_to === null ? "" : String(editForm.price_to ?? "")} onChange={(e) => {
+                                      const value = e.target.value ? Number(e.target.value) : null;
+                                      updateField("price_to", value);
+                                      updateField("is_free", editForm.price_from === 0 || value === 0);
+                                    }} />
+                                  </div>
+                                  <div className="md:col-span-6">
+                                    <label className={labelClass}>Notatka</label>
+                                    <textarea rows={4} className={inputClass} value={(editForm.note as string) || ""} onChange={(e) => updateField("note", e.target.value)} placeholder="Dodatkowe informacje o wydarzeniu." />
+                                  </div>
                                 </div>
-                                <div>
-                                  <label className={labelClass}>Kategoria</label>
-                                  <select className={inputClass} value={(editForm.category_lvl_2 as string) || "inne"} onChange={(e) => updateField("category_lvl_2", e.target.value)}>
-                                    {Object.entries(CATEGORY_LABELS).map(([key, labelValue]) => (
-                                      <option key={key} value={key}>{labelValue}</option>
-                                    ))}
-                                  </select>
-                                </div>
-                                <div className="md:col-span-4 flex items-center gap-4 pt-5">
-                                  <label className="flex items-center gap-2 text-[12px] cursor-pointer">
-                                    <input type="checkbox" checked={Boolean(editForm.is_free)} onChange={(e) => updateField("is_free", e.target.checked)} className="rounded border-border" />
-                                    Bezpłatne
-                                  </label>
-                                  <label className="flex items-center gap-2 text-[12px] cursor-pointer">
-                                    <input type="checkbox" checked={Boolean(editForm.is_featured)} onChange={(e) => updateField("is_featured", e.target.checked)} className="rounded border-border" />
-                                    Wyróżnione
-                                  </label>
-                                </div>
+                              </div>
 
-                                <div className="md:col-span-3">
-                                  <label className={labelClass}>URL źródła</label>
-                                  <input className={inputClass} value={(editForm.source_url as string) || ""} onChange={(e) => updateField("source_url", e.target.value)} placeholder="https://..." />
-                                </div>
-                                <div className="md:col-span-3">
-                                  <label className={labelClass}>Facebook</label>
-                                  <input className={inputClass} value={(editForm.facebook_url as string) || ""} onChange={(e) => updateField("facebook_url", e.target.value)} placeholder="https://facebook.com/..." />
-                                </div>
-
-                                <TaxonomyFields
-                                  typeLevel1Options={typeLevel1Options}
-                                  typeLevel2Options={typeLevel2Options}
-                                  categoryLevel1Options={categoryLevel1Options}
-                                  categoryLevel2Options={categoryLevel2Options}
-                                  categoryLevel3Options={categoryLevel3Options}
-                                  selectedTypeLevel1Id={typeof editForm.type_lvl_1_id === "string" ? editForm.type_lvl_1_id : null}
-                                  selectedTypeLevel2Id={typeof editForm.type_lvl_2_id === "string" ? editForm.type_lvl_2_id : null}
-                                  selectedCategoryLevel1={typeof editForm.category_lvl_1 === "string" ? editForm.category_lvl_1 : null}
-                                  selectedCategoryLevel2={typeof editForm.category_lvl_2 === "string" ? editForm.category_lvl_2 : null}
-                                  selectedCategoryLevel3={typeof editForm.category_lvl_3 === "string" ? editForm.category_lvl_3 : null}
-                                  loading={taxonomyLoading}
-                                  inputClass={inputClass}
-                                  labelClass={labelClass}
-                                  onTypeLevel1Change={(value) => updateField("type_lvl_1_id", value)}
-                                  onTypeLevel2Change={(value) => updateField("type_lvl_2_id", value)}
-                                  onCategoryLevel1Change={(value) => updateField("category_lvl_1", value)}
-                                  onCategoryLevel2Change={(value) => updateField("category_lvl_2", value)}
-                                  onCategoryLevel3Change={(value) => updateField("category_lvl_3", value)}
-                                />
-
-                                <div>
-                                  <label className={labelClass}>Likes</label>
-                                  <input type="number" min={0} className={inputClass} value={(editForm.likes as number) ?? 0} onChange={(e) => updateField("likes", Number(e.target.value) || 0)} />
-                                </div>
-                                <div>
-                                  <label className={labelClass}>Dislikes</label>
-                                  <input type="number" min={0} className={inputClass} value={(editForm.dislikes as number) ?? 0} onChange={(e) => updateField("dislikes", Number(e.target.value) || 0)} />
+                              <div className="rounded-lg border border-border/50 p-3 mb-4 space-y-3">
+                                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Feedback</p>
+                                <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+                                  <div className="md:col-span-3">
+                                    <label className={labelClass}>Likes</label>
+                                    <input type="number" min={0} className={inputClass} value={(editForm.likes as number) ?? 0} onChange={(e) => updateField("likes", Number(e.target.value) || 0)} />
+                                  </div>
+                                  <div className="md:col-span-3">
+                                    <label className={labelClass}>Dislikes</label>
+                                    <input type="number" min={0} className={inputClass} value={(editForm.dislikes as number) ?? 0} onChange={(e) => updateField("dislikes", Number(e.target.value) || 0)} />
+                                  </div>
                                 </div>
                               </div>
 
@@ -1049,6 +1081,10 @@ function AdminCanonicalEventsPanel() {
                                           <Loader2 size={12} className="animate-spin text-muted absolute right-2 top-1/2 -translate-y-1/2" />
                                         )}
                                       </div>
+                                    </div>
+                                    <div>
+                                      <label className={labelClass}>Kod pocztowy</label>
+                                      <input className={inputClass} value={(editForm.postcode as string) || ""} onChange={(e) => updateField("postcode", e.target.value)} placeholder="np. 30-001" />
                                     </div>
                                     <div>
                                       <label className={labelClass}>Miasto</label>

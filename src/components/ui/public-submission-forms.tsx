@@ -46,7 +46,8 @@ type EventFormState = {
   time_end: string;
   age_min: string;
   age_max: string;
-  price: string;
+  price_from: string;
+  price_to: string;
   is_free: boolean;
   district: string;
   street: string;
@@ -243,7 +244,8 @@ const EMPTY_EVENT_FORM: EventFormState = {
   time_end: "",
   age_min: "",
   age_max: "",
-  price: "",
+  price_from: "",
+  price_to: "",
   is_free: false,
   district: DISTRICT_LIST[0],
   street: "",
@@ -984,11 +986,14 @@ function EventSubmissionForm({ initialTaxonomy }: { initialTaxonomy: AdminTaxono
           <Field label="Wiek do">
             <input type="number" min="0" value={form.age_max} onChange={(event) => setForm((prev) => ({ ...prev, age_max: event.target.value }))} className={inputClass} />
           </Field>
-          <Field label="Cena (zł)">
-            <input type="number" min="0" step="0.01" value={form.price} onChange={(event) => setForm((prev) => ({ ...prev, price: event.target.value }))} className={inputClass} disabled={form.is_free} />
+          <Field label="Cena">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <input type="number" min="0" step="0.01" value={form.price_from} onChange={(event) => setForm((prev) => ({ ...prev, price_from: event.target.value }))} className={inputClass} disabled={form.is_free} placeholder="Cena od" />
+              <input type="number" min="0" step="0.01" value={form.price_to} onChange={(event) => setForm((prev) => ({ ...prev, price_to: event.target.value }))} className={inputClass} disabled={form.is_free} placeholder="Cena do" />
+            </div>
           </Field>
           <label className={checkboxCardClass}>
-            <input type="checkbox" checked={form.is_free} onChange={(event) => setForm((prev) => ({ ...prev, is_free: event.target.checked, price: event.target.checked ? "" : prev.price }))} />
+            <input type="checkbox" checked={form.is_free} onChange={(event) => setForm((prev) => ({ ...prev, is_free: event.target.checked, price_from: event.target.checked ? "" : prev.price_from, price_to: event.target.checked ? "" : prev.price_to }))} />
             Bezpłatne wydarzenie
           </label>
           <div className="md:col-span-2 xl:col-span-4">

@@ -45,11 +45,11 @@ export function TaxonomyFields({
   categoryLevel2Options,
   categoryLevel3Options,
   showTypeFields = true,
-  typeLevel1Label = "Type lvl 1",
-  typeLevel2Label = "Type lvl 2",
-  categoryLevel1Label = "Category lvl 1",
-  categoryLevel2Label = "Category lvl 2",
-  categoryLevel3Label = "Category lvl 3",
+  typeLevel1Label = "Grupa",
+  typeLevel2Label = "Podgrupa",
+  categoryLevel1Label = "Typ",
+  categoryLevel2Label = "Kategoria",
+  categoryLevel3Label = "Tematyka",
   selectedTypeLevel1Id,
   selectedTypeLevel2Id,
   selectedCategoryLevel1,
@@ -108,7 +108,7 @@ export function TaxonomyFields({
               onChange={(event) => onTypeLevel2Change(event.target.value || null)}
               disabled={loading || !selectedTypeLevel1Id}
             >
-              <option value="">{selectedTypeLevel1Id ? "— brak —" : "Najpierw wybierz type lvl 1"}</option>
+                <option value="">{selectedTypeLevel1Id ? "— brak —" : "Najpierw wybierz grupę"}</option>
               {typeLevel2ForTypeLevel1.map((entry) => (
                 <option key={entry.id} value={entry.id}>{entry.name}</option>
               ))}
@@ -149,7 +149,7 @@ export function TaxonomyFields({
             }}
             disabled={loading || !selectedCategoryLevel1}
           >
-            <option value="">{selectedCategoryLevel1 ? "— brak —" : "Najpierw wybierz category lvl 1"}</option>
+            <option value="">{selectedCategoryLevel1 ? "— brak —" : "Najpierw wybierz typ"}</option>
             {categoryLevel2ForCategoryLevel1.map((entry) => (
               <option key={entry.id} value={entry.name}>{entry.name}</option>
             ))}
@@ -163,7 +163,7 @@ export function TaxonomyFields({
             onChange={(event) => onCategoryLevel3Change(event.target.value || null)}
             disabled={loading || !selectedCategoryLevel2}
           >
-            <option value="">{selectedCategoryLevel2 ? "— brak —" : "Najpierw wybierz category lvl 2"}</option>
+            <option value="">{selectedCategoryLevel2 ? "— brak —" : "Najpierw wybierz kategorię"}</option>
             {categoryLevel3ForCategoryLevel2.map((entry) => (
               <option key={entry.id} value={entry.name}>{entry.name}</option>
             ))}
