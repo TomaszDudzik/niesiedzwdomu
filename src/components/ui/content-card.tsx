@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Calendar, MapPin, ThumbsUp } from "lucide-react";
+import { Calendar, MapPin } from "lucide-react";
 import type { DiscoveryItem } from "@/types/database";
 import { getItemHref, getDateText, getLocationText, getPlaceholderIcon } from "@/lib/content-helpers";
 import { thumbUrl } from "@/lib/utils";
@@ -12,7 +12,6 @@ interface ContentCardProps {
 export function ContentCard({ item }: ContentCardProps) {
   const isPlace = item.content_type === "place";
   const isEvent = item.content_type === "event";
-  const likesCount = typeof item.likes === "number" ? item.likes : 0;
 
   return (
     <Link
@@ -32,10 +31,6 @@ export function ContentCard({ item }: ContentCardProps) {
             {getPlaceholderIcon(item)}
           </div>
         )}
-        <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full bg-white px-2 py-1 text-[10px] font-semibold text-foreground shadow-[var(--shadow-soft)] border border-border/70">
-          <ThumbsUp size={11} className="text-primary" />
-          {likesCount}
-        </span>
       </div>
 
       {/* Text — right */}

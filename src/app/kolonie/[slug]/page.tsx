@@ -5,7 +5,6 @@ import { ArrowLeft, Banknote, Calendar, ExternalLink, Globe, MapPin, Users } fro
 import { CAMP_CATEGORY_LABELS, CAMP_SEASON_LABELS, CAMP_MAIN_CATEGORY_ICONS, CAMP_MAIN_CATEGORY_LABELS } from "@/lib/mock-data";
 import { formatAgeRange, formatDate, formatPriceRange } from "@/lib/utils";
 import { AiLearnMoreLink } from "@/components/ui/ai-learn-more-link";
-import { FeedbackButtons } from "@/components/ui/feedback-buttons";
 import { getCampBySlug, getCampSessionsByOrganizer } from "@/lib/data";
 
 export const revalidate = 60;
@@ -160,14 +159,6 @@ export default async function CampDetailPage({ params }: PageProps) {
           {camp.image_url && (
             <div className="relative rounded-xl overflow-hidden bg-accent min-h-[337px]">
               <img src={camp.image_url} alt={camp.title} className="absolute inset-0 w-full h-full object-cover" />
-              <FeedbackButtons
-                contentType="camp"
-                itemId={camp.id}
-                initialLikes={camp.likes}
-                initialDislikes={camp.dislikes}
-                showLabel={false}
-                className="absolute bottom-3 right-3 z-10"
-              />
             </div>
           )}
           <div className="space-y-3">

@@ -36,8 +36,8 @@ function Breadcrumbs({ items }: { items: { label: string; href: string }[] }) {
   );
 }
 
-function ListingSection({ config, isFirst }: { config: SeoListingConfig; isFirst: boolean }) {
-  const items = resolveListingItems(config);
+async function ListingSection({ config, isFirst }: { config: SeoListingConfig; isFirst: boolean }) {
+  const items = await resolveListingItems(config);
   if (items.length === 0) return null;
   const featured = isFirst ? items[0] : null;
   const grid = isFirst ? items.slice(1) : items;
@@ -123,7 +123,7 @@ function StructuredData({ schemas }: { schemas: object[] }) {
   );
 }
 
-export function SeoLandingPage({ config }: { config: SeoPageConfig }) {
+export async function SeoLandingPage({ config }: { config: SeoPageConfig }) {
   const breadcrumbs = buildBreadcrumbs(config);
   const structuredData = buildStructuredData(config, breadcrumbs);
   const relatedLinks = buildRelatedLinks(config);
@@ -160,7 +160,9 @@ export function SeoLandingPage({ config }: { config: SeoPageConfig }) {
         {config.quickFilters && config.quickFilters.length > 0 && <QuickFilterPills filters={config.quickFilters} />}
       </section>
 
-      {config.listings.map((listing, i) => <ListingSection key={i} config={listing} isFirst={i === 0} />)}
+      {await Promise.all(config.listings.map((listing, i) => (
+        <ListingSection key={i} config={listing} isFirst={i === 0} />
+      )))}
       <FaqSection items={config.faq} />
       <RelatedLinks links={relatedLinks} />
       <div className="h-8" />

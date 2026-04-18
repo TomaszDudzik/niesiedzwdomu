@@ -916,64 +916,16 @@ export default function AdminPlacesPage() {
                     </div>
 
                     <div className="rounded-lg border border-border/50 p-3 mb-4 space-y-3">
-                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Szczegóły</p>
-                      <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
-                        <div>
-                          <label className={labelClass}>Wiek od</label>
-                          <input type="number" min={0} max={18} className={inputClass} value={(editForm.age_min as number) ?? ""} onChange={(e) => updateField("age_min", e.target.value ? Number(e.target.value) : null)} />
-                        </div>
-                        <div>
-                          <label className={labelClass}>Wiek do</label>
-                          <input type="number" min={0} max={18} className={inputClass} value={(editForm.age_max as number) ?? ""} onChange={(e) => updateField("age_max", e.target.value ? Number(e.target.value) : null)} />
-                        </div>
-                        <div className="md:col-span-4 flex items-center gap-4 pt-5">
-                          <div className="flex gap-1.5">
-                            <button type="button" onClick={() => updateField("is_indoor", true)}
-                              className={cn("px-2.5 py-1 rounded text-[11px] font-medium border transition-colors cursor-pointer", (editForm.is_indoor as boolean) ? "bg-primary text-white border-primary" : "border-border text-muted hover:border-primary/30")}>
-                              Wewnątrz
-                            </button>
-                            <button type="button" onClick={() => updateField("is_indoor", false)}
-                              className={cn("px-2.5 py-1 rounded text-[11px] font-medium border transition-colors cursor-pointer", !(editForm.is_indoor as boolean) ? "bg-primary text-white border-primary" : "border-border text-muted hover:border-primary/30")}>
-                              Na zewnątrz
-                            </button>
-                          </div>
-                        </div>
-                        <div className="md:col-span-6">
-                          <label className={labelClass}>Notatka</label>
-                          <textarea
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Notatki</p>
+                      <div>
+                        <label className={labelClass}>Opis dodatkowy</label>
+                        <textarea
                             className={inputClass}
-                            rows={4}
-                            value={(editForm.note as string) || ""}
-                            onChange={(e) => updateField("note", e.target.value)}
-                            placeholder="Dodatkowe informacje o miejscu, które warto pokazać na stronie."
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="rounded-lg border border-border/50 p-3 mb-4 space-y-3">
-                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Feedback</p>
-                      <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
-                        <div className="md:col-span-3">
-                          <label className={labelClass}>Likes</label>
-                          <input
-                            type="number"
-                            min={0}
-                            className={inputClass}
-                            value={(editForm.likes as number) ?? 0}
-                            onChange={(e) => updateField("likes", Number(e.target.value) || 0)}
-                          />
-                        </div>
-                        <div className="md:col-span-3">
-                          <label className={labelClass}>Dislikes</label>
-                          <input
-                            type="number"
-                            min={0}
-                            className={inputClass}
-                            value={(editForm.dislikes as number) ?? 0}
-                            onChange={(e) => updateField("dislikes", Number(e.target.value) || 0)}
-                          />
-                        </div>
+                          rows={4}
+                          value={(editForm.note as string) || ""}
+                          onChange={(e) => updateField("note", e.target.value)}
+                          placeholder="Dodatkowe informacje o miejscu, które warto pokazać na stronie."
+                        />
                       </div>
                     </div>
 

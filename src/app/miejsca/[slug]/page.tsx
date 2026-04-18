@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, MapPin, ExternalLink, Home, Globe, Users, FileText } from "lucide-react";
 import { formatAgeRange } from "@/lib/utils";
-import { FeedbackButtons } from "@/components/ui/feedback-buttons";
 import { AiLearnMoreLink } from "@/components/ui/ai-learn-more-link";
 import { getPlaceBySlug } from "@/lib/data";
 
@@ -153,14 +152,6 @@ export default async function PlaceDetailPage({ params }: PageProps) {
           {place.image_url && (
             <div className="relative rounded-xl overflow-hidden bg-accent min-h-[337px]">
               <img src={place.image_url} alt={place.title} className="absolute inset-0 w-full h-full object-cover" />
-              <FeedbackButtons
-                contentType="place"
-                itemId={place.id}
-                initialLikes={place.likes}
-                initialDislikes={place.dislikes}
-                showLabel={false}
-                className="absolute bottom-3 right-3 z-10"
-              />
             </div>
           )}
           <div className="space-y-3">

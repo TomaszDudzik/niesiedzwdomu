@@ -1107,20 +1107,6 @@ function AdminCanonicalEventsPanel() {
                                 </div>
                               </div>
 
-                              <div className="rounded-lg border border-border/50 p-3 mb-4 space-y-3">
-                                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Feedback</p>
-                                <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
-                                  <div className="md:col-span-3">
-                                    <label className={labelClass}>Likes</label>
-                                    <input type="number" min={0} className={inputClass} value={(editForm.likes as number) ?? 0} onChange={(e) => updateField("likes", Number(e.target.value) || 0)} />
-                                  </div>
-                                  <div className="md:col-span-3">
-                                    <label className={labelClass}>Dislikes</label>
-                                    <input type="number" min={0} className={inputClass} value={(editForm.dislikes as number) ?? 0} onChange={(e) => updateField("dislikes", Number(e.target.value) || 0)} />
-                                  </div>
-                                </div>
-                              </div>
-
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
                                 <div className="rounded-lg border border-border/50 p-3 space-y-3">
                                   <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Lokalizacja</p>
