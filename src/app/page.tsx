@@ -8,7 +8,7 @@ export const revalidate = 60;
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.niesiedzwdomu.pl";
 
 export const metadata: Metadata = {
-  title: "Odkryj Kraków z dzieckiem | NieSiedzWDomu",
+  title: "Odkryj Kraków | NieSiedzWDomu",
   description:
     "NieSiedzWDomu to wydarzenia, miejsca, kolonie i pomysly na rodzinny czas w Krakowie. Sprawdzone propozycje w jednym miejscu.",
   alternates: {

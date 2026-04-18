@@ -35,7 +35,7 @@ export function NavSection() {
                   ? "Regulamin"
                   : pathname.startsWith("/prywatnosc")
                     ? "Prywatnosc"
-                    : "Odkryj Kraków z dzieckiem";
+                    : "Odkryj Kraków";
 
   return (
     <section className="container-page pt-4 pb-4 md:pt-5 md:pb-5 bg-white rounded-xl border border-border/20">

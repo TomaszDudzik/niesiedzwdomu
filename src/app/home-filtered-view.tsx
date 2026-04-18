@@ -604,18 +604,20 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
           </FilterSection>
 
           <FilterSection title={<span className="text-[11px] font-medium text-muted-foreground">Wiek dziecka</span>} defaultCollapsed={false}>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-1">
               {ageOptions.filter((group) => group.count > 0 || activeAgeGroup === group.key).map((group) => (
                 <button key={group.key} onClick={() => setActiveAgeGroup(activeAgeGroup === group.key ? null : group.key)}
-                  className={cn("px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-all duration-200",
+                  className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
                     activeAgeGroup === group.key ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
-                  {group.icon} {group.label} <span className="opacity-60">{group.count}</span>
+                  <span>{group.icon}</span>
+                  <span>{group.label}</span>
+                  <span className="text-[10px] opacity-60">{group.count}</span>
                 </button>
               ))}
             </div>
           </FilterSection>
 
-          <FilterSection title={<span className="text-[11px] font-medium text-muted-foreground">Kategoria</span>}>
+          <FilterSection title={<span className="text-[11px] font-medium text-muted-foreground">Kategoria</span>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
               {categoryOptions.map((option) => {
                 const selected = activeCategories.includes(option.value);
@@ -633,7 +635,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
             </div>
           </FilterSection>
 
-          <FilterSection title={<span className="text-[11px] font-medium text-muted-foreground">Dzielnica</span>}>
+          <FilterSection title={<span className="text-[11px] font-medium text-muted-foreground">Dzielnica</span>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
               {districtOptions.map((option) => {
                 const selected = activeDistricts.includes(option.value);
@@ -650,11 +652,21 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
               })}
             </div>
           </FilterSection>
-          {hasActiveFilters && (
-            <button onClick={clearFilters} className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors">
-              <X size={11} /> Wyczyść filtry
+          <div className="flex items-center gap-2 border-t border-border/70 pt-2">
+            {hasActiveFilters && (
+              <button onClick={clearFilters} className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors">
+                <X size={11} /> Wyczyść filtry
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setFiltersOpen(false)}
+              className="ml-auto inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-[11px] font-medium text-foreground hover:bg-accent/60 transition-colors"
+            >
+              Schowaj filtry
+              <ChevronDown size={11} className="rotate-180" />
             </button>
-          )}
+          </div>
         </div>
       )}
 
