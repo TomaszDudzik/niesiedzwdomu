@@ -60,7 +60,7 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
   const [activeAgeGroups, setActiveAgeGroups] = useState<string[]>([]);
   const [view, setView] = useState<ViewMode>("list");
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [filtersOpenDesktop, setFiltersOpenDesktop] = useState(true);
+  const [filtersOpenDesktop, setFiltersOpenDesktop] = useState(false);
 
   const ageGroups = useMemo(
     () => AGE_GROUPS.filter((group) => activeAgeGroups.includes(group.key)),

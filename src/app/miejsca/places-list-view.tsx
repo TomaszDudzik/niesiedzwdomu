@@ -56,7 +56,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
   const [activeAgeGroups, setActiveAgeGroups] = useState<string[]>([]);
   const [view, setView] = useState<ViewMode>("list");
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [filtersOpenDesktop, setFiltersOpenDesktop] = useState(true);
+  const [filtersOpenDesktop, setFiltersOpenDesktop] = useState(false);
   const [MapComponent, setMapComponent] = useState<React.ComponentType<{ groups: MarkerGroup[]; basePath?: string }> | null>(null);
 
   const ageGroups = useMemo(

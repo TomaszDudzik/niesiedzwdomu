@@ -176,7 +176,7 @@ export function EventsListView({ events }: EventsListViewProps) {
   const [activeAgeGroups, setActiveAgeGroups] = useState<string[]>([]);
   const [view, setView] = useState<ViewMode>("list");
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [filtersOpenDesktop, setFiltersOpenDesktop] = useState(true);
+  const [filtersOpenDesktop, setFiltersOpenDesktop] = useState(false);
   const [singleDate, setSingleDate] = useState("");
   const [rangeFrom, setRangeFrom] = useState("");
   const [rangeTo, setRangeTo] = useState("");

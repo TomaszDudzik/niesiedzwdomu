@@ -185,7 +185,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
   const [activeDistricts, setActiveDistricts] = useState<District[]>([]);
   const [activeAgeGroup, setActiveAgeGroup] = useState<string | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [filtersOpenDesktop, setFiltersOpenDesktop] = useState(true);
+  const [filtersOpenDesktop, setFiltersOpenDesktop] = useState(false);
 
   const ageGroup = AGE_GROUPS.find((g) => g.key === activeAgeGroup) ?? null;
   const hasActiveFilters = !!(search || activeTypeLevel2.length > 0 || activeTypes.length > 0 || activeCategories.length > 0 || activeDistricts.length > 0 || activeAgeGroup !== null);
