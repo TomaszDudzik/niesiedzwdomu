@@ -98,6 +98,31 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
     return result;
   }, [activities, search, activeDistricts, ageGroups]);
 
+  const districtOptionsSource = useMemo(() => {
+    let result = activities;
+
+    if (search) {
+      const query = search.toLowerCase();
+      result = result.filter((activity) =>
+        [activity.title, activity.description_short, activity.venue_name, activity.venue_address, activity.organizer]
+          .join(" ")
+          .toLowerCase()
+          .includes(query)
+      );
+    }
+
+    if (ageGroups.length > 0) {
+      result = result.filter((activity) =>
+        ageGroups.some((group) =>
+          (activity.age_min === null || activity.age_min <= group.max) &&
+          (activity.age_max === null || activity.age_max >= group.min)
+        )
+      );
+    }
+
+    return result;
+  }, [activities, search, ageGroups]);
+
   const typeOptions = useMemo(
     () => getTaxonomyOptions(baseFiltered, getActivityTypeValue),
     [baseFiltered]
@@ -145,17 +170,17 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
 
   const districtCounts = useMemo(() => {
     const counts = new Map<District, number>();
-    baseFiltered.forEach((activity) => {
+    districtOptionsSource.forEach((activity) => {
       counts.set(activity.district, (counts.get(activity.district) || 0) + 1);
     });
     return counts;
-  }, [baseFiltered]);
+  }, [districtOptionsSource]);
 
   const availableDistricts = useMemo(() => {
     const set = new Set<string>();
-    baseFiltered.forEach((activity) => set.add(activity.district));
+    districtOptionsSource.forEach((activity) => set.add(activity.district));
     return DISTRICT_LIST.filter((district) => set.has(district));
-  }, [baseFiltered]);
+  }, [districtOptionsSource]);
 
   const grouped = useMemo(() => {
     const groups: { type: string; label: string; icon: string; activities: Activity[] }[] = [];
@@ -545,7 +570,7 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
         </aside>
 
         <div className="flex-1 min-w-0">
-          <div className="space-y-3">
+          <div className="space-y-7">
             <SubmissionCta
               title="Tworzysz ciekawe zajęcia dla dzieci?"
               description="Dodaj je do katalogu i ułatw rodzicom znalezienie regularnych aktywności w okolicy."

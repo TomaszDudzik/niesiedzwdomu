@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { SlidersHorizontal, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { DISTRICT_LIST, AGE_GROUPS } from "@/lib/mock-data";
+import { DISTRICT_LIST } from "@/lib/mock-data";
+import type { District } from "@/types/database";
 import type { SharedFilters } from "@/types/database";
 
 interface FilterConfig {
@@ -35,20 +36,29 @@ export function ContentFilters<T extends SharedFilters>({
   dateRangeOptions = DEFAULT_DATE_RANGE,
 }: ContentFiltersProps<T>) {
   const [expanded, setExpanded] = useState(false);
+  const selectedDistricts = filters.district || [];
 
   const activeCount = Object.values(filters).filter(
-    (v) => v !== undefined && v !== "" && v !== false
+    (v) => v !== undefined && v !== "" && v !== false && (!Array.isArray(v) || v.length > 0)
   ).length;
 
-  const update = (key: string, value: string | boolean | undefined) => {
+  const update = (key: string, value: string | string[] | boolean | undefined) => {
     const next = { ...filters, [key]: value } as T;
-    if (value === undefined || value === "" || value === false) {
+    if (value === undefined || value === "" || value === false || (Array.isArray(value) && value.length === 0)) {
       delete (next as Record<string, unknown>)[key];
     }
     onChange(next);
   };
 
   const clear = () => onChange({} as T);
+
+  const toggleDistrict = (district: District) => {
+    const nextDistricts = selectedDistricts.includes(district)
+      ? selectedDistricts.filter((item) => item !== district)
+      : [...selectedDistricts, district];
+
+    update("district", nextDistricts.length > 0 ? nextDistricts : undefined);
+  };
 
   return (
     <div className="space-y-3">
@@ -132,16 +142,23 @@ export function ContentFilters<T extends SharedFilters>({
 
           <div>
             <label className="block text-[11px] font-medium text-muted-foreground mb-1.5 uppercase tracking-wider">Dzielnica</label>
-            <select
-              value={filters.district || ""}
-              onChange={(e) => update("district", e.target.value || undefined)}
-              className="w-full px-2.5 py-1.5 rounded-lg border border-border text-[13px] bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-200"
-            >
-              <option value="">Wszystkie</option>
+            <div className="flex flex-wrap gap-1">
               {DISTRICT_LIST.map((d) => (
-                <option key={d} value={d}>{d}</option>
+                <button
+                  type="button"
+                  key={d}
+                  onClick={() => toggleDistrict(d)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-lg text-[12px] font-medium transition-all duration-200",
+                    selectedDistricts.includes(d)
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-accent text-muted hover:text-foreground"
+                  )}
+                >
+                  {d}
+                </button>
               ))}
-            </select>
+            </div>
           </div>
 
         </div>

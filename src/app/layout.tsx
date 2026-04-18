@@ -4,7 +4,6 @@ import "@fontsource/plus-jakarta-sans/500.css";
 import "@fontsource/plus-jakarta-sans/600.css";
 import "@fontsource/plus-jakarta-sans/700.css";
 import "./globals.css";
-import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { PageWrapper } from "@/components/layout/page-wrapper";
 import { Analytics } from "@vercel/analytics/react";
@@ -64,7 +63,6 @@ export default function RootLayout({
   return (
     <html lang="pl">
       <body suppressHydrationWarning className="min-h-screen flex flex-col">
-        <Header />
         <main className="flex-1"><PageWrapper>{children}</PageWrapper></main>
         <Footer />
         <Analytics />

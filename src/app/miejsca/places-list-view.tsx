@@ -86,6 +86,25 @@ export function PlacesListView({ places }: PlacesListViewProps) {
     return result;
   }, [places, search, activeDistricts, ageGroups]);
 
+  const districtOptionsSource = useMemo(() => {
+    let result = places;
+    if (search) {
+      const q = search.toLowerCase();
+      result = result.filter((p) =>
+        [p.title, p.description_short, p.street, p.city].join(" ").toLowerCase().includes(q)
+      );
+    }
+    if (ageGroups.length > 0) {
+      result = result.filter((p) =>
+        ageGroups.some((group) =>
+          (p.age_min === null || p.age_min <= group.max) &&
+          (p.age_max === null || p.age_max >= group.min)
+        )
+      );
+    }
+    return result;
+  }, [places, search, ageGroups]);
+
   const typeOptions = useMemo(
     () => getTaxonomyOptions(baseFiltered, getPlaceTypeValue),
     [baseFiltered]
@@ -156,17 +175,17 @@ export function PlacesListView({ places }: PlacesListViewProps) {
 
   const availableDistricts = useMemo(() => {
     const set = new Set<string>();
-    baseFiltered.forEach((p) => set.add(p.district));
+    districtOptionsSource.forEach((p) => set.add(p.district));
     return DISTRICT_LIST.filter((d) => set.has(d));
-  }, [baseFiltered]);
+  }, [districtOptionsSource]);
 
   const districtCounts = useMemo(() => {
     const counts = new Map<District, number>();
-    places.forEach((place) => {
+    districtOptionsSource.forEach((place) => {
       counts.set(place.district, (counts.get(place.district) || 0) + 1);
     });
     return counts;
-  }, [places]);
+  }, [districtOptionsSource]);
 
   const activeFilterBadges = useMemo(() => {
     const badges: { id: string; label: string; onRemove: () => void }[] = [];
@@ -428,7 +447,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
 
         {/* Main content */}
         <div className="flex-1 min-w-0">
-          <div className="space-y-3">
+          <div className="space-y-7">
             <SubmissionCta
               title="Chcesz stworzyć z nami mapę miejsc?"
               description="Dodaj swoje miejsce i pomóż rodzicom odkrywać wartościowe adresy w Krakowie."
@@ -474,44 +493,46 @@ export function PlacesListView({ places }: PlacesListViewProps) {
             </div>
           </div>
 
-          {view === "map" ? (
-            <div className="rounded-xl overflow-hidden border border-border" style={{ height: "500px" }}>
-              {MapComponent ? (
-                <MapComponent groups={mapGroups} basePath="/miejsca" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-accent/20">
-                  <p className="text-[13px] text-muted">Ładowanie mapy...</p>
-                </div>
-              )}
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="text-center py-16">
-              <Search size={32} className="mx-auto text-muted-foreground/20 mb-3" />
-              <p className="text-[14px] text-muted mb-3">Brak miejsc pasujących do filtrów.</p>
-              {hasActiveFilters && (
-                <button onClick={clearFilters} className="text-[12px] font-medium text-primary hover:text-primary-hover transition-colors">
-                  Wyczyść filtry
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-12">
-              {grouped.map((group) => (
-                <section key={group.type}>
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="text-lg">{group.icon}</span>
-                    <h2 className="text-[15px] font-semibold text-foreground">{group.label}</h2>
-                    <span className="text-[12px] text-muted-foreground">({group.places.length})</span>
+          <div className="mt-4">
+            {view === "map" ? (
+              <div className="rounded-xl overflow-hidden border border-border" style={{ height: "500px" }}>
+                {MapComponent ? (
+                  <MapComponent groups={mapGroups} basePath="/miejsca" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-accent/20">
+                    <p className="text-[13px] text-muted">Ładowanie mapy...</p>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {group.places.map((place) => (
-                      <ContentCard key={place.id} item={place} largeImage />
-                    ))}
-                  </div>
-                </section>
-              ))}
-            </div>
-          )}
+                )}
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="text-center py-16">
+                <Search size={32} className="mx-auto text-muted-foreground/20 mb-3" />
+                <p className="text-[14px] text-muted mb-3">Brak miejsc pasujących do filtrów.</p>
+                {hasActiveFilters && (
+                  <button onClick={clearFilters} className="text-[12px] font-medium text-primary hover:text-primary-hover transition-colors">
+                    Wyczyść filtry
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-12">
+                {grouped.map((group) => (
+                  <section key={group.type}>
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="text-lg">{group.icon}</span>
+                      <h2 className="text-[15px] font-semibold text-foreground">{group.label}</h2>
+                      <span className="text-[12px] text-muted-foreground">({group.places.length})</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {group.places.map((place) => (
+                        <ContentCard key={place.id} item={place} largeImage />
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

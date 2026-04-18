@@ -209,7 +209,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
   const hasActiveFilters =
     !!search || activeTypes.length > 0 || activeCategories.length > 0 || activeSubcategories.length > 0 || activeDistricts.length > 0 || activeAgeGroups.length > 0 || hasDateFilters;
 
-  const preTaxonomyFiltered = useMemo(() => {
+  const preDistrictFiltered = useMemo(() => {
     let result = camps;
 
     if (search) {
@@ -220,10 +220,6 @@ export function CampsListView({ camps }: CampsListViewProps) {
           .toLowerCase()
           .includes(query)
       );
-    }
-
-    if (activeDistricts.length > 0) {
-      result = result.filter((camp) => activeDistricts.includes(camp.district));
     }
 
     if (ageGroups.length > 0) {
@@ -237,7 +233,33 @@ export function CampsListView({ camps }: CampsListViewProps) {
     }
 
     return result;
-  }, [camps, search, activeDistricts, ageGroups]);
+  }, [camps, search, ageGroups]);
+
+  const preTaxonomyFiltered = useMemo(() => {
+    if (activeDistricts.length === 0) {
+      return preDistrictFiltered;
+    }
+    return preDistrictFiltered.filter((camp) => activeDistricts.includes(camp.district));
+  }, [preDistrictFiltered, activeDistricts]);
+
+  const dateScopedCampsForDistrict = useMemo(() => {
+    const fromDate = parseDateOnly(rangeFrom);
+    const toDate = parseDateOnly(rangeTo);
+
+    if (fromDate || toDate) {
+      const start = fromDate ? toStartOfDay(fromDate) : new Date(1970, 0, 1);
+      const end = toDate ? toEndOfDay(toDate) : new Date(2100, 0, 1);
+      return preDistrictFiltered.filter((camp) => campIntersectsRange(camp, { start, end }));
+    }
+
+    const exactDate = parseDateOnly(singleDate);
+    if (exactDate) {
+      const range = { start: toStartOfDay(exactDate), end: toEndOfDay(exactDate) };
+      return preDistrictFiltered.filter((camp) => campIntersectsRange(camp, range));
+    }
+
+    return preDistrictFiltered;
+  }, [preDistrictFiltered, rangeFrom, rangeTo, singleDate]);
 
   const dateScopedCamps = useMemo(() => {
     const fromDate = parseDateOnly(rangeFrom);
@@ -392,17 +414,17 @@ export function CampsListView({ camps }: CampsListViewProps) {
 
   const availableDistricts = useMemo(() => {
     const set = new Set<string>();
-    dateScopedCamps.forEach((camp) => set.add(camp.district));
+    dateScopedCampsForDistrict.forEach((camp) => set.add(camp.district));
     return DISTRICT_LIST.filter((district) => set.has(district));
-  }, [dateScopedCamps]);
+  }, [dateScopedCampsForDistrict]);
 
   const districtCounts = useMemo(() => {
     const counts = new Map<District, number>();
-    camps.forEach((camp) => {
+    dateScopedCampsForDistrict.forEach((camp) => {
       counts.set(camp.district, (counts.get(camp.district) || 0) + 1);
     });
     return counts;
-  }, [camps]);
+  }, [dateScopedCampsForDistrict]);
 
   const activeFilterBadges = useMemo(() => {
     const badges: { id: string; label: string; onRemove: () => void }[] = [];
@@ -999,50 +1021,13 @@ export function CampsListView({ camps }: CampsListViewProps) {
         </aside>
 
         <div className="flex-1 min-w-0">
-          <div className="space-y-3">
+          <div className="space-y-7">
             <SubmissionCta
               title="Prowadzisz kolonie lub półkolonie?"
               description="Pokaż ofertę rodzinom szukającym sprawdzonych wyjazdów i turnusów w Krakowie."
               buttonLabel="Dodaj ofertę"
               href="/dodaj?type=camp"
             />
-
-            <div className="rounded-xl border border-border bg-card px-2.5 py-2">
-              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide whitespace-nowrap" style={{ scrollbarWidth: "none" }}>
-                <p className="shrink-0 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Filtry:</p>
-                {activeFilterBadges.length > 0 ? (
-                  <>
-                    {activeFilterBadges.map((badge) => (
-                      <span
-                        key={badge.id}
-                        className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-accent/60 px-2 py-0.5 text-[10px] font-medium text-foreground"
-                      >
-                        <span>{badge.label}</span>
-                        <button
-                          type="button"
-                          onClick={badge.onRemove}
-                          className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-muted-foreground hover:bg-border/70 hover:text-foreground transition-colors"
-                          aria-label={`Usuń filtr ${badge.label}`}
-                          title={`Usuń: ${badge.label}`}
-                        >
-                          <X size={9} />
-                        </button>
-                      </span>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={clearFilters}
-                      className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                    >
-                      <X size={9} />
-                      Wyczyść
-                    </button>
-                  </>
-                ) : (
-                  <p className="text-[11px] text-muted-foreground">Brak aktywnych filtrów.</p>
-                )}
-              </div>
-            </div>
 
             <div ref={calendarRef} className="rounded-xl border border-border bg-white overflow-hidden mb-4 scroll-mt-24">
               <div className="px-3 pt-2 pb-1 border-b border-border/50">
@@ -1060,6 +1045,43 @@ export function CampsListView({ camps }: CampsListViewProps) {
                         title={`${MONTHS_PL[opt.month]} ${opt.year}`}
                       >
                         {opt.label}
+
+                  <div className="rounded-xl border border-border bg-card px-2.5 py-2">
+                    <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide whitespace-nowrap" style={{ scrollbarWidth: "none" }}>
+                      <p className="shrink-0 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Filtry:</p>
+                      {activeFilterBadges.length > 0 ? (
+                        <>
+                          {activeFilterBadges.map((badge) => (
+                            <span
+                              key={badge.id}
+                              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-accent/60 px-2 py-0.5 text-[10px] font-medium text-foreground"
+                            >
+                              <span>{badge.label}</span>
+                              <button
+                                type="button"
+                                onClick={badge.onRemove}
+                                className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-muted-foreground hover:bg-border/70 hover:text-foreground transition-colors"
+                                aria-label={`Usuń filtr ${badge.label}`}
+                                title={`Usuń: ${badge.label}`}
+                              >
+                                <X size={9} />
+                              </button>
+                            </span>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={clearFilters}
+                            className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                          >
+                            <X size={9} />
+                            Wyczyść
+                          </button>
+                        </>
+                      ) : (
+                        <p className="text-[11px] text-muted-foreground">Brak aktywnych filtrów.</p>
+                      )}
+                    </div>
+                  </div>
                       </button>
                     );
                   })}
@@ -1126,30 +1148,31 @@ export function CampsListView({ camps }: CampsListViewProps) {
             </div>
           </div>
 
-          {filteredCamps.length === 0 ? (
-            <div className="text-center py-16">
-              <Search size={32} className="mx-auto text-muted-foreground/20 mb-3" />
-              <p className="text-[14px] text-muted mb-3">Brak kolonii pasujących do filtrów.</p>
-              {hasActiveFilters && (
-                <button
-                  onClick={clearFilters}
-                  className="text-[12px] font-medium text-primary hover:text-primary-hover transition-colors"
-                >
-                  Wyczyść filtry
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-12">
-              {grouped.map((group) => (
-                <section key={group.type}>
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="text-lg">{group.icon}</span>
-                    <h2 className="text-[15px] font-semibold text-foreground">{group.label}</h2>
-                    <span className="text-[12px] text-muted-foreground">({group.organizers.length})</span>
-                  </div>
-                  <div className="space-y-4">
-                    {group.organizers.map((organizer) => {
+          <div className="mt-4">
+            {filteredCamps.length === 0 ? (
+              <div className="text-center py-16">
+                <Search size={32} className="mx-auto text-muted-foreground/20 mb-3" />
+                <p className="text-[14px] text-muted mb-3">Brak kolonii pasujących do filtrów.</p>
+                {hasActiveFilters && (
+                  <button
+                    onClick={clearFilters}
+                    className="text-[12px] font-medium text-primary hover:text-primary-hover transition-colors"
+                  >
+                    Wyczyść filtry
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-12">
+                {grouped.map((group) => (
+                  <section key={group.type}>
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="text-lg">{group.icon}</span>
+                      <h2 className="text-[15px] font-semibold text-foreground">{group.label}</h2>
+                      <span className="text-[12px] text-muted-foreground">({group.organizers.length})</span>
+                    </div>
+                    <div className="space-y-4">
+                      {group.organizers.map((organizer) => {
                       const sortedCamps = sortCampsByNearest(organizer.camps, today);
                       const expanded = !!expandedOrganizers[organizer.organizerKey];
                       const visibleCamps = expanded ? sortedCamps : sortedCamps.slice(0, 3);
@@ -1267,12 +1290,13 @@ export function CampsListView({ camps }: CampsListViewProps) {
                           </div>
                         </article>
                       );
-                    })}
-                  </div>
-                </section>
-              ))}
-            </div>
-          )}
+                      })}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

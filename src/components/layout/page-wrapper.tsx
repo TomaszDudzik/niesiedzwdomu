@@ -11,7 +11,7 @@ export function PageWrapper({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <div className="sticky top-10 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85">
+      <div className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85">
         <NavSection />
       </div>
       {children}

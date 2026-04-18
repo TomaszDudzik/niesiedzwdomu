@@ -317,7 +317,7 @@ export interface ScrapeSource {
 // ============================================
 
 export interface SharedFilters {
-  district?: District;
+  district?: District[];
   ageGroup?: string;
   isFree?: boolean;
   search?: string;

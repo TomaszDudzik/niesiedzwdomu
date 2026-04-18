@@ -57,6 +57,15 @@ function matchesDateRange(dateStart: string, dateRange?: string): boolean {
   }
 }
 
+function matchesDistrict(
+  district: string,
+  activeDistricts?: string[]
+): boolean {
+  if (!activeDistricts) return true;
+  if (activeDistricts.length === 0) return true;
+  return activeDistricts.includes(district);
+}
+
 // ============================================
 // Event filtering
 // ============================================
@@ -65,7 +74,7 @@ export function filterEvents(events: Event[], filters: EventFilters): Event[] {
   return events.filter((event) => {
     if (event.status !== "published") return false;
     if (filters.category && (event.category_lvl_2 ?? event.category) !== filters.category) return false;
-    if (filters.district && event.district !== filters.district) return false;
+    if (!matchesDistrict(event.district, filters.district)) return false;
     if (filters.isFree && !event.is_free) return false;
     if (!matchesAge(event.age_min, event.age_max, filters.ageGroup)) return false;
     if (!matchesDateRange(event.date_start, filters.dateRange)) return false;
@@ -83,7 +92,7 @@ export function filterCamps(camps: Camp[], filters: CampFilters): Camp[] {
     if (camp.status !== "published") return false;
     if (filters.mainCategory && (camp.category_lvl_1 ?? camp.main_category) !== filters.mainCategory) return false;
     if (filters.season && camp.season !== filters.season) return false;
-    if (filters.district && camp.district !== filters.district) return false;
+    if (!matchesDistrict(camp.district, filters.district)) return false;
     if (filters.isFree && !camp.is_free) return false;
     if (filters.mealsIncluded && !camp.meals_included) return false;
     if (!matchesAge(camp.age_min, camp.age_max, filters.ageGroup)) return false;
@@ -101,7 +110,7 @@ export function filterPlaces(places: Place[], filters: PlaceFilters): Place[] {
   return places.filter((place) => {
     if (place.status !== "published") return false;
     if (filters.placeType && (place.category_lvl_1 ?? place.main_category ?? place.place_type) !== filters.placeType) return false;
-    if (filters.district && place.district !== filters.district) return false;
+    if (!matchesDistrict(place.district, filters.district)) return false;
     if (filters.isFree && !place.is_free) return false;
     if (filters.isIndoor !== undefined && place.is_indoor !== filters.isIndoor) return false;
     if (!matchesAge(place.age_min, place.age_max, filters.ageGroup)) return false;

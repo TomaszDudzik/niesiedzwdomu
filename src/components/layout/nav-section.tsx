@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Calendar, MapPin, Tent, Users } from "lucide-react";
+import { Calendar, House, MapPin, Tent, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ComingSoonBadge } from "@/components/ui/coming-soon";
 
@@ -15,13 +15,27 @@ const NAV_LINKS = [
 
 export function NavSection() {
   const pathname = usePathname();
-  const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
+  const isActive = (href: string) =>
+    href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/");
 
   return (
     <section className="container-page pt-4 pb-4 md:pt-5 md:pb-5">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <div>
-          <h1 className="text-lg md:text-xl font-bold text-foreground tracking-[-0.02em] leading-tight">
+        <div className="flex items-start md:items-center gap-3">
+          <Link
+            href="/"
+            className={cn(
+              "flex-shrink-0 rounded-lg p-2 transition-all duration-200 border",
+              pathname === "/" 
+                ? "bg-primary/10 text-primary border-primary/30" 
+                : "text-muted-foreground hover:text-foreground border-transparent hover:bg-primary/5"
+            )}
+            title="Strona główna"
+          >
+            <House size={18} />
+          </Link>
+          <div>
+            <h1 className="text-lg md:text-xl font-bold text-foreground tracking-[-0.02em] leading-tight">
             {pathname.startsWith("/wydarzenia")
               ? "Wydarzenia"
               : pathname.startsWith("/miejsca")
@@ -55,6 +69,7 @@ export function NavSection() {
                 ? "Sprawdz, jak przetwarzamy dane i korzystamy z plikow cookies."
               : "Na NieSiedzWDomu znajdziesz sprawdzone wydarzenia, miejsca i inspiracje dla rodzin z dziećmi w Krakowie."}
           </p>
+          </div>
         </div>
         <div className="flex gap-1.5">
           {NAV_LINKS.map((link) => {

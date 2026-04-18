@@ -234,9 +234,24 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
     [unifiedFilterEntries, typeLevel2LabelMap]
   );
 
+  const typeLevel2OptionsByValue = useMemo(
+    () => new Map(typeLevel2Options.map((option) => [option.value, option])),
+    [typeLevel2Options]
+  );
+
   const categoryOptions = useMemo(
     () => getTaxonomyOptions(unifiedFilterEntries, (entry) => entry.category, CATEGORY_LABELS as Record<string, string>),
     [unifiedFilterEntries]
+  );
+
+  const typeOptionsByValue = useMemo(
+    () => new Map(typeOptions.map((option) => [option.value, option])),
+    [typeOptions]
+  );
+
+  const categoryOptionsByValue = useMemo(
+    () => new Map(categoryOptions.map((option) => [option.value, option])),
+    [categoryOptions]
   );
 
   const districtOptions = useMemo(() => {
@@ -250,6 +265,60 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
       .map(([value, count]) => ({ value, label: value, icon: DISTRICT_ICONS[value] || "📍", count }))
       .sort((left, right) => left.label.localeCompare(right.label, "pl"));
   }, [unifiedFilterEntries]);
+
+  const activeFilterBadges = useMemo(() => {
+    const badges: { id: string; label: string; onRemove: () => void }[] = [];
+
+    if (search.trim()) {
+      badges.push({ id: "search", label: `Szukaj: ${search.trim()}`, onRemove: () => setSearch("") });
+    }
+
+    activeTypeLevel2.forEach((typeLevel2) => {
+      const option = typeLevel2OptionsByValue.get(typeLevel2);
+      badges.push({
+        id: `type-level-2-${typeLevel2}`,
+        label: `Grupa: ${option?.label || typeLevel2}`,
+        onRemove: () => setActiveTypeLevel2((prev) => prev.filter((item) => item !== typeLevel2)),
+      });
+    });
+
+    activeTypes.forEach((type) => {
+      const option = typeOptionsByValue.get(type);
+      badges.push({
+        id: `type-${type}`,
+        label: `Typ: ${option?.label || type}`,
+        onRemove: () => setActiveTypes((prev) => prev.filter((item) => item !== type)),
+      });
+    });
+
+    activeCategories.forEach((category) => {
+      const option = categoryOptionsByValue.get(category);
+      badges.push({
+        id: `category-${category}`,
+        label: `Kategoria: ${option?.label || category}`,
+        onRemove: () => setActiveCategories((prev) => prev.filter((item) => item !== category)),
+      });
+    });
+
+    activeDistricts.forEach((district) => {
+      badges.push({
+        id: `district-${district}`,
+        label: `Dzielnica: ${district}`,
+        onRemove: () => setActiveDistricts((prev) => prev.filter((item) => item !== district)),
+      });
+    });
+
+    if (activeAgeGroup) {
+      const group = AGE_GROUPS.find((item) => item.key === activeAgeGroup);
+      badges.push({
+        id: `age-${activeAgeGroup}`,
+        label: `Wiek: ${group?.label || activeAgeGroup}`,
+        onRemove: () => setActiveAgeGroup(null),
+      });
+    }
+
+    return badges;
+  }, [search, activeTypeLevel2, activeTypes, activeCategories, activeDistricts, activeAgeGroup, typeLevel2OptionsByValue, typeOptionsByValue, categoryOptionsByValue]);
 
   const filteredEvents = useMemo(() => {
     let result = events;
@@ -441,17 +510,6 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
       {/* Mobile filters dropdown */}
       {filtersOpen && (
         <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 space-y-2.5">
-          <div className="flex items-center justify-between gap-3 pb-1 border-b border-border/70">
-            <p className="text-[11px] font-semibold text-foreground">Filtry strony głównej</p>
-            <button
-              type="button"
-              onClick={() => setFiltersOpen(false)}
-              className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-2 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:border-primary/20 transition-colors"
-            >
-              <X size={10} /> Zwiń
-            </button>
-          </div>
-
           <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Grupa</span>} defaultCollapsed>
             <div className="flex flex-wrap gap-1">
               {typeLevel2Options.map((option) => {
@@ -540,14 +598,6 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
               <X size={11} /> Wyczyść filtry
             </button>
           )}
-
-          <button
-            type="button"
-            onClick={() => setFiltersOpen(false)}
-            className="w-full inline-flex items-center justify-center gap-1 rounded-lg border border-border bg-background px-3 py-2 text-[11px] font-semibold text-foreground hover:border-primary/20 hover:bg-accent/40 transition-colors"
-          >
-            Zamknij filtry
-          </button>
         </div>
       )}
 
@@ -555,57 +605,57 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
       <div className="lg:flex lg:gap-6 lg:items-start">
 
         {/* Sidebar — desktop only */}
-        <aside className="hidden lg:block w-56 shrink-0">
-          <div className="rounded-xl border border-border bg-card p-3 space-y-3">
+        <aside className="hidden lg:block w-52 shrink-0">
+          <div className="rounded-xl border border-border bg-card p-2.5 space-y-2.5">
             <div className="relative">
               <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
               <input type="text" placeholder="Szukaj..." value={search} onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-7 pr-2 py-1 rounded-lg border border-border bg-background text-[11px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-200" />
+                className="w-full pl-7 pr-2 py-1 rounded-lg border border-border bg-background text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-200" />
             </div>
 
             <div className="border-t border-border" />
 
-            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Grupa</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5" defaultCollapsed={false}>
+            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Grupa</span>} defaultCollapsed={false}>
               <div className="flex flex-col gap-0.5">
                 {typeLevel2Options.map((option) => {
                   const selected = activeTypeLevel2.includes(option.value);
                   return (
                     <button key={option.value} onClick={() => toggleTypeLevel2(option.value)}
-                      className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium text-left transition-all duration-200",
+                      className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
                         selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
                       <span>{option.icon}</span>
                       <span className="flex-1">{option.label}</span>
                       {selected && <Check size={10} />}
-                      <span className="text-[9px] opacity-40">{option.count}</span>
+                      <span className="text-[8px] opacity-40">{option.count}</span>
                     </button>
                   );
                 })}
               </div>
             </FilterSection>
 
-            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Typ</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5" defaultCollapsed={false}>
+            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Typ</span>} defaultCollapsed={false}>
               <div className="flex flex-col gap-0.5">
                 {typeOptions.map((option) => {
                   const selected = activeTypes.includes(option.value);
                   return (
                     <button key={option.value} onClick={() => toggleType(option.value)}
-                      className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium text-left transition-all duration-200",
+                      className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
                         selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
                       <span>{option.icon}</span>
                       <span className="flex-1">{option.label}</span>
                       {selected && <Check size={10} />}
-                      <span className="text-[9px] opacity-40">{option.count}</span>
+                      <span className="text-[8px] opacity-40">{option.count}</span>
                     </button>
                   );
                 })}
               </div>
             </FilterSection>
 
-            <FilterSection title={<span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Wiek</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5" defaultCollapsed={false}>
+            <FilterSection title={<span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Wiek</span>} defaultCollapsed={false}>
               <div className="flex flex-col gap-0.5">
                 {AGE_GROUPS.map((group) => (
                   <button key={group.key} onClick={() => setActiveAgeGroup(activeAgeGroup === group.key ? null : group.key)}
-                    className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium text-left transition-all duration-200",
+                    className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
                       activeAgeGroup === group.key ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
                     <span>{group.icon}</span>
                     <span>{group.label}</span>
@@ -614,36 +664,36 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
               </div>
             </FilterSection>
 
-            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Kategoria</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
+            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Kategoria</span>}>
               <div className="flex flex-col gap-0.5">
                 {categoryOptions.map((option) => {
                   const selected = activeCategories.includes(option.value);
                   return (
                     <button key={option.value} onClick={() => toggleCategory(option.value)}
-                      className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium text-left transition-all duration-200",
+                      className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
                         selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
                       <span>{option.icon}</span>
                       <span className="flex-1">{option.label}</span>
                       {selected && <Check size={10} />}
-                      <span className="text-[9px] opacity-40">{option.count}</span>
+                      <span className="text-[8px] opacity-40">{option.count}</span>
                     </button>
                   );
                 })}
               </div>
             </FilterSection>
 
-            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><MapPin size={10} /> Dzielnica</span>} triggerClassName="px-2 py-1.5" contentClassName="px-2 pb-2.5">
+            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><MapPin size={10} /> Dzielnica</span>}>
               <div className="flex flex-col gap-0.5">
                 {districtOptions.map((option) => {
                   const selected = activeDistricts.includes(option.value);
                   return (
                     <button key={option.value} onClick={() => toggleDistrict(option.value)}
-                      className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium text-left transition-all duration-200",
+                      className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
                         selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
                       <span>{option.icon}</span>
                       <span className="flex-1">{option.label}</span>
                       {selected && <Check size={10} />}
-                      <span className="text-[9px] opacity-40">{option.count}</span>
+                      <span className="text-[8px] opacity-40">{option.count}</span>
                     </button>
                   );
                 })}
@@ -659,7 +709,44 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
         </aside>
 
         {/* Main content */}
-        <div className="flex-1 min-w-0 space-y-10">
+        <div className="flex-1 min-w-0 space-y-5">
+
+          <div className="rounded-xl border border-border bg-card px-2.5 py-2">
+            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide whitespace-nowrap" style={{ scrollbarWidth: "none" }}>
+              <p className="shrink-0 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Filtry:</p>
+              {activeFilterBadges.length > 0 ? (
+                <>
+                  {activeFilterBadges.map((badge) => (
+                    <span
+                      key={badge.id}
+                      className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-accent/60 px-2 py-0.5 text-[10px] font-medium text-foreground"
+                    >
+                      <span>{badge.label}</span>
+                      <button
+                        type="button"
+                        onClick={badge.onRemove}
+                        className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-muted-foreground hover:bg-border/70 hover:text-foreground transition-colors"
+                        aria-label={`Usuń filtr ${badge.label}`}
+                        title={`Usuń: ${badge.label}`}
+                      >
+                        <X size={9} />
+                      </button>
+                    </span>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                  >
+                    <X size={9} />
+                    Wyczyść
+                  </button>
+                </>
+              ) : (
+                <p className="text-[11px] text-muted-foreground">Brak aktywnych filtrów.</p>
+              )}
+            </div>
+          </div>
 
           {/* Empty state */}
           {showEmpty && (

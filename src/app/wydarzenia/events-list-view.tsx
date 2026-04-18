@@ -208,7 +208,7 @@ export function EventsListView({ events }: EventsListViewProps) {
   const hasActiveFilters =
     !!search || activeTypes.length > 0 || activeCategories.length > 0 || activeSubcategories.length > 0 || activeDistricts.length > 0 || activeAgeGroups.length > 0 || hasDateFilters;
 
-  const preTaxonomyFiltered = useMemo(() => {
+  const preDistrictFiltered = useMemo(() => {
     let result = events;
     if (search) {
       const q = search.toLowerCase();
@@ -231,7 +231,33 @@ export function EventsListView({ events }: EventsListViewProps) {
       );
     }
     return result;
-  }, [events, search, activeDistricts, ageGroups]);
+  }, [events, search, activeCategories, ageGroups]);
+
+  const preTaxonomyFiltered = useMemo(() => {
+    if (activeDistricts.length === 0) {
+      return preDistrictFiltered;
+    }
+    return preDistrictFiltered.filter((event) => activeDistricts.includes(event.district));
+  }, [preDistrictFiltered, activeDistricts]);
+
+  const dateScopedEventsForDistrict = useMemo(() => {
+    const fromDate = parseDateOnly(rangeFrom);
+    const toDate = parseDateOnly(rangeTo);
+
+    if (fromDate || toDate) {
+      const start = fromDate ? toStartOfDay(fromDate) : new Date(1970, 0, 1);
+      const end = toDate ? toEndOfDay(toDate) : new Date(2100, 0, 1);
+      return preDistrictFiltered.filter((event) => eventIntersectsRange(event, { start, end }));
+    }
+
+    const exactDate = parseDateOnly(singleDate);
+    if (exactDate) {
+      const range = { start: toStartOfDay(exactDate), end: toEndOfDay(exactDate) };
+      return preDistrictFiltered.filter((event) => eventIntersectsRange(event, range));
+    }
+
+    return preDistrictFiltered;
+  }, [preDistrictFiltered, rangeFrom, rangeTo, singleDate]);
 
   const dateScopedEvents = useMemo(() => {
     const fromDate = parseDateOnly(rangeFrom);
@@ -424,17 +450,17 @@ export function EventsListView({ events }: EventsListViewProps) {
 
   const availableDistricts = useMemo(() => {
     const set = new Set<string>();
-    dateScopedEvents.forEach((e) => set.add(e.district));
+    dateScopedEventsForDistrict.forEach((e) => set.add(e.district));
     return DISTRICT_LIST.filter((d) => set.has(d));
-  }, [dateScopedEvents]);
+  }, [dateScopedEventsForDistrict]);
 
   const districtCounts = useMemo(() => {
     const counts = new Map<District, number>();
-    events.forEach((event) => {
+    dateScopedEventsForDistrict.forEach((event) => {
       counts.set(event.district, (counts.get(event.district) || 0) + 1);
     });
     return counts;
-  }, [events]);
+  }, [dateScopedEventsForDistrict]);
 
   function clearFilters() {
     setSearch("");
@@ -855,8 +881,8 @@ export function EventsListView({ events }: EventsListViewProps) {
                     >
                       <span>{icon}</span>
                       <span className="flex-1">{district}</span>
-                      <span className="text-[8px] opacity-50">{count}</span>
                       {selected && <Check size={10} />}
+                      <span className="text-[8px] opacity-40">{count}</span>
                     </button>
                   );
                 })}
@@ -876,50 +902,13 @@ export function EventsListView({ events }: EventsListViewProps) {
         {/* Main content */}
         <div className="flex-1 min-w-0">
           <>
-            <div className="space-y-3">
+            <div className="space-y-7">
               <SubmissionCta
                 title="Organizujesz wydarzenie dla dzieci?"
                 description="Dodaj je do kalendarza i pomóż rodzinom znaleźć pomysł na dziś albo weekend."
                 buttonLabel="Dodaj wydarzenie"
                 href="/dodaj?type=event"
               />
-
-              <div className="rounded-xl border border-border bg-card px-2.5 py-2">
-                  <div className="flex flex-wrap items-center gap-1.5" >
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Filtry:</p>
-                  {activeFilterBadges.length > 0 ? (
-                    <>
-                      {activeFilterBadges.map((badge) => (
-                        <span
-                          key={badge.id}
-                            className="inline-flex items-center gap-1 rounded-full border border-border bg-accent/60 px-2 py-0.5 text-[10px] font-medium text-foreground"
-                        >
-                          <span>{badge.label}</span>
-                          <button
-                            type="button"
-                            onClick={badge.onRemove}
-                            className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-muted-foreground hover:bg-border/70 hover:text-foreground transition-colors"
-                            aria-label={`Usuń filtr ${badge.label}`}
-                            title={`Usuń: ${badge.label}`}
-                          >
-                            <X size={9} />
-                          </button>
-                        </span>
-                      ))}
-                      <button
-                        type="button"
-                        onClick={clearFilters}
-                        className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                      >
-                        <X size={9} />
-                        Wyczyść
-                      </button>
-                    </>
-                  ) : (
-                    <p className="text-[11px] text-muted-foreground">Brak aktywnych filtrów.</p>
-                  )}
-                </div>
-              </div>
 
               <div className="rounded-xl border border-border bg-white overflow-hidden mb-4">
                 <div className="px-3 pt-2 pb-1 border-b border-border/50">
@@ -1002,46 +991,85 @@ export function EventsListView({ events }: EventsListViewProps) {
                   })}
                 </div>
               </div>
+
+              <div className="rounded-xl border border-border bg-card px-2.5 py-2">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Filtry:</p>
+                  {activeFilterBadges.length > 0 ? (
+                    <>
+                      {activeFilterBadges.map((badge) => (
+                        <span
+                          key={badge.id}
+                          className="inline-flex items-center gap-1 rounded-full border border-border bg-accent/60 px-2 py-0.5 text-[10px] font-medium text-foreground"
+                        >
+                          <span>{badge.label}</span>
+                          <button
+                            type="button"
+                            onClick={badge.onRemove}
+                            className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-muted-foreground hover:bg-border/70 hover:text-foreground transition-colors"
+                            aria-label={`Usuń filtr ${badge.label}`}
+                            title={`Usuń: ${badge.label}`}
+                          >
+                            <X size={9} />
+                          </button>
+                        </span>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={clearFilters}
+                        className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                      >
+                        <X size={9} />
+                        Wyczyść
+                      </button>
+                    </>
+                  ) : (
+                    <p className="text-[11px] text-muted-foreground">Brak aktywnych filtrów.</p>
+                  )}
+                </div>
+              </div>
             </div>
 
-            {view === "map" ? (
-              <div className="rounded-xl border border-border overflow-hidden h-[420px] lg:h-[560px] bg-accent/10">
-                {MapComponent ? (
-                  <MapComponent groups={sidebarMapGroups} />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-[13px] text-muted-foreground">
-                    Ładowanie mapy...
-                  </div>
-                )}
-              </div>
-            ) : listEvents.length === 0 ? (
-              <div className="text-center py-16">
-                <Search size={32} className="mx-auto text-muted-foreground/20 mb-3" />
-                <p className="text-[14px] text-muted mb-3">Brak wydarzeń pasujących do filtrów daty i pozostałych filtrów.</p>
-                {hasActiveFilters && (
-                  <button onClick={clearFilters} className="text-[12px] font-medium text-primary hover:text-primary-hover transition-colors">
-                    Wyczyść filtry
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-12">
-                {grouped.map((group) => (
-                  <section key={group.category}>
-                    <div className="flex items-center gap-2 mb-4">
-                      <span className="text-lg">{group.icon}</span>
-                      <h2 className="text-[15px] font-semibold text-foreground">{group.label}</h2>
-                      <span className="text-[12px] text-muted-foreground">({group.events.length})</span>
+            <div className="mt-4">
+              {view === "map" ? (
+                <div className="rounded-xl border border-border overflow-hidden h-[420px] lg:h-[560px] bg-accent/10">
+                  {MapComponent ? (
+                    <MapComponent groups={sidebarMapGroups} />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-[13px] text-muted-foreground">
+                      Ładowanie mapy...
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {group.events.map((event) => (
-                        <ContentCard key={event.id} item={event} />
-                      ))}
-                    </div>
-                  </section>
-                ))}
-              </div>
-            )}
+                  )}
+                </div>
+              ) : listEvents.length === 0 ? (
+                <div className="text-center py-16">
+                  <Search size={32} className="mx-auto text-muted-foreground/20 mb-3" />
+                  <p className="text-[14px] text-muted mb-3">Brak wydarzeń pasujących do filtrów daty i pozostałych filtrów.</p>
+                  {hasActiveFilters && (
+                    <button onClick={clearFilters} className="text-[12px] font-medium text-primary hover:text-primary-hover transition-colors">
+                      Wyczyść filtry
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-12">
+                  {grouped.map((group) => (
+                    <section key={group.category}>
+                      <div className="flex items-center gap-2 mb-4">
+                        <span className="text-lg">{group.icon}</span>
+                        <h2 className="text-[15px] font-semibold text-foreground">{group.label}</h2>
+                        <span className="text-[12px] text-muted-foreground">({group.events.length})</span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {group.events.map((event) => (
+                          <ContentCard key={event.id} item={event} />
+                        ))}
+                      </div>
+                    </section>
+                  ))}
+                </div>
+              )}
+            </div>
           </>
         </div>
       </div>
