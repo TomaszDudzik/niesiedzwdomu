@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Calendar, MapPin, ArrowRight, Clock, ThumbsUp } from "lucide-react";
 import type { DiscoveryItem } from "@/types/database";
-import { formatPrice, formatAgeRange, cn, thumbUrl, formatPriceRange } from "@/lib/utils";
+import { formatAgeRange, cn, thumbUrl, formatPriceRange } from "@/lib/utils";
 import { getItemHref, getTypeBadgeLabel, getSubcategoryLabel, getDateText, getLocationText, getPlaceholderIcon } from "@/lib/content-helpers";
 
 interface FeaturedCardProps {
@@ -9,11 +9,11 @@ interface FeaturedCardProps {
 }
 
 function getFeaturedPriceText(item: DiscoveryItem): string {
-  if (item.content_type === "activity" || item.content_type === "event") {
+  if (item.content_type === "activity" || item.content_type === "event" || item.content_type === "camp") {
     return formatPriceRange(item.price_from, item.price_to, item.is_free);
   }
 
-  return formatPrice(item.price ?? null);
+  return item.is_free ? "Bezpłatnie" : "Sprawdź szczegóły";
 }
 
 export function FeaturedCard({ item }: FeaturedCardProps) {

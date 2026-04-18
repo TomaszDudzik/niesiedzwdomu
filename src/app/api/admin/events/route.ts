@@ -152,8 +152,8 @@ function normalizeEventRecord(record: Record<string, unknown>) {
   const street = typeof record.street === "string" && record.street.trim().length > 0 ? record.street : legacyLocation.street ?? "";
   const city = typeof record.city === "string" && record.city.trim().length > 0 ? record.city : legacyLocation.city ?? "Kraków";
   const organizerData = record.organizer_data as Record<string, unknown> | null | undefined;
-  const organizer = typeof organizerData?.name === "string" && organizerData.name.trim().length > 0
-    ? organizerData.name
+  const organizer = typeof organizerData?.organizer_name === "string" && organizerData.organizer_name.trim().length > 0
+    ? organizerData.organizer_name
     : (typeof record.organizer === "string" ? record.organizer : null);
 
   return {

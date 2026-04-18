@@ -45,10 +45,19 @@ const ACTIVITY_ORDER: Activity["activity_type"][] = [
 const inputClass = "w-full px-2 py-1.5 rounded-md border border-border text-[12px] bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30";
 const labelClass = "block text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1";
 
+function isUUID(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
 const FIELD_ALIASES: Record<string, string[]> = {
   title: ["title", "tytul", "tytuł", "nazwa", "zajecia", "zajęcia"],
   description_short: ["description_short", "krotki opis", "krótki opis", "opis", "temat"],
   description_long: ["description_long", "dlugi opis", "długi opis", "program"],
+  type_lvl_1_id: ["type_lvl_1_id", "type_id", "type level 1", "typ poziom 1"],
+  type_lvl_2_id: ["type_lvl_2_id", "subtype_id", "type level 2", "typ poziom 2"],
+  category_lvl_1: ["category_lvl_1", "main_category", "kategoria glowna", "kategoria główna", "category level 1"],
+  category_lvl_2: ["category_lvl_2", "category", "kategoria", "typ", "rodzaj", "activity_type", "type"],
+  category_lvl_3: ["category_lvl_3", "subcategory", "podkategoria", "sub category", "category level 3"],
   activity_type: ["activity_type", "typ", "rodzaj", "kategoria", "type"],
   schedule_summary: ["schedule_summary", "harmonogram", "grafik", "plan", "schedule"],
   days_of_week: ["days_of_week", "dni", "dni_tygodnia", "dni tygodnia"],
@@ -60,15 +69,23 @@ const FIELD_ALIASES: Record<string, string[]> = {
   age_max: ["age_max", "wiek do", "max age"],
   price_from: ["price_from", "cena od", "price", "cena"],
   price_to: ["price_to", "cena do"],
+  is_free: ["is_free", "free", "darmowe", "bezplatne", "bezpłatne"],
   organizer: ["organizer", "organizator"],
+  organizer_id: ["organizer_id", "organizator_id"],
   venue_name: ["venue_name", "miejsce", "lokalizacja", "nazwa miejsca"],
   venue_address: ["venue_address", "adres", "address"],
   street: ["street", "ulica", "adres", "address"],
   postcode: ["postcode", "kod", "kod pocztowy", "zip", "postal code"],
   city: ["city", "miasto"],
+  lat: ["lat", "latitude"],
+  lng: ["lng", "lon", "longitude"],
+  district: ["district", "dzielnica"],
   note: ["note", "notatka", "uwagi", "dodatkowe informacje"],
   source_url: ["source_url", "url", "link", "link_zrodlowy"],
   facebook_url: ["facebook_url", "facebook", "fb", "facebook page"],
+  status: ["status", "stan"],
+  likes: ["likes", "polubienia"],
+  dislikes: ["dislikes", "niepolubienia"],
 };
 
 function resolveField(header: string): string | null {
@@ -95,6 +112,14 @@ function normalizeTime(value?: string): string | null {
 function detectDistrict(location: string): Activity["district"] {
   const hit = DISTRICT_LIST.find((district) => location.toLowerCase().includes(district.toLowerCase()));
   return (hit || "Inne") as Activity["district"];
+}
+
+function normalizeActivityStatus(value?: string): Activity["status"] {
+  const normalized = (value || "").trim().toLowerCase();
+  if (normalized === "published" || normalized === "opublikowany") return "published";
+  if (normalized === "cancelled" || normalized === "anulowany") return "cancelled";
+  if (normalized === "deleted" || normalized === "usuniety" || normalized === "usunięty") return "deleted";
+  return "draft";
 }
 
 function inferActivityType(mappedType: string | undefined, title: string): Activity["activity_type"] {
@@ -279,9 +304,28 @@ export default function AdminActivitiesPage() {
   const mapActivityRow = useCallback((row: Record<string, unknown>): Activity => ({
     ...row,
     content_type: "activity",
+    image_url: typeof row.image_cover === "string" && row.image_cover.trim().length > 0
+      ? row.image_cover
+      : (typeof row.image_url === "string" ? row.image_url : null),
+    activity_type: inferActivityType(
+      typeof row.category_lvl_1 === "string" ? row.category_lvl_1 : undefined,
+      typeof row.title === "string" ? row.title : "",
+    ),
+    schedule_summary: [
+      Array.isArray(row.days_of_week) ? row.days_of_week.map(String).join(", ") : "",
+      typeof row.time_start === "string" && typeof row.time_end === "string"
+        ? `${row.time_start.slice(0, 5)}-${row.time_end.slice(0, 5)}`
+        : (typeof row.time_start === "string" ? row.time_start.slice(0, 5) : ""),
+    ].filter(Boolean).join(" · ") || null,
+    organizer: typeof (row.organizer_data as Record<string, unknown> | null | undefined)?.organizer_name === "string"
+      ? String((row.organizer_data as Record<string, unknown>).organizer_name)
+      : String(row.organizer || ""),
+    street: typeof row.street === "string" ? row.street : "",
+    city: typeof row.city === "string" && row.city.trim().length > 0 ? row.city : "Kraków",
     days_of_week: Array.isArray(row.days_of_week) ? row.days_of_week.map(String) : [],
     price_from: typeof row.price_from === "number" ? row.price_from : null,
     price_to: typeof row.price_to === "number" ? row.price_to : null,
+    is_free: Boolean(row.is_free) || row.price_from === 0 || row.price_to === 0,
   }) as Activity, []);
 
   const fetchActivities = useCallback(async () => {
@@ -476,20 +520,28 @@ export default function AdminActivitiesPage() {
       const dateEnd = mapped.date_end || null;
       const priceFrom = asNumber(mapped.price_from);
       const priceTo = asNumber(mapped.price_to);
-      const venueAddress = mapped.venue_address || "Krakow";
-      const scheduleSummary = mapped.schedule_summary || [mapped.days_of_week, mapped.time_start && mapped.time_end ? `${mapped.time_start}-${mapped.time_end}` : mapped.time_start].filter(Boolean).join(", ");
+      const street = mapped.street?.trim() || mapped.venue_address?.trim() || "";
+      const postcode = mapped.postcode?.trim() || null;
+      const city = mapped.city?.trim() || "Kraków";
+      const district = mapped.district?.trim() ? detectDistrict(mapped.district) : detectDistrict([street, postcode, city].filter(Boolean).join(", "));
+      const lat = asNumber(mapped.lat);
+      const lng = asNumber(mapped.lng);
       const organizerName = mapped.organizer?.trim() || mapped.venue_name?.trim() || "Organizator";
+      const organizerId = isUUID(mapped.organizer_id || "") ? mapped.organizer_id : null;
       const matchedOrganizer = organizerName
         ? organizers.find((organizer) => organizer.organizer_name.toLowerCase() === organizerName.toLowerCase())
         : null;
+      const status = normalizeActivityStatus(mapped.status);
 
       const payload = {
         title: mapped.title.trim(),
         description_short: mapped.description_short || "Opis zajęć",
         description_long: mapped.description_long || mapped.description_short || "",
-        image_url: null,
-        activity_type: inferActivityType(mapped.activity_type, mapped.title),
-        schedule_summary: scheduleSummary || null,
+        type_lvl_1_id: mapped.type_lvl_1_id?.trim() || null,
+        type_lvl_2_id: mapped.type_lvl_2_id?.trim() || null,
+        category_lvl_1: mapped.category_lvl_1?.trim() || inferActivityType(mapped.activity_type, mapped.title),
+        category_lvl_2: mapped.category_lvl_2?.trim() || null,
+        category_lvl_3: mapped.category_lvl_3?.trim() || null,
         days_of_week: mapped.days_of_week ? mapped.days_of_week.split(/[,;/]/).map((part) => part.trim()).filter(Boolean) : [],
         date_start: dateStart,
         date_end: dateEnd,
@@ -499,15 +551,19 @@ export default function AdminActivitiesPage() {
         age_max: asNumber(mapped.age_max),
         price_from: priceFrom,
         price_to: priceTo,
-        is_free: (priceFrom ?? priceTo ?? null) === 0,
-        district: detectDistrict(venueAddress),
-        venue_name: mapped.venue_name || mapped.organizer || "Miejsce",
-        venue_address: venueAddress,
-        organizer: organizerName,
-        organizer_id: matchedOrganizer?.id ?? null,
+        district,
+        street,
+        postcode,
+        city,
+        lat,
+        lng,
+        note: mapped.note?.trim() || null,
+        organizer_id: organizerId ?? matchedOrganizer?.id ?? null,
         source_url: mapped.source_url || null,
         facebook_url: mapped.facebook_url || null,
-        is_featured: false,
+        status,
+        likes: asNumber(mapped.likes) ?? 0,
+        dislikes: asNumber(mapped.dislikes) ?? 0,
       };
 
       try {
@@ -524,24 +580,53 @@ export default function AdminActivitiesPage() {
           imported.push(mapActivityRow(data));
 
           // Geocode address to get accurate district
-          if (venueAddress && venueAddress !== "Krakow") {
+          if (status !== "draft") {
+            await fetch("/api/admin/activities", {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ id: data.id, status }),
+            });
+            const idx = imported.findIndex((a) => a.id === data.id);
+            if (idx !== -1) imported[idx] = { ...imported[idx], status };
+          }
+
+          if (street && (lat == null || lng == null)) {
             try {
               if (index > 0) await new Promise((r) => setTimeout(r, 1100));
               const geoRes = await fetch("/api/admin/geocode", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ address: venueAddress, city: "Kraków" }),
+                body: JSON.stringify({ address: street, city }),
               });
               const geo = await geoRes.json();
-              const district = geo.district || detectDistrict(venueAddress);
-              if (district && district !== "Inne") {
+              const nextPatch: Record<string, unknown> = { id: data.id };
+              if (geo.lat && geo.lng) {
+                nextPatch.lat = geo.lat;
+                nextPatch.lng = geo.lng;
+              }
+              if (geo.district) {
+                nextPatch.district = geo.district;
+              }
+              if (geo.postcode && !postcode) {
+                nextPatch.postcode = geo.postcode;
+              }
+              if (geo.city) {
+                nextPatch.city = geo.city;
+              }
+              if (Object.keys(nextPatch).length > 1) {
                 await fetch("/api/admin/activities", {
                   method: "PATCH",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ id: data.id, district }),
+                  body: JSON.stringify(nextPatch),
                 });
                 const idx = imported.findIndex((a) => a.id === data.id);
-                if (idx !== -1) imported[idx] = { ...imported[idx], district: district as Activity["district"] };
+                if (idx !== -1) imported[idx] = {
+                  ...imported[idx],
+                  ...(geo.lat && geo.lng ? { lat: geo.lat, lng: geo.lng } : {}),
+                  ...(geo.district ? { district: geo.district as Activity["district"] } : {}),
+                  ...(geo.postcode && !postcode ? { postcode: geo.postcode } : {}),
+                  ...(geo.city ? { city: geo.city } : {}),
+                };
               }
             } catch { /* geocoding is best-effort */ }
           }
@@ -632,7 +717,7 @@ export default function AdminActivitiesPage() {
       category_lvl_3: activity.category_lvl_3 ?? activity.subcategory ?? null,
       venue_name: activity.venue_name,
       venue_address: activity.venue_address,
-      street: activity.street ?? activity.venue_address ?? "",
+      street: activity.street ?? "",
       postcode: activity.postcode ?? "",
       city: activity.city ?? "Kraków",
       lat: activity.lat ?? null,
@@ -667,8 +752,6 @@ export default function AdminActivitiesPage() {
       description_long: String(editForm.description_long || ""),
       type_lvl_1_id: editForm.type_lvl_1_id ? String(editForm.type_lvl_1_id) : null,
       type_lvl_2_id: editForm.type_lvl_2_id ? String(editForm.type_lvl_2_id) : null,
-      activity_type: editForm.activity_type,
-      schedule_summary: editForm.schedule_summary ? String(editForm.schedule_summary) : null,
       days_of_week: String(editForm.days_of_week || "").split(",").map((part) => part.trim()).filter(Boolean),
       date_start: editForm.date_start,
       date_end: editForm.date_end || null,
@@ -676,17 +759,14 @@ export default function AdminActivitiesPage() {
       time_end: editForm.time_end ? `${String(editForm.time_end)}:00` : null,
       age_min: editForm.age_min === "" || editForm.age_min === null ? null : Number(editForm.age_min),
       age_max: editForm.age_max === "" || editForm.age_max === null ? null : Number(editForm.age_max),
-      price_from: editForm.price_from === "" || editForm.price_from === null ? null : Number(editForm.price_from),
-      price_to: editForm.price_to === "" || editForm.price_to === null ? null : Number(editForm.price_to),
-      organizer: String(editForm.organizer || ""),
+      price_from: Boolean(editForm.is_free) ? 0 : (editForm.price_from === "" || editForm.price_from === null ? null : Number(editForm.price_from)),
+      price_to: Boolean(editForm.is_free) ? 0 : (editForm.price_to === "" || editForm.price_to === null ? null : Number(editForm.price_to)),
       organizer_id: editForm.organizer_id || null,
       source_url: editForm.source_url ? String(editForm.source_url) : null,
       facebook_url: editForm.facebook_url ? String(editForm.facebook_url) : null,
       category_lvl_1: editForm.category_lvl_1 ? String(editForm.category_lvl_1) : null,
       category_lvl_2: editForm.category_lvl_2 ? String(editForm.category_lvl_2) : null,
       category_lvl_3: editForm.category_lvl_3 ? String(editForm.category_lvl_3) : null,
-      venue_name: String(editForm.venue_name || ""),
-      venue_address: [String(editForm.street || editForm.venue_address || "").trim(), String(editForm.city || "Kraków").trim()].filter(Boolean).join(", "),
       street: String(editForm.street || editForm.venue_address || "").trim(),
       postcode: editForm.postcode ? String(editForm.postcode).trim() : null,
       city: String(editForm.city || "Kraków").trim() || "Kraków",
@@ -694,8 +774,6 @@ export default function AdminActivitiesPage() {
       lng: editForm.lng === "" || editForm.lng === null ? null : Number(editForm.lng),
       district: editForm.district,
       note: editForm.note ? String(editForm.note) : null,
-      is_featured: Boolean(editForm.is_featured),
-      is_free: Boolean(editForm.is_free),
       ...(newImageCover ? { image_cover: newImageCover, image_set: null } : {}),
     };
 
@@ -733,8 +811,6 @@ export default function AdminActivitiesPage() {
       description_short: "Opis zajęć",
       description_long: "",
       image_url: null,
-      activity_type: "inne",
-      schedule_summary: null,
       days_of_week: [],
       date_start: new Date().toISOString().slice(0, 10),
       date_end: null,
@@ -744,21 +820,16 @@ export default function AdminActivitiesPage() {
       age_max: null,
       price_from: null,
       price_to: null,
-      is_free: false,
       district: "Inne",
-      venue_name: "Miejsce",
-      venue_address: "Krakow",
       street: "",
       postcode: null,
       city: "Kraków",
       lat: null,
       lng: null,
       note: null,
-      organizer: "Organizator",
       organizer_id: null,
       source_url: null,
       facebook_url: null,
-      is_featured: false,
     };
 
     const response = await fetch("/api/admin/activities", {
@@ -919,10 +990,6 @@ export default function AdminActivitiesPage() {
                                 <Pencil size={13} />
                               </button>
 
-                              <button onClick={() => toggleFeatured(activity)} className={cn("p-1 rounded transition-colors", activity.is_featured ? "text-amber-500 hover:bg-amber-50" : "text-muted-foreground hover:bg-stone-100")} title="Wyróżnij">
-                                <Star size={13} fill={activity.is_featured ? "currentColor" : "none"} />
-                              </button>
-
                               {activity.source_url && (
                                 <a href={activity.source_url} target="_blank" rel="noopener" className="p-1 rounded hover:bg-accent text-muted transition-colors" title="Zrodlo">
                                   <ExternalLink size={13} />
@@ -1054,10 +1121,6 @@ export default function AdminActivitiesPage() {
                                         <input type="checkbox" checked={Boolean(editForm.is_free)} onChange={(e) => setEditForm((c) => ({ ...c, is_free: e.target.checked }))} className="rounded border-border" />
                                         Bezpłatne
                                       </label>
-                                      <label className="flex items-center gap-2 text-[12px] cursor-pointer">
-                                        <input type="checkbox" checked={Boolean(editForm.is_featured)} onChange={(e) => setEditForm((c) => ({ ...c, is_featured: e.target.checked }))} className="rounded border-border" />
-                                        Wyróżnione
-                                      </label>
                                     </div>
                                     <div className="md:col-span-6">
                                       <label className={labelClass}>Notatka</label>
@@ -1085,11 +1148,7 @@ export default function AdminActivitiesPage() {
                                     <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Lokalizacja</p>
                                     <div className="grid grid-cols-2 gap-3">
                                       <div className="col-span-2">
-                                        <label className={labelClass}>Miejsce</label>
-                                        <input className={inputClass} value={(editForm.venue_name as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, venue_name: event.target.value }))} />
-                                      </div>
-                                      <div className="col-span-2">
-                                        <label className={labelClass}>Adres</label>
+                                        <label className={labelClass}>Ulica</label>
                                         <div className="relative">
                                           <input
                                             className={inputClass}

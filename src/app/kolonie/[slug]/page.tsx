@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, Banknote, Calendar, ExternalLink, Globe, MapPin, Users } from "lucide-react";
 import { CAMP_CATEGORY_LABELS, CAMP_SEASON_LABELS, CAMP_MAIN_CATEGORY_ICONS, CAMP_MAIN_CATEGORY_LABELS } from "@/lib/mock-data";
-import { formatAgeRange, formatDate, formatPrice } from "@/lib/utils";
+import { formatAgeRange, formatDate, formatPriceRange } from "@/lib/utils";
 import { AiLearnMoreLink } from "@/components/ui/ai-learn-more-link";
 import { FeedbackButtons } from "@/components/ui/feedback-buttons";
 import { getCampBySlug, getCampSessionsByOrganizer } from "@/lib/data";
@@ -55,7 +55,7 @@ export default async function CampDetailPage({ params }: PageProps) {
   const camp = await getCampBySlug(slug);
   if (!camp) notFound();
 
-  const sessions = camp.organizer
+  const sessions = camp.organizer_id
     ? await getCampSessionsByOrganizer(camp.organizer_id, camp.organizer, camp.id)
     : [];
   const campType = camp.category_lvl_1 ?? camp.main_category;
@@ -65,6 +65,8 @@ export default async function CampDetailPage({ params }: PageProps) {
     : null;
 
   const campUrl = `${SITE_URL}/kolonie/${camp.slug}`;
+  const campAddress = [camp.street, camp.postcode, camp.city].filter(Boolean).join(", ");
+  const hasOfferPrice = camp.price_from !== null || camp.price_to !== null;
   const breadcrumbSchema = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
@@ -87,24 +89,25 @@ export default async function CampDetailPage({ params }: PageProps) {
     eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
     location: {
       "@type": "Place",
-      name: camp.venue_name || "Krakow",
+      name: camp.title,
       address: {
         "@type": "PostalAddress",
-        streetAddress: camp.venue_address || undefined,
-        addressLocality: "Krakow",
+        streetAddress: camp.street || undefined,
+        postalCode: camp.postcode || undefined,
+        addressLocality: camp.city || "Krakow",
         addressCountry: "PL",
       },
     },
     organizer: camp.organizer
       ? { "@type": "Organization", name: camp.organizer }
       : { "@type": "Organization", name: "NieSiedzWDomu", url: SITE_URL },
-    offers: camp.is_free || camp.price !== null
+    offers: camp.is_free || hasOfferPrice
       ? {
           "@type": "Offer",
           url: camp.source_url || campUrl,
           priceCurrency: "PLN",
           availability: "https://schema.org/InStock",
-          price: camp.is_free ? 0 : camp.price,
+          price: camp.is_free ? 0 : (camp.price_from ?? camp.price_to),
           validFrom: camp.created_at,
         }
       : undefined,
@@ -175,7 +178,7 @@ export default async function CampDetailPage({ params }: PageProps) {
                 campCategoryLabel,
                 camp.title,
                 "Kraków",
-                camp.price ? `cena ${formatPrice(camp.price)}` : null,
+                hasOfferPrice ? `cena ${formatPriceRange(camp.price_from, camp.price_to, camp.is_free)}` : null,
                 "praktyczne informacje",
                 "dla kogo",
               ]}
@@ -201,9 +204,9 @@ export default async function CampDetailPage({ params }: PageProps) {
                 </div>
               </div>
 
-              {(camp.venue_name || camp.venue_address) && (
+              {campAddress && (
                 <a
-                  href={camp.venue_address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(camp.venue_address)}` : undefined}
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(campAddress)}`}
                   target="_blank"
                   rel="noopener"
                   className="flex items-start gap-2.5 group"
@@ -212,7 +215,7 @@ export default async function CampDetailPage({ params }: PageProps) {
                   <div>
                     <p className="text-[10px] text-muted uppercase tracking-wider leading-none mb-0.5">Adres</p>
                     <p className="text-[13px] font-medium text-foreground group-hover:text-primary transition-colors">
-                      {camp.venue_address || camp.venue_name}
+                      {campAddress}
                     </p>
                   </div>
                 </a>
@@ -230,7 +233,7 @@ export default async function CampDetailPage({ params }: PageProps) {
                 <Banknote size={14} className="text-secondary/60 shrink-0 mt-0.5" />
                 <div>
                   <p className="text-[10px] text-muted uppercase tracking-wider leading-none mb-0.5">Cena</p>
-                  <p className="text-[13px] font-medium text-foreground">{formatPrice(camp.price)}</p>
+                  <p className="text-[13px] font-medium text-foreground">{formatPriceRange(camp.price_from, camp.price_to, camp.is_free)}</p>
                   <p className="text-[11px] text-muted">
                     {camp.meals_included ? "Wyżywienie w cenie" : "Bez wyżywienia"}
                     {camp.transport_included ? " · transport w cenie" : " · bez transportu"}
@@ -288,8 +291,8 @@ export default async function CampDetailPage({ params }: PageProps) {
                   {s.duration_days ? <span className="text-muted font-normal"> · {s.duration_days} dni</span> : null}
                 </p>
                 <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[12px] text-muted">
-                  {(s.venue_name || s.venue_address) && <span>{s.venue_name || s.venue_address}</span>}
-                  <span>{formatPrice(s.price)}</span>
+                    <span>{[s.street, s.postcode, s.city].filter(Boolean).join(", ") || "—"}</span>
+                    <span>{formatPriceRange(s.price_from, s.price_to, s.is_free)}</span>
                 </div>
                 <Link href={`/kolonie/${s.slug}`} className="text-[12px] text-primary hover:underline self-start">
                   Szczegóły →
@@ -321,13 +324,13 @@ export default async function CampDetailPage({ params }: PageProps) {
                       {s.duration_days ? `${s.duration_days} dni` : "—"}
                     </td>
                     <td className="px-4 py-3 text-muted">
-                      {s.venue_name || s.venue_address || "—"}
+                      {[s.street, s.postcode, s.city].filter(Boolean).join(", ") || "—"}
                     </td>
                     <td className="px-4 py-3 text-muted whitespace-nowrap">
                       {formatAgeRange(s.age_min, s.age_max)}
                     </td>
                     <td className="px-4 py-3 text-muted whitespace-nowrap">
-                      {formatPrice(s.price)}
+                      {formatPriceRange(s.price_from, s.price_to, s.is_free)}
                     </td>
                     <td className="px-4 py-3">
                       <Link

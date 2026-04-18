@@ -67,11 +67,13 @@ function normalizeImageFields(row: Record<string, unknown>) {
 
 function normalizeEventLocationFields(row: Record<string, unknown>) {
   const street = pickString(row.street);
+  const postcode = pickString(row.postcode);
   const city = pickString(row.city);
 
-  if (street || city) {
+  if (street || postcode || city) {
     return {
       street: street ?? "",
+      postcode: postcode ?? null,
       city: city ?? "Kraków",
     };
   }
@@ -80,6 +82,7 @@ function normalizeEventLocationFields(row: Record<string, unknown>) {
   if (!legacyAddress) {
     return {
       street: "",
+      postcode: null,
       city: "Kraków",
     };
   }
@@ -88,12 +91,14 @@ function normalizeEventLocationFields(row: Record<string, unknown>) {
   if (parts.length >= 2) {
     return {
       street: parts.slice(0, -1).join(", "),
+      postcode: null,
       city: parts[parts.length - 1] ?? "Kraków",
     };
   }
 
   return {
     street: legacyAddress,
+    postcode: null,
     city: "Kraków",
   };
 }
@@ -170,18 +175,30 @@ function toCamp(row: Record<string, unknown>, maps: AdminCategoryMaps): Camp {
   const normalized = normalizeCategoryFields(row, maps);
   const priceFrom = typeof row.price_from === "number" ? row.price_from : null;
   const priceSingle = typeof row.price === "number" ? row.price : null;
+  const priceTo = typeof row.price_to === "number" ? row.price_to : null;
   const organizerData = row.organizer_data as Record<string, unknown> | null | undefined;
+  const location = normalizeEventLocationFields(normalized);
+  const organizer = pickString(organizerData?.organizer_name) ?? pickString(organizerData?.name) ?? String(row.organizer || "");
+  const derivedAddress = [location.street, location.postcode, location.city].filter(Boolean).join(", ");
 
   return {
     ...normalized,
+    ...location,
     content_type: "camp",
+    image_url: typeof row.image_cover === "string" && row.image_cover.trim().length > 0
+      ? row.image_cover
+      : (typeof row.image_url === "string" ? row.image_url : null),
     main_category: pickString(normalized.category_lvl_1) ?? pickString(normalized.main_category) ?? "Bez kategorii",
     category: pickString(normalized.category_lvl_2),
     subcategory: pickString(normalized.category_lvl_3),
-    organizer: typeof organizerData?.name === "string" && organizerData.name.trim().length > 0
-      ? organizerData.name
-      : String(row.organizer || ""),
+    organizer,
+    venue_name: organizer || null,
+    venue_address: derivedAddress || null,
+    price_from: priceFrom ?? priceSingle ?? null,
+    price_to: priceTo,
     price: priceFrom ?? priceSingle ?? null,
+    is_free: Boolean(row.is_free) || priceFrom === 0 || priceTo === 0 || priceSingle === 0,
+    organizer_data: organizerData ?? null,
   } as unknown as Camp;
 }
 
@@ -192,21 +209,36 @@ function toActivity(row: Record<string, unknown>, maps: AdminCategoryMaps): Acti
     pickString(normalized.activity_type) ??
     "Bez kategorii";
   const organizerData = row.organizer_data as Record<string, unknown> | null | undefined;
-  const organizer = typeof organizerData?.name === "string" && organizerData.name.trim().length > 0
-    ? organizerData.name
-    : String(row.organizer || "");
+  const organizer = pickString(organizerData?.organizer_name) ?? pickString(organizerData?.name) ?? String(row.organizer || "");
+  const location = normalizeEventLocationFields(normalized);
+  const timeStart = pickString(row.time_start);
+  const timeEnd = pickString(row.time_end);
+  const daySummary = Array.isArray(row.days_of_week) ? row.days_of_week.map(String).join(", ") : "";
+  const timeSummary = timeStart && timeEnd ? `${timeStart.slice(0, 5)}-${timeEnd.slice(0, 5)}` : (timeStart ? timeStart.slice(0, 5) : "");
+  const scheduleSummary = [daySummary, timeSummary].filter(Boolean).join(" · ") || null;
+  const derivedAddress = [location.street, location.postcode, location.city].filter(Boolean).join(", ");
+  const priceFrom = typeof row.price_from === "number" ? row.price_from : null;
+  const priceTo = typeof row.price_to === "number" ? row.price_to : null;
 
   return {
     ...normalized,
+    ...location,
     content_type: "activity",
+    image_url: typeof row.image_cover === "string" && row.image_cover.trim().length > 0
+      ? row.image_cover
+      : (typeof row.image_url === "string" ? row.image_url : null),
     activity_type: activityType,
+    schedule_summary: scheduleSummary,
     main_category: pickString(normalized.category_lvl_1) ?? activityType,
     category: pickString(normalized.category_lvl_2),
     subcategory: pickString(normalized.category_lvl_3),
     days_of_week: Array.isArray(row.days_of_week) ? row.days_of_week.map(String) : [],
-    price_from: typeof row.price_from === "number" ? row.price_from : null,
-    price_to: typeof row.price_to === "number" ? row.price_to : null,
+    price_from: priceFrom,
+    price_to: priceTo,
+    is_free: Boolean(row.is_free) || priceFrom === 0 || priceTo === 0,
     organizer,
+    venue_name: organizer || null,
+    venue_address: derivedAddress || null,
     organizer_data: organizerData ?? null,
   } as unknown as Activity;
 }
@@ -352,7 +384,7 @@ export async function getCampBySlug(slug: string): Promise<Camp | null> {
 }
 
 export async function getCampSessionsByOrganizer(organizerId: string | null | undefined, organizer: string, excludeId: string): Promise<Camp[]> {
-  if (!organizerId && !organizer) {
+  if (!organizerId) {
     return [];
   }
 
@@ -365,7 +397,7 @@ export async function getCampSessionsByOrganizer(organizerId: string | null | un
     .neq("id", excludeId)
     .order("date_start", { ascending: true });
 
-  query = organizerId ? query.eq("organizer_id", organizerId) : query.eq("organizer", organizer);
+  query = query.eq("organizer_id", organizerId);
 
   const { data } = await query;
   return (data || []).map((row) => toCamp(row, maps));

@@ -116,6 +116,12 @@ function normalizeCampRecord(record: Record<string, unknown>) {
   const categoryLevel1 = record.category_lvl_1 ?? record.main_category ?? record.camp_type ?? null;
   const categoryLevel2 = record.category_lvl_2 ?? record.category ?? null;
   const categoryLevel3 = record.category_lvl_3 ?? record.subcategory ?? null;
+  const organizerData = record.organizer_data as Record<string, unknown> | null | undefined;
+  const organizer = typeof organizerData?.organizer_name === "string" && organizerData.organizer_name.trim().length > 0
+    ? organizerData.organizer_name
+    : (typeof organizerData?.name === "string" && organizerData.name.trim().length > 0
+      ? organizerData.name
+      : (typeof record.organizer === "string" ? record.organizer : ""));
 
   return {
     ...record,
@@ -130,6 +136,8 @@ function normalizeCampRecord(record: Record<string, unknown>) {
     category: categoryLevel2,
     subcategory: categoryLevel3,
     camp_type: categoryLevel1,
+    organizer,
+    organizer_data: organizerData ?? null,
   };
 }
 
@@ -225,7 +233,9 @@ function pickCampFields(input: Record<string, unknown>) {
     title: input.title,
     description_short: input.description_short,
     description_long: input.description_long,
-    image_url: input.image_url,
+    image_cover: input.image_cover ?? input.image_url,
+    image_thumb: input.image_thumb ?? null,
+    image_set: input.image_set ?? null,
     type_lvl_1_id: input.type_lvl_1_id ?? input.type_id ?? null,
     type_lvl_2_id: input.type_lvl_2_id ?? input.subtype_id ?? null,
     category_lvl_1_id: input.category_lvl_1_id ?? null,
@@ -244,19 +254,14 @@ function pickCampFields(input: Record<string, unknown>) {
     age_max: input.age_max,
     price_from: input.price_from,
     price_to: input.price_to,
-    is_free: input.is_free,
     district: input.district,
     street: input.street,
     postcode: input.postcode,
     city: input.city,
     note: input.note,
-    venue_name: input.venue_name,
-    venue_address: input.venue_address,
-    organizer: input.organizer,
     organizer_id: input.organizer_id ?? null,
     source_url: input.source_url,
     facebook_url: input.facebook_url,
-    is_featured: input.is_featured,
     status: input.status,
     likes: input.likes,
     dislikes: input.dislikes,
@@ -300,9 +305,9 @@ const ALLOWED_CAMP_FIELDS = new Set([
   "category_lvl_1_id", "category_lvl_2_id", "category_lvl_3_id",
   "date_start", "date_end", "category_lvl_1", "category_lvl_2", "category_lvl_3", "main_category", "category", "subcategory", "season",
   "duration_days", "meals_included", "transport_included",
-  "age_min", "age_max", "price_from", "price_to", "is_free",
-  "district", "street", "postcode", "city", "note", "venue_name", "venue_address", "organizer", "organizer_id",
-  "source_url", "facebook_url", "is_featured", "status", "likes", "dislikes",
+  "age_min", "age_max", "price_from", "price_to",
+  "district", "street", "postcode", "city", "note", "organizer_id",
+  "source_url", "facebook_url", "status", "likes", "dislikes",
 ]);
 
 export async function PATCH(request: NextRequest) {

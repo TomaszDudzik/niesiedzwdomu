@@ -58,6 +58,11 @@ function AdminCanonicalEventsPanel() {
     title: ["title", "tytul", "tytuł", "nazwa", "name"],
     description_short: ["description_short", "krotki opis", "krótki opis", "opis", "short description"],
     description_long: ["description_long", "dlugi opis", "długi opis", "pelny opis", "pełny opis", "long description"],
+    type_lvl_1_id: ["type_lvl_1_id", "type_id", "type level 1", "typ poziom 1"],
+    type_lvl_2_id: ["type_lvl_2_id", "subtype_id", "type level 2", "typ poziom 2"],
+    category_lvl_1: ["category_lvl_1", "main_category", "kategoria glowna", "kategoria główna", "category level 1"],
+    category_lvl_2: ["category_lvl_2", "category", "kategoria", "typ", "rodzaj", "activity_type", "activity type"],
+    category_lvl_3: ["category_lvl_3", "subcategory", "podkategoria", "sub category", "category level 3"],
     category: ["category", "kategoria", "typ", "rodzaj", "activity_type", "activity type"],
     date_start: ["date_start", "data", "data od", "start date", "date"],
     date_end: ["date_end", "data do", "end date"],
@@ -65,19 +70,24 @@ function AdminCanonicalEventsPanel() {
     time_end: ["time_end", "godzina do", "end time", "czas do"],
     age_min: ["age_min", "wiek od", "minimalny wiek"],
     age_max: ["age_max", "wiek do", "maksymalny wiek"],
-    price_from: ["price_from", "cena od", "price from", "od", "koszt od", "price"],
+    price_from: ["price_from", "cena od", "price from", "od", "koszt od", "price", "cena"],
     price_to: ["price_to", "cena do", "price to", "do", "koszt do"],
     is_free: ["is_free", "free", "darmowe", "bezplatne", "bezpłatne"],
     district: ["district", "dzielnica"],
     street: ["street", "ulica", "adres", "address", "venue_address"],
     postcode: ["postcode", "kod", "kod pocztowy", "zip", "postal code"],
     city: ["city", "miasto"],
+    lat: ["lat", "latitude"],
+    lng: ["lng", "lon", "longitude"],
     note: ["note", "notatka", "uwagi", "dodatkowe informacje"],
     organizer: ["organizer", "organizator"],
+    organizer_id: ["organizer_id", "organizator_id"],
     source_url: ["source_url", "url", "link", "zrodlo", "źródło"],
     facebook_url: ["facebook_url", "facebook", "fb", "facebook page"],
     is_featured: ["is_featured", "featured", "wyroznione", "wyróżnione"],
     status: ["status", "stan"],
+    likes: ["likes", "polubienia"],
+    dislikes: ["dislikes", "niepolubienia"],
   };
 
   const resolveField = (header: string): string | null => {
@@ -264,18 +274,24 @@ function AdminCanonicalEventsPanel() {
       const priceTo = asNumber(mapped.price_to) ?? asNumber(row.price_to);
       const isFree = mapped.is_free ? asBoolean(mapped.is_free) : priceFrom === 0 || priceTo === 0;
       const street = mapped.street?.trim() || "";
+      const postcode = mapped.postcode?.trim() || null;
       const city = mapped.city?.trim() || "Kraków";
       const organizerName = mapped.organizer?.trim() || "";
+      const organizerId = isUUID(mapped.organizer_id || "") ? mapped.organizer_id : null;
       const matchedOrganizer = organizerName
         ? organizers.find((organizer) => organizer.organizer_name.toLowerCase() === organizerName.toLowerCase())
         : null;
+      const categoryLevel2 = mapped.category_lvl_2?.trim() || normalizeCategory(mapped.category);
       const payload = {
-        content_type: "event",
         title: mapped.title.trim(),
         slug: slugify(mapped.title.trim()),
         description_short: mapped.description_short || mapped.description_long || "Opis wydarzenia",
         description_long: mapped.description_long || mapped.description_short || "",
-        image_url: null,
+        type_lvl_1_id: mapped.type_lvl_1_id?.trim() || null,
+        type_lvl_2_id: mapped.type_lvl_2_id?.trim() || null,
+        category_lvl_1: mapped.category_lvl_1?.trim() || null,
+        category_lvl_2: categoryLevel2 || null,
+        category_lvl_3: mapped.category_lvl_3?.trim() || null,
         date_start: mapped.date_start || new Date().toISOString().slice(0, 10),
         date_end: mapped.date_end || null,
         time_start: mapped.time_start || null,
@@ -285,18 +301,21 @@ function AdminCanonicalEventsPanel() {
         price_from: priceFrom,
         price_to: priceTo,
         is_free: isFree,
-        category: normalizeCategory(mapped.category),
         district: normalizeDistrict(mapped.district),
         street,
+        postcode,
         city,
-        lat: null,
-        lng: null,
+        lat: asNumber(mapped.lat),
+        lng: asNumber(mapped.lng),
+        note: mapped.note?.trim() || null,
         organizer: organizerName || null,
-        organizer_id: matchedOrganizer?.id ?? null,
+        organizer_id: organizerId ?? matchedOrganizer?.id ?? null,
         source_url: mapped.source_url || null,
         facebook_url: mapped.facebook_url || null,
         is_featured: asBoolean(mapped.is_featured),
         status: normalizeStatus(mapped.status),
+        likes: asNumber(mapped.likes) ?? 0,
+        dislikes: asNumber(mapped.dislikes) ?? 0,
       };
 
       try {
@@ -310,7 +329,7 @@ function AdminCanonicalEventsPanel() {
           imported.push({ ...data, content_type: "event" } as Event);
 
           // Geocode address to fill lat/lng/district
-          if (street) {
+          if (street && (payload.lat == null || payload.lng == null)) {
             try {
               if (index > 0) await new Promise((r) => setTimeout(r, 1100));
               const geoRes = await fetch("/api/admin/geocode", {
@@ -322,13 +341,20 @@ function AdminCanonicalEventsPanel() {
               if (geo.lat && geo.lng) {
                 const patch: Record<string, unknown> = { id: data.id, lat: geo.lat, lng: geo.lng };
                 if (geo.district) patch.district = geo.district;
+                if (geo.postcode && !postcode) patch.postcode = geo.postcode;
                 await fetch("/api/admin/events", {
                   method: "PATCH",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify(patch),
                 });
                 const idx = imported.findIndex((e) => e.id === data.id);
-                if (idx !== -1) imported[idx] = { ...imported[idx], lat: geo.lat, lng: geo.lng, ...(geo.district ? { district: geo.district } : {}) } as Event;
+                if (idx !== -1) imported[idx] = {
+                  ...imported[idx],
+                  lat: geo.lat,
+                  lng: geo.lng,
+                  ...(geo.district ? { district: geo.district } : {}),
+                  ...(geo.postcode && !postcode ? { postcode: geo.postcode } : {}),
+                } as Event;
               }
             } catch { /* geocoding is best-effort */ }
           }
@@ -722,7 +748,7 @@ function AdminCanonicalEventsPanel() {
       age_max: editForm.age_max === "" || editForm.age_max === null ? null : Number(editForm.age_max),
       price_from: Number.isFinite(priceFromValue) ? priceFromValue : null,
       price_to: Number.isFinite(priceToValue) ? priceToValue : null,
-      is_free: Boolean(editForm.is_free) || priceFromValue === 0 || priceToValue === 0,
+      is_free: Boolean(editForm.is_free),
       district: editForm.district,
       street: String(editForm.street || "").trim(),
       postcode: editForm.postcode ? String(editForm.postcode).trim() : null,
@@ -997,46 +1023,60 @@ function AdminCanonicalEventsPanel() {
 
                               <div className="rounded-lg border border-border/50 p-3 mb-4 space-y-3">
                                 <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Szczegóły wydarzenia</p>
-                                <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
-                                  <div>
-                                    <label className={labelClass}>Data od</label>
-                                    <input type="date" className={inputClass} value={(editForm.date_start as string) || ""} onChange={(e) => updateField("date_start", e.target.value)} />
+                                <div className="space-y-3">
+                                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                                    <div>
+                                      <label className={labelClass}>Data od</label>
+                                      <input type="date" className={inputClass} value={(editForm.date_start as string) || ""} onChange={(e) => updateField("date_start", e.target.value)} />
+                                    </div>
+                                    <div>
+                                      <label className={labelClass}>Data do</label>
+                                      <input type="date" className={inputClass} value={(editForm.date_end as string) || ""} onChange={(e) => updateField("date_end", e.target.value || null)} />
+                                    </div>
+                                    <div>
+                                      <label className={labelClass}>Godzina od</label>
+                                      <input type="time" className={inputClass} value={(editForm.time_start as string) || ""} onChange={(e) => updateField("time_start", e.target.value || null)} />
+                                    </div>
+                                    <div>
+                                      <label className={labelClass}>Godzina do</label>
+                                      <input type="time" className={inputClass} value={(editForm.time_end as string) || ""} onChange={(e) => updateField("time_end", e.target.value || null)} />
+                                    </div>
                                   </div>
-                                  <div>
-                                    <label className={labelClass}>Data do</label>
-                                    <input type="date" className={inputClass} value={(editForm.date_end as string) || ""} onChange={(e) => updateField("date_end", e.target.value || null)} />
-                                  </div>
-                                  <div>
-                                    <label className={labelClass}>Godzina od</label>
-                                    <input type="time" className={inputClass} value={(editForm.time_start as string) || ""} onChange={(e) => updateField("time_start", e.target.value || null)} />
-                                  </div>
-                                  <div>
-                                    <label className={labelClass}>Godzina do</label>
-                                    <input type="time" className={inputClass} value={(editForm.time_end as string) || ""} onChange={(e) => updateField("time_end", e.target.value || null)} />
-                                  </div>
-                                  <div>
-                                    <label className={labelClass}>Wiek od</label>
-                                    <input type="number" min={0} max={18} className={inputClass} value={editForm.age_min === null ? "" : String(editForm.age_min ?? "")} onChange={(e) => updateField("age_min", e.target.value ? Number(e.target.value) : null)} />
-                                  </div>
-                                  <div>
-                                    <label className={labelClass}>Wiek do</label>
-                                    <input type="number" min={0} max={18} className={inputClass} value={editForm.age_max === null ? "" : String(editForm.age_max ?? "")} onChange={(e) => updateField("age_max", e.target.value ? Number(e.target.value) : null)} />
-                                  </div>
-                                  <div>
-                                    <label className={labelClass}>Cena od</label>
-                                    <input type="number" min={0} step="0.01" className={inputClass} value={editForm.price_from === null ? "" : String(editForm.price_from ?? "")} onChange={(e) => {
-                                      const value = e.target.value ? Number(e.target.value) : null;
-                                      updateField("price_from", value);
-                                      updateField("is_free", value === 0 || editForm.price_to === 0);
-                                    }} />
-                                  </div>
-                                  <div>
-                                    <label className={labelClass}>Cena do</label>
-                                    <input type="number" min={0} step="0.01" className={inputClass} value={editForm.price_to === null ? "" : String(editForm.price_to ?? "")} onChange={(e) => {
-                                      const value = e.target.value ? Number(e.target.value) : null;
-                                      updateField("price_to", value);
-                                      updateField("is_free", editForm.price_from === 0 || value === 0);
-                                    }} />
+                                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                                    <div>
+                                      <label className={labelClass}>Wiek od</label>
+                                      <input type="number" min={0} max={18} className={inputClass} value={editForm.age_min === null ? "" : String(editForm.age_min ?? "")} onChange={(e) => updateField("age_min", e.target.value ? Number(e.target.value) : null)} />
+                                    </div>
+                                    <div>
+                                      <label className={labelClass}>Wiek do</label>
+                                      <input type="number" min={0} max={18} className={inputClass} value={editForm.age_max === null ? "" : String(editForm.age_max ?? "")} onChange={(e) => updateField("age_max", e.target.value ? Number(e.target.value) : null)} />
+                                    </div>
+                                    <div>
+                                      <label className={labelClass}>Cena od</label>
+                                      <input type="number" min={0} step="0.01" value={editForm.price_from === null ? "" : String(editForm.price_from ?? "")} onChange={(e) => {
+                                        const value = e.target.value ? Number(e.target.value) : null;
+                                        updateField("price_from", value);
+                                      }} disabled={Boolean(editForm.is_free)} className={cn(inputClass, Boolean(editForm.is_free) && "bg-accent/40 text-muted cursor-not-allowed")} />
+                                    </div>
+                                    <div>
+                                      <label className={labelClass}>Cena do</label>
+                                      <input type="number" min={0} step="0.01" value={editForm.price_to === null ? "" : String(editForm.price_to ?? "")} onChange={(e) => {
+                                        const value = e.target.value ? Number(e.target.value) : null;
+                                        updateField("price_to", value);
+                                      }} disabled={Boolean(editForm.is_free)} className={cn(inputClass, Boolean(editForm.is_free) && "bg-accent/40 text-muted cursor-not-allowed")} />
+                                    </div>
+                                    <div className="md:col-span-4">
+                                      <label className="flex items-center gap-2 text-[12px] cursor-pointer pt-2">
+                                        <input type="checkbox" checked={Boolean(editForm.is_free)} onChange={(e) => {
+                                          updateField("is_free", e.target.checked);
+                                          if (e.target.checked) {
+                                            updateField("price_from", null);
+                                            updateField("price_to", null);
+                                          }
+                                        }} className="rounded border-border" />
+                                        Bezpłatne wydarzenie
+                                      </label>
+                                    </div>
                                   </div>
                                   <div className="md:col-span-6">
                                     <label className={labelClass}>Notatka</label>

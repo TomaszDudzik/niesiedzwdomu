@@ -216,7 +216,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
     }
 
     const query = search.toLowerCase();
-    return [camp.title, camp.description_short, camp.venue_name, camp.venue_address, camp.organizer]
+    return [camp.title, camp.description_short, camp.street, camp.postcode, camp.city, camp.note, camp.organizer]
       .join(" ")
       .toLowerCase()
       .includes(query);

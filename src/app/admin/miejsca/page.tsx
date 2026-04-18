@@ -171,7 +171,11 @@ export default function AdminPlacesPage() {
     organizer: ["organizer", "organizator"],
     description_short: ["description_short", "krótki opis", "krotki opis", "opis krótki", "short description", "opis"],
     description_long: ["description_long", "długi opis", "dlugi opis", "opis długi", "long description"],
+    type_lvl_1_id: ["type_lvl_1_id", "type_id", "type level 1", "typ poziom 1"],
+    type_lvl_2_id: ["type_lvl_2_id", "subtype_id", "type level 2", "typ poziom 2"],
     category_lvl_1: ["category_lvl_1", "main_category", "place_type", "typ", "type", "kategoria glowna", "kategoria", "category"],
+    category_lvl_2: ["category_lvl_2", "subcategory", "sub_category", "kategoria 2", "category level 2"],
+    category_lvl_3: ["category_lvl_3", "subsubcategory", "kategoria 3", "category level 3"],
     street: ["street", "ulica", "adres", "address"],
     postcode: ["postcode", "zip", "kod", "kod_pocztowy", "kod pocztowy"],
     city: ["city", "miasto"],
@@ -184,6 +188,10 @@ export default function AdminPlacesPage() {
     source_url: ["source_url", "url", "strona", "website", "link"],
     facebook_url: ["facebook_url", "facebook", "fb", "facebook page"],
     is_indoor: ["is_indoor", "wewnątrz", "indoor"],
+    organizer_id: ["organizer_id", "organizator_id"],
+    is_featured: ["is_featured", "featured", "wyroznione", "wyróżnione"],
+    likes: ["likes", "polubienia"],
+    dislikes: ["dislikes", "niepolubienia"],
   };
 
   const resolveField = (header: string): string | null => {
@@ -207,9 +215,9 @@ export default function AdminPlacesPage() {
         const field = resolveField(header);
         if (!field || !row[header]) continue;
         const val = row[header];
-        if (["lat", "lng", "age_min", "age_max"].includes(field)) {
+        if (["lat", "lng", "age_min", "age_max", "likes", "dislikes"].includes(field)) {
           place[field] = Number(val) || null;
-        } else if (["is_indoor"].includes(field)) {
+        } else if (["is_indoor", "is_featured"].includes(field)) {
           place[field] = val.toLowerCase() === "true" || val === "1" || val.toLowerCase() === "tak";
         } else {
           place[field] = val;
@@ -219,7 +227,7 @@ export default function AdminPlacesPage() {
       const matchedOrganizer = organizerName
         ? organizers.find((organizer) => organizer.organizer_name.toLowerCase() === organizerName.toLowerCase())
         : null;
-      if (matchedOrganizer) {
+      if (matchedOrganizer && !place.organizer_id) {
         place.organizer_id = matchedOrganizer.id;
       }
       delete place.organizer;

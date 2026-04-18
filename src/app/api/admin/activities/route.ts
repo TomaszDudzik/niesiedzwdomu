@@ -116,9 +116,11 @@ function normalizeActivityRecord(record: Record<string, unknown>) {
   const categoryLevel2 = record.category_lvl_2 ?? record.category ?? null;
   const categoryLevel3 = record.category_lvl_3 ?? record.subcategory ?? null;
   const organizerData = record.organizer_data as Record<string, unknown> | null | undefined;
-  const organizer = typeof organizerData?.name === "string" && organizerData.name.trim().length > 0
-    ? organizerData.name
-    : (typeof record.organizer === "string" ? record.organizer : "");
+  const organizer = typeof organizerData?.organizer_name === "string" && organizerData.organizer_name.trim().length > 0
+    ? organizerData.organizer_name
+    : (typeof organizerData?.name === "string" && organizerData.name.trim().length > 0
+      ? organizerData.name
+      : (typeof record.organizer === "string" ? record.organizer : ""));
 
   return {
     ...record,
@@ -229,7 +231,9 @@ function pickActivityFields(input: Record<string, unknown>) {
     title: input.title,
     description_short: input.description_short,
     description_long: input.description_long,
-    image_url: input.image_url,
+    image_cover: input.image_cover ?? input.image_url,
+    image_thumb: input.image_thumb ?? null,
+    image_set: input.image_set ?? null,
     type_lvl_1_id: input.type_lvl_1_id ?? input.type_id ?? null,
     type_lvl_2_id: input.type_lvl_2_id ?? input.subtype_id ?? null,
     category_lvl_1_id: input.category_lvl_1_id ?? null,
@@ -238,8 +242,6 @@ function pickActivityFields(input: Record<string, unknown>) {
     category_lvl_1: input.category_lvl_1 ?? input.main_category ?? null,
     category_lvl_2: input.category_lvl_2 ?? input.category ?? null,
     category_lvl_3: input.category_lvl_3 ?? input.subcategory ?? null,
-    activity_type: input.activity_type,
-    schedule_summary: input.schedule_summary,
     days_of_week: input.days_of_week,
     date_start: input.date_start,
     date_end: input.date_end,
@@ -249,7 +251,6 @@ function pickActivityFields(input: Record<string, unknown>) {
     age_max: input.age_max,
     price_from: input.price_from,
     price_to: input.price_to,
-    is_free: input.is_free,
     district: input.district,
     street: input.street,
     postcode: input.postcode,
@@ -257,13 +258,9 @@ function pickActivityFields(input: Record<string, unknown>) {
     lat: input.lat,
     lng: input.lng,
     note: input.note,
-    venue_name: input.venue_name,
-    venue_address: input.venue_address,
-    organizer: input.organizer,
     organizer_id: input.organizer_id ?? null,
     source_url: input.source_url,
     facebook_url: input.facebook_url,
-    is_featured: input.is_featured,
     status: input.status,
     likes: input.likes,
     dislikes: input.dislikes,
@@ -308,11 +305,11 @@ const ALLOWED_ACTIVITY_FIELDS = new Set([
   "type_lvl_1_id", "type_lvl_2_id", "type_id", "subtype_id",
   "category_lvl_1_id", "category_lvl_2_id", "category_lvl_3_id",
   "category_lvl_1", "category_lvl_2", "category_lvl_3", "main_category", "category", "subcategory",
-  "activity_type", "schedule_summary", "days_of_week",
+  "days_of_week",
   "date_start", "date_end", "time_start", "time_end",
-  "age_min", "age_max", "price_from", "price_to", "is_free",
-  "district", "street", "postcode", "city", "lat", "lng", "note", "venue_name", "venue_address", "organizer", "organizer_id",
-  "source_url", "facebook_url", "is_featured", "status", "likes", "dislikes",
+  "age_min", "age_max", "price_from", "price_to",
+  "district", "street", "postcode", "city", "lat", "lng", "note", "organizer_id",
+  "source_url", "facebook_url", "status", "likes", "dislikes",
 ]);
 
 export async function PATCH(request: NextRequest) {

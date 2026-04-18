@@ -75,7 +75,7 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
     }
 
     const query = search.toLowerCase();
-    return [activity.title, activity.description_short, activity.venue_name, activity.venue_address, activity.organizer]
+    return [activity.title, activity.description_short, activity.street, activity.postcode, activity.city, activity.note, activity.organizer]
       .join(" ")
       .toLowerCase()
       .includes(query);

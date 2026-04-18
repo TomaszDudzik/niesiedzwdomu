@@ -137,14 +137,6 @@ function normalizeDistrict(value: unknown) {
   return nullableString(value) ?? "Inne";
 }
 
-function normalizeEventCategory(value: unknown) {
-  const normalized = nullableString(value);
-  if (!normalized) return "inne";
-
-  const allowed = new Set(["warsztaty", "spektakl", "muzyka", "sport", "natura", "edukacja", "festyn", "kino", "wystawa", "inne"]);
-  return allowed.has(normalized) ? normalized : "inne";
-}
-
 function daysBetweenInclusive(dateStart: string, dateEnd: string) {
   const start = new Date(dateStart);
   const end = new Date(dateEnd);
@@ -156,18 +148,16 @@ function daysBetweenInclusive(dateStart: string, dateEnd: string) {
 function buildAdminPayload(contentType: SubmissionContentType, payload: Record<string, unknown>) {
   if (contentType === "event") {
     const title = requiredString(payload.title, "tytuł");
-    const eventCategory = normalizeEventCategory(payload.category);
 
     return {
       title,
       slug: buildSlug(title),
       description_short: requiredString(payload.description_short, "krótki opis"),
       description_long: nullableString(payload.description_long) ?? "",
-      image_url: nullableString(payload.image_url),
       type_lvl_1_id: nullableUuid(payload.type_lvl_1_id),
       type_lvl_2_id: nullableUuid(payload.type_lvl_2_id),
       category_lvl_1: nullableString(payload.category_lvl_1),
-      category_lvl_2: nullableString(payload.category_lvl_2) ?? eventCategory,
+      category_lvl_2: nullableString(payload.category_lvl_2),
       category_lvl_3: nullableString(payload.category_lvl_3),
       date_start: requiredString(payload.date_start, "data rozpoczęcia"),
       date_end: nullableString(payload.date_end),
@@ -178,14 +168,14 @@ function buildAdminPayload(contentType: SubmissionContentType, payload: Record<s
       price_from: nullableNumber(payload.price_from),
       price_to: nullableNumber(payload.price_to),
       is_free: asBoolean(payload.is_free),
-      category: eventCategory,
       district: normalizeDistrict(payload.district),
       street: requiredString(payload.street, "ulica wydarzenia"),
+      postcode: nullableString(payload.postcode),
       city: nullableString(payload.city) ?? "Kraków",
-      organizer: nullableString(payload.organizer),
+      note: nullableString(payload.note),
+      organizer_id: nullableUuid(payload.organizer_id),
       source_url: nullableString(payload.source_url),
       facebook_url: nullableString(payload.facebook_url),
-      is_featured: false,
       status: "draft",
     };
   }
@@ -246,14 +236,14 @@ function buildAdminPayload(contentType: SubmissionContentType, payload: Record<s
       age_max: nullableNumber(payload.age_max),
       price_from: nullableNumber(payload.price_from),
       price_to: nullableNumber(payload.price_to),
-      is_free: asBoolean(payload.is_free),
       district: normalizeDistrict(payload.district),
-      venue_name: requiredString(payload.venue_name, "miejsce"),
-      venue_address: requiredString(payload.venue_address, "adres"),
-      organizer: requiredString(payload.organizer, "organizator"),
+      street: requiredString(payload.street, "ulica"),
+      postcode: nullableString(payload.postcode),
+      city: nullableString(payload.city) ?? "Kraków",
+      note: nullableString(payload.note),
+      organizer_id: nullableUuid(payload.organizer_id),
       source_url: nullableString(payload.source_url),
       facebook_url: nullableString(payload.facebook_url),
-      is_featured: false,
       status: "draft",
     };
   }
@@ -284,14 +274,14 @@ function buildAdminPayload(contentType: SubmissionContentType, payload: Record<s
     age_max: nullableNumber(payload.age_max),
     price_from: nullableNumber(payload.price_from),
     price_to: nullableNumber(payload.price_to),
-    is_free: asBoolean(payload.is_free),
     district: normalizeDistrict(payload.district),
-    venue_name: requiredString(payload.venue_name, "miejsce"),
-    venue_address: requiredString(payload.venue_address, "adres"),
-    organizer: requiredString(payload.organizer, "organizator"),
+    street: requiredString(payload.street, "ulica"),
+    postcode: nullableString(payload.postcode),
+    city: nullableString(payload.city) ?? "Kraków",
+    note: nullableString(payload.note),
+    organizer_id: nullableUuid(payload.organizer_id),
     source_url: nullableString(payload.source_url),
     facebook_url: nullableString(payload.facebook_url),
-    is_featured: false,
     status: "draft",
   };
 }
@@ -428,7 +418,7 @@ async function sendSubmissionThankYouEmail(
   return true;
 }
 
-async function upsertOrganizerForPlace(db: ReturnType<typeof getDb>, contact: Record<string, unknown>) {
+async function upsertOrganizerForSubmission(db: ReturnType<typeof getDb>, contact: Record<string, unknown>) {
   const organizerName = requiredString(contact.organization_name, "organizacja / marka");
   const contactFirstName = nullableString(contact.submitter_first_name);
   const contactLastName = nullableString(contact.submitter_last_name);
@@ -492,24 +482,6 @@ async function upsertOrganizerForPlace(db: ReturnType<typeof getDb>, contact: Re
   return newOrganizer.id as string;
 }
 
-function buildContactInsert(contentType: SubmissionContentType, itemId: string, contact: Record<string, unknown>) {
-  const submitterFirstName = requiredString(contact.submitter_first_name, "imię");
-  const submitterLastName = requiredString(contact.submitter_last_name, "nazwisko");
-
-  return {
-    content_type: contentType,
-    event_id: contentType === "event" ? itemId : null,
-    place_id: contentType === "place" ? itemId : null,
-    camp_id: contentType === "camp" ? itemId : null,
-    activity_id: contentType === "activity" ? itemId : null,
-    submitter_name: `${submitterFirstName} ${submitterLastName}`,
-    submitter_email: requiredString(contact.submitter_email, "email"),
-    submitter_phone: nullableString(contact.submitter_phone),
-    organization_name: requiredString(contact.organization_name, "organizacja / marka"),
-    notes: nullableString(contact.notes),
-  };
-}
-
 export async function POST(request: NextRequest) {
   try {
     const body = asRecord(await request.json());
@@ -521,8 +493,8 @@ export async function POST(request: NextRequest) {
     const db = getDb();
     const basePayload = buildAdminPayload(contentType as SubmissionContentType, asRecord(body.payload)) as Record<string, unknown>;
     const payload = await applyDefaultTypeIds(db, contentType as SubmissionContentType, basePayload);
-    if (contentType === "place") {
-      const organizerId = await upsertOrganizerForPlace(db, asRecord(body.contact));
+    const organizerId = await upsertOrganizerForSubmission(db, asRecord(body.contact));
+    if (organizerId) {
       payload.organizer_id = organizerId;
     }
     const adminUrl = new URL(getAdminPath(contentType as SubmissionContentType), request.url);
@@ -539,14 +511,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: adminJson?.error ?? "Nie udało się zapisać zgłoszenia." }, { status: adminResponse.status });
     }
 
-    const itemId = typeof adminJson?.id === "string" ? adminJson.id : null;
-    let contactSaved = false;
+    const contactSaved = Boolean(organizerId);
     let emailSent = false;
-
-    if (itemId) {
-      const { error: contactError } = await db.from("submission_contacts").insert(buildContactInsert(contentType as SubmissionContentType, itemId, asRecord(body.contact)));
-      contactSaved = !contactError;
-    }
 
     try {
       emailSent = await sendSubmissionThankYouEmail(contentType as SubmissionContentType, payload, asRecord(body.contact));

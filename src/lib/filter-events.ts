@@ -97,7 +97,7 @@ export function filterCamps(camps: Camp[], filters: CampFilters): Camp[] {
     if (filters.mealsIncluded && !camp.meals_included) return false;
     if (!matchesAge(camp.age_min, camp.age_max, filters.ageGroup)) return false;
     if (!matchesDateRange(camp.date_start, filters.dateRange)) return false;
-    if (!matchesSearch([camp.title, camp.description_short, camp.venue_name, camp.district, camp.organizer], filters.search)) return false;
+    if (!matchesSearch([camp.title, camp.description_short, camp.street, camp.postcode, camp.city, camp.note, camp.district, camp.organizer], filters.search)) return false;
     return true;
   });
 }

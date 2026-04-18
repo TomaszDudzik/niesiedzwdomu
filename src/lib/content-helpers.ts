@@ -1,6 +1,6 @@
 import type { DiscoveryItem, ContentType } from "@/types/database";
 import { CONTENT_TYPE_LABELS, CONTENT_TYPE_ICONS, CONTENT_TYPE_COLORS, CATEGORY_LABELS, CATEGORY_ICONS, CAMP_MAIN_CATEGORY_LABELS, CAMP_MAIN_CATEGORY_ICONS, PLACE_TYPE_LABELS, PLACE_TYPE_ICONS, ACTIVITY_TYPE_LABELS, ACTIVITY_TYPE_ICONS } from "./mock-data";
-import { formatDateShort, formatPrice, formatAgeRange } from "./utils";
+import { formatDateShort, formatPriceRange, formatAgeRange } from "./utils";
 
 function getPlaceCategoryLabel(value: string | null | undefined) {
   if (!value) return "Miejsce";
@@ -67,9 +67,9 @@ export function getSubcategoryIcon(item: DiscoveryItem): string {
 export function getLocationText(item: DiscoveryItem): string {
   switch (item.content_type) {
     case "event": return [item.street, item.city].filter(Boolean).join(", ");
-    case "camp": return item.venue_name || [item.street, item.city].filter(Boolean).join(", ");
+    case "camp": return [item.street, item.postcode, item.city].filter(Boolean).join(", ");
     case "place": return [item.street, item.city].filter(Boolean).join(", ");
-    case "activity": return item.venue_name || [item.street, item.city].filter(Boolean).join(", ");
+    case "activity": return [item.street, item.postcode, item.city].filter(Boolean).join(", ");
   }
 }
 
@@ -100,11 +100,11 @@ export function getDateText(item: DiscoveryItem): string {
 export function getSecondaryInfo(item: DiscoveryItem): string | null {
   switch (item.content_type) {
     case "camp":
-      return `${item.duration_days} dni` + (item.meals_included ? " · wyżywienie" : "");
+      return `${item.duration_days} dni · ${formatPriceRange(item.price_from, item.price_to, item.is_free)}`;
     case "place":
       return item.is_indoor ? "Wewnątrz" : "Na zewnątrz";
     case "activity":
-      return item.price_from != null ? `od ${item.price_from} zł/mies.` : null;
+      return formatPriceRange(item.price_from, item.price_to, item.is_free);
     default:
       return null;
   }
