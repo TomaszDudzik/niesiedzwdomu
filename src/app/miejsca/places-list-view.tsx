@@ -457,16 +457,16 @@ export function PlacesListView({ places }: PlacesListViewProps) {
             />
 
             <div className="rounded-xl border border-border bg-card px-2.5 py-2">
-              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide whitespace-nowrap" style={{ scrollbarWidth: "none" }}>
+              <div className="flex flex-wrap items-center gap-1.5">
                 <p className="shrink-0 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Filtry:</p>
                 {activeFilterBadges.length > 0 ? (
                   <>
                     {activeFilterBadges.map((badge) => (
                       <span
                         key={badge.id}
-                        className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-accent/60 px-2 py-0.5 text-[10px] font-medium text-foreground"
+                        className="inline-flex max-w-full items-center gap-1 rounded-full border border-border bg-accent/60 px-2 py-0.5 text-[10px] font-medium text-foreground"
                       >
-                        <span>{badge.label}</span>
+                        <span className="min-w-0 whitespace-normal break-words">{badge.label}</span>
                         <button
                           type="button"
                           onClick={badge.onRemove}
@@ -481,7 +481,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
                     <button
                       type="button"
                       onClick={clearFilters}
-                      className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                      className="inline-flex max-w-full items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
                     >
                       <X size={9} />
                       Wyczyść
