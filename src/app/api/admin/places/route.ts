@@ -5,12 +5,12 @@ import { loadAdminCategoryMaps, withCategoryIds, withCategoryNames } from "@/lib
 
 function getDb() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SERVICE_ROLE;
 
   if (!supabaseUrl || !serviceRoleKey) {
     const missing: string[] = [];
     if (!supabaseUrl) missing.push("NEXT_PUBLIC_SUPABASE_URL lub SUPABASE_URL");
-    if (!serviceRoleKey) missing.push("SUPABASE_SERVICE_ROLE_KEY");
+    if (!serviceRoleKey) missing.push("SUPABASE_SERVICE_ROLE_KEY lub SUPABASE_SERVICE_ROLE");
     throw new Error(`Brak konfiguracji Supabase: ustaw ${missing.join(", ")}.`);
   }
 

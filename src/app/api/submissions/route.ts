@@ -16,12 +16,12 @@ const SUBMISSION_LABELS: Record<SubmissionContentType, string> = {
 
 function getDb() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SERVICE_ROLE;
 
   if (!supabaseUrl || !serviceRoleKey) {
     const missing: string[] = [];
     if (!supabaseUrl) missing.push("NEXT_PUBLIC_SUPABASE_URL lub SUPABASE_URL");
-    if (!serviceRoleKey) missing.push("SUPABASE_SERVICE_ROLE_KEY");
+    if (!serviceRoleKey) missing.push("SUPABASE_SERVICE_ROLE_KEY lub SUPABASE_SERVICE_ROLE");
     throw new Error(`Brak konfiguracji Supabase: ustaw ${missing.join(", ")}.`);
   }
 
@@ -74,6 +74,19 @@ function requiredString(value: unknown, fieldName: string) {
 function nullableString(value: unknown) {
   const normalized = asString(value);
   return normalized || null;
+}
+
+function nullableUuid(value: unknown) {
+  const normalized = nullableString(value);
+  if (!normalized) return null;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(normalized)
+    ? normalized
+    : null;
+}
+
+function isUuid(value: unknown): value is string {
+  return typeof value === "string"
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
 function nullableNumber(value: unknown) {
@@ -151,8 +164,8 @@ function buildAdminPayload(contentType: SubmissionContentType, payload: Record<s
       description_short: requiredString(payload.description_short, "krótki opis"),
       description_long: nullableString(payload.description_long) ?? "",
       image_url: nullableString(payload.image_url),
-      type_lvl_1_id: nullableString(payload.type_lvl_1_id),
-      type_lvl_2_id: nullableString(payload.type_lvl_2_id),
+      type_lvl_1_id: nullableUuid(payload.type_lvl_1_id),
+      type_lvl_2_id: nullableUuid(payload.type_lvl_2_id),
       category_lvl_1: nullableString(payload.category_lvl_1),
       category_lvl_2: nullableString(payload.category_lvl_2) ?? eventCategory,
       category_lvl_3: nullableString(payload.category_lvl_3),
@@ -186,8 +199,8 @@ function buildAdminPayload(contentType: SubmissionContentType, payload: Record<s
       description_short: requiredString(payload.description_short, "krótki opis"),
       description_long: nullableString(payload.description_long) ?? "",
       image_url: nullableString(payload.image_url),
-      type_lvl_1_id: nullableString(payload.type_lvl_1_id),
-      type_lvl_2_id: nullableString(payload.type_lvl_2_id),
+      type_lvl_1_id: nullableUuid(payload.type_lvl_1_id),
+      type_lvl_2_id: nullableUuid(payload.type_lvl_2_id),
       category_lvl_1: nullableString(payload.category_lvl_1),
       category_lvl_2: nullableString(payload.category_lvl_2),
       category_lvl_3: nullableString(payload.category_lvl_3),
@@ -214,8 +227,8 @@ function buildAdminPayload(contentType: SubmissionContentType, payload: Record<s
       description_short: requiredString(payload.description_short, "krótki opis"),
       description_long: nullableString(payload.description_long) ?? "",
       image_url: nullableString(payload.image_url),
-      type_lvl_1_id: nullableString(payload.type_lvl_1_id),
-      type_lvl_2_id: nullableString(payload.type_lvl_2_id),
+      type_lvl_1_id: nullableUuid(payload.type_lvl_1_id),
+      type_lvl_2_id: nullableUuid(payload.type_lvl_2_id),
       category_lvl_1: nullableString(payload.category_lvl_1),
       category_lvl_2: nullableString(payload.category_lvl_2),
       category_lvl_3: nullableString(payload.category_lvl_3),
@@ -251,8 +264,8 @@ function buildAdminPayload(contentType: SubmissionContentType, payload: Record<s
     description_short: requiredString(payload.description_short, "krótki opis"),
     description_long: nullableString(payload.description_long) ?? "",
     image_url: nullableString(payload.image_url),
-    type_lvl_1_id: nullableString(payload.type_lvl_1_id),
-    type_lvl_2_id: nullableString(payload.type_lvl_2_id),
+    type_lvl_1_id: nullableUuid(payload.type_lvl_1_id),
+    type_lvl_2_id: nullableUuid(payload.type_lvl_2_id),
     category_lvl_1: nullableString(payload.category_lvl_1),
     category_lvl_2: nullableString(payload.category_lvl_2),
     category_lvl_3: nullableString(payload.category_lvl_3),
@@ -287,6 +300,57 @@ function getAdminPath(contentType: SubmissionContentType) {
   if (contentType === "place") return "/api/admin/places";
   if (contentType === "camp") return "/api/admin/camps";
   return "/api/admin/activities";
+}
+
+async function findTaxonomyIdByName(
+  db: ReturnType<typeof getDb>,
+  table: "type_lvl_1" | "type_lvl_2",
+  name: string,
+) {
+  const { data, error } = await db
+    .from(table)
+    .select("id, name")
+    .ilike("name", name)
+    .limit(1);
+
+  if (error) {
+    return null;
+  }
+
+  const first = Array.isArray(data) ? data[0] as { id?: unknown } | undefined : undefined;
+  return isUuid(first?.id) ? first.id : null;
+}
+
+async function applyDefaultTypeIds(
+  db: ReturnType<typeof getDb>,
+  contentType: SubmissionContentType,
+  payload: Record<string, unknown>,
+) {
+  const currentTypeLevel1 = nullableUuid(payload.type_lvl_1_id);
+  const currentTypeLevel2 = nullableUuid(payload.type_lvl_2_id);
+
+  if (currentTypeLevel1 && currentTypeLevel2) {
+    return payload;
+  }
+
+  const typeLevel1Name = "Dzieci";
+  const typeLevel2NameByContentType: Record<SubmissionContentType, string> = {
+    place: "Miejsca",
+    event: "Wydarzenia",
+    camp: "Kolonie",
+    activity: "Zajęcia",
+  };
+
+  const [defaultTypeLevel1Id, defaultTypeLevel2Id] = await Promise.all([
+    currentTypeLevel1 ? Promise.resolve(currentTypeLevel1) : findTaxonomyIdByName(db, "type_lvl_1", typeLevel1Name),
+    currentTypeLevel2 ? Promise.resolve(currentTypeLevel2) : findTaxonomyIdByName(db, "type_lvl_2", typeLevel2NameByContentType[contentType]),
+  ]);
+
+  return {
+    ...payload,
+    type_lvl_1_id: defaultTypeLevel1Id,
+    type_lvl_2_id: defaultTypeLevel2Id,
+  };
 }
 
 async function sendSubmissionThankYouEmail(
@@ -454,7 +518,8 @@ export async function POST(request: NextRequest) {
     }
 
     const db = getDb();
-    const payload = buildAdminPayload(contentType as SubmissionContentType, asRecord(body.payload)) as Record<string, unknown>;
+    const basePayload = buildAdminPayload(contentType as SubmissionContentType, asRecord(body.payload)) as Record<string, unknown>;
+    const payload = await applyDefaultTypeIds(db, contentType as SubmissionContentType, basePayload);
     if (contentType === "place") {
       const organizerId = await upsertOrganizerForPlace(db, asRecord(body.contact));
       payload.organizer_id = organizerId;
