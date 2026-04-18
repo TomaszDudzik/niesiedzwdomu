@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
-import { Search, SlidersHorizontal, X, MapPin, Check, Tags, Users, CalendarDays } from "lucide-react";
+import { Search, SlidersHorizontal, X, MapPin, Check, Tags, Users, CalendarDays, ChevronDown } from "lucide-react";
 import { DISTRICT_LIST } from "@/lib/mock-data";
 import { FilterSection } from "@/components/ui/filter-section";
 import { SubmissionCta } from "@/components/ui/submission-cta";
@@ -192,6 +192,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
   const [activeDistricts, setActiveDistricts] = useState<District[]>([]);
   const [activeAgeGroups, setActiveAgeGroups] = useState<string[]>([]);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filtersOpenDesktop, setFiltersOpenDesktop] = useState(true);
   const [singleDate, setSingleDate] = useState("");
   const [rangeFrom, setRangeFrom] = useState("");
   const [rangeTo, setRangeTo] = useState("");
@@ -851,7 +852,15 @@ export function CampsListView({ camps }: CampsListViewProps) {
               />
             </div>
 
-            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Data</p>} defaultCollapsed={false}>
+            <button
+              onClick={() => setFiltersOpenDesktop(!filtersOpenDesktop)}
+              className="flex w-full items-center justify-between px-2 py-1.5 rounded-lg hover:bg-accent/50 transition-colors text-[10px] font-semibold text-muted-foreground uppercase tracking-wider"
+            >
+              <span>Filtry</span>
+              <ChevronDown size={12} className={cn("transition-transform", !filtersOpenDesktop && "rotate-180")} />
+            </button>
+
+            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Data</p>} defaultCollapsed={!filtersOpenDesktop}>
               <p className="text-[10px] text-muted-foreground mb-1">Konkretna data</p>
               <input
                 type="date"
@@ -893,7 +902,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Typ</p>} defaultCollapsed={false}>
+            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Typ</p>} defaultCollapsed={!filtersOpenDesktop}>
               <div className="flex flex-col gap-0.5">
                 {typeOptions.map((option) => {
                   const selected = activeTypes.includes(option.value);
@@ -916,7 +925,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Wiek</p>} defaultCollapsed={false}>
+            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Wiek</p>} defaultCollapsed={!filtersOpenDesktop}>
               <div className="flex flex-col gap-0.5">
                 {AGE_GROUPS.map((group) => {
                   const selected = activeAgeGroups.includes(group.key);

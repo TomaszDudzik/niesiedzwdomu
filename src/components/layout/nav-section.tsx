@@ -19,7 +19,7 @@ export function NavSection() {
     href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/");
 
   return (
-    <section className="container-page pt-4 pb-4 md:pt-5 md:pb-5">
+    <section className="container-page pt-4 pb-4 md:pt-5 md:pb-5 bg-white rounded-xl border border-border/20">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div className="flex items-start md:items-center gap-3">
           <Link

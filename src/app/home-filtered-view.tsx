@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { Search, ArrowRight, SlidersHorizontal, X, MapPin, Users, Check, Tags } from "lucide-react";
+import { Search, ArrowRight, SlidersHorizontal, X, MapPin, Users, Check, Tags, ChevronDown } from "lucide-react";
 import { ContentCard } from "@/components/ui/content-card";
 import { FilterSection } from "@/components/ui/filter-section";
 import { ImageWithFallback } from "@/components/ui/image-with-fallback";
@@ -185,6 +185,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
   const [activeDistricts, setActiveDistricts] = useState<District[]>([]);
   const [activeAgeGroup, setActiveAgeGroup] = useState<string | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filtersOpenDesktop, setFiltersOpenDesktop] = useState(true);
 
   const ageGroup = AGE_GROUPS.find((g) => g.key === activeAgeGroup) ?? null;
   const hasActiveFilters = !!(search || activeTypeLevel2.length > 0 || activeTypes.length > 0 || activeCategories.length > 0 || activeDistricts.length > 0 || activeAgeGroup !== null);
@@ -613,9 +614,17 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
                 className="w-full pl-7 pr-2 py-1 rounded-lg border border-border bg-background text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-200" />
             </div>
 
+            <button
+              onClick={() => setFiltersOpenDesktop(!filtersOpenDesktop)}
+              className="flex w-full items-center justify-between px-2 py-1.5 rounded-lg hover:bg-accent/50 transition-colors text-[10px] font-semibold text-muted-foreground uppercase tracking-wider"
+            >
+              <span>Filtry</span>
+              <ChevronDown size={12} className={cn("transition-transform", !filtersOpenDesktop && "rotate-180")} />
+            </button>
+
             <div className="border-t border-border" />
 
-            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Grupa</span>} defaultCollapsed={false}>
+            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Grupa</span>} defaultCollapsed={!filtersOpenDesktop}>
               <div className="flex flex-col gap-0.5">
                 {typeLevel2Options.map((option) => {
                   const selected = activeTypeLevel2.includes(option.value);
@@ -633,7 +642,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
               </div>
             </FilterSection>
 
-            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Typ</span>} defaultCollapsed={false}>
+            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Typ</span>} defaultCollapsed={!filtersOpenDesktop}>
               <div className="flex flex-col gap-0.5">
                 {typeOptions.map((option) => {
                   const selected = activeTypes.includes(option.value);
@@ -651,7 +660,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
               </div>
             </FilterSection>
 
-            <FilterSection title={<span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Wiek</span>} defaultCollapsed={false}>
+            <FilterSection title={<span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Wiek</span>} defaultCollapsed={!filtersOpenDesktop}>
               <div className="flex flex-col gap-0.5">
                 {AGE_GROUPS.map((group) => (
                   <button key={group.key} onClick={() => setActiveAgeGroup(activeAgeGroup === group.key ? null : group.key)}
