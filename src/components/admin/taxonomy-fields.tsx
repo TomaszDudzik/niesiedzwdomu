@@ -65,10 +65,17 @@ export function TaxonomyFields({
   onCategoryLevel3Change,
 }: TaxonomyFieldsProps) {
   const typeLevel2ForTypeLevel1 = getTypeLevel2ForTypeLevel1(typeLevel2Options, selectedTypeLevel1Id);
-  const selectedCategoryLevel1Entry = categoryLevel1Options.find((entry) => entry.name === selectedCategoryLevel1) ?? null;
+  const selectedCategoryLevel1Entry = categoryLevel1Options.find(
+    (entry) => entry.name === selectedCategoryLevel1 || entry.id === selectedCategoryLevel1,
+  ) ?? null;
   const categoryLevel2ForCategoryLevel1 = getCategoryLevel2ForCategoryLevel1(categoryLevel2Options, selectedCategoryLevel1Entry?.id);
-  const selectedCategoryLevel2Entry = categoryLevel2ForCategoryLevel1.find((entry) => entry.name === selectedCategoryLevel2) ?? null;
+  const selectedCategoryLevel2Entry = categoryLevel2ForCategoryLevel1.find(
+    (entry) => entry.name === selectedCategoryLevel2 || entry.id === selectedCategoryLevel2,
+  ) ?? null;
   const categoryLevel3ForCategoryLevel2 = getCategoryLevel3ForCategoryLevel2(categoryLevel3Options, selectedCategoryLevel2Entry?.id);
+  const selectedCategoryLevel3Entry = categoryLevel3ForCategoryLevel2.find(
+    (entry) => entry.name === selectedCategoryLevel3 || entry.id === selectedCategoryLevel3,
+  ) ?? null;
   const selectClass = `${inputClass} w-full min-w-0`;
 
   return (
@@ -115,7 +122,7 @@ export function TaxonomyFields({
           <label className={labelClass}>{categoryLevel1Label}</label>
           <select
             className={selectClass}
-            value={selectedCategoryLevel1 ?? ""}
+            value={selectedCategoryLevel1Entry?.name ?? ""}
             onChange={(event) => {
               const nextCategoryLevel1 = event.target.value || null;
               onCategoryLevel1Change(nextCategoryLevel1);
@@ -134,7 +141,7 @@ export function TaxonomyFields({
           <label className={labelClass}>{categoryLevel2Label}</label>
           <select
             className={selectClass}
-            value={selectedCategoryLevel2 ?? ""}
+            value={selectedCategoryLevel2Entry?.name ?? ""}
             onChange={(event) => {
               const nextCategoryLevel2 = event.target.value || null;
               onCategoryLevel2Change(nextCategoryLevel2);
@@ -152,7 +159,7 @@ export function TaxonomyFields({
           <label className={labelClass}>{categoryLevel3Label}</label>
           <select
             className={selectClass}
-            value={selectedCategoryLevel3 ?? ""}
+            value={selectedCategoryLevel3Entry?.name ?? ""}
             onChange={(event) => onCategoryLevel3Change(event.target.value || null)}
             disabled={loading || !selectedCategoryLevel2}
           >

@@ -406,14 +406,31 @@ function syncValidationMessage(control: FormControl) {
   }
 }
 
+function getFirstInvalidControl(form: HTMLFormElement): FormControl | null {
+  const controls = Array.from(form.elements).filter(isFormControl);
+  for (const control of controls) {
+    if (!control.disabled && !control.validity.valid) {
+      return control;
+    }
+  }
+  return null;
+}
+
 function focusFirstInvalidControl(form: HTMLFormElement) {
-  const firstInvalid = form.querySelector(":invalid");
+  const firstInvalid = getFirstInvalidControl(form);
   if (!(firstInvalid instanceof HTMLElement)) {
     return;
   }
 
-  firstInvalid.focus({ preventScroll: true });
-  firstInvalid.scrollIntoView({ behavior: "smooth", block: "center" });
+  const scrollTarget = firstInvalid.closest("label") ?? firstInvalid;
+  const topOffset = 112;
+  const top = window.scrollY + scrollTarget.getBoundingClientRect().top - topOffset;
+
+  window.scrollTo({ top: Math.max(top, 0), behavior: "smooth" });
+
+  window.setTimeout(() => {
+    firstInvalid.focus({ preventScroll: true });
+  }, 180);
 }
 
 function validateSubmissionForm(form: HTMLFormElement) {
@@ -516,17 +533,24 @@ function TaxonomyFields({
     [typeLevel2Options, state.type_lvl_1_id],
   );
 
-  const selectedCategoryLevel1 = categoryLevel1Options.find((entry) => entry.name === state.category_lvl_1) ?? null;
+  const selectedCategoryLevel1 = categoryLevel1Options.find(
+    (entry) => entry.name === state.category_lvl_1 || entry.id === state.category_lvl_1,
+  ) ?? null;
   const availableCategoryLevel2 = useMemo(
     () => getCategoryLevel2ForCategoryLevel1(categoryLevel2Options, selectedCategoryLevel1?.id),
     [categoryLevel2Options, selectedCategoryLevel1?.id],
   );
 
-  const selectedCategoryLevel2 = availableCategoryLevel2.find((entry) => entry.name === state.category_lvl_2) ?? null;
+  const selectedCategoryLevel2 = availableCategoryLevel2.find(
+    (entry) => entry.name === state.category_lvl_2 || entry.id === state.category_lvl_2,
+  ) ?? null;
   const availableCategoryLevel3 = useMemo(
     () => getCategoryLevel3ForCategoryLevel2(categoryLevel3Options, selectedCategoryLevel2?.id),
     [categoryLevel3Options, selectedCategoryLevel2?.id],
   );
+  const selectedCategoryLevel3 = availableCategoryLevel3.find(
+    (entry) => entry.name === state.category_lvl_3 || entry.id === state.category_lvl_3,
+  ) ?? null;
   const categoryLevel1Placeholder = taxonomyLoading
     ? "Ładowanie typów..."
     : categoryLevel1Options.length > 0
@@ -568,7 +592,7 @@ function TaxonomyFields({
 
       <Field label={categoryLevel1Label} required={categoryLevel1Required}>
         <select
-          value={state.category_lvl_1}
+          value={selectedCategoryLevel1?.name ?? ""}
           onChange={(event) => onChange({ category_lvl_1: event.target.value, category_lvl_2: "", category_lvl_3: "" })}
           className={inputClass}
           required={categoryLevel1Required}
@@ -583,7 +607,7 @@ function TaxonomyFields({
 
       <Field label={categoryLevel2Label}>
         <select
-          value={state.category_lvl_2}
+          value={selectedCategoryLevel2?.name ?? ""}
           onChange={(event) => onChange({ category_lvl_2: event.target.value, category_lvl_3: "" })}
           className={inputClass}
           disabled={taxonomyLoading || !state.category_lvl_1}
@@ -598,7 +622,7 @@ function TaxonomyFields({
       {showCategoryLevel3 ? (
         <Field label="Temat">
           <select
-            value={state.category_lvl_3}
+            value={selectedCategoryLevel3?.name ?? ""}
             onChange={(event) => onChange({ category_lvl_3: event.target.value })}
             className={inputClass}
             disabled={taxonomyLoading || !state.category_lvl_2}

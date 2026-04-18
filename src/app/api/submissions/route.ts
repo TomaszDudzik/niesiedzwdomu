@@ -15,9 +15,19 @@ const SUBMISSION_LABELS: Record<SubmissionContentType, string> = {
 };
 
 function getDb() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    const missing: string[] = [];
+    if (!supabaseUrl) missing.push("NEXT_PUBLIC_SUPABASE_URL lub SUPABASE_URL");
+    if (!serviceRoleKey) missing.push("SUPABASE_SERVICE_ROLE_KEY");
+    throw new Error(`Brak konfiguracji Supabase: ustaw ${missing.join(", ")}.`);
+  }
+
   return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    supabaseUrl,
+    serviceRoleKey,
     { auth: { persistSession: false } },
   );
 }
@@ -489,6 +499,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Nie udało się wysłać formularza.";
-    return NextResponse.json({ error: message }, { status: 400 });
+    const status = error instanceof Error && error.message.startsWith("Brak konfiguracji Supabase") ? 500 : 400;
+    return NextResponse.json({ error: message }, { status });
   }
 }

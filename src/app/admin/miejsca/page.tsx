@@ -53,6 +53,17 @@ function isUUID(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 }
 
+function resolveTaxonomyName(
+  options: Array<{ id: string; name: string }>,
+  value: unknown,
+) {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  if (!normalized) return null;
+  const matched = options.find((entry) => entry.id === normalized || entry.name === normalized);
+  return matched?.name ?? normalized;
+}
+
 export default function AdminPlacesPage() {
   const { typeLevel1Options, typeLevel2Options, categoryLevel1Options, categoryLevel2Options, categoryLevel3Options, loading: taxonomyLoading } = useAdminTaxonomy();
   const [places, setPlaces] = useState<Place[]>([]);
@@ -395,9 +406,9 @@ export default function AdminPlacesPage() {
       description_long: place.description_long,
       type_lvl_1_id: place.type_lvl_1_id ?? place.type_id ?? null,
       type_lvl_2_id: place.type_lvl_2_id ?? place.subtype_id ?? null,
-      category_lvl_1: place.category_lvl_1 ?? place.main_category ?? null,
-      category_lvl_2: place.category_lvl_2 ?? place.category ?? null,
-      category_lvl_3: place.category_lvl_3 ?? place.subcategory ?? null,
+      category_lvl_1: resolveTaxonomyName(categoryLevel1Options, place.category_lvl_1 ?? place.main_category ?? null),
+      category_lvl_2: resolveTaxonomyName(categoryLevel2Options, place.category_lvl_2 ?? place.category ?? null),
+      category_lvl_3: resolveTaxonomyName(categoryLevel3Options, place.category_lvl_3 ?? place.subcategory ?? null),
       street: place.street,
       postcode: place.postcode,
       city: place.city,
@@ -439,15 +450,19 @@ export default function AdminPlacesPage() {
       setUploadingImage(null);
     }
 
+    const categoryLevel1Name = resolveTaxonomyName(categoryLevel1Options, editForm.category_lvl_1);
+    const categoryLevel2Name = resolveTaxonomyName(categoryLevel2Options, editForm.category_lvl_2);
+    const categoryLevel3Name = resolveTaxonomyName(categoryLevel3Options, editForm.category_lvl_3);
+
     const dbPayload: Record<string, unknown> = {
       title: editForm.title,
       description_short: editForm.description_short,
       description_long: editForm.description_long,
       type_lvl_1_id: editForm.type_lvl_1_id ? String(editForm.type_lvl_1_id) : null,
       type_lvl_2_id: editForm.type_lvl_2_id ? String(editForm.type_lvl_2_id) : null,
-      category_lvl_1: editForm.category_lvl_1 ? String(editForm.category_lvl_1) : null,
-      category_lvl_2: editForm.category_lvl_2 ? String(editForm.category_lvl_2) : null,
-      category_lvl_3: editForm.category_lvl_3 ? String(editForm.category_lvl_3) : null,
+      category_lvl_1: categoryLevel1Name,
+      category_lvl_2: categoryLevel2Name,
+      category_lvl_3: categoryLevel3Name,
       is_indoor: editForm.is_indoor,
       street: editForm.street || "",
       postcode: editForm.postcode || "",
