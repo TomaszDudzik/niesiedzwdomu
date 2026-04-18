@@ -8,6 +8,7 @@ import { FilterSection } from "@/components/ui/filter-section";
 import { ImageWithFallback } from "@/components/ui/image-with-fallback";
 import { useAdminTaxonomy } from "@/lib/use-admin-taxonomy";
 import { CATEGORY_LABELS, CATEGORY_ICONS } from "@/lib/mock-data";
+import { normalizeDistrictName } from "@/lib/districts";
 import { getTaxonomyOptions, matchesTaxonomyFilter, mergeSelectedTaxonomyOptions } from "@/lib/taxonomy-filters";
 import { cn, formatDateShort, formatAgeRange, thumbUrl } from "@/lib/utils";
 import type { Event, Place, Camp, Activity, District } from "@/types/database";
@@ -32,7 +33,7 @@ function getSessionLabel(count: number): string {
 }
 
 function getOrganizerDistrictSummary(camps: Camp[]): string {
-  return Array.from(new Set(camps.map((c) => c.district))).join(" • ");
+  return Array.from(new Set(camps.map((c) => normalizeDistrictName(c.district)))).join(" • ");
 }
 
 function getOrganizerAgeSummary(camps: Camp[]): string {
@@ -199,7 +200,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
         typeLevel2: event.type_lvl_2_id ?? null,
         type: getEventCategoryLvl1(event),
         category: getEventCategoryLvl2(event),
-        district: event.district,
+        district: normalizeDistrictName(event.district),
         ageMin: event.age_min,
         ageMax: event.age_max,
         searchText: [event.title, event.description_short, event.street, event.city, event.district].join(" ").toLowerCase(),
@@ -208,7 +209,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
         typeLevel2: place.type_lvl_2_id ?? null,
         type: getPlaceCategoryLvl1(place),
         category: getPlaceCategoryLvl2(place),
-        district: place.district,
+        district: normalizeDistrictName(place.district),
         ageMin: place.age_min,
         ageMax: place.age_max,
         searchText: [place.title, place.description_short, place.street, place.city, place.district].join(" ").toLowerCase(),
@@ -217,7 +218,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
         typeLevel2: camp.type_lvl_2_id ?? null,
         type: getCampCategoryLvl1(camp),
         category: getCampCategoryLvl2(camp),
-        district: camp.district,
+        district: normalizeDistrictName(camp.district),
         ageMin: camp.age_min,
         ageMax: camp.age_max,
         searchText: [camp.title, camp.description_short, camp.venue_name, camp.venue_address, camp.organizer].join(" ").toLowerCase(),
@@ -226,7 +227,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
         typeLevel2: activity.type_lvl_2_id ?? null,
         type: getActivityCategoryLvl1(activity),
         category: getActivityCategoryLvl2(activity),
-        district: activity.district,
+        district: normalizeDistrictName(activity.district),
         ageMin: activity.age_min,
         ageMax: activity.age_max,
         searchText: [activity.title, activity.description_short, activity.venue_name, activity.venue_address, activity.organizer].join(" ").toLowerCase(),
@@ -395,7 +396,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
       result = result.filter((event) => matchesTaxonomyFilter(getEventCategoryLvl2(event), activeCategories));
     }
     if (activeDistricts.length > 0) {
-      result = result.filter((event) => activeDistricts.includes(event.district));
+      result = result.filter((event) => activeDistricts.includes(normalizeDistrictName(event.district)));
     }
     result = result.filter((event) => matchesAgeFilter(event.age_min, event.age_max, ageGroup));
     return [...result].sort((a, b) => b.likes - a.likes);
@@ -419,7 +420,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
       result = result.filter((place) => matchesTaxonomyFilter(getPlaceCategoryLvl2(place), activeCategories));
     }
     if (activeDistricts.length > 0) {
-      result = result.filter((place) => activeDistricts.includes(place.district));
+      result = result.filter((place) => activeDistricts.includes(normalizeDistrictName(place.district)));
     }
     result = result.filter((place) => matchesAgeFilter(place.age_min, place.age_max, ageGroup));
     return [...result].sort((a, b) => b.likes - a.likes);
@@ -446,7 +447,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
       result = result.filter((camp) => matchesTaxonomyFilter(getCampCategoryLvl2(camp), activeCategories));
     }
     if (activeDistricts.length > 0) {
-      result = result.filter((camp) => activeDistricts.includes(camp.district));
+      result = result.filter((camp) => activeDistricts.includes(normalizeDistrictName(camp.district)));
     }
     result = result.filter((camp) => matchesAgeFilter(camp.age_min, camp.age_max, ageGroup));
     return [...result].sort((a, b) => new Date(a.date_start).getTime() - new Date(b.date_start).getTime());
@@ -473,7 +474,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
       result = result.filter((activity) => matchesTaxonomyFilter(getActivityCategoryLvl2(activity), activeCategories));
     }
     if (activeDistricts.length > 0) {
-      result = result.filter((activity) => activeDistricts.includes(activity.district));
+      result = result.filter((activity) => activeDistricts.includes(normalizeDistrictName(activity.district)));
     }
     result = result.filter((activity) => matchesAgeFilter(activity.age_min, activity.age_max, ageGroup));
     return [...result].sort((a, b) => b.likes - a.likes);

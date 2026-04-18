@@ -1,6 +1,7 @@
 import type { Event, Camp, Place, EventFilters, CampFilters, PlaceFilters } from "@/types/database";
 import { AGE_GROUPS } from "./mock-data";
 import { getNextWeekend, toLocalDateKey } from "./utils";
+import { normalizeDistrictName } from "./districts";
 
 // ============================================
 // Shared filter logic
@@ -63,7 +64,8 @@ function matchesDistrict(
 ): boolean {
   if (!activeDistricts) return true;
   if (activeDistricts.length === 0) return true;
-  return activeDistricts.includes(district);
+  const normalizedDistrict = normalizeDistrictName(district);
+  return activeDistricts.map((item) => normalizeDistrictName(item)).includes(normalizedDistrict);
 }
 
 // ============================================

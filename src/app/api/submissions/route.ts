@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import nodemailer from "nodemailer";
+import { normalizeDistrictName } from "@/lib/districts";
 import { slugify } from "@/lib/utils";
 
 type SubmissionContentType = "event" | "place" | "camp" | "activity";
@@ -134,7 +135,7 @@ function buildSlug(title: string) {
 }
 
 function normalizeDistrict(value: unknown) {
-  return nullableString(value) ?? "Inne";
+  return normalizeDistrictName(nullableString(value));
 }
 
 function daysBetweenInclusive(dateStart: string, dateEnd: string) {

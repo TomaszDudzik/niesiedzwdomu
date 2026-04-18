@@ -45,6 +45,7 @@ export function ImageSection({
   const [pendingThumbFile, setPendingThumbFile] = useState<File | null>(null);
   const [pendingThumbPreview, setPendingThumbPreview] = useState<string | null>(null);
   const [uploadingThumb, setUploadingThumb] = useState(false);
+  const [uploadingPair, setUploadingPair] = useState(false);
   const coverSrc = imageCover || imageUrl || "";
 
   const hasThumb = pendingThumbPreview || imageThumb || coverSrc.includes("-cover.webp");
@@ -62,27 +63,69 @@ export function ImageSection({
     setPendingThumbPreview(null);
   };
 
+  const uploadVariant = async (file: File, variant: "cover" | "thumb") => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("id", itemId);
+    formData.append("target", table);
+    formData.append("variant", variant);
+
+    const res = await fetch("/api/admin/upload-image", { method: "POST", body: formData });
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || `Błąd wgrywania ${variant}`);
+    }
+
+    return data as { image_cover: string | null; image_thumb: string | null };
+  };
+
   const uploadThumb = async () => {
     if (!pendingThumbFile) return;
     setUploadingThumb(true);
     try {
-      const formData = new FormData();
-      formData.append("file", pendingThumbFile);
-      formData.append("id", itemId);
-      formData.append("target", table);
-      formData.append("variant", "thumb");
-      const res = await fetch("/api/admin/upload-image", { method: "POST", body: formData });
-      const data = await res.json();
+      const data = await uploadVariant(pendingThumbFile, "thumb");
       if (data.image_thumb) {
         onRandomPhoto(coverSrc, withCacheBust(data.image_thumb), null);
         clearThumb();
       } else {
-        alert(data.error || "Błąd wgrywania thumb");
+        alert("Błąd wgrywania thumb");
       }
     } catch {
       alert("Błąd połączenia");
     }
     setUploadingThumb(false);
+  };
+
+  const handlePairSelect = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    const selectedFiles = Array.from(files);
+    const coverFile = selectedFiles.find((file) => /^cover[-_]/i.test(file.name));
+    const thumbFile = selectedFiles.find((file) => /^thumb[-_]/i.test(file.name));
+
+    if (!coverFile || !thumbFile) {
+      alert("Wybierz dwa pliki z prefiksami cover- i thumb-.");
+      return;
+    }
+
+    setUploadingPair(true);
+
+    try {
+      const coverData = await uploadVariant(coverFile, "cover");
+      const thumbData = await uploadVariant(thumbFile, "thumb");
+      const nextCover = withCacheBust(coverData.image_cover) ?? coverSrc;
+      const nextThumb = withCacheBust(thumbData.image_thumb ?? null);
+
+      onRandomPhoto(nextCover, nextThumb, null);
+      onClearPending();
+      clearThumb();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Błąd połączenia";
+      alert(message);
+    }
+
+    setUploadingPair(false);
   };
 
   const handleRandomPhoto = async () => {
@@ -179,6 +222,24 @@ export function ImageSection({
             )}
           </div>
         </div>
+      </div>
+
+      <div className="flex gap-1.5">
+        <label className={cn(btnClass, "cursor-pointer", (uploadingPair || uploadingThumb) && "pointer-events-none opacity-60")}>
+          {uploadingPair ? <Loader2 size={11} className="animate-spin" /> : <ImagePlus size={11} />}
+          {uploadingPair ? "Wgrywanie cover + thumb..." : "Wgraj cover + thumb"}
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              void handlePairSelect(e.target.files);
+              e.target.value = "";
+            }}
+          />
+        </label>
+        <p className="text-[10px] text-muted-foreground self-center">Nazwy plików muszą zaczynać się od `cover-` i `thumb-`.</p>
       </div>
 
       {/* Random photo */}

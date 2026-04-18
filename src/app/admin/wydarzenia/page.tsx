@@ -8,11 +8,14 @@ import {
   Star, ClipboardPaste, Upload, MapPin,
 } from "lucide-react";
 import { CATEGORY_ICONS, CATEGORY_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
+import { normalizeDistrictName } from "@/lib/districts";
 import { cn, formatDateShort, formatPriceRange, slugify, thumbUrl, withCacheBust } from "@/lib/utils";
 import type { Event, Organizer } from "@/types/database";
 import { ImageSection } from "@/components/admin/image-section";
 import { OrganizerCombobox } from "@/components/admin/organizer-combobox";
 import { TaxonomyFields } from "@/components/admin/taxonomy-fields";
+import { ensureOrganizerId } from "@/lib/admin-organizers";
+import { resolveCategoryLevel1Name, resolveCategoryLevel2Name, resolveCategoryLevel3Name, resolveTypeLevel1Id, resolveTypeLevel2Id } from "@/lib/admin-taxonomy";
 import { useAdminTaxonomy } from "@/lib/use-admin-taxonomy";
 
 type DerivedEventStatus = Event["status"] | "outdated";
@@ -60,9 +63,9 @@ function AdminCanonicalEventsPanel() {
     description_long: ["description_long", "dlugi opis", "długi opis", "pelny opis", "pełny opis", "long description"],
     type_lvl_1_id: ["type_lvl_1_id", "type_id", "type level 1", "typ poziom 1"],
     type_lvl_2_id: ["type_lvl_2_id", "subtype_id", "type level 2", "typ poziom 2"],
-    category_lvl_1: ["category_lvl_1", "main_category", "kategoria glowna", "kategoria główna", "category level 1"],
-    category_lvl_2: ["category_lvl_2", "category", "kategoria", "typ", "rodzaj", "activity_type", "activity type"],
-    category_lvl_3: ["category_lvl_3", "subcategory", "podkategoria", "sub category", "category level 3"],
+    category_lvl_1: ["category_lvl_1", "category_lvl_1_id", "main_category", "kategoria glowna", "kategoria główna", "category level 1"],
+    category_lvl_2: ["category_lvl_2", "category_lvl_2_id", "category", "kategoria", "typ", "rodzaj", "activity_type", "activity type"],
+    category_lvl_3: ["category_lvl_3", "category_lvl_3_id", "subcategory", "podkategoria", "sub category", "category level 3"],
     category: ["category", "kategoria", "typ", "rodzaj", "activity_type", "activity type"],
     date_start: ["date_start", "data", "data od", "start date", "date"],
     date_end: ["date_end", "data do", "end date"],
@@ -229,9 +232,7 @@ function AdminCanonicalEventsPanel() {
   };
 
   const normalizeDistrict = (value?: string): Event["district"] => {
-    const normalized = (value || "").trim().toLowerCase();
-    const match = DISTRICT_LIST.find((district) => district.toLowerCase() === normalized);
-    return (match || "Inne") as Event["district"];
+    return normalizeDistrictName(value);
   };
 
   const normalizeStatus = (value?: string): Event["status"] => {
@@ -256,6 +257,7 @@ function AdminCanonicalEventsPanel() {
     setImportProgress({ done: 0, total: pastePreview.length });
 
     const imported: Event[] = [];
+    const knownOrganizers = [...organizers];
 
     for (let index = 0; index < pastePreview.length; index++) {
       const row = pastePreview[index];
@@ -276,22 +278,42 @@ function AdminCanonicalEventsPanel() {
       const street = mapped.street?.trim() || "";
       const postcode = mapped.postcode?.trim() || null;
       const city = mapped.city?.trim() || "Kraków";
-      const organizerName = mapped.organizer?.trim() || "";
-      const organizerId = isUUID(mapped.organizer_id || "") ? mapped.organizer_id : null;
-      const matchedOrganizer = organizerName
-        ? organizers.find((organizer) => organizer.organizer_name.toLowerCase() === organizerName.toLowerCase())
-        : null;
-      const categoryLevel2 = mapped.category_lvl_2?.trim() || normalizeCategory(mapped.category);
+      const organizerName = mapped.organizer?.trim() || (!isUUID(mapped.organizer_id || "") ? mapped.organizer_id?.trim() || "" : "");
+      const organizerId = await ensureOrganizerId({
+        organizers: knownOrganizers,
+        organizerId: isUUID(mapped.organizer_id || "") ? mapped.organizer_id : null,
+        organizerName,
+        city,
+        onOrganizerCreated: (organizer) => {
+          knownOrganizers.push(organizer);
+          setOrganizers((current) => current.some((entry) => entry.id === organizer.id) ? current : [...current, organizer]);
+        },
+      });
+      const typeLevel1Id = resolveTypeLevel1Id(typeLevel1Options, mapped.type_lvl_1_id?.trim() || null);
+      const typeLevel2Id = resolveTypeLevel2Id(typeLevel2Options, mapped.type_lvl_2_id?.trim() || null, typeLevel1Id);
+      const categoryLevel1 = resolveCategoryLevel1Name(categoryLevel1Options, mapped.category_lvl_1?.trim() || null);
+      const categoryLevel2 = resolveCategoryLevel2Name(
+        categoryLevel2Options,
+        mapped.category_lvl_2?.trim() || normalizeCategory(mapped.category),
+        categoryLevel1,
+        categoryLevel1Options,
+      );
+      const categoryLevel3 = resolveCategoryLevel3Name(
+        categoryLevel3Options,
+        mapped.category_lvl_3?.trim() || null,
+        categoryLevel2,
+        categoryLevel2Options,
+      );
       const payload = {
         title: mapped.title.trim(),
         slug: slugify(mapped.title.trim()),
         description_short: mapped.description_short || mapped.description_long || "Opis wydarzenia",
         description_long: mapped.description_long || mapped.description_short || "",
-        type_lvl_1_id: mapped.type_lvl_1_id?.trim() || null,
-        type_lvl_2_id: mapped.type_lvl_2_id?.trim() || null,
-        category_lvl_1: mapped.category_lvl_1?.trim() || null,
+        type_lvl_1_id: typeLevel1Id,
+        type_lvl_2_id: typeLevel2Id,
+        category_lvl_1: categoryLevel1 || null,
         category_lvl_2: categoryLevel2 || null,
-        category_lvl_3: mapped.category_lvl_3?.trim() || null,
+        category_lvl_3: categoryLevel3 || null,
         date_start: mapped.date_start || new Date().toISOString().slice(0, 10),
         date_end: mapped.date_end || null,
         time_start: mapped.time_start || null,
@@ -309,7 +331,7 @@ function AdminCanonicalEventsPanel() {
         lng: asNumber(mapped.lng),
         note: mapped.note?.trim() || null,
         organizer: organizerName || null,
-        organizer_id: organizerId ?? matchedOrganizer?.id ?? null,
+        organizer_id: organizerId,
         source_url: mapped.source_url || null,
         facebook_url: mapped.facebook_url || null,
         is_featured: asBoolean(mapped.is_featured),
@@ -386,7 +408,7 @@ function AdminCanonicalEventsPanel() {
   }, [fetchEvents]);
 
   useEffect(() => {
-    fetch("/api/admin/organizers?status=published")
+    fetch("/api/admin/organizers")
       .then((response) => response.json())
       .then((data) => {
         if (Array.isArray(data)) setOrganizers(data);
@@ -1133,7 +1155,7 @@ function AdminCanonicalEventsPanel() {
                                     <div>
                                       <label className={labelClass}>Dzielnica</label>
                                       <select className={inputClass} value={(editForm.district as string) || "Inne"} onChange={(e) => updateField("district", e.target.value)}>
-                                        {DISTRICT_LIST.slice(1).map((district) => (
+                                        {DISTRICT_LIST.map((district) => (
                                           <option key={district} value={district}>{district}</option>
                                         ))}
                                       </select>

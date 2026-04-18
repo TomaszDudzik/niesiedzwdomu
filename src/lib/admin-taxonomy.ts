@@ -215,6 +215,137 @@ export function getTypeLevel2ForTypeLevel1(typeLevel2: AdminTypeLevel2[], typeLe
   return hasAnyParentLink ? [] : typeLevel2;
 }
 
+function normalizeTaxonomyLookupValue(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+export function resolveTypeLevel1Id(
+  typeLevel1: AdminTypeLevel1[],
+  value: string | null | undefined,
+) {
+  if (!value) return null;
+
+  const normalized = value.trim();
+  if (!normalized) return null;
+
+  const lookup = normalizeTaxonomyLookupValue(normalized);
+  const matched = typeLevel1.find((entry) => {
+    return entry.id === normalized
+      || normalizeTaxonomyLookupValue(entry.id) === lookup
+      || normalizeTaxonomyLookupValue(entry.name) === lookup
+      || (entry.slug ? normalizeTaxonomyLookupValue(entry.slug) === lookup : false);
+  });
+
+  return matched?.id ?? normalized;
+}
+
+export function resolveTypeLevel2Id(
+  typeLevel2: AdminTypeLevel2[],
+  value: string | null | undefined,
+  typeLevel1Id?: string | null,
+) {
+  if (!value) return null;
+
+  const normalized = value.trim();
+  if (!normalized) return null;
+
+  const lookup = normalizeTaxonomyLookupValue(normalized);
+  const scopedEntries = typeLevel1Id
+    ? getTypeLevel2ForTypeLevel1(typeLevel2, typeLevel1Id)
+    : typeLevel2;
+  const searchPool = scopedEntries.length > 0 ? scopedEntries : typeLevel2;
+  const matched = searchPool.find((entry) => {
+    return entry.id === normalized
+      || normalizeTaxonomyLookupValue(entry.id) === lookup
+      || normalizeTaxonomyLookupValue(entry.name) === lookup
+      || (entry.slug ? normalizeTaxonomyLookupValue(entry.slug) === lookup : false);
+  });
+
+  return matched?.id ?? normalized;
+}
+
+export function resolveCategoryLevel1Name(
+  categoryLevel1: AdminCategoryLevel1[],
+  value: string | null | undefined,
+) {
+  if (!value) return null;
+
+  const normalized = value.trim();
+  if (!normalized) return null;
+
+  const lookup = normalizeTaxonomyLookupValue(normalized);
+  const matched = categoryLevel1.find((entry) => {
+    return entry.id === normalized
+      || normalizeTaxonomyLookupValue(entry.id) === lookup
+      || normalizeTaxonomyLookupValue(entry.name) === lookup
+      || (entry.slug ? normalizeTaxonomyLookupValue(entry.slug) === lookup : false);
+  });
+
+  return matched?.name ?? normalized;
+}
+
+export function resolveCategoryLevel2Name(
+  categoryLevel2: AdminCategoryLevel2[],
+  value: string | null | undefined,
+  categoryLevel1Name?: string | null,
+  categoryLevel1Options?: AdminCategoryLevel1[],
+) {
+  if (!value) return null;
+
+  const normalized = value.trim();
+  if (!normalized) return null;
+
+  const lookup = normalizeTaxonomyLookupValue(normalized);
+  const categoryLevel1Id = categoryLevel1Name && categoryLevel1Options
+    ? categoryLevel1Options.find((entry) => entry.name === categoryLevel1Name)?.id ?? null
+    : null;
+  const scopedEntries = categoryLevel1Id
+    ? getCategoryLevel2ForCategoryLevel1(categoryLevel2, categoryLevel1Id)
+    : categoryLevel2;
+  const searchPool = scopedEntries.length > 0 ? scopedEntries : categoryLevel2;
+  const matched = searchPool.find((entry) => {
+    return entry.id === normalized
+      || normalizeTaxonomyLookupValue(entry.id) === lookup
+      || normalizeTaxonomyLookupValue(entry.name) === lookup
+      || (entry.slug ? normalizeTaxonomyLookupValue(entry.slug) === lookup : false);
+  });
+
+  return matched?.name ?? normalized;
+}
+
+export function resolveCategoryLevel3Name(
+  categoryLevel3: AdminCategoryLevel3[],
+  value: string | null | undefined,
+  categoryLevel2Name?: string | null,
+  categoryLevel2Options?: AdminCategoryLevel2[],
+) {
+  if (!value) return null;
+
+  const normalized = value.trim();
+  if (!normalized) return null;
+
+  const lookup = normalizeTaxonomyLookupValue(normalized);
+  const categoryLevel2Id = categoryLevel2Name && categoryLevel2Options
+    ? categoryLevel2Options.find((entry) => entry.name === categoryLevel2Name)?.id ?? null
+    : null;
+  const scopedEntries = categoryLevel2Id
+    ? getCategoryLevel3ForCategoryLevel2(categoryLevel3, categoryLevel2Id)
+    : categoryLevel3;
+  const searchPool = scopedEntries.length > 0 ? scopedEntries : categoryLevel3;
+  const matched = searchPool.find((entry) => {
+    return entry.id === normalized
+      || normalizeTaxonomyLookupValue(entry.id) === lookup
+      || normalizeTaxonomyLookupValue(entry.name) === lookup
+      || (entry.slug ? normalizeTaxonomyLookupValue(entry.slug) === lookup : false);
+  });
+
+  return matched?.name ?? normalized;
+}
+
 export function getCategoryLevel2ForCategoryLevel1(categoryLevel2: AdminCategoryLevel2[], categoryLevel1Id: string | null | undefined) {
   if (!categoryLevel1Id) return [];
   return categoryLevel2.filter((entry) => entry.category_lvl_1_id === categoryLevel1Id);

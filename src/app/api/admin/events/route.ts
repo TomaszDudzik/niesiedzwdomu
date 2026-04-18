@@ -307,16 +307,15 @@ export async function PATCH(request: NextRequest) {
   return NextResponse.json({ ok: true, updated: normalizeEventRecord(withCategoryNames(data[0] as Record<string, unknown>, categoryMaps)) });
 }
 
-// DELETE /api/admin/events — soft delete an event
+// DELETE /api/admin/events — permanently delete an event
 export async function DELETE(request: NextRequest) {
   const db = getDb();
   const { id } = await request.json();
 
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
-  const { data, error } = await db.from("events").update({ status: "deleted" }).eq("id", id).select();
+  const { error } = await db.from("events").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  if (!data || data.length === 0) return NextResponse.json({ error: "No rows updated — check event id" }, { status: 404 });
 
   revalidatePath("/");
   revalidatePath("/wydarzenia");

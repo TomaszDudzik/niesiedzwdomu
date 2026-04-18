@@ -20,11 +20,14 @@ import {
 
 const MiniMapLazy = lazy(() => import("../miejsca/mini-map").then((module) => ({ default: module.MiniMap })));
 import { ACTIVITY_TYPE_ICONS, ACTIVITY_TYPE_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
+import { detectDistrictFromText } from "@/lib/districts";
 import { cn, formatDateShort, thumbUrl, withCacheBust } from "@/lib/utils";
 import type { Activity, Organizer } from "@/types/database";
 import { ImageSection } from "@/components/admin/image-section";
 import { OrganizerCombobox } from "@/components/admin/organizer-combobox";
 import { TaxonomyFields } from "@/components/admin/taxonomy-fields";
+import { ensureOrganizerId } from "@/lib/admin-organizers";
+import { resolveCategoryLevel1Name, resolveCategoryLevel2Name, resolveCategoryLevel3Name, resolveTypeLevel1Id, resolveTypeLevel2Id } from "@/lib/admin-taxonomy";
 import { useAdminTaxonomy } from "@/lib/use-admin-taxonomy";
 
 type DerivedActivityStatus = Activity["status"] | "outdated";
@@ -55,9 +58,9 @@ const FIELD_ALIASES: Record<string, string[]> = {
   description_long: ["description_long", "dlugi opis", "długi opis", "program"],
   type_lvl_1_id: ["type_lvl_1_id", "type_id", "type level 1", "typ poziom 1"],
   type_lvl_2_id: ["type_lvl_2_id", "subtype_id", "type level 2", "typ poziom 2"],
-  category_lvl_1: ["category_lvl_1", "main_category", "kategoria glowna", "kategoria główna", "category level 1"],
-  category_lvl_2: ["category_lvl_2", "category", "kategoria", "typ", "rodzaj", "activity_type", "type"],
-  category_lvl_3: ["category_lvl_3", "subcategory", "podkategoria", "sub category", "category level 3"],
+  category_lvl_1: ["category_lvl_1", "category_lvl_1_id", "main_category", "kategoria glowna", "kategoria główna", "category level 1"],
+  category_lvl_2: ["category_lvl_2", "category_lvl_2_id", "category", "kategoria", "typ", "rodzaj", "activity_type", "type"],
+  category_lvl_3: ["category_lvl_3", "category_lvl_3_id", "subcategory", "podkategoria", "sub category", "category level 3"],
   activity_type: ["activity_type", "typ", "rodzaj", "kategoria", "type"],
   schedule_summary: ["schedule_summary", "harmonogram", "grafik", "plan", "schedule"],
   days_of_week: ["days_of_week", "dni", "dni_tygodnia", "dni tygodnia"],
@@ -110,8 +113,7 @@ function normalizeTime(value?: string): string | null {
 }
 
 function detectDistrict(location: string): Activity["district"] {
-  const hit = DISTRICT_LIST.find((district) => location.toLowerCase().includes(district.toLowerCase()));
-  return (hit || "Inne") as Activity["district"];
+  return detectDistrictFromText(location);
 }
 
 function normalizeActivityStatus(value?: string): Activity["status"] {
@@ -343,7 +345,7 @@ export default function AdminActivitiesPage() {
   }, [fetchActivities]);
 
   useEffect(() => {
-    fetch("/api/admin/organizers?status=published")
+    fetch("/api/admin/organizers")
       .then((response) => response.json())
       .then((data) => {
         if (Array.isArray(data)) setOrganizers(data);
@@ -501,6 +503,7 @@ export default function AdminActivitiesPage() {
     setImportProgress({ done: 0, total: pastePreview.length });
 
     const imported: Activity[] = [];
+    const knownOrganizers = [...organizers];
 
     for (let index = 0; index < pastePreview.length; index++) {
       const row = pastePreview[index];
@@ -526,22 +529,46 @@ export default function AdminActivitiesPage() {
       const district = mapped.district?.trim() ? detectDistrict(mapped.district) : detectDistrict([street, postcode, city].filter(Boolean).join(", "));
       const lat = asNumber(mapped.lat);
       const lng = asNumber(mapped.lng);
-      const organizerName = mapped.organizer?.trim() || mapped.venue_name?.trim() || "Organizator";
-      const organizerId = isUUID(mapped.organizer_id || "") ? mapped.organizer_id : null;
-      const matchedOrganizer = organizerName
-        ? organizers.find((organizer) => organizer.organizer_name.toLowerCase() === organizerName.toLowerCase())
-        : null;
+      const organizerName = mapped.organizer?.trim() || (!isUUID(mapped.organizer_id || "") ? mapped.organizer_id?.trim() || "" : "") || mapped.venue_name?.trim() || "Organizator";
+      const organizerId = await ensureOrganizerId({
+        organizers: knownOrganizers,
+        organizerId: isUUID(mapped.organizer_id || "") ? mapped.organizer_id : null,
+        organizerName,
+        city,
+        onOrganizerCreated: (organizer) => {
+          knownOrganizers.push(organizer);
+          setOrganizers((current) => current.some((entry) => entry.id === organizer.id) ? current : [...current, organizer]);
+        },
+      });
+      const typeLevel1Id = resolveTypeLevel1Id(typeLevel1Options, mapped.type_lvl_1_id?.trim() || null);
+      const typeLevel2Id = resolveTypeLevel2Id(typeLevel2Options, mapped.type_lvl_2_id?.trim() || null, typeLevel1Id);
+      const categoryLevel1 = resolveCategoryLevel1Name(
+        categoryLevel1Options,
+        mapped.category_lvl_1?.trim() || inferActivityType(mapped.activity_type, mapped.title),
+      );
+      const categoryLevel2 = resolveCategoryLevel2Name(
+        categoryLevel2Options,
+        mapped.category_lvl_2?.trim() || null,
+        categoryLevel1,
+        categoryLevel1Options,
+      );
+      const categoryLevel3 = resolveCategoryLevel3Name(
+        categoryLevel3Options,
+        mapped.category_lvl_3?.trim() || null,
+        categoryLevel2,
+        categoryLevel2Options,
+      );
       const status = normalizeActivityStatus(mapped.status);
 
       const payload = {
         title: mapped.title.trim(),
         description_short: mapped.description_short || "Opis zajęć",
         description_long: mapped.description_long || mapped.description_short || "",
-        type_lvl_1_id: mapped.type_lvl_1_id?.trim() || null,
-        type_lvl_2_id: mapped.type_lvl_2_id?.trim() || null,
-        category_lvl_1: mapped.category_lvl_1?.trim() || inferActivityType(mapped.activity_type, mapped.title),
-        category_lvl_2: mapped.category_lvl_2?.trim() || null,
-        category_lvl_3: mapped.category_lvl_3?.trim() || null,
+        type_lvl_1_id: typeLevel1Id,
+        type_lvl_2_id: typeLevel2Id,
+        category_lvl_1: categoryLevel1,
+        category_lvl_2: categoryLevel2,
+        category_lvl_3: categoryLevel3,
         days_of_week: mapped.days_of_week ? mapped.days_of_week.split(/[,;/]/).map((part) => part.trim()).filter(Boolean) : [],
         date_start: dateStart,
         date_end: dateEnd,
@@ -558,7 +585,7 @@ export default function AdminActivitiesPage() {
         lat,
         lng,
         note: mapped.note?.trim() || null,
-        organizer_id: organizerId ?? matchedOrganizer?.id ?? null,
+        organizer_id: organizerId,
         source_url: mapped.source_url || null,
         facebook_url: mapped.facebook_url || null,
         status,

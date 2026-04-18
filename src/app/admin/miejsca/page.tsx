@@ -6,11 +6,14 @@ import {
   ExternalLink, Save, X, Upload, XCircle, MapPin, Plus, ClipboardPaste, ChevronDown, ChevronRight, Star,
 } from "lucide-react";
 import { PLACE_TYPE_LABELS, PLACE_TYPE_ICONS, DISTRICT_LIST } from "@/lib/mock-data";
+import { normalizeDistrictName } from "@/lib/districts";
 import { cn, thumbUrl, withCacheBust } from "@/lib/utils";
 import type { Organizer, Place } from "@/types/database";
 import { ImageSection } from "@/components/admin/image-section";
 import { OrganizerCombobox } from "@/components/admin/organizer-combobox";
 import { TaxonomyFields } from "@/components/admin/taxonomy-fields";
+import { ensureOrganizerId } from "@/lib/admin-organizers";
+import { resolveCategoryLevel1Name, resolveCategoryLevel2Name, resolveCategoryLevel3Name, resolveTypeLevel1Id, resolveTypeLevel2Id } from "@/lib/admin-taxonomy";
 import { useAdminTaxonomy } from "@/lib/use-admin-taxonomy";
 
 const MiniMapLazy = lazy(() => import("./mini-map").then((m) => ({ default: m.MiniMap })));
@@ -173,9 +176,9 @@ export default function AdminPlacesPage() {
     description_long: ["description_long", "długi opis", "dlugi opis", "opis długi", "long description"],
     type_lvl_1_id: ["type_lvl_1_id", "type_id", "type level 1", "typ poziom 1"],
     type_lvl_2_id: ["type_lvl_2_id", "subtype_id", "type level 2", "typ poziom 2"],
-    category_lvl_1: ["category_lvl_1", "main_category", "place_type", "typ", "type", "kategoria glowna", "kategoria", "category"],
-    category_lvl_2: ["category_lvl_2", "subcategory", "sub_category", "kategoria 2", "category level 2"],
-    category_lvl_3: ["category_lvl_3", "subsubcategory", "kategoria 3", "category level 3"],
+    category_lvl_1: ["category_lvl_1", "category_lvl_1_id", "main_category", "place_type", "typ", "type", "kategoria glowna", "kategoria", "category"],
+    category_lvl_2: ["category_lvl_2", "category_lvl_2_id", "subcategory", "sub_category", "kategoria 2", "category level 2"],
+    category_lvl_3: ["category_lvl_3", "category_lvl_3_id", "subsubcategory", "kategoria 3", "category level 3"],
     street: ["street", "ulica", "adres", "address"],
     postcode: ["postcode", "zip", "kod", "kod_pocztowy", "kod pocztowy"],
     city: ["city", "miasto"],
@@ -207,6 +210,7 @@ export default function AdminPlacesPage() {
     setImporting(true);
     setImportProgress({ done: 0, total: pastePreview.length });
     const imported: Place[] = [];
+    const knownOrganizers = [...organizers];
 
     for (let i = 0; i < pastePreview.length; i++) {
       const row = pastePreview[i];
@@ -223,13 +227,45 @@ export default function AdminPlacesPage() {
           place[field] = val;
         }
       }
-      const organizerName = typeof place.organizer === "string" ? place.organizer.trim() : "";
-      const matchedOrganizer = organizerName
-        ? organizers.find((organizer) => organizer.organizer_name.toLowerCase() === organizerName.toLowerCase())
-        : null;
-      if (matchedOrganizer && !place.organizer_id) {
-        place.organizer_id = matchedOrganizer.id;
-      }
+      const organizerName = typeof place.organizer === "string"
+        ? place.organizer.trim()
+        : (typeof place.organizer_id === "string" && !isUUID(place.organizer_id) ? place.organizer_id.trim() : "");
+      place.organizer_id = await ensureOrganizerId({
+        organizers: knownOrganizers,
+        organizerId: typeof place.organizer_id === "string" ? place.organizer_id : null,
+        organizerName,
+        city: typeof place.city === "string" ? place.city : "Kraków",
+        onOrganizerCreated: (organizer) => {
+          knownOrganizers.push(organizer);
+          setOrganizers((current) => current.some((entry) => entry.id === organizer.id) ? current : [...current, organizer]);
+        },
+      });
+      place.type_lvl_1_id = resolveTypeLevel1Id(
+        typeLevel1Options,
+        typeof place.type_lvl_1_id === "string" ? place.type_lvl_1_id : null,
+      );
+      place.type_lvl_2_id = resolveTypeLevel2Id(
+        typeLevel2Options,
+        typeof place.type_lvl_2_id === "string" ? place.type_lvl_2_id : null,
+        typeof place.type_lvl_1_id === "string" ? place.type_lvl_1_id : null,
+      );
+      place.category_lvl_1 = resolveCategoryLevel1Name(
+        categoryLevel1Options,
+        typeof place.category_lvl_1 === "string" ? place.category_lvl_1 : null,
+      );
+      place.category_lvl_2 = resolveCategoryLevel2Name(
+        categoryLevel2Options,
+        typeof place.category_lvl_2 === "string" ? place.category_lvl_2 : null,
+        typeof place.category_lvl_1 === "string" ? place.category_lvl_1 : null,
+        categoryLevel1Options,
+      );
+      place.district = normalizeDistrictName(place.district);
+      place.category_lvl_3 = resolveCategoryLevel3Name(
+        categoryLevel3Options,
+        typeof place.category_lvl_3 === "string" ? place.category_lvl_3 : null,
+        typeof place.category_lvl_2 === "string" ? place.category_lvl_2 : null,
+        categoryLevel2Options,
+      );
       delete place.organizer;
       if (!place.title) continue;
 
@@ -304,7 +340,7 @@ export default function AdminPlacesPage() {
   useEffect(() => { fetchPlaces(); }, [fetchPlaces]);
 
   useEffect(() => {
-    fetch("/api/admin/organizers?status=published")
+    fetch("/api/admin/organizers")
       .then((response) => response.json())
       .then((data) => {
         if (Array.isArray(data)) setOrganizers(data);

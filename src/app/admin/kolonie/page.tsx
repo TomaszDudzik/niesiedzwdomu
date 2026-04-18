@@ -19,11 +19,14 @@ import {
   X,
 } from "lucide-react";
 import { CAMP_CATEGORY_LABELS, CAMP_MAIN_CATEGORY_ICONS, CAMP_MAIN_CATEGORY_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
+import { detectDistrictFromText } from "@/lib/districts";
 import { cn, formatDateShort, formatPriceRange, thumbUrl, withCacheBust } from "@/lib/utils";
 import type { Camp, Organizer } from "@/types/database";
 import { ImageSection } from "@/components/admin/image-section";
 import { OrganizerCombobox } from "@/components/admin/organizer-combobox";
 import { TaxonomyFields } from "@/components/admin/taxonomy-fields";
+import { ensureOrganizerId } from "@/lib/admin-organizers";
+import { resolveCategoryLevel1Name, resolveCategoryLevel2Name, resolveCategoryLevel3Name, resolveTypeLevel1Id, resolveTypeLevel2Id } from "@/lib/admin-taxonomy";
 import { useAdminTaxonomy } from "@/lib/use-admin-taxonomy";
 
 const MiniMapLazy = lazy(() => import("../miejsca/mini-map").then((m) => ({ default: m.MiniMap })));
@@ -51,9 +54,9 @@ const FIELD_ALIASES: Record<string, string[]> = {
   description_long:    ["description_long", "dlugi opis", "długi opis"],
   type_lvl_1_id:       ["type_lvl_1_id", "type_id", "type level 1", "typ poziom 1"],
   type_lvl_2_id:       ["type_lvl_2_id", "subtype_id", "type level 2", "typ poziom 2"],
-  category_lvl_1:      ["category_lvl_1", "main_category", "camp_type", "typ", "rodzaj", "typ_oferty", "type"],
-  category_lvl_2:      ["category_lvl_2", "category", "kategoria", "kategoria_obozu", "camp_subtype", "podtyp"],
-  category_lvl_3:      ["category_lvl_3", "subcategory", "podkategoria", "sub_category", "dyscyplina"],
+  category_lvl_1:      ["category_lvl_1", "category_lvl_1_id", "main_category", "camp_type", "typ", "rodzaj", "typ_oferty", "type"],
+  category_lvl_2:      ["category_lvl_2", "category_lvl_2_id", "category", "kategoria", "kategoria_obozu", "camp_subtype", "podtyp"],
+  category_lvl_3:      ["category_lvl_3", "category_lvl_3_id", "subcategory", "podkategoria", "sub_category", "dyscyplina"],
   main_category:       ["main_category", "camp_type", "typ", "rodzaj", "typ_oferty", "type"],
   category:            ["category", "kategoria", "kategoria_obozu", "camp_subtype", "podtyp"],
   subcategory:         ["subcategory", "podkategoria", "sub_category", "dyscyplina"],
@@ -204,8 +207,7 @@ function normalizeImportStatus(value?: string): Camp["status"] {
 }
 
 function detectDistrict(location: string): Camp["district"] {
-  const hit = DISTRICT_LIST.find((d) => location.toLowerCase().includes(d.toLowerCase()));
-  return (hit || "Inne") as Camp["district"];
+  return detectDistrictFromText(location);
 }
 
 function splitAddress(venueAddress: string) {
@@ -256,7 +258,7 @@ export default function AdminCampsPage() {
   useEffect(() => { fetchCamps(); }, [fetchCamps]);
 
   useEffect(() => {
-    fetch("/api/admin/organizers?status=published")
+    fetch("/api/admin/organizers")
       .then((r) => r.json())
       .then((data) => { if (Array.isArray(data)) setOrganizers(data); });
   }, []);
@@ -455,6 +457,7 @@ export default function AdminCampsPage() {
     setImporting(true);
     setImportProgress({ done: 0, total: pastePreview.length });
     const imported: Camp[] = [];
+    const knownOrganizers = [...organizers];
 
     for (let i = 0; i < pastePreview.length; i++) {
       const row = pastePreview[i];
@@ -480,11 +483,35 @@ export default function AdminCampsPage() {
       const postcode = mapped.postcode?.trim() || null;
       const cityHint   = mapped.city?.trim() || splitLegacyAddress.city || "";
       const city = cityHint || "Kraków";
-      const organizerName = mapped.organizer || mapped.venue_name || "Organizator";
-      const organizerId = isUUID(mapped.organizer_id || "") ? mapped.organizer_id : null;
-      const matchedOrg = organizerName
-        ? organizers.find((o) => o.organizer_name.toLowerCase() === organizerName.toLowerCase())
-        : null;
+      const organizerName = mapped.organizer || (!isUUID(mapped.organizer_id || "") ? mapped.organizer_id || "" : "") || mapped.venue_name || "Organizator";
+      const organizerId = await ensureOrganizerId({
+        organizers: knownOrganizers,
+        organizerId: isUUID(mapped.organizer_id || "") ? mapped.organizer_id : null,
+        organizerName,
+        city,
+        onOrganizerCreated: (organizer) => {
+          knownOrganizers.push(organizer);
+          setOrganizers((current) => current.some((entry) => entry.id === organizer.id) ? current : [...current, organizer]);
+        },
+      });
+      const typeLevel1Id = resolveTypeLevel1Id(typeLevel1Options, mapped.type_lvl_1_id?.trim() || null);
+      const typeLevel2Id = resolveTypeLevel2Id(typeLevel2Options, mapped.type_lvl_2_id?.trim() || null, typeLevel1Id);
+      const categoryLevel1 = resolveCategoryLevel1Name(
+        categoryLevel1Options,
+        mapped.category_lvl_1?.trim() || inferMainCategory(mapped.main_category, mapped.title),
+      );
+      const categoryLevel2 = resolveCategoryLevel2Name(
+        categoryLevel2Options,
+        mapped.category_lvl_2?.trim() || inferCategory(mapped.category),
+        categoryLevel1,
+        categoryLevel1Options,
+      );
+      const categoryLevel3 = resolveCategoryLevel3Name(
+        categoryLevel3Options,
+        mapped.category_lvl_3?.trim() || mapped.subcategory?.trim() || null,
+        categoryLevel2,
+        categoryLevel2Options,
+      );
       const district = mapped.district?.trim() ? detectDistrict(mapped.district) : detectDistrict([street, postcode, city].filter(Boolean).join(", "));
       const lat = asNumber(mapped.lat);
       const lng = asNumber(mapped.lng);
@@ -499,13 +526,13 @@ export default function AdminCampsPage() {
             title:            mapped.title.trim(),
             description_short: shortDesc,
             description_long:  longDesc,
-            type_lvl_1_id:     mapped.type_lvl_1_id?.trim() || null,
-            type_lvl_2_id:     mapped.type_lvl_2_id?.trim() || null,
+            type_lvl_1_id:     typeLevel1Id,
+            type_lvl_2_id:     typeLevel2Id,
             date_start:        dateStart,
             date_end:          dateEnd,
-            category_lvl_1:    mapped.category_lvl_1?.trim() || inferMainCategory(mapped.main_category, mapped.title),
-            category_lvl_2:    mapped.category_lvl_2?.trim() || inferCategory(mapped.category),
-            category_lvl_3:    mapped.category_lvl_3?.trim() || mapped.subcategory?.trim() || null,
+            category_lvl_1:    categoryLevel1,
+            category_lvl_2:    categoryLevel2,
+            category_lvl_3:    categoryLevel3,
             season:            inferSeason(dateStart),
             duration_days:     asNumber(mapped.duration_days) || calcDurationDays(dateStart, dateEnd),
             meals_included:    ["tak", "true", "1"].includes((mapped.meals_included || "").toLowerCase()),
@@ -515,7 +542,7 @@ export default function AdminCampsPage() {
             price_from:        priceFrom,
             price_to:          priceTo,
             is_free:           ["tak", "true", "1"].includes((mapped.is_free || "").toLowerCase()) || (priceFrom ?? priceTo ?? null) === 0,
-            organizer_id:      organizerId ?? matchedOrg?.id ?? null,
+            organizer_id:      organizerId,
             source_url:        mapped.source_url?.trim() || null,
             facebook_url:      mapped.facebook_url?.trim() || null,
             street,
@@ -593,8 +620,8 @@ export default function AdminCampsPage() {
         }
 
         // Step 3 — pick a random photo from the category folder in Supabase storage
-        const campMainCat = mapped.category_lvl_1?.trim() || inferMainCategory(mapped.main_category, mapped.title);
-        const campCategory = mapped.category_lvl_2?.trim() || inferCategory(mapped.category);
+        const campMainCat = categoryLevel1;
+        const campCategory = categoryLevel2;
         if (campMainCat) {
           try {
             const photoRes = await fetch("/api/admin/random-photo", {
@@ -604,7 +631,7 @@ export default function AdminCampsPage() {
                 id: data.id,
                 main_category: campMainCat,
                 category: campCategory,
-                subcategory: mapped.category_lvl_3?.trim() || mapped.subcategory?.trim() || null,
+                subcategory: categoryLevel3,
               }),
             });
             const photo = await photoRes.json();
@@ -1175,7 +1202,7 @@ export default function AdminCampsPage() {
                                       <div>
                                         <label className={labelClass}>Dzielnica</label>
                                         <select className={inputClass} value={(editForm.district as string) || "Inne"} onChange={(e) => updateField("district", e.target.value)}>
-                                          {DISTRICT_LIST.slice(1).map((d) => <option key={d} value={d}>{d}</option>)}
+                                          {DISTRICT_LIST.map((d) => <option key={d} value={d}>{d}</option>)}
                                         </select>
                                       </div>
                                     </div>
