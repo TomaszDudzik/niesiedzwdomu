@@ -8,7 +8,7 @@ import { FilterSection } from "@/components/ui/filter-section";
 import { SubmissionCta } from "@/components/ui/submission-cta";
 import { cn, toLocalDateKey } from "@/lib/utils";
 import { getEventsForDate } from "@/lib/filter-events";
-import { getTaxonomyOptions, matchesTaxonomyFilter } from "@/lib/taxonomy-filters";
+import { getAgeGroupOptions, getTaxonomyOptions, matchesTaxonomyFilter, mergeSelectedTaxonomyOptions } from "@/lib/taxonomy-filters";
 import type { Event, District } from "@/types/database";
 
 const AGE_GROUPS = [
@@ -208,80 +208,82 @@ export function EventsListView({ events }: EventsListViewProps) {
   const hasDateFilters = !!singleDate || !!rangeFrom || !!rangeTo;
   const hasActiveFilters =
     !!search || activeTypes.length > 0 || activeCategories.length > 0 || activeSubcategories.length > 0 || activeDistricts.length > 0 || activeAgeGroups.length > 0 || hasDateFilters;
+  function matchesSearch(event: Event) {
+    if (!search) {
+      return true;
+    }
 
-  const preDistrictFiltered = useMemo(() => {
-    let result = events;
-    if (search) {
-      const q = search.toLowerCase();
-      result = result.filter((e) =>
-        [e.title, e.description_short, e.street, e.city, e.district].join(" ").toLowerCase().includes(q)
-      );
-    }
-    if (activeCategories.length > 0) {
-      result = result.filter((event) => matchesTaxonomyFilter(getEventCategoryValue(event), activeCategories));
-    }
-    if (activeDistricts.length > 0) {
-      result = result.filter((e) => activeDistricts.includes(e.district));
-    }
-    if (ageGroups.length > 0) {
-      result = result.filter((e) =>
-        ageGroups.some((group) =>
-          (e.age_min === null || e.age_min <= group.max) &&
-          (e.age_max === null || e.age_max >= group.min)
-        )
-      );
-    }
-    return result;
-  }, [events, search, activeCategories, ageGroups]);
+    const query = search.toLowerCase();
+    return [event.title, event.description_short, event.street, event.city, event.district].join(" ").toLowerCase().includes(query);
+  }
 
-  const preTaxonomyFiltered = useMemo(() => {
-    if (activeDistricts.length === 0) {
-      return preDistrictFiltered;
+  function matchesAgeSelection(event: Event, selectedGroups = ageGroups) {
+    if (selectedGroups.length === 0) {
+      return true;
     }
-    return preDistrictFiltered.filter((event) => activeDistricts.includes(event.district));
-  }, [preDistrictFiltered, activeDistricts]);
 
-  const dateScopedEventsForDistrict = useMemo(() => {
+    return selectedGroups.some((group) =>
+      (event.age_min === null || event.age_min <= group.max) &&
+      (event.age_max === null || event.age_max >= group.min)
+    );
+  }
+
+  function matchesDateSelection(event: Event) {
     const fromDate = parseDateOnly(rangeFrom);
     const toDate = parseDateOnly(rangeTo);
 
     if (fromDate || toDate) {
       const start = fromDate ? toStartOfDay(fromDate) : new Date(1970, 0, 1);
       const end = toDate ? toEndOfDay(toDate) : new Date(2100, 0, 1);
-      return preDistrictFiltered.filter((event) => eventIntersectsRange(event, { start, end }));
+      return eventIntersectsRange(event, { start, end });
     }
 
     const exactDate = parseDateOnly(singleDate);
     if (exactDate) {
-      const range = { start: toStartOfDay(exactDate), end: toEndOfDay(exactDate) };
-      return preDistrictFiltered.filter((event) => eventIntersectsRange(event, range));
+      return eventIntersectsRange(event, { start: toStartOfDay(exactDate), end: toEndOfDay(exactDate) });
     }
 
-    return preDistrictFiltered;
-  }, [preDistrictFiltered, rangeFrom, rangeTo, singleDate]);
+    return true;
+  }
 
-  const dateScopedEvents = useMemo(() => {
-    const fromDate = parseDateOnly(rangeFrom);
-    const toDate = parseDateOnly(rangeTo);
-
-    if (fromDate || toDate) {
-      const start = fromDate ? toStartOfDay(fromDate) : new Date(1970, 0, 1);
-      const end = toDate ? toEndOfDay(toDate) : new Date(2100, 0, 1);
-      return preTaxonomyFiltered.filter((event) => eventIntersectsRange(event, { start, end }));
+  function matchesEventFilters(event: Event, excluded: Array<"type" | "category" | "subcategory" | "district" | "age" | "date"> = []) {
+    if (!matchesSearch(event)) {
+      return false;
     }
-
-    const exactDate = parseDateOnly(singleDate);
-    if (exactDate) {
-      const range = { start: toStartOfDay(exactDate), end: toEndOfDay(exactDate) };
-      return preTaxonomyFiltered.filter((event) => eventIntersectsRange(event, range));
+    if (!excluded.includes("type") && !matchesTaxonomyFilter(getEventTypeValue(event), activeTypes)) {
+      return false;
     }
+    if (!excluded.includes("category") && !matchesTaxonomyFilter(getEventCategoryValue(event), activeCategories)) {
+      return false;
+    }
+    if (!excluded.includes("subcategory") && !matchesTaxonomyFilter(getEventSubcategoryValue(event), activeSubcategories)) {
+      return false;
+    }
+    if (!excluded.includes("district") && activeDistricts.length > 0 && !activeDistricts.includes(event.district)) {
+      return false;
+    }
+    if (!excluded.includes("age") && !matchesAgeSelection(event)) {
+      return false;
+    }
+    if (!excluded.includes("date") && !matchesDateSelection(event)) {
+      return false;
+    }
+    return true;
+  }
 
-    return preTaxonomyFiltered;
-  }, [preTaxonomyFiltered, rangeFrom, rangeTo, singleDate]);
+  const listEvents = useMemo(
+    () => events.filter((event) => matchesEventFilters(event)),
+    [events, search, activeTypes, activeCategories, activeSubcategories, activeDistricts, ageGroups, rangeFrom, rangeTo, singleDate]
+  );
+
+  const typeOptionsSource = useMemo(
+    () => events.filter((event) => matchesEventFilters(event, ["type"])),
+    [events, search, activeCategories, activeSubcategories, activeDistricts, ageGroups, rangeFrom, rangeTo, singleDate]
+  );
 
   const typeOptions = useMemo(
-    () => getTaxonomyOptions(dateScopedEvents, getEventTypeValue),
-    [dateScopedEvents]
+    () => mergeSelectedTaxonomyOptions(getTaxonomyOptions(typeOptionsSource, getEventTypeValue), activeTypes),
+    [typeOptionsSource, activeTypes]
   );
 
   const typeOptionsByValue = useMemo(
@@ -289,14 +291,12 @@ export function EventsListView({ events }: EventsListViewProps) {
     [typeOptions]
   );
 
-  const categorySource = useMemo(
-    () => dateScopedEvents.filter((event) => matchesTaxonomyFilter(getEventTypeValue(event), activeTypes)),
-    [dateScopedEvents, activeTypes]
-  );
-
   const categoryOptions = useMemo(
-    () => getTaxonomyOptions(categorySource, getEventCategoryValue),
-    [categorySource]
+    () => mergeSelectedTaxonomyOptions(
+      getTaxonomyOptions(events.filter((event) => matchesEventFilters(event, ["category"])), getEventCategoryValue),
+      activeCategories,
+    ),
+    [events, search, activeTypes, activeSubcategories, activeDistricts, ageGroups, rangeFrom, rangeTo, singleDate, activeCategories]
   );
 
   const categoryOptionsByValue = useMemo(
@@ -304,14 +304,12 @@ export function EventsListView({ events }: EventsListViewProps) {
     [categoryOptions]
   );
 
-  const subcategorySource = useMemo(
-    () => categorySource.filter((event) => matchesTaxonomyFilter(getEventCategoryValue(event), activeCategories)),
-    [categorySource, activeCategories]
-  );
-
   const subcategoryOptions = useMemo(
-    () => getTaxonomyOptions(subcategorySource, getEventSubcategoryValue),
-    [subcategorySource]
+    () => mergeSelectedTaxonomyOptions(
+      getTaxonomyOptions(events.filter((event) => matchesEventFilters(event, ["subcategory"])), getEventSubcategoryValue),
+      activeSubcategories,
+    ),
+    [events, search, activeTypes, activeCategories, activeDistricts, ageGroups, rangeFrom, rangeTo, singleDate, activeSubcategories]
   );
 
   const subcategoryOptionsByValue = useMemo(
@@ -342,14 +340,20 @@ export function EventsListView({ events }: EventsListViewProps) {
     const counts = new Map<string, number>();
     for (const date of monthDays) {
       const key = toLocalDateKey(date);
-      counts.set(key, getEventsForDate(preTaxonomyFiltered, date).length);
+      const dateOptionEvents = events.filter((event) => matchesEventFilters(event, ["date"]));
+      counts.set(key, getEventsForDate(dateOptionEvents, date).length);
     }
     return counts;
-  }, [preTaxonomyFiltered, monthDays]);
+  }, [events, search, activeTypes, activeCategories, activeSubcategories, activeDistricts, ageGroups, monthDays]);
 
-  const listEvents = useMemo(
-    () => subcategorySource.filter((event) => matchesTaxonomyFilter(getEventSubcategoryValue(event), activeSubcategories)),
-    [subcategorySource, activeSubcategories]
+  const ageOptions = useMemo(
+    () => getAgeGroupOptions(
+      events.filter((event) => matchesEventFilters(event, ["age"])),
+      (event) => event.age_min,
+      (event) => event.age_max,
+      AGE_GROUPS,
+    ),
+    [events, search, activeTypes, activeCategories, activeSubcategories, activeDistricts, rangeFrom, rangeTo, singleDate]
   );
 
   const sidebarMapGroups = useMemo(() => groupByLocation(listEvents), [listEvents]);
@@ -451,17 +455,17 @@ export function EventsListView({ events }: EventsListViewProps) {
 
   const availableDistricts = useMemo(() => {
     const set = new Set<string>();
-    dateScopedEventsForDistrict.forEach((e) => set.add(e.district));
-    return DISTRICT_LIST.filter((d) => set.has(d));
-  }, [dateScopedEventsForDistrict]);
+    events.filter((event) => matchesEventFilters(event, ["district"])).forEach((event) => set.add(event.district));
+    return DISTRICT_LIST.filter((district) => set.has(district) || activeDistricts.includes(district));
+  }, [events, search, activeTypes, activeCategories, activeSubcategories, ageGroups, rangeFrom, rangeTo, singleDate, activeDistricts]);
 
   const districtCounts = useMemo(() => {
     const counts = new Map<District, number>();
-    dateScopedEventsForDistrict.forEach((event) => {
+    events.filter((event) => matchesEventFilters(event, ["district"])).forEach((event) => {
       counts.set(event.district, (counts.get(event.district) || 0) + 1);
     });
     return counts;
-  }, [dateScopedEventsForDistrict]);
+  }, [events, search, activeTypes, activeCategories, activeSubcategories, ageGroups, rangeFrom, rangeTo, singleDate]);
 
   function clearFilters() {
     setSearch("");
@@ -583,7 +587,7 @@ export function EventsListView({ events }: EventsListViewProps) {
       {/* Mobile filters dropdown */}
       {filtersOpen && (
         <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 space-y-2.5">
-          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Data</p>} defaultCollapsed>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Data</p>} defaultCollapsed={false}>
             <p className="text-[10px] text-muted-foreground mb-1">Konkretna data</p>
             <input
               type="date"
@@ -625,7 +629,7 @@ export function EventsListView({ events }: EventsListViewProps) {
             </div>
           </FilterSection>
 
-          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Typ</p>} defaultCollapsed>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Typ</p>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
               {typeOptions.map((option) => {
                 const selected = activeTypes.includes(option.value);
@@ -643,9 +647,9 @@ export function EventsListView({ events }: EventsListViewProps) {
             </div>
           </FilterSection>
 
-          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Wiek dziecka</p>} defaultCollapsed>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Wiek dziecka</p>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
-              {AGE_GROUPS.map((group) => {
+              {ageOptions.filter((group) => group.count > 0 || activeAgeGroups.includes(group.key)).map((group) => {
                 const selected = activeAgeGroups.includes(group.key);
                 return (
                   <button key={group.key} onClick={() => toggleAgeGroup(group.key)}
@@ -653,6 +657,7 @@ export function EventsListView({ events }: EventsListViewProps) {
                       selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
                     <span>{group.icon}</span>
                     <span>{group.label}</span>
+                    <span className="text-[10px] opacity-60">{group.count}</span>
                     {selected && <Check size={11} />}
                   </button>
                 );
@@ -660,7 +665,7 @@ export function EventsListView({ events }: EventsListViewProps) {
             </div>
           </FilterSection>
 
-          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Kategoria</p>} defaultCollapsed>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Kategoria</p>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
               {categoryOptions.map((option) => {
                 const selected = activeCategories.includes(option.value);
@@ -678,7 +683,7 @@ export function EventsListView({ events }: EventsListViewProps) {
             </div>
           </FilterSection>
 
-          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Tematyka</p>} defaultCollapsed>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Tematyka</p>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
               {subcategoryOptions.map((option) => {
                 const selected = activeSubcategories.includes(option.value);
@@ -696,7 +701,7 @@ export function EventsListView({ events }: EventsListViewProps) {
             </div>
           </FilterSection>
 
-          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Dzielnica</p>} defaultCollapsed>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Dzielnica</p>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
               {availableDistricts.map((district) => {
                 const selected = activeDistricts.includes(district);
@@ -824,7 +829,7 @@ export function EventsListView({ events }: EventsListViewProps) {
 
             <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Wiek</p>} defaultCollapsed={!filtersOpenDesktop}>
               <div className="flex flex-col gap-0.5">
-                {AGE_GROUPS.map((group) => {
+                {ageOptions.filter((group) => group.count > 0 || activeAgeGroups.includes(group.key)).map((group) => {
                   const selected = activeAgeGroups.includes(group.key);
                   return (
                     <button key={group.key} onClick={() => toggleAgeGroup(group.key)}
@@ -832,6 +837,7 @@ export function EventsListView({ events }: EventsListViewProps) {
                         selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
                       <span>{group.icon}</span>
                       <span className="flex-1">{group.label}</span>
+                      <span className="text-[8px] opacity-40">{group.count}</span>
                       {selected && <Check size={10} />}
                     </button>
                   );

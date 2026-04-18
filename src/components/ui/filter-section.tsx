@@ -67,7 +67,7 @@ export function FilterSection({
         }}
         aria-hidden={collapsed}
       >
-        <div ref={contentRef} className={cn("px-2.5 pb-2.5", contentClassName)}>
+        <div ref={contentRef} className={cn("px-2.5 pt-1 pb-2.5", contentClassName)}>
           {children}
         </div>
       </div>

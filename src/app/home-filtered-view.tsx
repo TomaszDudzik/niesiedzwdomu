@@ -8,7 +8,7 @@ import { FilterSection } from "@/components/ui/filter-section";
 import { ImageWithFallback } from "@/components/ui/image-with-fallback";
 import { useAdminTaxonomy } from "@/lib/use-admin-taxonomy";
 import { CATEGORY_LABELS, CATEGORY_ICONS } from "@/lib/mock-data";
-import { getTaxonomyOptions, matchesTaxonomyFilter } from "@/lib/taxonomy-filters";
+import { getTaxonomyOptions, matchesTaxonomyFilter, mergeSelectedTaxonomyOptions } from "@/lib/taxonomy-filters";
 import { cn, formatDateShort, formatAgeRange, thumbUrl } from "@/lib/utils";
 import type { Event, Place, Camp, Activity, District } from "@/types/database";
 
@@ -130,6 +130,9 @@ interface UnifiedFilterEntry {
   type: string | null;
   category: string | null;
   district: District;
+  ageMin: number | null;
+  ageMax: number | null;
+  searchText: string;
 }
 
 function getEventCategoryLvl1(event: Event) {
@@ -197,32 +200,69 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
         type: getEventCategoryLvl1(event),
         category: getEventCategoryLvl2(event),
         district: event.district,
+        ageMin: event.age_min,
+        ageMax: event.age_max,
+        searchText: [event.title, event.description_short, event.street, event.city, event.district].join(" ").toLowerCase(),
       })),
       ...places.map((place) => ({
         typeLevel2: place.type_lvl_2_id ?? null,
         type: getPlaceCategoryLvl1(place),
         category: getPlaceCategoryLvl2(place),
         district: place.district,
+        ageMin: place.age_min,
+        ageMax: place.age_max,
+        searchText: [place.title, place.description_short, place.street, place.city, place.district].join(" ").toLowerCase(),
       })),
       ...camps.map((camp) => ({
         typeLevel2: camp.type_lvl_2_id ?? null,
         type: getCampCategoryLvl1(camp),
         category: getCampCategoryLvl2(camp),
         district: camp.district,
+        ageMin: camp.age_min,
+        ageMax: camp.age_max,
+        searchText: [camp.title, camp.description_short, camp.venue_name, camp.venue_address, camp.organizer].join(" ").toLowerCase(),
       })),
       ...activities.map((activity) => ({
         typeLevel2: activity.type_lvl_2_id ?? null,
         type: getActivityCategoryLvl1(activity),
         category: getActivityCategoryLvl2(activity),
         district: activity.district,
+        ageMin: activity.age_min,
+        ageMax: activity.age_max,
+        searchText: [activity.title, activity.description_short, activity.venue_name, activity.venue_address, activity.organizer].join(" ").toLowerCase(),
       })),
     ],
     [events, places, camps, activities]
   );
 
+  function matchesUnifiedFilters(entry: UnifiedFilterEntry, excluded: Array<"typeLevel2" | "type" | "category" | "district" | "age"> = []) {
+    if (search.trim() && !entry.searchText.includes(search.trim().toLowerCase())) {
+      return false;
+    }
+    if (!excluded.includes("typeLevel2") && !matchesTaxonomyFilter(entry.typeLevel2, activeTypeLevel2)) {
+      return false;
+    }
+    if (!excluded.includes("type") && !matchesTaxonomyFilter(entry.type, activeTypes)) {
+      return false;
+    }
+    if (!excluded.includes("category") && !matchesTaxonomyFilter(entry.category, activeCategories)) {
+      return false;
+    }
+    if (!excluded.includes("district") && activeDistricts.length > 0 && !activeDistricts.includes(entry.district)) {
+      return false;
+    }
+    if (!excluded.includes("age") && !matchesAgeFilter(entry.ageMin, entry.ageMax, ageGroup)) {
+      return false;
+    }
+    return true;
+  }
+
   const typeOptions = useMemo(
-    () => getTaxonomyOptions(unifiedFilterEntries, (entry) => entry.type),
-    [unifiedFilterEntries]
+    () => mergeSelectedTaxonomyOptions(
+      getTaxonomyOptions(unifiedFilterEntries.filter((entry) => matchesUnifiedFilters(entry, ["type"])), (entry) => entry.type),
+      activeTypes,
+    ),
+    [unifiedFilterEntries, search, activeTypeLevel2, activeCategories, activeDistricts, ageGroup, activeTypes]
   );
 
   const typeLevel2LabelMap = useMemo(
@@ -231,8 +271,12 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
   );
 
   const typeLevel2Options = useMemo(
-    () => getTaxonomyOptions(unifiedFilterEntries, (entry) => entry.typeLevel2, typeLevel2LabelMap),
-    [unifiedFilterEntries, typeLevel2LabelMap]
+    () => mergeSelectedTaxonomyOptions(
+      getTaxonomyOptions(unifiedFilterEntries.filter((entry) => matchesUnifiedFilters(entry, ["typeLevel2"])), (entry) => entry.typeLevel2, typeLevel2LabelMap),
+      activeTypeLevel2,
+      typeLevel2LabelMap,
+    ),
+    [unifiedFilterEntries, typeLevel2LabelMap, search, activeTypes, activeCategories, activeDistricts, ageGroup, activeTypeLevel2]
   );
 
   const typeLevel2OptionsByValue = useMemo(
@@ -241,8 +285,12 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
   );
 
   const categoryOptions = useMemo(
-    () => getTaxonomyOptions(unifiedFilterEntries, (entry) => entry.category, CATEGORY_LABELS as Record<string, string>),
-    [unifiedFilterEntries]
+    () => mergeSelectedTaxonomyOptions(
+      getTaxonomyOptions(unifiedFilterEntries.filter((entry) => matchesUnifiedFilters(entry, ["category"])), (entry) => entry.category, CATEGORY_LABELS as Record<string, string>),
+      activeCategories,
+      CATEGORY_LABELS as Record<string, string>,
+    ),
+    [unifiedFilterEntries, search, activeTypeLevel2, activeTypes, activeDistricts, ageGroup, activeCategories]
   );
 
   const typeOptionsByValue = useMemo(
@@ -258,14 +306,22 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
   const districtOptions = useMemo(() => {
     const counts = new Map<District, number>();
 
-    unifiedFilterEntries.forEach((entry) => {
+    unifiedFilterEntries.filter((entry) => matchesUnifiedFilters(entry, ["district"])).forEach((entry) => {
       counts.set(entry.district, (counts.get(entry.district) || 0) + 1);
     });
 
     return Array.from(counts.entries())
       .map(([value, count]) => ({ value, label: value, icon: DISTRICT_ICONS[value] || "📍", count }))
       .sort((left, right) => left.label.localeCompare(right.label, "pl"));
-  }, [unifiedFilterEntries]);
+  }, [unifiedFilterEntries, search, activeTypeLevel2, activeTypes, activeCategories, ageGroup]);
+
+  const ageOptions = useMemo(
+    () => AGE_GROUPS.map((group) => ({
+      ...group,
+      count: unifiedFilterEntries.filter((entry) => matchesUnifiedFilters(entry, ["age"]) && matchesAgeFilter(entry.ageMin, entry.ageMax, group)).length,
+    })),
+    [unifiedFilterEntries, search, activeTypeLevel2, activeTypes, activeCategories, activeDistricts]
+  );
 
   const activeFilterBadges = useMemo(() => {
     const badges: { id: string; label: string; onRemove: () => void }[] = [];
@@ -511,7 +567,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
       {/* Mobile filters dropdown */}
       {filtersOpen && (
         <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 space-y-2.5">
-          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Grupa</span>} defaultCollapsed>
+          <FilterSection title={<span className="text-[11px] font-medium text-muted-foreground">Grupa</span>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
               {typeLevel2Options.map((option) => {
                 const selected = activeTypeLevel2.includes(option.value);
@@ -529,7 +585,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
             </div>
           </FilterSection>
 
-          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Typ</span>} defaultCollapsed>
+          <FilterSection title={<span className="text-[11px] font-medium text-muted-foreground">Typ</span>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
               {typeOptions.map((option) => {
                 const selected = activeTypes.includes(option.value);
@@ -547,19 +603,19 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
             </div>
           </FilterSection>
 
-          <FilterSection title={<span className="text-[11px] font-medium text-muted-foreground">Wiek dziecka</span>} defaultCollapsed>
+          <FilterSection title={<span className="text-[11px] font-medium text-muted-foreground">Wiek dziecka</span>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1.5">
-              {AGE_GROUPS.map((group) => (
+              {ageOptions.filter((group) => group.count > 0 || activeAgeGroup === group.key).map((group) => (
                 <button key={group.key} onClick={() => setActiveAgeGroup(activeAgeGroup === group.key ? null : group.key)}
                   className={cn("px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-all duration-200",
                     activeAgeGroup === group.key ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
-                  {group.icon} {group.label}
+                  {group.icon} {group.label} <span className="opacity-60">{group.count}</span>
                 </button>
               ))}
             </div>
           </FilterSection>
 
-          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><Tags size={11} /> Kategoria</span>}>
+          <FilterSection title={<span className="text-[11px] font-medium text-muted-foreground">Kategoria</span>}>
             <div className="flex flex-wrap gap-1">
               {categoryOptions.map((option) => {
                 const selected = activeCategories.includes(option.value);
@@ -577,7 +633,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
             </div>
           </FilterSection>
 
-          <FilterSection title={<span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground"><MapPin size={11} /> Dzielnica</span>}>
+          <FilterSection title={<span className="text-[11px] font-medium text-muted-foreground">Dzielnica</span>}>
             <div className="flex flex-wrap gap-1">
               {districtOptions.map((option) => {
                 const selected = activeDistricts.includes(option.value);
@@ -616,7 +672,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
 
             <div className="border-t border-border" />
 
-            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Grupa</span>} defaultCollapsed={!filtersOpenDesktop}>
+            <FilterSection title={<span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Grupa</span>} defaultCollapsed={!filtersOpenDesktop}>
               <div className="flex flex-col gap-0.5">
                 {typeLevel2Options.map((option) => {
                   const selected = activeTypeLevel2.includes(option.value);
@@ -634,7 +690,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
               </div>
             </FilterSection>
 
-            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Typ</span>} defaultCollapsed={!filtersOpenDesktop}>
+            <FilterSection title={<span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Typ</span>} defaultCollapsed={!filtersOpenDesktop}>
               <div className="flex flex-col gap-0.5">
                 {typeOptions.map((option) => {
                   const selected = activeTypes.includes(option.value);
@@ -654,18 +710,19 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
 
             <FilterSection title={<span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Wiek</span>} defaultCollapsed={!filtersOpenDesktop}>
               <div className="flex flex-col gap-0.5">
-                {AGE_GROUPS.map((group) => (
+                {ageOptions.filter((group) => group.count > 0 || activeAgeGroup === group.key).map((group) => (
                   <button key={group.key} onClick={() => setActiveAgeGroup(activeAgeGroup === group.key ? null : group.key)}
                     className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
                       activeAgeGroup === group.key ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
                     <span>{group.icon}</span>
                     <span>{group.label}</span>
+                    <span className="ml-auto text-[8px] opacity-40">{group.count}</span>
                   </button>
                 ))}
               </div>
             </FilterSection>
 
-            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><Tags size={10} /> Kategoria</span>}>
+            <FilterSection title={<span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Kategoria</span>}>
               <div className="flex flex-col gap-0.5">
                 {categoryOptions.map((option) => {
                   const selected = activeCategories.includes(option.value);
@@ -683,7 +740,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
               </div>
             </FilterSection>
 
-            <FilterSection title={<span className="inline-flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider"><MapPin size={10} /> Dzielnica</span>}>
+            <FilterSection title={<span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Dzielnica</span>}>
               <div className="flex flex-col gap-0.5">
                 {districtOptions.map((option) => {
                   const selected = activeDistricts.includes(option.value);

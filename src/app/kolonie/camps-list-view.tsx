@@ -8,7 +8,7 @@ import { FilterSection } from "@/components/ui/filter-section";
 import { SubmissionCta } from "@/components/ui/submission-cta";
 import { cn, formatDateShort, toLocalDateKey, thumbUrl } from "@/lib/utils";
 import { ImageWithFallback } from "@/components/ui/image-with-fallback";
-import { getTaxonomyOptions, matchesTaxonomyFilter } from "@/lib/taxonomy-filters";
+import { getAgeGroupOptions, getTaxonomyOptions, matchesTaxonomyFilter, mergeSelectedTaxonomyOptions } from "@/lib/taxonomy-filters";
 import type { Camp, District } from "@/types/database";
 
 const AGE_GROUPS = [
@@ -210,80 +210,86 @@ export function CampsListView({ camps }: CampsListViewProps) {
   const hasActiveFilters =
     !!search || activeTypes.length > 0 || activeCategories.length > 0 || activeSubcategories.length > 0 || activeDistricts.length > 0 || activeAgeGroups.length > 0 || hasDateFilters;
 
-  const preDistrictFiltered = useMemo(() => {
-    let result = camps;
-
-    if (search) {
-      const query = search.toLowerCase();
-      result = result.filter((camp) =>
-        [camp.title, camp.description_short, camp.venue_name, camp.venue_address, camp.organizer]
-          .join(" ")
-          .toLowerCase()
-          .includes(query)
-      );
+  function matchesSearch(camp: Camp) {
+    if (!search) {
+      return true;
     }
 
-    if (ageGroups.length > 0) {
-      result = result.filter((camp) =>
-        ageGroups.some(
-          (group) =>
-            (camp.age_min === null || camp.age_min <= group.max) &&
-            (camp.age_max === null || camp.age_max >= group.min)
-        )
-      );
+    const query = search.toLowerCase();
+    return [camp.title, camp.description_short, camp.venue_name, camp.venue_address, camp.organizer]
+      .join(" ")
+      .toLowerCase()
+      .includes(query);
+  }
+
+  function matchesAgeSelection(camp: Camp, selectedGroups = ageGroups) {
+    if (selectedGroups.length === 0) {
+      return true;
     }
 
-    return result;
-  }, [camps, search, ageGroups]);
+    return selectedGroups.some(
+      (group) =>
+        (camp.age_min === null || camp.age_min <= group.max) &&
+        (camp.age_max === null || camp.age_max >= group.min)
+    );
+  }
 
-  const preTaxonomyFiltered = useMemo(() => {
-    if (activeDistricts.length === 0) {
-      return preDistrictFiltered;
-    }
-    return preDistrictFiltered.filter((camp) => activeDistricts.includes(camp.district));
-  }, [preDistrictFiltered, activeDistricts]);
-
-  const dateScopedCampsForDistrict = useMemo(() => {
+  function matchesDateSelection(camp: Camp) {
     const fromDate = parseDateOnly(rangeFrom);
     const toDate = parseDateOnly(rangeTo);
 
     if (fromDate || toDate) {
       const start = fromDate ? toStartOfDay(fromDate) : new Date(1970, 0, 1);
       const end = toDate ? toEndOfDay(toDate) : new Date(2100, 0, 1);
-      return preDistrictFiltered.filter((camp) => campIntersectsRange(camp, { start, end }));
+      return campIntersectsRange(camp, { start, end });
     }
 
     const exactDate = parseDateOnly(singleDate);
     if (exactDate) {
-      const range = { start: toStartOfDay(exactDate), end: toEndOfDay(exactDate) };
-      return preDistrictFiltered.filter((camp) => campIntersectsRange(camp, range));
+      return campIntersectsRange(camp, { start: toStartOfDay(exactDate), end: toEndOfDay(exactDate) });
     }
 
-    return preDistrictFiltered;
-  }, [preDistrictFiltered, rangeFrom, rangeTo, singleDate]);
+    return true;
+  }
 
-  const dateScopedCamps = useMemo(() => {
-    const fromDate = parseDateOnly(rangeFrom);
-    const toDate = parseDateOnly(rangeTo);
-
-    if (fromDate || toDate) {
-      const start = fromDate ? toStartOfDay(fromDate) : new Date(1970, 0, 1);
-      const end = toDate ? toEndOfDay(toDate) : new Date(2100, 0, 1);
-      return preTaxonomyFiltered.filter((camp) => campIntersectsRange(camp, { start, end }));
+  function matchesCampFilters(camp: Camp, excluded: Array<"type" | "category" | "subcategory" | "district" | "age" | "date"> = []) {
+    if (!matchesSearch(camp)) {
+      return false;
     }
-
-    const exactDate = parseDateOnly(singleDate);
-    if (exactDate) {
-      const range = { start: toStartOfDay(exactDate), end: toEndOfDay(exactDate) };
-      return preTaxonomyFiltered.filter((camp) => campIntersectsRange(camp, range));
+    if (!excluded.includes("type") && !matchesTaxonomyFilter(getCampTypeValue(camp), activeTypes)) {
+      return false;
     }
+    if (!excluded.includes("category") && !matchesTaxonomyFilter(getCampCategoryValue(camp), activeCategories)) {
+      return false;
+    }
+    if (!excluded.includes("subcategory") && !matchesTaxonomyFilter(getCampSubcategoryValue(camp), activeSubcategories)) {
+      return false;
+    }
+    if (!excluded.includes("district") && activeDistricts.length > 0 && !activeDistricts.includes(camp.district)) {
+      return false;
+    }
+    if (!excluded.includes("age") && !matchesAgeSelection(camp)) {
+      return false;
+    }
+    if (!excluded.includes("date") && !matchesDateSelection(camp)) {
+      return false;
+    }
+    return true;
+  }
 
-    return preTaxonomyFiltered;
-  }, [preTaxonomyFiltered, rangeFrom, rangeTo, singleDate]);
+  const filteredCamps = useMemo(
+    () => camps.filter((camp) => matchesCampFilters(camp)),
+    [camps, search, activeTypes, activeCategories, activeSubcategories, activeDistricts, ageGroups, rangeFrom, rangeTo, singleDate]
+  );
+
+  const typeOptionsSource = useMemo(
+    () => camps.filter((camp) => matchesCampFilters(camp, ["type"])),
+    [camps, search, activeCategories, activeSubcategories, activeDistricts, ageGroups, rangeFrom, rangeTo, singleDate]
+  );
 
   const typeOptions = useMemo(
-    () => getTaxonomyOptions(dateScopedCamps, getCampTypeValue),
-    [dateScopedCamps]
+    () => mergeSelectedTaxonomyOptions(getTaxonomyOptions(typeOptionsSource, getCampTypeValue), activeTypes),
+    [typeOptionsSource, activeTypes]
   );
 
   const typeOptionsByValue = useMemo(
@@ -291,14 +297,12 @@ export function CampsListView({ camps }: CampsListViewProps) {
     [typeOptions]
   );
 
-  const categorySource = useMemo(
-    () => dateScopedCamps.filter((camp) => matchesTaxonomyFilter(getCampTypeValue(camp), activeTypes)),
-    [dateScopedCamps, activeTypes]
-  );
-
   const categoryOptions = useMemo(
-    () => getTaxonomyOptions(categorySource, getCampCategoryValue),
-    [categorySource]
+    () => mergeSelectedTaxonomyOptions(
+      getTaxonomyOptions(camps.filter((camp) => matchesCampFilters(camp, ["category"])), getCampCategoryValue),
+      activeCategories,
+    ),
+    [camps, search, activeTypes, activeSubcategories, activeDistricts, ageGroups, rangeFrom, rangeTo, singleDate, activeCategories]
   );
 
   const categoryOptionsByValue = useMemo(
@@ -306,24 +310,17 @@ export function CampsListView({ camps }: CampsListViewProps) {
     [categoryOptions]
   );
 
-  const subcategorySource = useMemo(
-    () => categorySource.filter((camp) => matchesTaxonomyFilter(getCampCategoryValue(camp), activeCategories)),
-    [categorySource, activeCategories]
-  );
-
   const subcategoryOptions = useMemo(
-    () => getTaxonomyOptions(subcategorySource, getCampSubcategoryValue),
-    [subcategorySource]
+    () => mergeSelectedTaxonomyOptions(
+      getTaxonomyOptions(camps.filter((camp) => matchesCampFilters(camp, ["subcategory"])), getCampSubcategoryValue),
+      activeSubcategories,
+    ),
+    [camps, search, activeTypes, activeCategories, activeDistricts, ageGroups, rangeFrom, rangeTo, singleDate, activeSubcategories]
   );
 
   const subcategoryOptionsByValue = useMemo(
     () => new Map(subcategoryOptions.map((option) => [option.value, option])),
     [subcategoryOptions]
-  );
-
-  const filteredCamps = useMemo(
-    () => subcategorySource.filter((camp) => matchesTaxonomyFilter(getCampSubcategoryValue(camp), activeSubcategories)),
-    [subcategorySource, activeSubcategories]
   );
 
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
@@ -346,13 +343,14 @@ export function CampsListView({ camps }: CampsListViewProps) {
   );
 
   const campCountMap = useMemo(() => {
+    const dateOptionCamps = camps.filter((camp) => matchesCampFilters(camp, ["date"]));
     const counts = new Map<string, number>();
     for (const date of monthDays) {
       const key = toLocalDateKey(date);
-      counts.set(key, getCampsForDate(preTaxonomyFiltered, date).length);
+      counts.set(key, getCampsForDate(dateOptionCamps, date).length);
     }
     return counts;
-  }, [preTaxonomyFiltered, monthDays]);
+  }, [camps, search, activeTypes, activeCategories, activeSubcategories, activeDistricts, ageGroups, monthDays]);
 
   const grouped = useMemo(() => {
     const groupedByType = new Map<string, Camp[]>();
@@ -413,19 +411,29 @@ export function CampsListView({ camps }: CampsListViewProps) {
     });
   }, [filteredCamps, typeOptionsByValue]);
 
+  const ageOptions = useMemo(
+      () => getAgeGroupOptions(
+        camps.filter((camp) => matchesCampFilters(camp, ["age"])),
+        (camp) => camp.age_min,
+        (camp) => camp.age_max,
+        AGE_GROUPS,
+      ),
+      [camps, search, activeTypes, activeCategories, activeSubcategories, activeDistricts, rangeFrom, rangeTo, singleDate]
+    );
+
   const availableDistricts = useMemo(() => {
     const set = new Set<string>();
-    dateScopedCampsForDistrict.forEach((camp) => set.add(camp.district));
-    return DISTRICT_LIST.filter((district) => set.has(district));
-  }, [dateScopedCampsForDistrict]);
+    camps.filter((camp) => matchesCampFilters(camp, ["district"])).forEach((camp) => set.add(camp.district));
+    return DISTRICT_LIST.filter((district) => set.has(district) || activeDistricts.includes(district));
+  }, [camps, search, activeTypes, activeCategories, activeSubcategories, ageGroups, rangeFrom, rangeTo, singleDate, activeDistricts]);
 
   const districtCounts = useMemo(() => {
     const counts = new Map<District, number>();
-    dateScopedCampsForDistrict.forEach((camp) => {
+    camps.filter((camp) => matchesCampFilters(camp, ["district"])).forEach((camp) => {
       counts.set(camp.district, (counts.get(camp.district) || 0) + 1);
     });
     return counts;
-  }, [dateScopedCampsForDistrict]);
+  }, [camps, search, activeTypes, activeCategories, activeSubcategories, ageGroups, rangeFrom, rangeTo, singleDate]);
 
   const activeFilterBadges = useMemo(() => {
     const badges: { id: string; label: string; onRemove: () => void }[] = [];
@@ -659,7 +667,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
 
       {filtersOpen && (
         <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 space-y-2.5">
-          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Data</p>} defaultCollapsed>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Data</p>} defaultCollapsed={false}>
             <p className="text-[10px] text-muted-foreground mb-1">Konkretna data</p>
             <input
               type="date"
@@ -701,7 +709,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
             </div>
           </FilterSection>
 
-          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Typ</p>} defaultCollapsed>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Typ</p>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
               {typeOptions.map((option) => {
                 const selected = activeTypes.includes(option.value);
@@ -726,9 +734,9 @@ export function CampsListView({ camps }: CampsListViewProps) {
             </div>
           </FilterSection>
 
-          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Wiek dziecka</p>} defaultCollapsed>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Wiek dziecka</p>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
-              {AGE_GROUPS.map((group) => {
+              {ageOptions.filter((group) => group.count > 0 || activeAgeGroups.includes(group.key)).map((group) => {
                 const selected = activeAgeGroups.includes(group.key);
                 return (
                   <button
@@ -743,6 +751,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                   >
                     <span>{group.icon}</span>
                     <span>{group.label}</span>
+                    <span className="text-[10px] opacity-60">{group.count}</span>
                     {selected && <Check size={11} />}
                   </button>
                 );
@@ -750,7 +759,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
             </div>
           </FilterSection>
 
-          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Kategoria</p>} defaultCollapsed>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Kategoria</p>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
               {categoryOptions.map((option) => {
                 const selected = activeCategories.includes(option.value);
@@ -775,7 +784,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
             </div>
           </FilterSection>
 
-          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Tematyka</p>} defaultCollapsed>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Tematyka</p>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
               {subcategoryOptions.map((option) => {
                 const selected = activeSubcategories.includes(option.value);
@@ -800,7 +809,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
             </div>
           </FilterSection>
 
-          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Dzielnica</p>} defaultCollapsed>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Dzielnica</p>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
               {availableDistricts.map((district) => {
                 const selected = activeDistricts.includes(district);
@@ -926,7 +935,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
 
             <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Wiek</p>} defaultCollapsed={!filtersOpenDesktop}>
               <div className="flex flex-col gap-0.5">
-                {AGE_GROUPS.map((group) => {
+                {ageOptions.filter((group) => group.count > 0 || activeAgeGroups.includes(group.key)).map((group) => {
                   const selected = activeAgeGroups.includes(group.key);
                   return (
                     <button
@@ -939,6 +948,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                     >
                       <span>{group.icon}</span>
                       <span className="flex-1">{group.label}</span>
+                      <span className="text-[8px] opacity-40">{group.count}</span>
                       {selected && <Check size={10} />}
                     </button>
                   );

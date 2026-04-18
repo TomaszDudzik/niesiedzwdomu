@@ -7,7 +7,7 @@ import { ContentCard } from "@/components/ui/content-card";
 import { FilterSection } from "@/components/ui/filter-section";
 import { SubmissionCta } from "@/components/ui/submission-cta";
 import { cn } from "@/lib/utils";
-import { getTaxonomyOptions, matchesTaxonomyFilter } from "@/lib/taxonomy-filters";
+import { getAgeGroupOptions, getTaxonomyOptions, matchesTaxonomyFilter, mergeSelectedTaxonomyOptions } from "@/lib/taxonomy-filters";
 import type { Place, District } from "@/types/database";
 
 const AGE_GROUPS = [
@@ -64,51 +64,55 @@ export function PlacesListView({ places }: PlacesListViewProps) {
     [activeAgeGroups]
   );
   const hasActiveFilters = !!search || activeTypes.length > 0 || activeDistricts.length > 0 || activeAgeGroups.length > 0;
+  function matchesAgeSelection(place: Place, selectedGroups = ageGroups) {
+    if (selectedGroups.length === 0) {
+      return true;
+    }
 
-  const baseFiltered = useMemo(() => {
-    let result = places;
-    if (search) {
-      const q = search.toLowerCase();
-      result = result.filter((p) =>
-        [p.title, p.description_short, p.street, p.city].join(" ").toLowerCase().includes(q)
-      );
-    }
-    if (activeDistricts.length > 0) {
-      result = result.filter((p) => activeDistricts.includes(p.district));
-    }
-    if (ageGroups.length > 0) {
-      result = result.filter((p) =>
-        ageGroups.some((group) =>
-          (p.age_min === null || p.age_min <= group.max) &&
-          (p.age_max === null || p.age_max >= group.min)
-        )
-      );
-    }
-    return result;
-  }, [places, search, activeDistricts, ageGroups]);
+    return selectedGroups.some((group) =>
+      (place.age_min === null || place.age_min <= group.max) &&
+      (place.age_max === null || place.age_max >= group.min)
+    );
+  }
 
-  const districtOptionsSource = useMemo(() => {
-    let result = places;
-    if (search) {
-      const q = search.toLowerCase();
-      result = result.filter((p) =>
-        [p.title, p.description_short, p.street, p.city].join(" ").toLowerCase().includes(q)
-      );
+  function matchesSearch(place: Place) {
+    if (!search) {
+      return true;
     }
-    if (ageGroups.length > 0) {
-      result = result.filter((p) =>
-        ageGroups.some((group) =>
-          (p.age_min === null || p.age_min <= group.max) &&
-          (p.age_max === null || p.age_max >= group.min)
-        )
-      );
+
+    const query = search.toLowerCase();
+    return [place.title, place.description_short, place.street, place.city].join(" ").toLowerCase().includes(query);
+  }
+
+  function matchesPlaceFilters(place: Place, excluded: Array<"type" | "district" | "age"> = []) {
+    if (!matchesSearch(place)) {
+      return false;
     }
-    return result;
-  }, [places, search, ageGroups]);
+    if (!excluded.includes("type") && !matchesTaxonomyFilter(getPlaceTypeValue(place), activeTypes)) {
+      return false;
+    }
+    if (!excluded.includes("district") && activeDistricts.length > 0 && !activeDistricts.includes(place.district)) {
+      return false;
+    }
+    if (!excluded.includes("age") && !matchesAgeSelection(place)) {
+      return false;
+    }
+    return true;
+  }
+
+  const filtered = useMemo(
+    () => places.filter((place) => matchesPlaceFilters(place)),
+    [places, search, activeTypes, activeDistricts, ageGroups]
+  );
+
+  const typeOptionsSource = useMemo(
+    () => places.filter((place) => matchesPlaceFilters(place, ["type"])),
+    [places, search, activeDistricts, ageGroups]
+  );
 
   const typeOptions = useMemo(
-    () => getTaxonomyOptions(baseFiltered, getPlaceTypeValue),
-    [baseFiltered]
+    () => mergeSelectedTaxonomyOptions(getTaxonomyOptions(typeOptionsSource, getPlaceTypeValue), activeTypes),
+    [typeOptionsSource, activeTypes]
   );
 
   const typeOptionsByValue = useMemo(
@@ -116,9 +120,14 @@ export function PlacesListView({ places }: PlacesListViewProps) {
     [typeOptions]
   );
 
-  const categorySource = useMemo(
-    () => baseFiltered.filter((place) => matchesTaxonomyFilter(getPlaceTypeValue(place), activeTypes)),
-    [baseFiltered, activeTypes]
+  const ageOptionsSource = useMemo(
+    () => places.filter((place) => matchesPlaceFilters(place, ["age"])),
+    [places, search, activeTypes, activeDistricts]
+  );
+
+  const ageOptions = useMemo(
+    () => getAgeGroupOptions(ageOptionsSource, (place) => place.age_min, (place) => place.age_max, AGE_GROUPS),
+    [ageOptionsSource]
   );
 
   // Lazy load map component
@@ -129,8 +138,6 @@ export function PlacesListView({ places }: PlacesListViewProps) {
       });
     }
   }, [view, MapComponent]);
-
-  const filtered = categorySource;
 
   // Group by category level 1 preserving order
   const grouped = useMemo(() => {
@@ -174,11 +181,10 @@ export function PlacesListView({ places }: PlacesListViewProps) {
     return Object.values(groups);
   }, [filtered]);
 
-  const availableDistricts = useMemo(() => {
-    const set = new Set<string>();
-    districtOptionsSource.forEach((p) => set.add(p.district));
-    return DISTRICT_LIST.filter((d) => set.has(d));
-  }, [districtOptionsSource]);
+  const districtOptionsSource = useMemo(
+    () => places.filter((place) => matchesPlaceFilters(place, ["district"])),
+    [places, search, activeTypes, ageGroups]
+  );
 
   const districtCounts = useMemo(() => {
     const counts = new Map<District, number>();
@@ -187,6 +193,12 @@ export function PlacesListView({ places }: PlacesListViewProps) {
     });
     return counts;
   }, [districtOptionsSource]);
+
+  const availableDistricts = useMemo(() => {
+    const set = new Set<string>();
+    districtOptionsSource.forEach((place) => set.add(place.district));
+    return DISTRICT_LIST.filter((district) => set.has(district) || activeDistricts.includes(district));
+  }, [districtOptionsSource, activeDistricts]);
 
   const activeFilterBadges = useMemo(() => {
     const badges: { id: string; label: string; onRemove: () => void }[] = [];
@@ -290,7 +302,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
       {/* Mobile filters dropdown */}
       {filtersOpen && (
         <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 space-y-2.5">
-          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Typ</p>} defaultCollapsed>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Typ</p>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
               {typeOptions.map((option) => {
                 const selected = activeTypes.includes(option.value);
@@ -307,9 +319,9 @@ export function PlacesListView({ places }: PlacesListViewProps) {
               })}
             </div>
           </FilterSection>
-          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Wiek dziecka</p>} defaultCollapsed>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Wiek dziecka</p>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
-              {AGE_GROUPS.map((group) => {
+              {ageOptions.filter((group) => group.count > 0 || activeAgeGroups.includes(group.key)).map((group) => {
                 const selected = activeAgeGroups.includes(group.key);
                 return (
                   <button key={group.key} onClick={() => toggleAgeGroup(group.key)}
@@ -323,7 +335,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
               })}
             </div>
           </FilterSection>
-          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Dzielnica</p>} defaultCollapsed>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Dzielnica</p>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
               {availableDistricts.map((district) => {
                 const selected = activeDistricts.includes(district);
@@ -408,7 +420,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
 
             <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Wiek</p>} defaultCollapsed={!filtersOpenDesktop}>
               <div className="flex flex-col gap-0.5">
-                {AGE_GROUPS.map((group) => {
+                {ageOptions.filter((group) => group.count > 0 || activeAgeGroups.includes(group.key)).map((group) => {
                   const selected = activeAgeGroups.includes(group.key);
                   return (
                     <button key={group.key} onClick={() => toggleAgeGroup(group.key)}
@@ -416,6 +428,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
                         selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
                       <span>{group.icon}</span>
                       <span className="flex-1">{group.label}</span>
+                      <span className="text-[8px] opacity-40">{group.count}</span>
                       {selected && <Check size={10} />}
                     </button>
                   );
@@ -506,14 +519,24 @@ export function PlacesListView({ places }: PlacesListViewProps) {
 
           <div className="mt-4">
             {view === "map" ? (
-              <div className="rounded-xl overflow-hidden border border-border" style={{ height: "500px" }}>
-                {MapComponent ? (
-                  <MapComponent groups={mapGroups} basePath="/miejsca" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-accent/20">
-                    <p className="text-[13px] text-muted">Ładowanie mapy...</p>
-                  </div>
-                )}
+              <div className="space-y-3">
+                <div className="rounded-xl border border-border bg-card px-4 py-3">
+                  <h2 className="text-[15px] font-semibold text-foreground">Mapa miejsc w Krakowie</h2>
+                  <p className="mt-1 text-[12px] leading-5 text-muted">
+                    Sprawdź, gdzie znajdują się sale zabaw, parki, muzea i inne rodzinne miejsca. Kliknij pinezkę,
+                    aby zobaczyć szczegóły konkretnego adresu.
+                  </p>
+                </div>
+
+                <div className="rounded-xl overflow-hidden border border-border" style={{ height: "500px" }}>
+                  {MapComponent ? (
+                    <MapComponent groups={mapGroups} basePath="/miejsca" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-accent/20">
+                      <p className="text-[13px] text-muted">Ładowanie mapy...</p>
+                    </div>
+                  )}
+                </div>
               </div>
             ) : filtered.length === 0 ? (
               <div className="text-center py-16">

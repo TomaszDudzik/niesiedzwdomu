@@ -1,8 +1,16 @@
-interface TaxonomyOption {
+export interface TaxonomyOption {
   value: string;
   label: string;
   icon: string;
   count: number;
+}
+
+export interface AgeFilterGroup {
+  key: string;
+  label: string;
+  icon: string;
+  min: number;
+  max: number;
 }
 
 function normalizeTaxonomyValue(value: string): string {
@@ -81,6 +89,50 @@ export function getTaxonomyOptions<T>(
       count,
     }))
     .sort((left, right) => left.label.localeCompare(right.label, "pl"));
+}
+
+export function mergeSelectedTaxonomyOptions(
+  options: TaxonomyOption[],
+  activeValues: string[],
+  labelMap?: Record<string, string>
+): TaxonomyOption[] {
+  if (activeValues.length === 0) {
+    return options;
+  }
+
+  const merged = new Map(options.map((option) => [option.value, option]));
+
+  activeValues.forEach((value) => {
+    if (!value || merged.has(value)) {
+      return;
+    }
+
+    merged.set(value, {
+      value,
+      label: labelMap?.[value] || defaultTaxonomyLabel(value),
+      icon: getTaxonomyIcon(value),
+      count: 0,
+    });
+  });
+
+  return Array.from(merged.values()).sort((left, right) => left.label.localeCompare(right.label, "pl"));
+}
+
+export function getAgeGroupOptions<T, TGroup extends AgeFilterGroup>(
+  items: T[],
+  getAgeMin: (item: T) => number | null,
+  getAgeMax: (item: T) => number | null,
+  groups: readonly TGroup[]
+): Array<TGroup & { count: number }> {
+  return groups.map((group) => ({
+    ...group,
+    count: items.reduce((count, item) => {
+      const ageMin = getAgeMin(item);
+      const ageMax = getAgeMax(item);
+      const matches = (ageMin === null || ageMin <= group.max) && (ageMax === null || ageMax >= group.min);
+      return matches ? count + 1 : count;
+    }, 0),
+  }));
 }
 
 export function matchesTaxonomyFilter(

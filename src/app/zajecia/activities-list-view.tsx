@@ -7,7 +7,7 @@ import { ContentCard } from "@/components/ui/content-card";
 import { FilterSection } from "@/components/ui/filter-section";
 import { SubmissionCta } from "@/components/ui/submission-cta";
 import { cn } from "@/lib/utils";
-import { getTaxonomyOptions, matchesTaxonomyFilter } from "@/lib/taxonomy-filters";
+import { getAgeGroupOptions, getTaxonomyOptions, matchesTaxonomyFilter, mergeSelectedTaxonomyOptions } from "@/lib/taxonomy-filters";
 import type { Activity, District } from "@/types/database";
 
 const AGE_GROUPS = [
@@ -69,64 +69,62 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
 
   const hasActiveFilters =
     !!search || activeTypes.length > 0 || activeCategories.length > 0 || activeSubcategories.length > 0 || activeDistricts.length > 0 || activeAgeGroups.length > 0;
-
-  const baseFiltered = useMemo(() => {
-    let result = activities;
-
-    if (search) {
-      const query = search.toLowerCase();
-      result = result.filter((activity) =>
-        [activity.title, activity.description_short, activity.venue_name, activity.venue_address, activity.organizer]
-          .join(" ")
-          .toLowerCase()
-          .includes(query)
-      );
+  function matchesSearch(activity: Activity) {
+    if (!search) {
+      return true;
     }
 
-    if (activeDistricts.length > 0) {
-      result = result.filter((activity) => activeDistricts.includes(activity.district));
+    const query = search.toLowerCase();
+    return [activity.title, activity.description_short, activity.venue_name, activity.venue_address, activity.organizer]
+      .join(" ")
+      .toLowerCase()
+      .includes(query);
+  }
+
+  function matchesAgeSelection(activity: Activity, selectedGroups = ageGroups) {
+    if (selectedGroups.length === 0) {
+      return true;
     }
 
-    if (ageGroups.length > 0) {
-      result = result.filter((activity) =>
-        ageGroups.some((group) =>
-          (activity.age_min === null || activity.age_min <= group.max) &&
-          (activity.age_max === null || activity.age_max >= group.min)
-        )
-      );
+    return selectedGroups.some((group) =>
+      (activity.age_min === null || activity.age_min <= group.max) &&
+      (activity.age_max === null || activity.age_max >= group.min)
+    );
+  }
+
+  function matchesActivityFilters(activity: Activity, excluded: Array<"type" | "category" | "subcategory" | "district" | "age"> = []) {
+    if (!matchesSearch(activity)) {
+      return false;
     }
-
-    return result;
-  }, [activities, search, activeDistricts, ageGroups]);
-
-  const districtOptionsSource = useMemo(() => {
-    let result = activities;
-
-    if (search) {
-      const query = search.toLowerCase();
-      result = result.filter((activity) =>
-        [activity.title, activity.description_short, activity.venue_name, activity.venue_address, activity.organizer]
-          .join(" ")
-          .toLowerCase()
-          .includes(query)
-      );
+    if (!excluded.includes("type") && !matchesTaxonomyFilter(getActivityTypeValue(activity), activeTypes)) {
+      return false;
     }
-
-    if (ageGroups.length > 0) {
-      result = result.filter((activity) =>
-        ageGroups.some((group) =>
-          (activity.age_min === null || activity.age_min <= group.max) &&
-          (activity.age_max === null || activity.age_max >= group.min)
-        )
-      );
+    if (!excluded.includes("category") && !matchesTaxonomyFilter(getActivityCategoryValue(activity), activeCategories)) {
+      return false;
     }
+    if (!excluded.includes("subcategory") && !matchesTaxonomyFilter(getActivitySubcategoryValue(activity), activeSubcategories)) {
+      return false;
+    }
+    if (!excluded.includes("district") && activeDistricts.length > 0 && !activeDistricts.includes(activity.district)) {
+      return false;
+    }
+    if (!excluded.includes("age") && !matchesAgeSelection(activity)) {
+      return false;
+    }
+    return true;
+  }
 
-    return result;
-  }, [activities, search, ageGroups]);
+  const filteredActivities = useMemo(
+    () => activities.filter((activity) => matchesActivityFilters(activity)),
+    [activities, search, activeTypes, activeCategories, activeSubcategories, activeDistricts, ageGroups]
+  );
 
   const typeOptions = useMemo(
-    () => getTaxonomyOptions(baseFiltered, getActivityTypeValue),
-    [baseFiltered]
+    () => mergeSelectedTaxonomyOptions(
+      getTaxonomyOptions(activities.filter((activity) => matchesActivityFilters(activity, ["type"])), getActivityTypeValue),
+      activeTypes,
+    ),
+    [activities, search, activeCategories, activeSubcategories, activeDistricts, ageGroups, activeTypes]
   );
 
   const typeOptionsByValue = useMemo(
@@ -134,14 +132,12 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
     [typeOptions]
   );
 
-  const categorySource = useMemo(
-    () => baseFiltered.filter((activity) => matchesTaxonomyFilter(getActivityTypeValue(activity), activeTypes)),
-    [baseFiltered, activeTypes]
-  );
-
   const categoryOptions = useMemo(
-    () => getTaxonomyOptions(categorySource, getActivityCategoryValue),
-    [categorySource]
+    () => mergeSelectedTaxonomyOptions(
+      getTaxonomyOptions(activities.filter((activity) => matchesActivityFilters(activity, ["category"])), getActivityCategoryValue),
+      activeCategories,
+    ),
+    [activities, search, activeTypes, activeSubcategories, activeDistricts, ageGroups, activeCategories]
   );
 
   const categoryOptionsByValue = useMemo(
@@ -149,14 +145,12 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
     [categoryOptions]
   );
 
-  const subcategorySource = useMemo(
-    () => categorySource.filter((activity) => matchesTaxonomyFilter(getActivityCategoryValue(activity), activeCategories)),
-    [categorySource, activeCategories]
-  );
-
   const subcategoryOptions = useMemo(
-    () => getTaxonomyOptions(subcategorySource, getActivitySubcategoryValue),
-    [subcategorySource]
+    () => mergeSelectedTaxonomyOptions(
+      getTaxonomyOptions(activities.filter((activity) => matchesActivityFilters(activity, ["subcategory"])), getActivitySubcategoryValue),
+      activeSubcategories,
+    ),
+    [activities, search, activeTypes, activeCategories, activeDistricts, ageGroups, activeSubcategories]
   );
 
   const subcategoryOptionsByValue = useMemo(
@@ -164,9 +158,9 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
     [subcategoryOptions]
   );
 
-  const filteredActivities = useMemo(
-    () => subcategorySource.filter((activity) => matchesTaxonomyFilter(getActivitySubcategoryValue(activity), activeSubcategories)),
-    [subcategorySource, activeSubcategories]
+  const districtOptionsSource = useMemo(
+    () => activities.filter((activity) => matchesActivityFilters(activity, ["district"])),
+    [activities, search, activeTypes, activeCategories, activeSubcategories, ageGroups]
   );
 
   const districtCounts = useMemo(() => {
@@ -180,8 +174,18 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
   const availableDistricts = useMemo(() => {
     const set = new Set<string>();
     districtOptionsSource.forEach((activity) => set.add(activity.district));
-    return DISTRICT_LIST.filter((district) => set.has(district));
-  }, [districtOptionsSource]);
+    return DISTRICT_LIST.filter((district) => set.has(district) || activeDistricts.includes(district));
+  }, [districtOptionsSource, activeDistricts]);
+
+  const ageOptions = useMemo(
+    () => getAgeGroupOptions(
+      activities.filter((activity) => matchesActivityFilters(activity, ["age"])),
+      (activity) => activity.age_min,
+      (activity) => activity.age_max,
+      AGE_GROUPS,
+    ),
+    [activities, search, activeTypes, activeCategories, activeSubcategories, activeDistricts]
+  );
 
   const grouped = useMemo(() => {
     const groups: { type: string; label: string; icon: string; activities: Activity[] }[] = [];
@@ -347,7 +351,7 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
 
       {filtersOpen && (
         <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 space-y-2.5">
-          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Typ</p>} defaultCollapsed>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Typ</p>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
               {typeOptions.map((option) => {
                 const selected = activeTypes.includes(option.value);
@@ -364,9 +368,9 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
               })}
             </div>
           </FilterSection>
-          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Wiek dziecka</p>} defaultCollapsed>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Wiek dziecka</p>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
-              {AGE_GROUPS.map((group) => {
+              {ageOptions.filter((group) => group.count > 0 || activeAgeGroups.includes(group.key)).map((group) => {
                 const selected = activeAgeGroups.includes(group.key);
                 return (
                   <button key={group.key} onClick={() => toggleAgeGroup(group.key)}
@@ -374,13 +378,14 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
                       selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
                     <span>{group.icon}</span>
                     <span>{group.label}</span>
+                    <span className="text-[10px] opacity-60">{group.count}</span>
                     {selected && <Check size={11} />}
                   </button>
                 );
               })}
             </div>
           </FilterSection>
-          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Kategoria</p>} defaultCollapsed>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Kategoria</p>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
               {categoryOptions.map((option) => {
                 const selected = activeCategories.includes(option.value);
@@ -397,7 +402,7 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
               })}
             </div>
           </FilterSection>
-          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Tematyka</p>} defaultCollapsed>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Tematyka</p>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
               {subcategoryOptions.map((option) => {
                 const selected = activeSubcategories.includes(option.value);
@@ -414,7 +419,7 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
               })}
             </div>
           </FilterSection>
-          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Dzielnica</p>} defaultCollapsed>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Dzielnica</p>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
               {availableDistricts.map((district) => {
                 const selected = activeDistricts.includes(district);
@@ -496,7 +501,7 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
 
             <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Wiek</p>} defaultCollapsed={!filtersOpenDesktop}>
               <div className="flex flex-col gap-0.5">
-                {AGE_GROUPS.map((group) => {
+                {ageOptions.filter((group) => group.count > 0 || activeAgeGroups.includes(group.key)).map((group) => {
                   const selected = activeAgeGroups.includes(group.key);
                   return (
                     <button key={group.key} onClick={() => toggleAgeGroup(group.key)}
@@ -504,6 +509,7 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
                         selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
                       <span>{group.icon}</span>
                       <span className="flex-1">{group.label}</span>
+                      <span className="text-[8px] opacity-40">{group.count}</span>
                       {selected && <Check size={10} />}
                     </button>
                   );

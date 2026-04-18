@@ -17,6 +17,25 @@ export function NavSection() {
   const pathname = usePathname();
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/");
+  const pageHeading = pathname.startsWith("/wydarzenia")
+    ? "Wydarzenia"
+    : pathname.startsWith("/miejsca")
+      ? "Miejsca"
+      : pathname.startsWith("/kolonie")
+        ? "Kolonie"
+        : pathname.startsWith("/zajecia")
+          ? "Zajęcia"
+          : pathname.startsWith("/o-nas")
+            ? "O nas"
+            : pathname.startsWith("/misja")
+              ? "Misja"
+              : pathname.startsWith("/kontakt")
+                ? "Kontakt"
+                : pathname.startsWith("/regulamin")
+                  ? "Regulamin"
+                  : pathname.startsWith("/prywatnosc")
+                    ? "Prywatnosc"
+                    : "Odkryj Kraków z dzieckiem";
 
   return (
     <section className="container-page pt-4 pb-4 md:pt-5 md:pb-5 bg-white rounded-xl border border-border/20">
@@ -26,8 +45,8 @@ export function NavSection() {
             href="/"
             className={cn(
               "flex-shrink-0 rounded-lg p-2 transition-all duration-200 border",
-              pathname === "/" 
-                ? "bg-primary/10 text-primary border-primary/30" 
+              pathname === "/"
+                ? "bg-primary/10 text-primary border-primary/30"
                 : "text-muted-foreground hover:text-foreground border-transparent hover:bg-primary/5"
             )}
             title="Strona główna"
@@ -36,27 +55,11 @@ export function NavSection() {
           </Link>
           <div>
             <h1 className="text-lg md:text-xl font-bold text-foreground tracking-[-0.02em] leading-tight">
-            {pathname.startsWith("/wydarzenia")
-              ? "Wydarzenia"
-              : pathname.startsWith("/miejsca")
-                ? "Miejsca"
-                : pathname.startsWith("/kolonie")
-                  ? "Kolonie"
-                  : pathname.startsWith("/zajecia")
-                    ? "Zajęcia"
-                    : pathname.startsWith("/o-nas")
-                      ? "O nas"
-                      : pathname.startsWith("/misja")
-                        ? "Misja"
-                      : pathname.startsWith("/kontakt")
-                        ? "Kontakt"
-                      : pathname.startsWith("/regulamin")
-                        ? "Regulamin"
-                      : pathname.startsWith("/prywatnosc")
-                        ? "Prywatnosc"
-                      : "Nie siedź w domu - odkryj Kraków z dzieckiem"}
-          </h1>
-          <p className="text-[12px] text-muted mt-0.5 max-w-md">
+              <span className="text-primary">NieSiedzWDomu</span>
+              <span className="mx-1.5 text-muted-foreground/55">|</span>
+              <span>{pageHeading}</span>
+            </h1>
+            <p className="text-[12px] text-muted mt-0.5 max-w-md">
             {pathname.startsWith("/o-nas")
               ? "Poznaj nasza misje i sposob pracy z tresciami dla rodzin z dziecmi."
               : pathname.startsWith("/misja")
