@@ -180,6 +180,15 @@ function matchesAgeFilter(ageMin: number | null, ageMax: number | null, ageGroup
   return (ageMin === null || ageMin <= ageGroup.max) && (ageMax === null || ageMax >= ageGroup.min);
 }
 
+function shuffleArray<T>(items: T[]): T[] {
+  const result = [...items];
+  for (let index = result.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [result[index], result[randomIndex]] = [result[randomIndex], result[index]];
+  }
+  return result;
+}
+
 export function HomeFilteredView({ events, places, camps, activities }: HomeFilteredViewProps) {
   const { typeLevel2Options: taxonomyTypeLevel2Options } = useAdminTaxonomy();
   const [search, setSearch] = useState("");
@@ -534,10 +543,15 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
     return Array.from(map.values());
   }, [filteredCamps]);
 
-  const visiblePlaces = hasActiveFilters ? filteredPlaces : filteredPlaces.slice(0, 8);
-  const visibleEvents = hasActiveFilters ? filteredEvents : filteredEvents.slice(0, 8);
-  const visibleOrganizers = hasActiveFilters ? organizers : organizers.slice(0, 8);
-  const visibleActivities = hasActiveFilters ? filteredActivities : filteredActivities.slice(0, 8);
+  const randomizedPlaces = useMemo(() => shuffleArray(places), [places]);
+  const randomizedEvents = useMemo(() => shuffleArray(events), [events]);
+  const randomizedOrganizers = useMemo(() => shuffleArray(organizers), [organizers]);
+  const randomizedActivities = useMemo(() => shuffleArray(activities), [activities]);
+
+  const visiblePlaces = hasActiveFilters ? filteredPlaces : randomizedPlaces.slice(0, 8);
+  const visibleEvents = hasActiveFilters ? filteredEvents : randomizedEvents.slice(0, 8);
+  const visibleOrganizers = hasActiveFilters ? organizers : randomizedOrganizers.slice(0, 8);
+  const visibleActivities = hasActiveFilters ? filteredActivities : randomizedActivities.slice(0, 8);
 
   const showPlaces = places.length > 0 && visiblePlaces.length > 0;
   const showEvents = events.length > 0 && visibleEvents.length > 0;
