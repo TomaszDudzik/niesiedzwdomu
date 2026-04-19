@@ -1,6 +1,6 @@
 import type { DiscoveryItem, ContentType } from "@/types/database";
 import { CONTENT_TYPE_LABELS, CONTENT_TYPE_ICONS, CONTENT_TYPE_COLORS, CATEGORY_LABELS, CATEGORY_ICONS, CAMP_MAIN_CATEGORY_LABELS, CAMP_MAIN_CATEGORY_ICONS, PLACE_TYPE_LABELS, PLACE_TYPE_ICONS, ACTIVITY_TYPE_LABELS, ACTIVITY_TYPE_ICONS } from "./mock-data";
-import { formatDateShort, formatPriceRange, formatAgeRange } from "./utils";
+import { formatDateShort, formatPriceRange, formatAgeRange, toHourMinute } from "./utils";
 
 function getPlaceCategoryLabel(value: string | null | undefined) {
   if (!value) return "Miejsce";
@@ -81,7 +81,7 @@ export function getDateText(item: DiscoveryItem): string {
       if (item.date_end && item.date_end !== item.date_start) {
         s += ` – ${formatDateShort(item.date_end)}`;
       }
-      if (item.time_start) s += ` · ${item.time_start}`;
+      if (item.time_start) s += ` · ${toHourMinute(item.time_start)}`;
       return s;
     }
     case "camp": {

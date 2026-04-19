@@ -9,7 +9,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
-import { cn, toLocalDateKey } from "@/lib/utils";
+import { cn, formatHourMinuteRange, toLocalDateKey } from "@/lib/utils";
 import { getEventsForDate } from "@/lib/filter-events";
 import type { Event } from "@/types/database";
 
@@ -295,9 +295,7 @@ export function CalendarMapView({ events }: CalendarMapViewProps) {
 
 /* ── Event Card ── */
 function EventCard({ event }: { event: Event }) {
-  const timeLabel = event.time_start
-    ? `${event.time_start}${event.time_end ? ` – ${event.time_end}` : ""}`
-    : "Godzina wkrótce";
+  const timeLabel = formatHourMinuteRange(event.time_start, event.time_end) || "Godzina wkrótce";
   const addressLabel = [event.street, event.city].filter(Boolean).join(", ") || event.district;
 
   return (

@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { CATEGORY_ICONS, CATEGORY_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
 import { normalizeDistrictName } from "@/lib/districts";
-import { cn, formatDateShort, formatPriceRange, slugify, thumbUrl, withCacheBust } from "@/lib/utils";
+import { cn, formatDateShort, formatHourMinuteRange, formatPriceRange, slugify, thumbUrl, toHourMinute, withCacheBust } from "@/lib/utils";
 import type { Event, Organizer } from "@/types/database";
 import { ImageSection } from "@/components/admin/image-section";
 import { OrganizerCombobox } from "@/components/admin/organizer-combobox";
@@ -316,8 +316,8 @@ function AdminCanonicalEventsPanel() {
         category_lvl_3: categoryLevel3 || null,
         date_start: mapped.date_start || new Date().toISOString().slice(0, 10),
         date_end: mapped.date_end || null,
-        time_start: mapped.time_start || null,
-        time_end: mapped.time_end || null,
+        time_start: toHourMinute(mapped.time_start) || null,
+        time_end: toHourMinute(mapped.time_end) || null,
         age_min: asNumber(mapped.age_min),
         age_max: asNumber(mapped.age_max),
         price_from: priceFrom,
@@ -581,8 +581,8 @@ function AdminCanonicalEventsPanel() {
       category_lvl_2: event.category_lvl_2 ?? event.category,
       date_start: event.date_start,
       date_end: event.date_end,
-      time_start: event.time_start,
-      time_end: event.time_end,
+      time_start: toHourMinute(event.time_start),
+      time_end: toHourMinute(event.time_end),
       age_min: event.age_min,
       age_max: event.age_max,
       price_from: event.price_from,
@@ -764,8 +764,8 @@ function AdminCanonicalEventsPanel() {
       category_lvl_2: editForm.category_lvl_2,
       date_start: editForm.date_start,
       date_end: editForm.date_end || null,
-      time_start: editForm.time_start || null,
-      time_end: editForm.time_end || null,
+      time_start: toHourMinute(String(editForm.time_start || "")) || null,
+      time_end: toHourMinute(String(editForm.time_end || "")) || null,
       age_min: editForm.age_min === "" || editForm.age_min === null ? null : Number(editForm.age_min),
       age_max: editForm.age_max === "" || editForm.age_max === null ? null : Number(editForm.age_max),
       price_from: Number.isFinite(priceFromValue) ? priceFromValue : null,
@@ -921,10 +921,10 @@ function AdminCanonicalEventsPanel() {
                                 <span>{CATEGORY_LABELS[event.category as keyof typeof CATEGORY_LABELS] ?? event.category}</span>
                                 <span className="opacity-40">·</span>
                                 <span>{formatDateShort(event.date_start)}{event.date_end ? ` - ${formatDateShort(event.date_end)}` : ""}</span>
-                                {(event.time_start || event.time_end) && (
+                                {formatHourMinuteRange(event.time_start, event.time_end) && (
                                   <>
                                     <span className="opacity-40">·</span>
-                                    <span>{[event.time_start, event.time_end].filter(Boolean).join("-")}</span>
+                                    <span>{formatHourMinuteRange(event.time_start, event.time_end)}</span>
                                   </>
                                 )}
                                 <span className="opacity-40">·</span>
@@ -1057,11 +1057,11 @@ function AdminCanonicalEventsPanel() {
                                     </div>
                                     <div>
                                       <label className={labelClass}>Godzina od</label>
-                                      <input type="time" className={inputClass} value={(editForm.time_start as string) || ""} onChange={(e) => updateField("time_start", e.target.value || null)} />
+                                      <input type="time" step={60} className={inputClass} value={(editForm.time_start as string) || ""} onChange={(e) => updateField("time_start", e.target.value || null)} />
                                     </div>
                                     <div>
                                       <label className={labelClass}>Godzina do</label>
-                                      <input type="time" className={inputClass} value={(editForm.time_end as string) || ""} onChange={(e) => updateField("time_end", e.target.value || null)} />
+                                      <input type="time" step={60} className={inputClass} value={(editForm.time_end as string) || ""} onChange={(e) => updateField("time_end", e.target.value || null)} />
                                     </div>
                                   </div>
                                   <div className="grid grid-cols-1 md:grid-cols-4 gap-3">

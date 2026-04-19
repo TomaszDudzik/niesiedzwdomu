@@ -970,10 +970,10 @@ function EventSubmissionForm({ initialTaxonomy }: { initialTaxonomy: AdminTaxono
               <input type="date" value={form.date_end} onChange={(event) => setForm((prev) => ({ ...prev, date_end: event.target.value }))} className={inputClass} />
             </Field>
             <Field label="Godzina od">
-              <input type="time" value={form.time_start} onChange={(event) => setForm((prev) => ({ ...prev, time_start: event.target.value }))} className={inputClass} />
+              <input type="time" step={60} value={form.time_start} onChange={(event) => setForm((prev) => ({ ...prev, time_start: event.target.value }))} className={inputClass} />
             </Field>
             <Field label="Godzina do">
-              <input type="time" value={form.time_end} onChange={(event) => setForm((prev) => ({ ...prev, time_end: event.target.value }))} className={inputClass} />
+              <input type="time" step={60} value={form.time_end} onChange={(event) => setForm((prev) => ({ ...prev, time_end: event.target.value }))} className={inputClass} />
             </Field>
           </div>
           <div className="grid gap-3 md:grid-cols-4">

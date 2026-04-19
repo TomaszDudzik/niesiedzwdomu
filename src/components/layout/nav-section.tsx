@@ -13,29 +13,120 @@ const NAV_LINKS = [
   { href: "/zajecia", label: "Zajęcia", icon: Users, color: "bg-secondary/10 text-secondary" },
 ];
 
+type RouteCopy = {
+  route: string;
+  heading: string;
+  subheading: string;
+};
+
+const DEFAULT_COPY: Omit<RouteCopy, "route"> = {
+  heading: "Odkryj Krakow",
+  subheading: "Na NieSiedzWDomu znajdziesz sprawdzone wydarzenia, miejsca i inspiracje dla rodzin z dziecmi w Krakowie.",
+};
+
+const ROUTE_COPY: RouteCopy[] = [
+  {
+    route: "/wydarzenia",
+    heading: "Wydarzenia",
+    subheading: "Przegladaj aktualne wydarzenia dla dzieci i rodzin - od warsztatow po spektakle i aktywnosci na weekend.",
+  },
+  {
+    route: "/miejsca",
+    heading: "Miejsca",
+    subheading: "Sprawdzone miejsca przyjazne rodzinom: sale zabaw, parki, muzea i przestrzenie na wspolny czas.",
+  },
+  {
+    route: "/kolonie",
+    heading: "Kolonie",
+    subheading: "Porownuj kolonie i polkolonie po wieku, terminie i lokalizacji, zeby szybciej znalezc dobra oferte.",
+  },
+  {
+    route: "/zajecia",
+    heading: "Zajecia",
+    subheading: "Regularne zajecia dla dzieci: sportowe, artystyczne i edukacyjne - wygodnie przefiltrujesz je po potrzebach.",
+  },
+  {
+    route: "/dodaj",
+    heading: "Dodaj",
+    subheading: "Masz wydarzenie, miejsce lub zajecia? Przeslij zgloszenie, a po weryfikacji dodamy je do serwisu.",
+  },
+  {
+    route: "/o-nas",
+    heading: "O nas",
+    subheading: "Poznaj nasza misje i sposob pracy z tresciami dla rodzin z dziecmi.",
+  },
+  {
+    route: "/misja",
+    heading: "Misja",
+    subheading: "Poznaj wartosci i cele, ktore stoja za NieSiedzWDomu.",
+  },
+  {
+    route: "/kontakt",
+    heading: "Kontakt",
+    subheading: "Napisz do nas, jesli chcesz dodac wydarzenie, miejsce, kolonie lub zajecia.",
+  },
+  {
+    route: "/regulamin",
+    heading: "Regulamin",
+    subheading: "Poznaj zasady korzystania z serwisu NieSiedzWDomu.",
+  },
+  {
+    route: "/prywatnosc",
+    heading: "Prywatnosc",
+    subheading: "Sprawdz, jak przetwarzamy dane i korzystamy z plikow cookies.",
+  },
+  {
+    route: "/co-robic-z-dzieckiem-w-krakowie",
+    heading: "Przewodnik",
+    subheading: "Szybki punkt startowy: wydarzenia, miejsca i inspiracje na wspolny czas z dzieckiem w Krakowie.",
+  },
+  {
+    route: "/wydarzenia-dla-dzieci-krakow",
+    heading: "Wydarzenia Dla Dzieci",
+    subheading: "Zebrane w jednym miejscu warsztaty, spektakle i atrakcje dla dzieci na dzis i weekend.",
+  },
+  {
+    route: "/polkolonie-krakow",
+    heading: "Polkolonie",
+    subheading: "Przeglad ofert polkolonii i kolonii z naciskiem na praktyczne porownanie terminow i programu.",
+  },
+  {
+    route: "/place-zabaw-krakow",
+    heading: "Place Zabaw",
+    subheading: "Najciekawsze place zabaw i strefy aktywnosci dla dzieci w Krakowie - wygodnie do zaplanowania wyjscia.",
+  },
+  {
+    route: "/krakow/dla-rodzicow",
+    heading: "Krakow Dla Rodzicow",
+    subheading: "Skrocona sciezka dla rodzicow: gdzie isc, co wybrac i jak szybko zaplanowac dzien z dzieckiem.",
+  },
+  {
+    route: "/krakow/dla-sportowcow",
+    heading: "Krakow Dla Sportowcow",
+    subheading: "Aktywna strona miasta: wydarzenia, miejsca i treningowe inspiracje dla osob lubiacych ruch.",
+  },
+  {
+    route: "/krakow",
+    heading: "Krakow",
+    subheading: "Miejski przewodnik po wydarzeniach i miejscach, ktore pomagaja szybciej ulozyc plan na wolny czas.",
+  },
+];
+
+function resolveRouteCopy(pathname: string): Omit<RouteCopy, "route"> {
+  const match = ROUTE_COPY.find((item) => pathname === item.route || pathname.startsWith(`${item.route}/`));
+  if (!match) return DEFAULT_COPY;
+
+  return {
+    heading: match.heading,
+    subheading: match.subheading,
+  };
+}
+
 export function NavSection() {
   const pathname = usePathname();
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/");
-  const pageHeading = pathname.startsWith("/wydarzenia")
-    ? "Wydarzenia"
-    : pathname.startsWith("/miejsca")
-      ? "Miejsca"
-      : pathname.startsWith("/kolonie")
-        ? "Kolonie"
-        : pathname.startsWith("/zajecia")
-          ? "Zajęcia"
-          : pathname.startsWith("/o-nas")
-            ? "O nas"
-            : pathname.startsWith("/misja")
-              ? "Misja"
-              : pathname.startsWith("/kontakt")
-                ? "Kontakt"
-                : pathname.startsWith("/regulamin")
-                  ? "Regulamin"
-                  : pathname.startsWith("/prywatnosc")
-                    ? "Prywatnosc"
-                    : "Odkryj Kraków";
+  const { heading: pageHeading, subheading } = resolveRouteCopy(pathname);
 
   return (
     <section className="container-page pt-4 pb-4 md:pt-5 md:pb-5 bg-white rounded-xl border border-border/20">
@@ -64,18 +155,8 @@ export function NavSection() {
               <span>{pageHeading}</span>
             </h1>
             <p className="text-[12px] text-muted mt-0.5 max-w-md">
-            {pathname.startsWith("/o-nas")
-              ? "Poznaj nasza misje i sposob pracy z tresciami dla rodzin z dziecmi."
-              : pathname.startsWith("/misja")
-                ? "Poznaj wartosci i cele, ktore stoja za NieSiedzWDomu."
-              : pathname.startsWith("/kontakt")
-                ? "Napisz do nas, jesli chcesz dodac wydarzenie, miejsce, kolonie lub zajecia."
-              : pathname.startsWith("/regulamin")
-                ? "Poznaj zasady korzystania z serwisu NieSiedzWDomu."
-              : pathname.startsWith("/prywatnosc")
-                ? "Sprawdz, jak przetwarzamy dane i korzystamy z plikow cookies."
-              : "Na NieSiedzWDomu znajdziesz sprawdzone wydarzenia, miejsca i inspiracje dla rodzin z dziećmi w Krakowie."}
-          </p>
+              {subheading}
+            </p>
           </div>
         </div>
         <div className="flex gap-1.5">

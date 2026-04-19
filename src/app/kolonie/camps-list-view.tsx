@@ -179,6 +179,15 @@ function sortCampsByNearest(camps: Camp[], today: Date): Camp[] {
   });
 }
 
+function shuffleArray<T>(items: T[]): T[] {
+  const result = [...items];
+  for (let i = result.length - 1; i > 0; i -= 1) {
+    const randomIndex = Math.floor(Math.random() * (i + 1));
+    [result[i], result[randomIndex]] = [result[randomIndex], result[i]];
+  }
+  return result;
+}
+
 export function CampsListView({ camps }: CampsListViewProps) {
   const today = getTodayStart();
   const startYear = today.getFullYear();
@@ -398,7 +407,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
           }
         });
 
-      const organizers = Array.from(organizerMap.values()).sort((a, b) => a.organizerName.localeCompare(b.organizerName, "pl"));
+      const organizers = shuffleArray(Array.from(organizerMap.values()));
 
       const typeOption = typeOptionsByValue.get(type);
 

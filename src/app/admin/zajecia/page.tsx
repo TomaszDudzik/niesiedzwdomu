@@ -21,7 +21,7 @@ import {
 const MiniMapLazy = lazy(() => import("../miejsca/mini-map").then((module) => ({ default: module.MiniMap })));
 import { ACTIVITY_TYPE_ICONS, ACTIVITY_TYPE_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
 import { detectDistrictFromText } from "@/lib/districts";
-import { cn, formatDateShort, thumbUrl, withCacheBust } from "@/lib/utils";
+import { cn, formatDateShort, thumbUrl, toHourMinute, withCacheBust } from "@/lib/utils";
 import type { Activity, Organizer } from "@/types/database";
 import { ImageSection } from "@/components/admin/image-section";
 import { OrganizerCombobox } from "@/components/admin/organizer-combobox";
@@ -107,9 +107,7 @@ function asNumber(value?: string): number | null {
 
 function normalizeTime(value?: string): string | null {
   if (!value) return null;
-  const match = value.trim().match(/^(\d{1,2}):(\d{2})/);
-  if (!match) return null;
-  return `${match[1].padStart(2, "0")}:${match[2]}:00`;
+  return toHourMinute(value) || null;
 }
 
 function detectDistrict(location: string): Activity["district"] {
@@ -729,8 +727,8 @@ export default function AdminActivitiesPage() {
       days_of_week: activity.days_of_week.join(", "),
       date_start: activity.date_start,
       date_end: activity.date_end,
-      time_start: activity.time_start ? activity.time_start.slice(0, 5) : "",
-      time_end: activity.time_end ? activity.time_end.slice(0, 5) : "",
+      time_start: toHourMinute(activity.time_start),
+      time_end: toHourMinute(activity.time_end),
       age_min: activity.age_min,
       age_max: activity.age_max,
       price_from: activity.price_from,
@@ -782,8 +780,8 @@ export default function AdminActivitiesPage() {
       days_of_week: String(editForm.days_of_week || "").split(",").map((part) => part.trim()).filter(Boolean),
       date_start: editForm.date_start,
       date_end: editForm.date_end || null,
-      time_start: editForm.time_start ? `${String(editForm.time_start)}:00` : null,
-      time_end: editForm.time_end ? `${String(editForm.time_end)}:00` : null,
+      time_start: toHourMinute(String(editForm.time_start || "")) || null,
+      time_end: toHourMinute(String(editForm.time_end || "")) || null,
       age_min: editForm.age_min === "" || editForm.age_min === null ? null : Number(editForm.age_min),
       age_max: editForm.age_max === "" || editForm.age_max === null ? null : Number(editForm.age_max),
       price_from: Boolean(editForm.is_free) ? 0 : (editForm.price_from === "" || editForm.price_from === null ? null : Number(editForm.price_from)),
@@ -1121,11 +1119,11 @@ export default function AdminActivitiesPage() {
                                     </div>
                                     <div>
                                       <label className={labelClass}>Godzina od</label>
-                                      <input type="time" className={inputClass} value={(editForm.time_start as string) || ""} onChange={(e) => setEditForm((c) => ({ ...c, time_start: e.target.value || null }))} />
+                                      <input type="time" step={60} className={inputClass} value={(editForm.time_start as string) || ""} onChange={(e) => setEditForm((c) => ({ ...c, time_start: e.target.value || null }))} />
                                     </div>
                                     <div>
                                       <label className={labelClass}>Godzina do</label>
-                                      <input type="time" className={inputClass} value={(editForm.time_end as string) || ""} onChange={(e) => setEditForm((c) => ({ ...c, time_end: e.target.value || null }))} />
+                                      <input type="time" step={60} className={inputClass} value={(editForm.time_end as string) || ""} onChange={(e) => setEditForm((c) => ({ ...c, time_end: e.target.value || null }))} />
                                     </div>
                                     <div>
                                       <label className={labelClass}>Wiek od</label>

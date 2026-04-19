@@ -33,7 +33,7 @@ export default async function HomePage() {
     contactPoint: [
       {
         "@type": "ContactPoint",
-        email: "kontakt.niesiedzwdomu@gmail.com",
+        email: "kontakt@niesiedzwdomu.pl",
         contactType: "customer support",
         availableLanguage: ["pl"],
       },

@@ -27,6 +27,21 @@ export function formatTime(date: string | Date): string {
   });
 }
 
+export function toHourMinute(value: string | null | undefined): string {
+  if (!value) return "";
+  const match = value.trim().match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return "";
+  const hours = match[1].padStart(2, "0");
+  return `${hours}:${match[2]}`;
+}
+
+export function formatHourMinuteRange(start: string | null | undefined, end: string | null | undefined): string {
+  const startHm = toHourMinute(start);
+  const endHm = toHourMinute(end);
+  if (startHm && endHm) return `${startHm} - ${endHm}`;
+  return startHm || endHm;
+}
+
 export function formatPrice(price: number | null): string {
   if (price === null || price === 0) return "Bezpłatnie";
   return `${price} zł`;

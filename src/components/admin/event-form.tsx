@@ -4,7 +4,7 @@ import { useState } from "react";
 import { X } from "lucide-react";
 import type { Event, EventCategory, ContentStatus, District } from "@/types/database";
 import { CATEGORY_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
-import { slugify } from "@/lib/utils";
+import { slugify, toHourMinute } from "@/lib/utils";
 
 interface AdminEventFormProps {
   event: Event | null;
@@ -44,7 +44,13 @@ const EMPTY_EVENT: Omit<Event, "id" | "created_at" | "updated_at"> = {
 };
 
 export function AdminEventForm({ event, onSave, onCancel }: AdminEventFormProps) {
-  const [form, setForm] = useState(event || { ...EMPTY_EVENT, id: crypto.randomUUID(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() } as Event);
+  const [form, setForm] = useState(event
+    ? {
+        ...event,
+        time_start: toHourMinute(event.time_start) || null,
+        time_end: toHourMinute(event.time_end) || null,
+      }
+    : { ...EMPTY_EVENT, id: crypto.randomUUID(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() } as Event);
 
   const update = <K extends keyof Event>(key: K, value: Event[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -196,6 +202,7 @@ export function AdminEventForm({ event, onSave, onCancel }: AdminEventFormProps)
           </label>
           <input
             type="time"
+            step={60}
             value={form.time_start || ""}
             onChange={(e) => update("time_start", e.target.value || null)}
             className="w-full px-3 py-2.5 rounded-xl border border-border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
@@ -209,6 +216,7 @@ export function AdminEventForm({ event, onSave, onCancel }: AdminEventFormProps)
           </label>
           <input
             type="time"
+            step={60}
             value={form.time_end || ""}
             onChange={(e) => update("time_end", e.target.value || null)}
             className="w-full px-3 py-2.5 rounded-xl border border-border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"

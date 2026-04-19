@@ -42,6 +42,15 @@ function getCategoryMaps() {
   return categoryMapsPromise;
 }
 
+function shuffleArray<T>(items: T[]): T[] {
+  const result = [...items];
+  for (let i = result.length - 1; i > 0; i -= 1) {
+    const randomIndex = Math.floor(Math.random() * (i + 1));
+    [result[i], result[randomIndex]] = [result[randomIndex], result[i]];
+  }
+  return result;
+}
+
 function pickString(value: unknown): string | null {
   if (typeof value !== "string") {
     return null;
@@ -338,9 +347,8 @@ export async function getPublishedPlaces(limit = 50): Promise<Place[]> {
     .select("*")
     .eq("status", "published")
     .order("likes", { ascending: false })
-    .order("title", { ascending: true })
     .limit(limit);
-  return (data || []).map((row) => toPlace(row, maps));
+  return shuffleArray((data || []).map((row) => toPlace(row, maps)));
 }
 
 export async function getPlaceBySlug(slug: string): Promise<Place | null> {
@@ -368,7 +376,7 @@ export async function getPublishedCamps(limit = 80): Promise<Camp[]> {
     .or(`date_start.gte.${today},date_end.gte.${today}`)
     .order("date_start", { ascending: true })
     .limit(limit);
-  return (data || []).map((row) => toCamp(row, maps));
+  return shuffleArray((data || []).map((row) => toCamp(row, maps)));
 }
 
 export async function getCampBySlug(slug: string): Promise<Camp | null> {
@@ -416,7 +424,6 @@ export async function getPublishedActivities(limit = 120): Promise<Activity[]> {
     .or(`date_end.is.null,date_end.gte.${today}`)
     .order("is_featured", { ascending: false })
     .order("date_start", { ascending: true })
-    .order("title", { ascending: true })
     .limit(limit);
-  return (data || []).map((row) => toActivity(row, maps));
+  return shuffleArray((data || []).map((row) => toActivity(row, maps)));
 }

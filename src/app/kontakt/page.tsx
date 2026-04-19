@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-const CONTACT_EMAIL = "kontakt.niesiedzwdomu@gmail.com";
+const CONTACT_EMAIL = "kontakt@niesiedzwdomu.pl";
 
 export const metadata: Metadata = {
   title: "Kontakt | NieSiedzWDomu",
@@ -33,7 +33,7 @@ export default function ContactPage() {
               href={`mailto:${CONTACT_EMAIL}`}
               className="font-medium text-primary hover:text-primary-hover transition-colors"
             >
-              NieSiedzWDomu
+              {CONTACT_EMAIL}
             </a>
           </p>
         </div>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { loadAdminCategoryMaps, withCategoryIds, withCategoryNames } from "@/lib/admin-taxonomy-db";
+import { toHourMinute } from "@/lib/utils";
 
 function getDb() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
@@ -104,6 +105,18 @@ function normalizeEventPayload(input: unknown, categoryMaps: Awaited<ReturnType<
 
   delete payload.venue_name;
   delete payload.venue_address;
+
+  if ("time_start" in payload) {
+    payload.time_start = typeof payload.time_start === "string"
+      ? (toHourMinute(payload.time_start) || null)
+      : null;
+  }
+
+  if ("time_end" in payload) {
+    payload.time_end = typeof payload.time_end === "string"
+      ? (toHourMinute(payload.time_end) || null)
+      : null;
+  }
 
   return payload;
 }

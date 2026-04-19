@@ -28,7 +28,7 @@ export default function PrivacyPage() {
             <h2 className="text-[18px] font-semibold text-foreground">1. Administrator danych</h2>
             <p className="text-[14px] text-muted leading-relaxed">
               Administratorem danych przetwarzanych w zwiazku z dzialaniem serwisu jest administrator
-              serwisu NieSiedzWDomu. Kontakt: kontakt.niesiedzwdomu@gmail.com.
+              serwisu NieSiedzWDomu. Kontakt: kontakt@niesiedzwdomu.pl.
             </p>
           </section>
 

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, Calendar, Clock, MapPin, Users, ExternalLink, Globe } from "lucide-react";
 import { CATEGORY_LABELS } from "@/lib/mock-data";
-import { formatDate, formatAgeRange, formatPriceRange } from "@/lib/utils";
+import { formatAgeRange, formatDate, formatHourMinuteRange, formatPriceRange } from "@/lib/utils";
 import { ContentCard } from "@/components/ui/content-card";
 import { AiLearnMoreLink } from "@/components/ui/ai-learn-more-link";
 import { getEventBySlug, getRelatedEvents } from "@/lib/data";
@@ -197,13 +197,13 @@ export default async function EventDetailPage({ params }: PageProps) {
                 </div>
               </div>
 
-              {event.time_start && (
+              {formatHourMinuteRange(event.time_start, event.time_end) && (
                 <div className="flex items-center gap-2.5">
                   <Clock size={14} className="text-secondary/60 shrink-0" />
                   <div>
                     <p className="text-[10px] text-muted uppercase tracking-wider leading-none mb-0.5">Godzina</p>
                     <p className="text-[13px] font-medium text-foreground">
-                      {event.time_start}{event.time_end && ` – ${event.time_end}`}
+                      {formatHourMinuteRange(event.time_start, event.time_end)}
                     </p>
                   </div>
                 </div>

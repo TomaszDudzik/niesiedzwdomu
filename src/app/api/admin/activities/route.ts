@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@supabase/supabase-js";
 import { loadAdminCategoryMaps, withCategoryIds, withCategoryNames } from "@/lib/admin-taxonomy-db";
+import { toHourMinute } from "@/lib/utils";
 
 function getDb() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
@@ -71,6 +72,18 @@ function normalizeActivityPayload(input: Record<string, unknown>, categoryMaps: 
     payload.category_lvl_3 = categoryLevel3;
   }
   delete payload.subcategory;
+
+  if ("time_start" in payload) {
+    payload.time_start = typeof payload.time_start === "string"
+      ? (toHourMinute(payload.time_start) || null)
+      : null;
+  }
+
+  if ("time_end" in payload) {
+    payload.time_end = typeof payload.time_end === "string"
+      ? (toHourMinute(payload.time_end) || null)
+      : null;
+  }
 
   return payload;
 }

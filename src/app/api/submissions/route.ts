@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import nodemailer from "nodemailer";
 import { normalizeDistrictName } from "@/lib/districts";
-import { slugify } from "@/lib/utils";
+import { slugify, toHourMinute } from "@/lib/utils";
 
 type SubmissionContentType = "event" | "place" | "camp" | "activity";
 
-const DEFAULT_SUBMISSIONS_FROM_EMAIL = "dudziktomasz@googlemail.com";
+const DEFAULT_SUBMISSIONS_FROM_EMAIL = "kontakt@niesiedzwdomu.pl";
 
 const SUBMISSION_LABELS: Record<SubmissionContentType, string> = {
   event: "wydarzenie",
@@ -75,6 +75,13 @@ function requiredString(value: unknown, fieldName: string) {
 function nullableString(value: unknown) {
   const normalized = asString(value);
   return normalized || null;
+}
+
+function nullableTime(value: unknown) {
+  const normalized = nullableString(value);
+  if (!normalized) return null;
+  const hourMinute = toHourMinute(normalized);
+  return hourMinute || null;
 }
 
 function nullableUuid(value: unknown) {
@@ -162,8 +169,8 @@ function buildAdminPayload(contentType: SubmissionContentType, payload: Record<s
       category_lvl_3: nullableString(payload.category_lvl_3),
       date_start: requiredString(payload.date_start, "data rozpoczęcia"),
       date_end: nullableString(payload.date_end),
-      time_start: nullableString(payload.time_start),
-      time_end: nullableString(payload.time_end),
+      time_start: nullableTime(payload.time_start),
+      time_end: nullableTime(payload.time_end),
       age_min: nullableNumber(payload.age_min),
       age_max: nullableNumber(payload.age_max),
       price_from: nullableNumber(payload.price_from),
@@ -269,8 +276,8 @@ function buildAdminPayload(contentType: SubmissionContentType, payload: Record<s
     days_of_week: asStringArray(payload.days_of_week),
     date_start: requiredString(payload.date_start, "data rozpoczęcia"),
     date_end: nullableString(payload.date_end),
-    time_start: nullableString(payload.time_start),
-    time_end: nullableString(payload.time_end),
+    time_start: nullableTime(payload.time_start),
+    time_end: nullableTime(payload.time_end),
     age_min: nullableNumber(payload.age_min),
     age_max: nullableNumber(payload.age_max),
     price_from: nullableNumber(payload.price_from),

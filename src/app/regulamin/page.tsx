@@ -61,7 +61,7 @@ export default function TermsPage() {
             <h2 className="text-[18px] font-semibold text-foreground">5. Kontakt</h2>
             <p className="text-[14px] text-muted leading-relaxed">
               W sprawach dotyczacych serwisu mozna skontaktowac sie z administratorem pod adresem:
-              kontakt.niesiedzwdomu@gmail.com.
+              kontakt@niesiedzwdomu.pl.
             </p>
           </section>
         </div>
