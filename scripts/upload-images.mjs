@@ -56,6 +56,15 @@ const PRESETS = [
   { suffix: 'thumb', width: 480, quality: 70 },
 ]
 
+function normalizeSubFolder(inputPath) {
+  if (!inputPath) {
+    return ''
+  }
+
+  const normalized = inputPath.replace(/\\/g, '/').replace(/^\.?\//, '').replace(/\/+$/, '')
+  return normalized.replace(/^(photos|photo)\//i, '')
+}
+
 function isGeneratedVariant(filename) {
   return /^(cover|thumb)-.+\.webp$/i.test(filename) || /^\d{3,}-(cover|thumb)\.webp$/i.test(filename)
 }
@@ -141,7 +150,7 @@ async function walk(dir) {
 }
 
 async function main() {
-  const subFolder = process.argv[2]
+  const subFolder = normalizeSubFolder(process.argv[2])
   const scanDir = subFolder ? path.join(PHOTO_DIR, subFolder) : PHOTO_DIR
 
   try {
