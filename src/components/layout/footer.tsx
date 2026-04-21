@@ -36,7 +36,7 @@ export function Footer() {
       <div className="container-page py-12">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
           <div className="col-span-2 md:col-span-1">
-            <Logo size="sm" variant="light" />
+            <Logo size="sm" variant="dark" />
             <p
               className="text-[13px] mt-3 leading-relaxed max-w-[220px]"
               style={{ color: "oklch(58% 0.012 75)" }}

@@ -119,6 +119,39 @@ const DISTRICT_ICONS: Partial<Record<District, string>> = {
   "Inne": "📍",
 };
 
+function getTaxonomyAccentClasses(optionValue: string, optionLabel: string) {
+  const key = `${optionValue} ${optionLabel}`.toLowerCase();
+
+  if (key.includes("bez kategor") || key.includes("inne") || key.includes("ogolne") || key.includes("ogolny")) return { icon: "bg-stone-100 ring-stone-200", chip: "border-stone-200 bg-stone-50 text-stone-800", hover: "hover:border-stone-300 hover:bg-stone-100 hover:text-stone-900", selected: "border-stone-600 bg-stone-600 text-white" };
+  if (key.includes("sala zabaw")) return { icon: "bg-amber-100 ring-amber-200", chip: "border-amber-200 bg-amber-50 text-amber-800", hover: "hover:border-amber-300 hover:bg-amber-100 hover:text-amber-900", selected: "border-amber-600 bg-amber-600 text-white" };
+  if (key.includes("plac zabaw")) return { icon: "bg-lime-100 ring-lime-200", chip: "border-lime-200 bg-lime-50 text-lime-800", hover: "hover:border-lime-300 hover:bg-lime-100 hover:text-lime-900", selected: "border-lime-600 bg-lime-600 text-white" };
+  if (key.includes("kreatyw") || key.includes("artystycz")) return { icon: "bg-fuchsia-100 ring-fuchsia-200", chip: "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-800", hover: "hover:border-fuchsia-300 hover:bg-fuchsia-100 hover:text-fuchsia-900", selected: "border-fuchsia-600 bg-fuchsia-600 text-white" };
+  if (key.includes("kultura") || key.includes("spektakl") || key.includes("wystaw")) return { icon: "bg-violet-100 ring-violet-200", chip: "border-violet-200 bg-violet-50 text-violet-800", hover: "hover:border-violet-300 hover:bg-violet-100 hover:text-violet-900", selected: "border-violet-600 bg-violet-600 text-white" };
+  if (key.includes("edukac")) return { icon: "bg-indigo-100 ring-indigo-200", chip: "border-indigo-200 bg-indigo-50 text-indigo-800", hover: "hover:border-indigo-300 hover:bg-indigo-100 hover:text-indigo-900", selected: "border-indigo-600 bg-indigo-600 text-white" };
+  if (key.includes("nauka")) return { icon: "bg-sky-100 ring-sky-200", chip: "border-sky-200 bg-sky-50 text-sky-800", hover: "hover:border-sky-300 hover:bg-sky-100 hover:text-sky-900", selected: "border-sky-600 bg-sky-600 text-white" };
+  if (key.includes("relaks")) return { icon: "bg-teal-100 ring-teal-200", chip: "border-teal-200 bg-teal-50 text-teal-800", hover: "hover:border-teal-300 hover:bg-teal-100 hover:text-teal-900", selected: "border-teal-600 bg-teal-600 text-white" };
+  if (key.includes("przyro") || key.includes("natura")) return { icon: "bg-emerald-100 ring-emerald-200", chip: "border-emerald-200 bg-emerald-50 text-emerald-800", hover: "hover:border-emerald-300 hover:bg-emerald-100 hover:text-emerald-900", selected: "border-emerald-600 bg-emerald-600 text-white" };
+  if (key.includes("sport")) return { icon: "bg-orange-100 ring-orange-200", chip: "border-orange-200 bg-orange-50 text-orange-800", hover: "hover:border-orange-300 hover:bg-orange-100 hover:text-orange-900", selected: "border-orange-600 bg-orange-600 text-white" };
+  if (key.includes("muzyka")) return { icon: "bg-fuchsia-100 ring-fuchsia-200", chip: "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-800", hover: "hover:border-fuchsia-300 hover:bg-fuchsia-100 hover:text-fuchsia-900", selected: "border-fuchsia-600 bg-fuchsia-600 text-white" };
+  if (key.includes("kino")) return { icon: "bg-slate-100 ring-slate-200", chip: "border-slate-200 bg-slate-50 text-slate-800", hover: "hover:border-slate-300 hover:bg-slate-100 hover:text-slate-900", selected: "border-slate-600 bg-slate-600 text-white" };
+  if (key.includes("warsztat")) return { icon: "bg-yellow-100 ring-yellow-200", chip: "border-yellow-200 bg-yellow-50 text-yellow-800", hover: "hover:border-yellow-300 hover:bg-yellow-100 hover:text-yellow-900", selected: "border-yellow-600 bg-yellow-600 text-white" };
+  if (key.includes("kulinar")) return { icon: "bg-yellow-100 ring-yellow-200", chip: "border-yellow-200 bg-yellow-50 text-yellow-800", hover: "hover:border-yellow-300 hover:bg-yellow-100 hover:text-yellow-900", selected: "border-yellow-600 bg-yellow-600 text-white" };
+  if (key.includes("integrac")) return { icon: "bg-cyan-100 ring-cyan-200", chip: "border-cyan-200 bg-cyan-50 text-cyan-800", hover: "hover:border-cyan-300 hover:bg-cyan-100 hover:text-cyan-900", selected: "border-cyan-600 bg-cyan-600 text-white" };
+  if (key.includes("przygod")) return { icon: "bg-teal-100 ring-teal-200", chip: "border-teal-200 bg-teal-50 text-teal-800", hover: "hover:border-teal-300 hover:bg-teal-100 hover:text-teal-900", selected: "border-teal-600 bg-teal-600 text-white" };
+  if (key.includes("jezyk")) return { icon: "bg-cyan-100 ring-cyan-200", chip: "border-cyan-200 bg-cyan-50 text-cyan-800", hover: "hover:border-cyan-300 hover:bg-cyan-100 hover:text-cyan-900", selected: "border-cyan-600 bg-cyan-600 text-white" };
+  if (key.includes("sensory")) return { icon: "bg-indigo-100 ring-indigo-200", chip: "border-indigo-200 bg-indigo-50 text-indigo-800", hover: "hover:border-indigo-300 hover:bg-indigo-100 hover:text-indigo-900", selected: "border-indigo-600 bg-indigo-600 text-white" };
+
+  return { icon: "bg-stone-100 ring-stone-200", chip: "border-stone-200 bg-stone-50 text-stone-800", hover: "hover:border-stone-300 hover:bg-stone-100 hover:text-stone-900", selected: "border-stone-600 bg-stone-600 text-white" };
+}
+
+function getCategoryIconClasses(optionValue: string, optionLabel: string, selected: boolean) {
+  if (selected) {
+    return "bg-white/20 ring-white/15";
+  }
+
+  return getTaxonomyAccentClasses(optionValue, optionLabel).icon;
+}
+
 interface HomeFilteredViewProps {
   events: Event[];
   places: Place[];
@@ -552,20 +585,9 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
     <div>
       {/* ——— Hero ——— */}
       <section className="relative overflow-hidden">
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute -bottom-40 left-0 h-[520px] w-[520px] -translate-x-1/3 rounded-full bg-[#FFD0C0] opacity-45 blur-[120px]" />
-          <div className="absolute -top-40 right-0 h-[520px] w-[520px] translate-x-1/3 rounded-full bg-[#B8E8DF] opacity-45 blur-[120px]" />
-        </div>
-
-        <div className="container-page relative pb-12 pt-14 text-center">
-          {/* Location pill */}
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3.5 py-1 text-[12px] font-medium text-primary">
-            <MapPin size={11} />
-            Kraków · dla rodzin z dziećmi
-          </span>
-
+        <div className="container-page relative pb-12 pt-9 text-center">
           {/* Headline */}
-          <h1 className="mt-5 font-heading font-black leading-[1.05] tracking-[-0.04em] text-foreground"
+          <h1 className="mt-2 font-heading font-black leading-[1.05] tracking-[-0.04em] text-foreground"
               style={{ fontSize: "clamp(40px, 6vw, 72px)" }}>
             Odkryj Kraków
             <br />
@@ -573,7 +595,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
           </h1>
 
           {/* Tagline */}
-          <p className="mx-auto mt-5 max-w-md text-[15px] leading-relaxed text-muted">
+          <p className="mx-auto mt-5 max-w-3xl text-[15px] leading-relaxed text-muted">
             Sprawdzone miejsca, wydarzenia i zajęcia — wszystko w jednym miejscu.
           </p>
 
@@ -615,78 +637,55 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
             ))}
           </div>
 
+          {typeOptions.length > 0 && (
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+              <span className="text-[12px] font-medium text-muted-foreground">Typ:</span>
+              {typeOptions.map((option) => {
+                const selected = activeTypes.includes(option.value);
+                const accent = getTaxonomyAccentClasses(option.value, option.label);
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => toggleType(option.value)}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[12px] font-medium transition-all",
+                      selected
+                        ? accent.selected
+                        : "border-border bg-card text-foreground hover:border-primary/40 hover:shadow-sm"
+                    )}
+                  >
+                    <span className={cn("inline-flex h-5 w-5 items-center justify-center rounded-full ring-1", selected ? "bg-white/20 ring-white/15" : "bg-background ring-border")}>{option.icon}</span>
+                    <span>{option.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {/* Stats — floating cards */}
           <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
             {[
-              { icon: "📍", value: `${places.length}+`, label: "Miejsc",        color: "var(--color-primary)" },
-              { icon: "🎉", value: `${events.length}+`, label: "Wydarzeń",      color: "var(--color-secondary)" },
-              { icon: "🏙️", value: "15",                label: "Dzielnic",      color: "var(--color-purple)" },
-              { icon: "👶", value: "5",                 label: "Grup wiekowych", color: "var(--color-pink)" },
+              { href: "/miejsca", icon: "📍", value: `${places.length}+`, label: "Miejsc", color: "var(--color-primary)" },
+              { href: "/wydarzenia", icon: "🎉", value: `${events.length}+`, label: "Wydarzeń", color: "var(--color-secondary)" },
+              { href: "/kolonie", icon: "⛺", value: `${camps.length}+`, label: "Kolonii", color: "var(--color-purple)" },
+              { href: "/zajecia", icon: "🎨", value: `${activities.length}+`, label: "Zajęć", color: "var(--color-pink)" },
             ].map((stat) => (
-              <div
+              <Link
                 key={stat.label}
-                className="flex items-center gap-3 rounded-2xl border-2 border-border bg-card px-6 py-4 shadow-[var(--shadow-soft)] hover:-translate-y-1 transition-transform duration-200"
+                href={stat.href}
+                className="flex items-center gap-3 rounded-2xl border-2 border-border bg-card px-6 py-4 shadow-[var(--shadow-soft)] hover:-translate-y-1 hover:border-primary/30 transition-transform duration-200"
               >
                 <span className="text-[24px]">{stat.icon}</span>
                 <div className="text-left">
                   <p className="font-heading font-black text-[24px] leading-none" style={{ color: stat.color }}>{stat.value}</p>
                   <p className="mt-0.5 text-[11px] font-semibold text-muted-foreground">{stat.label}</p>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
       </section>
-
-      {/* ——— Category strip ——— */}
-      {categoryOptions.length > 0 && (
-        <section className="border-b border-border bg-card/60">
-          <div className="container-page py-8">
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-[20px] font-bold text-foreground">Kategorie</h2>
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="group inline-flex items-center gap-1 text-[13px] font-medium text-primary hover:text-primary-hover transition-colors"
-              >
-                Wszystkie
-                <ArrowRight size={13} className="group-hover:translate-x-0.5 transition-transform duration-200" />
-              </button>
-            </div>
-            <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none snap-x snap-mandatory">
-              {categoryOptions.map((option) => {
-                const selected = activeCategories.includes(option.value);
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => toggleCategory(option.value)}
-                    className={cn(
-                      "group flex shrink-0 snap-start flex-col items-center gap-2 rounded-2xl border px-5 py-4 w-[140px] transition-all duration-200 text-left",
-                      selected
-                        ? "border-primary/40 bg-primary/10 shadow-[var(--shadow-soft)]"
-                        : "border-border bg-card hover:border-primary/30 hover:shadow-[var(--shadow-soft)]"
-                    )}
-                  >
-                    <span className="text-[30px] leading-none">{option.icon}</span>
-                    <div className="w-full">
-                      <p className={cn(
-                        "text-[13px] font-semibold leading-tight",
-                        selected ? "text-primary" : "text-foreground group-hover:text-primary transition-colors"
-                      )}>
-                        {option.label}
-                      </p>
-                      <p className="mt-0.5 text-[11px] text-muted-foreground">
-                        {option.count} {option.count === 1 ? "wynik" : "wyników"}
-                      </p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-      )}
 
       <div className="container-page pt-5 pb-10">
         {/* Mobile filter bar */}
@@ -763,7 +762,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
                   <button key={option.value} onClick={() => toggleCategory(option.value)}
                     className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
                       selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
-                    <span>{option.icon}</span>
+                    <span className={cn("inline-flex h-4 w-4 items-center justify-center rounded-full ring-1", getCategoryIconClasses(option.value, option.label, selected))}>{option.icon}</span>
                     <span>{option.label}</span>
                     <span className="text-[10px] opacity-60">{option.count}</span>
                     {selected && <Check size={11} />}
@@ -880,7 +879,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
                     <button key={option.value} onClick={() => toggleCategory(option.value)}
                       className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
                         selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
-                      <span>{option.icon}</span>
+                      <span className={cn("inline-flex h-4 w-4 items-center justify-center rounded-full ring-1", getCategoryIconClasses(option.value, option.label, selected))}>{option.icon}</span>
                       <span className="flex-1">{option.label}</span>
                       {selected && <Check size={10} />}
                       <span className="text-[8px] opacity-40">{option.count}</span>
@@ -1016,7 +1015,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                 {visibleEvents.map((event, idx) => (
                   <div key={event.id} className={!hasActiveFilters && idx >= 4 ? "hidden sm:block" : ""}>
-                    <ContentCard item={event} />
+                    <ContentCard item={event} showImageTag />
                   </div>
                 ))}
               </div>

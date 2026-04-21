@@ -7,6 +7,7 @@ import { thumbUrl } from "@/lib/utils";
 interface ContentCardProps {
   item: DiscoveryItem;
   variant?: "horizontal" | "vertical";
+  showImageTag?: boolean;
 }
 
 const TYPE_BADGE_COLOR: Record<string, string> = {
@@ -16,21 +17,42 @@ const TYPE_BADGE_COLOR: Record<string, string> = {
   camp:     "#2E7DBA",
 };
 
+function getTagBadgeColor(tag: string, contentType: DiscoveryItem["content_type"]): string {
+  const normalized = tag.trim().toLowerCase();
+
+  if (normalized.includes("sala zabaw")) return "#D97706";
+  if (normalized.includes("plac zabaw")) return "#65A30D";
+  if (normalized.includes("kreatyw") || normalized.includes("artystycz")) return "#E11D48";
+  if (normalized.includes("kultura") || normalized.includes("spektakl") || normalized.includes("wystaw")) return "#7C3AED";
+  if (normalized.includes("nauka") || normalized.includes("edukac")) return "#0284C7";
+  if (normalized.includes("przyro") || normalized.includes("natura")) return "#059669";
+  if (normalized.includes("sport")) return "#EA580C";
+  if (normalized.includes("muzyka")) return "#C026D3";
+  if (normalized.includes("kino")) return "#475569";
+  if (normalized.includes("warsztat")) return "#CA8A04";
+  if (normalized.includes("kulinar")) return "#DC2626";
+  if (normalized.includes("integrac")) return "#DB2777";
+  if (normalized.includes("przygod")) return "#0F766E";
+  if (normalized.includes("jezyk")) return "#0891B2";
+  if (normalized.includes("sensory")) return "#4F46E5";
+
+  return TYPE_BADGE_COLOR[contentType] ?? "var(--color-primary)";
+}
+
 function getTag(item: DiscoveryItem): string {
   return ((item as Record<string, unknown>).main_category as string)
     || ((item as Record<string, unknown>).category as string)
     || item.content_type;
 }
 
-export function ContentCard({ item, variant = "horizontal" }: ContentCardProps) {
+export function ContentCard({ item, variant = "horizontal", showImageTag = false }: ContentCardProps) {
   const isEvent = item.content_type === "event";
   const href = getItemHref(item);
+  const tag = getTag(item);
+  const badgeColor = getTagBadgeColor(tag, item.content_type);
 
   /* ── Vertical card (for places grid) ── */
   if (variant === "vertical") {
-    const badgeColor = TYPE_BADGE_COLOR[item.content_type] ?? "var(--color-primary)";
-    const tag = getTag(item);
-
     return (
       <Link
         href={href}
@@ -95,6 +117,14 @@ export function ContentCard({ item, variant = "horizontal" }: ContentCardProps) 
           <div className="w-full h-full flex items-center justify-center text-2xl text-muted-foreground/30">
             {getPlaceholderIcon(item)}
           </div>
+        )}
+        {showImageTag && tag && (
+          <span
+            className="absolute left-3 top-3 rounded-full px-3 py-1 text-[11px] font-bold text-white leading-none"
+            style={{ background: badgeColor }}
+          >
+            {tag}
+          </span>
         )}
       </div>
 

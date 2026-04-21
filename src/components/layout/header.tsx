@@ -50,7 +50,7 @@ export function Header() {
               <Logo size="sm" />
             </Link>
 
-            <nav className="pointer-events-none absolute inset-x-0 hidden items-center justify-center gap-8 lg:flex xl:gap-10">
+            <nav className="pointer-events-none absolute inset-x-0 hidden items-center justify-center gap-4 lg:flex xl:gap-5">
               {NAV_LINKS.map((link) => {
                 const isActive = pathname === link.href || pathname.startsWith(link.href + "/");
 
@@ -59,10 +59,10 @@ export function Header() {
                     key={link.href}
                     href={link.href}
                     className={cn(
-                      "pointer-events-auto text-[15px] font-semibold tracking-[-0.01em] transition-colors duration-150",
+                      "pointer-events-auto rounded-full px-3 py-1.5 text-[15px] font-semibold tracking-[-0.01em] transition-all duration-150",
                       isActive
-                        ? "text-foreground"
-                        : "text-foreground/56 hover:text-foreground/82"
+                        ? "bg-stone-200 text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.55),0_6px_16px_rgba(44,32,24,0.08)]"
+                        : "text-foreground/56 hover:bg-stone-100 hover:text-foreground/82"
                     )}
                   >
                     {link.label}
@@ -74,16 +74,10 @@ export function Header() {
             <div className="ml-auto flex items-center gap-2 sm:gap-3">
               <Link
                 href="/dodaj"
-                className="inline-flex min-h-10 items-center rounded-full border border-foreground/12 bg-white px-3.5 text-[13px] font-bold text-foreground shadow-[0_4px_12px_rgba(44,32,24,0.05)] transition-all duration-150 hover:border-foreground/20 hover:bg-stone-50 sm:min-h-11 sm:px-5 sm:text-[14px]"
+                className="inline-flex min-h-10 items-center rounded-full border border-sky-200/80 bg-sky-50 px-3.5 text-[13px] font-bold text-sky-900 shadow-[0_8px_22px_rgba(14,116,144,0.10)] transition-all duration-150 hover:border-sky-300 hover:bg-sky-100 sm:min-h-11 sm:px-5 sm:text-[14px]"
               >
-                <span className="sm:hidden">Dodaj</span>
-                <span className="hidden sm:inline">Dodaj miejsce</span>
-              </Link>
-              <Link
-                href="/logowanie"
-                className="inline-flex min-h-10 items-center rounded-full bg-primary px-4 text-[13px] font-bold text-white shadow-[0_10px_22px_rgba(212,98,60,0.26)] transition-all duration-150 hover:bg-primary-hover hover:shadow-[0_14px_28px_rgba(212,98,60,0.32)] sm:min-h-11 sm:px-7 sm:text-[14px]"
-              >
-                Zaloguj się
+                <span className="sm:hidden">Dodaj event</span>
+                <span className="hidden sm:inline">Dodaj swój event</span>
               </Link>
             </div>
           </div>
@@ -100,7 +94,7 @@ export function Header() {
                     className={cn(
                       "shrink-0 rounded-full px-3.5 py-2 text-[13px] font-semibold tracking-[-0.01em] transition-all duration-150",
                       isActive
-                        ? "bg-primary text-white shadow-[0_8px_18px_rgba(212,98,60,0.22)]"
+                        ? "bg-stone-300 text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_8px_18px_rgba(44,32,24,0.10)]"
                         : "bg-stone-50 text-foreground/70 hover:bg-stone-100 hover:text-foreground"
                     )}
                   >

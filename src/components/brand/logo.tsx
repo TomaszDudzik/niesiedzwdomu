@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 
 interface LogoProps {
-  variant?: "default" | "light";
+  variant?: "default" | "light" | "dark";
   size?: "sm" | "md" | "lg";
   className?: string;
 }
@@ -12,7 +12,7 @@ const config = {
   lg: { badge: 50, rounded: "rounded-2xl", iconSize: 29, textSize: "text-[25px]", gap: "gap-3" },
 };
 
-/* Simple running-person silhouette, drawn in white */
+/* Simple active-child icon, drawn in white for clarity at small sizes */
 function RunnerIcon({ size }: { size: number }) {
   return (
     <svg
@@ -25,18 +25,12 @@ function RunnerIcon({ size }: { size: number }) {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      {/* head */}
-      <circle cx="14.5" cy="3.5" r="2" fill="white" stroke="none" />
-      {/* torso — leaning forward */}
-      <path d="M13 5.5 L10 11" />
-      {/* back arm */}
-      <path d="M13 7.5 L16.5 6" />
-      {/* front arm */}
-      <path d="M11 8.5 L8 11.5" />
-      {/* back leg */}
-      <path d="M10 11 L13.5 15 L11 19.5" />
-      {/* front leg */}
-      <path d="M10 11 L7 15.5 L9.5 19.5" />
+      <circle cx="12.5" cy="4.5" r="2.25" fill="white" stroke="none" />
+      <path d="M11.75 7.5 9.75 11.25 13.25 13.25 16.75 10.25" />
+      <path d="M9.75 11.25 6.5 9.5" />
+      <path d="M13.25 13.25 15.5 18.5" />
+      <path d="M11 13 7.25 18.75" />
+      <path d="M13 8.25 17.75 6.75" />
     </svg>
   );
 }
@@ -47,9 +41,9 @@ export function Logo({ variant = "default", size = "md", className }: LogoProps)
 
   /* Text colours per word segment */
   const nieColor   = variant === "light" ? "text-white"    : "text-primary";
-  const siedzColor = variant === "light" ? "text-white/80" : "text-foreground";
+  const siedzColor = variant === "light" || variant === "dark" ? "text-white" : "text-foreground";
   const wColor     = variant === "light" ? "text-white"    : "text-primary";
-  const domuColor  = variant === "light" ? "text-white/80" : "text-foreground";
+  const domuColor  = variant === "light" ? "text-white/80" : "text-secondary";
 
   return (
     <span className={cn("inline-flex select-none items-center", c.gap, className)}>
@@ -77,7 +71,7 @@ export function LogoIcon({
   size = 32,
   className,
 }: {
-  variant?: "default" | "light";
+  variant?: "default" | "light" | "dark";
   size?: number;
   className?: string;
 }) {
@@ -94,12 +88,12 @@ export function LogoIcon({
     >
       <rect width="32" height="32" rx="8" fill={bg} />
       <g stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="19" cy="8" r="2.5" fill="white" stroke="none" />
-        <path d="M17 10.5 L14 16" />
-        <path d="M17 12 L21 11" />
-        <path d="M15 13 L12 16" />
-        <path d="M14 16 L17.5 20 L15 24" />
-        <path d="M14 16 L11 20 L13.5 24" />
+        <circle cx="19.5" cy="8.5" r="2.5" fill="white" stroke="none" />
+        <path d="M18.5 12 15.5 17l5 3 5-4" />
+        <path d="M15.5 17 11.5 14.5" />
+        <path d="M20.5 20 23.5 26" />
+        <path d="M17.5 19.5 13 26" />
+        <path d="M20 13 26 11" />
       </g>
     </svg>
   );
