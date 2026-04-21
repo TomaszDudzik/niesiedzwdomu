@@ -8,10 +8,10 @@ import { ComingSoonBadge } from "@/components/ui/coming-soon";
 import { Logo } from "@/components/brand/logo";
 
 const NAV_LINKS = [
-  { href: "/miejsca", label: "Miejsca", icon: MapPin, color: "bg-secondary/10 text-secondary" },
-  { href: "/wydarzenia", label: "Wydarzenia", icon: Calendar, color: "bg-primary/10 text-primary" },
-  { href: "/kolonie", label: "Kolonie", icon: Tent, color: "bg-amber-500/10 text-amber-600" },
-  { href: "/zajecia", label: "Zajęcia", icon: Users, color: "bg-secondary/10 text-secondary" },
+  { href: "/miejsca", label: "Miejsca", icon: MapPin, activeColor: "border-emerald-600/25 bg-emerald-600/10 text-emerald-700", hoverColor: "hover:bg-emerald-600/10 hover:text-emerald-700 hover:border-emerald-600/25" },
+  { href: "/wydarzenia", label: "Wydarzenia", icon: Calendar, activeColor: "border-primary/30 bg-primary/10 text-primary", hoverColor: "hover:bg-primary/10 hover:text-primary hover:border-primary/25" },
+  { href: "/kolonie", label: "Kolonie", icon: Tent, activeColor: "border-amber-500/30 bg-amber-500/10 text-amber-700", hoverColor: "hover:bg-amber-500/10 hover:text-amber-700 hover:border-amber-500/25" },
+  { href: "/zajecia", label: "Zajęcia", icon: Users, activeColor: "border-violet-600/25 bg-violet-600/10 text-violet-700", hoverColor: "hover:bg-violet-600/10 hover:text-violet-700 hover:border-violet-600/25" },
 ];
 
 type RouteCopy = {
@@ -159,8 +159,8 @@ export function NavSection() {
                 className={cn(
                   "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-all duration-200",
                   isActive(link.href)
-                    ? "border-primary/30 bg-primary/5 text-primary"
-                    : "border-border bg-card text-muted hover:text-foreground hover:border-primary/30"
+                    ? link.activeColor
+                    : ["border-border bg-card text-muted", link.hoverColor]
                 )}
               >
                 <link.icon size={13} />
