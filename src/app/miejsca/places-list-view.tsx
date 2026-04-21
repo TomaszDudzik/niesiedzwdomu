@@ -39,6 +39,7 @@ interface MarkerGroup {
   coords: [number, number];
   events: { id: string; title: string; slug: string; street: string; city: string; image_url?: string | null }[];
   label: string;
+  markerEmoji?: string;
 }
 
 interface PlacesListViewProps {
@@ -166,8 +167,15 @@ export function PlacesListView({ places }: PlacesListViewProps) {
     for (const place of filtered) {
       if (!place.lat || !place.lng) continue;
       const key = `${place.lat},${place.lng}`;
+      const typeValue = getPlaceTypeValue(place);
+      const typeOption = typeOptionsByValue.get(typeValue);
       if (!groups[key]) {
-        groups[key] = { coords: [place.lat, place.lng], events: [], label: place.title };
+        groups[key] = {
+          coords: [place.lat, place.lng],
+          events: [],
+          label: place.title,
+          markerEmoji: typeOption?.icon || "📍",
+        };
       }
       groups[key].events.push({
         id: place.id,
@@ -179,7 +187,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
       });
     }
     return Object.values(groups);
-  }, [filtered]);
+  }, [filtered, typeOptionsByValue]);
 
   const districtOptionsSource = useMemo(
     () => places.filter((place) => matchesPlaceFilters(place, ["district"])),
@@ -523,7 +531,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
                 <div className="rounded-xl border border-border bg-card px-4 py-3">
                   <h2 className="text-[15px] font-semibold text-foreground">Mapa miejsc w Krakowie</h2>
                   <p className="mt-1 text-[12px] leading-5 text-muted">
-                    Sprawdź, gdzie znajdują się sale zabaw, parki, muzea i inne rodzinne miejsca. Kliknij pinezkę,
+                    Sprawdź, gdzie znajdują się sale zabaw, parki, muzea i inne rodzinne miejsca. Kliknij ikonę,
                     aby zobaczyć szczegóły konkretnego adresu.
                   </p>
                 </div>

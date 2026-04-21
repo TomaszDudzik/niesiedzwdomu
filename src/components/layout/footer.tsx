@@ -32,23 +32,23 @@ const FOOTER_SECTIONS = [
 
 export function Footer() {
   return (
-    <footer className="border-t border-border mt-24 bg-accent/50">
-      <div className="container-page py-10">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+    <footer className="mt-16 border-t border-[#dad0c0] bg-[linear-gradient(180deg,#e8dfd2_0%,#ddd1c0_100%)]">
+      <div className="container-page py-12">
+        <div className="grid grid-cols-2 gap-6 md:grid-cols-[1.2fr_1fr_1fr_0.9fr] md:gap-5 lg:gap-6">
           <div className="col-span-2 md:col-span-1">
             <Logo size="sm" />
-            <p className="text-[13px] text-muted mt-2 leading-relaxed max-w-[220px]">
+            <p className="mt-3 max-w-[240px] text-[13px] leading-7 text-[#6f6251]">
               Platforma dla rodziców w Krakowie. Wydarzenia, kolonie i miejsca — wszystko w jednym miejscu.
             </p>
           </div>
 
           {FOOTER_SECTIONS.map((section) => (
             <div key={section.title}>
-              <h3 className="text-[12px] font-semibold text-foreground uppercase tracking-wide mb-3">{section.title}</h3>
+              <h3 className="mb-3 text-[12px] font-semibold uppercase tracking-[0.18em] text-[#7b6f5f]">{section.title}</h3>
               <ul className="flex flex-col gap-2">
                 {section.links.map((link) => (
                   <li key={link.label}>
-                    <Link href={link.href} className="inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-primary transition-colors duration-200">
+                    <Link href={link.href} className="inline-flex items-center gap-1.5 text-[14px] text-[#4a3c2c] transition-colors duration-200 hover:text-[#b65f31]">
                       {link.label}
                     </Link>
                   </li>
@@ -58,13 +58,13 @@ export function Footer() {
           ))}
         </div>
 
-        <div className="mt-10 pt-6 border-t border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <p className="text-[12px] text-muted-foreground">
+        <div className="mt-10 flex flex-col gap-2 border-t border-[#cfc2af] pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-[12px] text-[#766958]">
             © {new Date().getFullYear()} niesiedzwdomu. Wszystkie prawa zastrzeżone.
           </p>
-          <div className="flex items-center gap-4 text-[12px] text-muted-foreground">
-            <Link href="/regulamin" className="hover:text-primary transition-colors duration-200">Regulamin</Link>
-            <Link href="/prywatnosc" className="hover:text-primary transition-colors duration-200">Prywatność</Link>
+          <div className="flex items-center gap-4 text-[12px] text-[#766958]">
+            <Link href="/regulamin" className="transition-colors duration-200 hover:text-[#b65f31]">Regulamin</Link>
+            <Link href="/prywatnosc" className="transition-colors duration-200 hover:text-[#b65f31]">Prywatność</Link>
           </div>
         </div>
       </div>

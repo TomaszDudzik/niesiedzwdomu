@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { Calendar, MapPin } from "lucide-react";
 import type { DiscoveryItem } from "@/types/database";
-import { getItemHref, getDateText, getLocationText, getPlaceholderIcon } from "@/lib/content-helpers";
+import { getItemHref, getDateText, getLocationText, getPlaceholderIcon, getSubcategoryLabel } from "@/lib/content-helpers";
+import { cn } from "@/lib/utils";
 import { thumbUrl } from "@/lib/utils";
 
 interface ContentCardProps {
@@ -9,9 +10,41 @@ interface ContentCardProps {
   largeImage?: boolean;
 }
 
+const LABEL_COLOR_MAP: Record<string, string> = {
+  nauka: "bg-[#2563EB] text-white",
+  plac_zabaw: "bg-[#65A30D] text-white",
+  sala_zabaw: "bg-[#C026D3] text-white",
+  relaks: "bg-[#0F766E] text-white",
+  kultura: "bg-[#A21CAF] text-white",
+  kreatywnosc: "bg-[#E11D48] text-white",
+  edukacja: "bg-[#0891B2] text-white",
+  integracja: "bg-[#7C3AED] text-white",
+  kulinaria: "bg-[#D97706] text-white",
+  przygoda: "bg-[#B45309] text-white",
+  przyroda: "bg-[#4D7C0F] text-white",
+  sport: "bg-[#15803D] text-white",
+  technologia: "bg-[#4338CA] text-white",
+  kolonie: "bg-[#1D4ED8] text-white",
+  polkolonie: "bg-[#0EA5E9] text-white",
+  warsztaty_wakacyjne: "bg-[#14B8A6] text-white",
+  inne: "bg-[#475569] text-white",
+};
+
+function normalizeLabelKey(label: string) {
+  return label
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[\s/-]+/g, "_");
+}
+
+function getItemLabelClasses(_item: DiscoveryItem, label: string) {
+  return LABEL_COLOR_MAP[normalizeLabelKey(label)] ?? "bg-slate-700 text-white";
+}
+
 export function ContentCard({ item }: ContentCardProps) {
-  const isPlace = item.content_type === "place";
   const isEvent = item.content_type === "event";
+  const itemLabel = getSubcategoryLabel(item);
 
   return (
     <Link
@@ -31,6 +64,16 @@ export function ContentCard({ item }: ContentCardProps) {
             {getPlaceholderIcon(item)}
           </div>
         )}
+        {itemLabel ? (
+          <span
+            className={cn(
+              "absolute left-2.5 top-2.5 inline-flex items-center rounded-full px-2 py-[5px] text-[10px] font-semibold leading-none shadow-sm",
+              getItemLabelClasses(item, itemLabel)
+            )}
+          >
+            {itemLabel}
+          </span>
+        ) : null}
       </div>
 
       {/* Text — right */}

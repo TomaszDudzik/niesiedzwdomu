@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Calendar, DoorOpen, MapPin, Tent, Users } from "lucide-react";
+import { Calendar, MapPin, Tent, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ComingSoonBadge } from "@/components/ui/coming-soon";
+import { Logo } from "@/components/brand/logo";
 
 const NAV_LINKS = [
   { href: "/miejsca", label: "Miejsca", icon: MapPin, color: "bg-secondary/10 text-secondary" },
@@ -132,32 +133,13 @@ export function NavSection() {
     <section className="container-page pt-4 pb-4 md:pt-5 md:pb-5 bg-white rounded-xl border border-border/20">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div className="flex items-start md:items-center gap-3">
-          <div>
-            <h1 className="text-lg md:text-xl font-bold text-foreground tracking-[-0.02em] leading-tight">
-              <Link
-                href="/"
-                className="inline-flex items-center gap-2 rounded-lg text-primary transition-colors duration-200 hover:text-primary/80"
-                title="Strona główna"
-              >
-                <span>NieSiedzWDomu</span>
-                <span
-                  className={cn(
-                    "inline-flex items-center rounded-full border px-1.5 py-1 transition-colors duration-200",
-                    pathname === "/"
-                      ? "border-primary/25 bg-primary/10 text-primary"
-                      : "border-border bg-background text-muted-foreground"
-                  )}
-                >
-                  <DoorOpen size={14} strokeWidth={2.2} />
-                </span>
-              </Link>
-              <span className="mx-1.5 text-muted-foreground/55">|</span>
-              <span>{pageHeading}</span>
-            </h1>
-            <p className="text-[12px] text-muted mt-0.5 max-w-md">
-              {subheading}
-            </p>
-          </div>
+          <Link
+            href="/"
+            className="inline-flex items-center rounded-lg transition-opacity duration-200 hover:opacity-85"
+            title="Strona główna"
+          >
+            <Logo size="sm" />
+          </Link>
         </div>
         <div className="flex gap-1.5">
           {NAV_LINKS.map((link) => {
