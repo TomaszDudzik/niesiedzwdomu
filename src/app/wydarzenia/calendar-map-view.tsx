@@ -9,6 +9,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
+import { getSubcategoryIcon } from "@/lib/content-helpers";
 import { cn, formatHourMinuteRange, toLocalDateKey } from "@/lib/utils";
 import { getEventsForDate } from "@/lib/filter-events";
 import type { Event } from "@/types/database";
@@ -54,6 +55,7 @@ export interface MarkerGroup {
   coords: [number, number];
   events: Event[];
   label: string;
+  markerEmoji?: string;
 }
 
 function groupByLocation(events: Event[]): MarkerGroup[] {
@@ -65,7 +67,12 @@ function groupByLocation(events: Event[]): MarkerGroup[] {
       : (DISTRICT_COORDS[event.district] || KRAKOW_CENTER);
     const key = `${coords[0]},${coords[1]}`;
     if (!groups[key]) {
-      groups[key] = { coords, events: [], label: event.street || event.city || event.district };
+      groups[key] = {
+        coords,
+        events: [],
+        label: event.street || event.city || event.district,
+        markerEmoji: getSubcategoryIcon(event),
+      };
     }
     groups[key].events.push(event);
   }

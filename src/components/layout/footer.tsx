@@ -43,12 +43,12 @@ export function Footer() {
           </div>
 
           {FOOTER_SECTIONS.map((section) => (
-            <div key={section.title}>
-              <h3 className="mb-3 text-[12px] font-semibold uppercase tracking-[0.18em] text-[#7b6f5f]">{section.title}</h3>
-              <ul className="flex flex-col gap-2">
+            <div key={section.title} className="text-center">
+              <h3 className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#7b6f5f]">{section.title}</h3>
+              <ul className="flex flex-col items-center gap-1.5">
                 {section.links.map((link) => (
                   <li key={link.label}>
-                    <Link href={link.href} className="inline-flex items-center gap-1.5 text-[14px] text-[#4a3c2c] transition-colors duration-200 hover:text-[#b65f31]">
+                    <Link href={link.href} className="inline-flex items-center gap-1.5 text-[12px] text-[#4a3c2c] transition-colors duration-200 hover:text-[#b65f31]">
                       {link.label}
                     </Link>
                   </li>

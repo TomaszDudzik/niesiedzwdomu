@@ -66,18 +66,15 @@ export default async function HomePage() {
 
       <HomeFilteredView events={upcomingEvents} places={places} camps={camps} activities={activities} />
 
-      <section className="container-page mt-16 mb-10">
-        <div className="overflow-hidden rounded-[32px] border border-[#ddd4c5] bg-[linear-gradient(180deg,#efe8dc_0%,#e8e0d4_100%)] px-5 py-8 shadow-[0_26px_70px_-48px_rgba(91,74,46,0.35)] sm:px-7 lg:px-10 lg:py-10">
-          <div className="mx-auto mb-7 max-w-2xl text-center">
-            <h2 className="text-[28px] font-bold tracking-[-0.03em] text-[#2f2417] sm:text-[34px]">
+      <section className="container-page mt-12 mb-7">
+        <div className="overflow-hidden rounded-[22px] border border-[#ddd4c5] bg-[linear-gradient(180deg,#efe8dc_0%,#e8e0d4_100%)] px-4 py-5 shadow-[0_18px_48px_-42px_rgba(91,74,46,0.35)] sm:px-5 lg:px-6 lg:py-6">
+          <div className="mx-auto mb-4 max-w-lg text-center">
+            <h2 className="text-[20px] font-bold tracking-[-0.03em] text-[#2f2417] sm:text-[24px]">
               Przewodniki po Krakowie
             </h2>
-            <p className="mt-2 text-[14px] leading-6 text-[#6f614f] sm:text-[15px]">
-              Gotowe zestawienia i wskazówki dla rodziców, zebrane w spokojnej, łatwej do przeglądania formie.
-            </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
           {[
             { href: "/co-robic-z-dzieckiem-w-krakowie", label: "Odkryj Kraków z dzieckiem", description: "Sprawdzone miejsca i pomysły na rodzinny czas", icon: "🗺️", accent: "text-[#c96b2c]" },
             { href: "/wydarzenia-dla-dzieci-krakow", label: "Wydarzenia dla dzieci", description: "Warsztaty, spektakle i atrakcje na każdy tydzień", icon: "🎪", accent: "text-[#0f766e]" },
@@ -87,17 +84,17 @@ export default async function HomePage() {
             <Link
               key={link.href}
               href={link.href}
-              className="group rounded-[24px] border border-[#d7cdbc] bg-[rgba(255,252,247,0.72)] px-5 py-5 shadow-[0_18px_40px_-34px_rgba(79,60,35,0.35)] transition-all duration-200 hover:-translate-y-1 hover:border-[#cabda8] hover:bg-[rgba(255,252,247,0.92)] hover:shadow-[0_24px_52px_-32px_rgba(79,60,35,0.42)]"
+              className="group rounded-[18px] border border-[#d7cdbc] bg-[rgba(255,252,247,0.72)] px-3.5 py-3.5 shadow-[0_14px_28px_-28px_rgba(79,60,35,0.35)] transition-all duration-200 hover:-translate-y-1 hover:border-[#cabda8] hover:bg-[rgba(255,252,247,0.92)] hover:shadow-[0_18px_38px_-28px_rgba(79,60,35,0.42)]"
             >
               <div className="flex h-full flex-col">
-                <span className="text-[21px] leading-none">{link.icon}</span>
-                <span className="mt-6 text-[21px] font-semibold leading-[1.2] tracking-[-0.02em] text-[#2f2417]">
+                <span className="text-[16px] leading-none">{link.icon}</span>
+                <span className="mt-3 text-[16px] font-semibold leading-[1.18] tracking-[-0.02em] text-[#2f2417]">
                   {link.label}
                 </span>
-                <p className="mt-3 text-[14px] leading-7 text-[#766957]">{link.description}</p>
-                <span className={`mt-6 inline-flex items-center gap-1 text-[14px] font-semibold transition-transform duration-200 group-hover:translate-x-0.5 ${link.accent}`}>
+                <p className="mt-2 text-[12px] leading-5 text-[#766957]">{link.description}</p>
+                <span className={`mt-4 inline-flex items-center gap-1 text-[12px] font-semibold transition-transform duration-200 group-hover:translate-x-0.5 ${link.accent}`}>
                   Czytaj
-                  <ArrowRight size={14} />
+                  <ArrowRight size={12} />
                 </span>
               </div>
             </Link>

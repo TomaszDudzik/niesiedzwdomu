@@ -6,6 +6,7 @@ import { DISTRICT_LIST } from "@/lib/mock-data";
 import { ContentCard } from "@/components/ui/content-card";
 import { FilterSection } from "@/components/ui/filter-section";
 import { SubmissionCta } from "@/components/ui/submission-cta";
+import { getSubcategoryIcon } from "@/lib/content-helpers";
 import { cn, toLocalDateKey } from "@/lib/utils";
 import { getEventsForDate } from "@/lib/filter-events";
 import { getAgeGroupOptions, getTaxonomyOptions, matchesTaxonomyFilter, mergeSelectedTaxonomyOptions } from "@/lib/taxonomy-filters";
@@ -60,6 +61,7 @@ interface MarkerGroup {
   coords: [number, number];
   events: Event[];
   label: string;
+  markerEmoji?: string;
 }
 
 interface DateRange {
@@ -136,7 +138,12 @@ function groupByLocation(events: Event[]): MarkerGroup[] {
       : (DISTRICT_COORDS[event.district] || KRAKOW_CENTER);
     const key = `${coords[0]},${coords[1]}`;
     if (!groups[key]) {
-      groups[key] = { coords, events: [], label: event.street || event.city || event.district };
+      groups[key] = {
+        coords,
+        events: [],
+        label: event.street || event.city || event.district,
+        markerEmoji: getSubcategoryIcon(event),
+      };
     }
     groups[key].events.push(event);
   }
