@@ -5,7 +5,7 @@ import {
   Plus, Pencil, Trash2, RefreshCw,
   ChevronDown, ChevronUp, X,
   Loader2, Save, ExternalLink,
-  Star, ClipboardPaste, Upload, MapPin,
+  Star, ClipboardPaste, Upload, MapPin, Copy,
 } from "lucide-react";
 import { CATEGORY_ICONS, CATEGORY_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
 import { normalizeDistrictName } from "@/lib/districts";
@@ -20,7 +20,9 @@ import { useAdminTaxonomy } from "@/lib/use-admin-taxonomy";
 
 type DerivedEventStatus = Event["status"] | "outdated";
 type EventListFilter = "all" | "published" | "draft" | "outdated";
+type EventGroupingMode = "type" | "organizer";
 const UNCATEGORIZED_GROUP = "__uncategorized__";
+const UNASSIGNED_ORGANIZER_GROUP = "__unassigned_organizer__";
 
 const MiniMapLazy = lazy(() => import("../miejsca/mini-map").then((module) => ({ default: module.MiniMap })));
 
@@ -49,6 +51,7 @@ function AdminCanonicalEventsPanel() {
   const [geocoding, setGeocoding] = useState(false);
   const [statusFilter, setStatusFilter] = useState<EventListFilter>("all");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [groupingMode, setGroupingMode] = useState<EventGroupingMode>("type");
   const [pasteModal, setPasteModal] = useState(false);
   const [pasteText, setPasteText] = useState("");
   const [pasteHeaders, setPasteHeaders] = useState<string[]>([]);
@@ -109,17 +112,101 @@ function AdminCanonicalEventsPanel() {
       return;
     }
 
+    // Remove literal newlines embedded inside quoted values before JSON parsing.
+    const fixLiteralNewlines = (value: string) => {
+      let result = "";
+      let inString = false;
+      let escaped = false;
+
+      for (const char of value) {
+        if (escaped) {
+          result += char;
+          escaped = false;
+          continue;
+        }
+
+        if (char === "\\" && inString) {
+          result += char;
+          escaped = true;
+          continue;
+        }
+
+        if (char === '"') {
+          inString = !inString;
+          result += char;
+          continue;
+        }
+
+        if (inString && (char === "\n" || char === "\r")) {
+          continue;
+        }
+
+        result += char;
+      }
+
+      return result;
+    };
+
     const structMatch = trimmed.match(/[\[{][\s\S]*[\]}]/);
     if (structMatch) {
-      const raw = structMatch[0]
-        .replace(/#[^\n]*/g, "")
-        .replace(/<NA>/g, "null")
-        .replace(/\bNaN\b/g, "null")
-        .replace(/,\s*([}\]])/g, "$1");
+      const raw = fixLiteralNewlines(
+        structMatch[0]
+          .replace(/#[^\n]*/g, "")
+          .replace(/<NA>/g, "null")
+          .replace(/\bNaN\b/g, "null")
+          .replace(/,\s*([}\]])/g, "$1")
+      );
+
+      const pythonLikeToJson = (input: string) => {
+        let output = "";
+        let inSingle = false;
+        let escaped = false;
+
+        for (const char of input) {
+          if (inSingle) {
+            if (escaped) {
+              output += char;
+              escaped = false;
+              continue;
+            }
+
+            if (char === "\\") {
+              output += "\\\\";
+              escaped = true;
+              continue;
+            }
+
+            if (char === "'") {
+              inSingle = false;
+              output += '"';
+              continue;
+            }
+
+            if (char === '"') {
+              output += '\\"';
+              continue;
+            }
+
+            output += char;
+            continue;
+          }
+
+          if (char === "'") {
+            inSingle = true;
+            output += '"';
+            continue;
+          }
+
+          output += char;
+        }
+
+        return output;
+      };
 
       const attempts = [
         raw,
         raw.replace(/(?<=[{,[\s])'/g, '"').replace(/'(?=\s*[:,\]}])/g, '"'),
+        pythonLikeToJson(raw),
       ];
 
       for (const attempt of attempts) {
@@ -444,6 +531,41 @@ function AdminCanonicalEventsPanel() {
             : UNCATEGORIZED_GROUP;
   }, []);
 
+  const getOrganizerGroupKey = useCallback((event: Partial<Event> | Record<string, unknown>) => {
+    if (typeof event.organizer_id === "string" && event.organizer_id.trim().length > 0) {
+      return `id:${event.organizer_id.trim()}`;
+    }
+
+    if (typeof event.organizer === "string" && event.organizer.trim().length > 0) {
+      return `name:${event.organizer.trim().toLowerCase()}`;
+    }
+
+    return UNASSIGNED_ORGANIZER_GROUP;
+  }, []);
+
+  const organizerGroupMeta = useMemo(() => {
+    const meta = new Map<string, { label: string; icon: string }>();
+
+    for (const event of visibleEvents) {
+      const organizerName = typeof event.organizer === "string" && event.organizer.trim().length > 0
+        ? event.organizer.trim()
+        : "Bez organizatora";
+      const key = getOrganizerGroupKey(event);
+      if (!meta.has(key)) {
+        meta.set(key, {
+          label: organizerName,
+          icon: key === UNASSIGNED_ORGANIZER_GROUP ? "🫥" : "🏢",
+        });
+      }
+    }
+
+    if (!meta.has(UNASSIGNED_ORGANIZER_GROUP)) {
+      meta.set(UNASSIGNED_ORGANIZER_GROUP, { label: "Bez organizatora", icon: "🫥" });
+    }
+
+    return meta;
+  }, [visibleEvents, getOrganizerGroupKey]);
+
   const getEventGroupLabel = useCallback((group: string) => {
     if (group === UNCATEGORIZED_GROUP) return "Bez kategorii";
     return CATEGORY_LABELS[group as keyof typeof CATEGORY_LABELS] ?? group;
@@ -462,8 +584,37 @@ function AdminCanonicalEventsPanel() {
     });
   }, [getEventGroupLabel]);
 
+  const getActiveGroupKey = useCallback((event: Partial<Event> | Record<string, unknown>) => {
+    return groupingMode === "organizer" ? getOrganizerGroupKey(event) : getEventGroupKey(event);
+  }, [groupingMode, getOrganizerGroupKey, getEventGroupKey]);
+
+  const getActiveGroupLabel = useCallback((group: string) => {
+    if (groupingMode === "organizer") {
+      return organizerGroupMeta.get(group)?.label ?? "Bez organizatora";
+    }
+    return getEventGroupLabel(group);
+  }, [groupingMode, organizerGroupMeta, getEventGroupLabel]);
+
+  const getActiveGroupIcon = useCallback((group: string) => {
+    if (groupingMode === "organizer") {
+      return organizerGroupMeta.get(group)?.icon ?? "🏢";
+    }
+    return getEventGroupIcon(group);
+  }, [groupingMode, organizerGroupMeta, getEventGroupIcon]);
+
+  const sortActiveGroupKeys = useCallback((keys: string[]) => {
+    if (groupingMode === "organizer") {
+      return [...keys].sort((left, right) => {
+        if (left === UNASSIGNED_ORGANIZER_GROUP) return 1;
+        if (right === UNASSIGNED_ORGANIZER_GROUP) return -1;
+        return getActiveGroupLabel(left).localeCompare(getActiveGroupLabel(right), "pl");
+      });
+    }
+    return sortEventGroupKeys(keys);
+  }, [groupingMode, getActiveGroupLabel, sortEventGroupKeys]);
+
   const filteredEvents = useMemo(() => {
-    const scopedEvents = categoryFilter ? visibleEvents.filter((event) => getEventGroupKey(event) === categoryFilter) : visibleEvents;
+    const scopedEvents = categoryFilter ? visibleEvents.filter((event) => getActiveGroupKey(event) === categoryFilter) : visibleEvents;
     if (statusFilter === "all") return scopedEvents;
     if (statusFilter === "draft") {
       return scopedEvents.filter((event) => {
@@ -472,20 +623,20 @@ function AdminCanonicalEventsPanel() {
       });
     }
     return scopedEvents.filter((event) => getEffectiveStatus(event) === statusFilter);
-  }, [visibleEvents, categoryFilter, statusFilter, getEffectiveStatus, getEventGroupKey]);
+  }, [visibleEvents, categoryFilter, statusFilter, getEffectiveStatus, getActiveGroupKey]);
 
   const allGroupKeys = useMemo(() => {
     const groups = new Set<string>();
-    visibleEvents.forEach((event) => groups.add(getEventGroupKey(event)));
-    return sortEventGroupKeys(Array.from(groups));
-  }, [visibleEvents, getEventGroupKey, sortEventGroupKeys]);
+    visibleEvents.forEach((event) => groups.add(getActiveGroupKey(event)));
+    return sortActiveGroupKeys(Array.from(groups));
+  }, [visibleEvents, getActiveGroupKey, sortActiveGroupKeys]);
 
   const groupedEvents = useMemo(() => (
     allGroupKeys.map((category) => ({
       category,
-      label: getEventGroupLabel(category),
+      label: getActiveGroupLabel(category),
       items: filteredEvents
-        .filter((event) => getEventGroupKey(event) === category)
+        .filter((event) => getActiveGroupKey(event) === category)
         .sort((a, b) => {
           const statusDiff = statusOrder[getEffectiveStatus(a)] - statusOrder[getEffectiveStatus(b)];
           if (statusDiff !== 0) return statusDiff;
@@ -496,7 +647,7 @@ function AdminCanonicalEventsPanel() {
           return a.title.localeCompare(b.title, "pl");
         }),
     }))
-  ), [allGroupKeys, filteredEvents, getEffectiveStatus, getEventGroupKey, getEventGroupLabel]);
+  ), [allGroupKeys, filteredEvents, getEffectiveStatus, getActiveGroupKey, getActiveGroupLabel]);
   const displayedGroups = useMemo(
     () => groupedEvents.filter(({ category }) => !categoryFilter || category === categoryFilter),
     [groupedEvents, categoryFilter]
@@ -507,7 +658,7 @@ function AdminCanonicalEventsPanel() {
   const outdatedCount = useMemo(() => visibleEvents.filter((event) => getEffectiveStatus(event) === "outdated").length, [visibleEvents, getEffectiveStatus]);
   const categoryStats = useMemo(() => Object.fromEntries(
     allGroupKeys.map((category) => {
-      const categoryEvents = visibleEvents.filter((event) => getEventGroupKey(event) === category);
+      const categoryEvents = visibleEvents.filter((event) => getActiveGroupKey(event) === category);
       const published = categoryEvents.filter((event) => getEffectiveStatus(event) === "published").length;
       const draft = categoryEvents.filter((event) => {
         const effectiveStatus = getEffectiveStatus(event);
@@ -516,7 +667,7 @@ function AdminCanonicalEventsPanel() {
       const outdated = categoryEvents.filter((event) => getEffectiveStatus(event) === "outdated").length;
       return [category, { all: categoryEvents.length, published, draft, outdated }];
     })
-  ), [allGroupKeys, visibleEvents, getEffectiveStatus, getEventGroupKey]);
+  ), [allGroupKeys, visibleEvents, getEffectiveStatus, getActiveGroupKey]);
   const visibleCategoryKeys = useMemo(() => displayedGroups.map(({ category }) => category), [displayedGroups]);
   const hasExpandedCategories = useMemo(() => visibleCategoryKeys.some((category) => !collapsedCategories[category]), [visibleCategoryKeys, collapsedCategories]);
 
@@ -538,7 +689,7 @@ function AdminCanonicalEventsPanel() {
     const nextCollapsed = Object.fromEntries(
       allGroupKeys.map((category) => {
         const matchingItems = visibleEvents.filter((event) => {
-          if (getEventGroupKey(event) !== category) return false;
+          if (getActiveGroupKey(event) !== category) return false;
           if (nextFilter === "all") return true;
           if (nextFilter === "draft") {
             const effectiveStatus = getEffectiveStatus(event);
@@ -551,6 +702,11 @@ function AdminCanonicalEventsPanel() {
     );
     setCollapsedCategories(nextCollapsed);
   };
+
+  useEffect(() => {
+    setCategoryFilter(null);
+    setCollapsedCategories({});
+  }, [groupingMode]);
 
   const toggleCategoryStatusFilter = (category: string, filter: EventListFilter) => {
     if (categoryFilter === category && statusFilter === filter) {
@@ -574,6 +730,7 @@ function AdminCanonicalEventsPanel() {
     setEditing(event.id);
     setEditForm({
       title: event.title,
+      slug: event.slug,
       description_short: event.description_short,
       description_long: event.description_long,
       type_lvl_1_id: event.type_lvl_1_id ?? event.type_id ?? null,
@@ -656,6 +813,65 @@ function AdminCanonicalEventsPanel() {
     } else {
       alert(`Błąd: ${data.error || "Nie udało się utworzyć wydarzenia"}`);
     }
+  };
+
+  const duplicateEvent = async (event: Event) => {
+    const payload = {
+      content_type: "event",
+      title: event.title,
+      slug: slugify(`${event.title}-${event.date_start || Date.now()}-${Date.now()}`),
+      description_short: event.description_short || "Opis wydarzenia",
+      description_long: event.description_long || "",
+      image_url: event.image_url,
+      image_cover: event.image_cover,
+      image_thumb: event.image_thumb,
+      image_set: event.image_set,
+      type_lvl_1_id: event.type_lvl_1_id ?? event.type_id ?? null,
+      type_lvl_2_id: event.type_lvl_2_id ?? event.subtype_id ?? null,
+      category_lvl_1: event.category_lvl_1 ?? event.main_category ?? null,
+      category_lvl_2: event.category_lvl_2 ?? event.category ?? null,
+      category_lvl_3: event.category_lvl_3 ?? event.subcategory ?? null,
+      date_start: event.date_start,
+      date_end: event.date_end || null,
+      time_start: toHourMinute(event.time_start || "") || null,
+      time_end: toHourMinute(event.time_end || "") || null,
+      age_min: event.age_min,
+      age_max: event.age_max,
+      price_from: event.price_from,
+      price_to: event.price_to,
+      is_free: Boolean(event.is_free),
+      district: event.district,
+      street: event.street || "",
+      postcode: event.postcode || null,
+      city: event.city || "Kraków",
+      lat: event.lat,
+      lng: event.lng,
+      note: event.note || null,
+      organizer: event.organizer || null,
+      organizer_id: event.organizer_id || null,
+      source_url: event.source_url || null,
+      facebook_url: event.facebook_url || null,
+      is_featured: false,
+      status: "draft",
+      likes: 0,
+      dislikes: 0,
+    };
+
+    const res = await fetch("/api/admin/events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+
+    if (!res.ok || !data?.id) {
+      alert(`Błąd duplikowania: ${data?.error || "Nie udało się utworzyć kopii"}`);
+      return;
+    }
+
+    const duplicatedEvent = { ...data, content_type: "event" } as Event;
+    setEvents((prev) => [duplicatedEvent, ...prev]);
+    startEditing(duplicatedEvent);
   };
 
   const handleDelete = async (id: string) => {
@@ -754,9 +970,23 @@ function AdminCanonicalEventsPanel() {
 
     const priceFromValue = editForm.price_from === "" || editForm.price_from === null ? null : Number(editForm.price_from);
     const priceToValue = editForm.price_to === "" || editForm.price_to === null ? null : Number(editForm.price_to);
+    const slugValue = String(editForm.slug || "").trim();
+    const organizerName = editForm.organizer_id && !isUUID(String(editForm.organizer_id))
+      ? String(editForm.organizer_id)
+      : (editForm.organizer ? String(editForm.organizer) : null);
+    const organizerId = await ensureOrganizerId({
+      organizers,
+      organizerId: editForm.organizer_id && isUUID(String(editForm.organizer_id)) ? String(editForm.organizer_id) : null,
+      organizerName,
+      city: editForm.city ? String(editForm.city) : "Kraków",
+      onOrganizerCreated: (organizer) => {
+        setOrganizers((current) => current.some((entry) => entry.id === organizer.id) ? current : [...current, organizer]);
+      },
+    });
+
     const updates: Record<string, unknown> = {
       title: String(editForm.title || ""),
-      slug: slugify(String(editForm.title || "")),
+      slug: slugValue || slugify(String(editForm.title || "")),
       description_short: String(editForm.description_short || ""),
       description_long: String(editForm.description_long || ""),
       type_lvl_1_id: editForm.type_lvl_1_id ? String(editForm.type_lvl_1_id) : null,
@@ -778,8 +1008,8 @@ function AdminCanonicalEventsPanel() {
       lat: editForm.lat === "" || editForm.lat === null ? null : Number(editForm.lat),
       lng: editForm.lng === "" || editForm.lng === null ? null : Number(editForm.lng),
       note: editForm.note ? String(editForm.note) : null,
-      organizer: editForm.organizer_id && !isUUID(String(editForm.organizer_id)) ? String(editForm.organizer_id) : (editForm.organizer ? String(editForm.organizer) : null),
-      organizer_id: editForm.organizer_id && isUUID(String(editForm.organizer_id)) ? editForm.organizer_id : null,
+      organizer: organizerName,
+      organizer_id: organizerId,
       source_url: editForm.source_url ? String(editForm.source_url) : null,
       facebook_url: editForm.facebook_url ? String(editForm.facebook_url) : null,
       category_lvl_1: editForm.category_lvl_1 ? String(editForm.category_lvl_1) : null,
@@ -858,12 +1088,39 @@ function AdminCanonicalEventsPanel() {
       </div>
 
       <div className="flex items-center gap-3 mb-6">
+        <div className="inline-flex items-center rounded-lg border border-border bg-white p-0.5">
+          <button
+            type="button"
+            onClick={() => setGroupingMode("type")}
+            className={cn(
+              "rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
+              groupingMode === "type"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Po typie
+          </button>
+          <button
+            type="button"
+            onClick={() => setGroupingMode("organizer")}
+            className={cn(
+              "rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
+              groupingMode === "organizer"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Po organizatorze
+          </button>
+        </div>
+
         <button onClick={() => toggleStatusFilter("all")} className={cn("text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors", statusFilter === "all" ? "bg-sky-200 text-sky-800" : "bg-sky-100 text-sky-700 hover:bg-sky-200")}>{visibleEvents.length} wydarzeń</button>
         <button onClick={() => toggleStatusFilter("published")} className={cn("text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors", statusFilter === "published" ? "bg-emerald-200 text-emerald-800" : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200")}>{publishedCount} published</button>
         <button onClick={() => toggleStatusFilter("draft")} className={cn("text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors", draftCount > 0 ? (statusFilter === "draft" ? "bg-rose-200 text-rose-800" : "bg-rose-100 text-rose-700 hover:bg-rose-200") : (statusFilter === "draft" ? "bg-stone-300 text-stone-700" : "bg-stone-200 text-stone-500 hover:bg-stone-300"))}>{draftCount} draft</button>
         <button onClick={() => toggleStatusFilter("outdated")} className={cn("text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors", statusFilter === "outdated" ? "bg-amber-200 text-amber-800" : "bg-amber-100 text-amber-700 hover:bg-amber-200")}>{outdatedCount} outdated</button>
         <button onClick={toggleAllCategories} className="ml-auto text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors bg-white border border-border text-muted hover:text-foreground hover:border-[#CCC]">
-          {hasExpandedCategories ? "Zwiń wszystkie" : "Rozwiń wszystkie"}
+          {hasExpandedCategories ? "Zwiń wszystkie grupy" : "Rozwiń wszystkie grupy"}
         </button>
       </div>
 
@@ -881,7 +1138,7 @@ function AdminCanonicalEventsPanel() {
                 <div className="w-full flex items-center gap-2 mb-2 rounded-md px-1.5 py-1 hover:bg-accent/50 transition-colors">
                   <button type="button" onClick={() => toggleCategory(category)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
                     {expanded ? <ChevronDown size={14} className="text-muted-foreground" /> : <ChevronUp size={14} className="text-muted-foreground rotate-180" />}
-                    <span className="text-lg">{getEventGroupIcon(category)}</span>
+                    <span className="text-lg">{getActiveGroupIcon(category)}</span>
                     <h2 className="text-[13px] font-semibold text-foreground">{label}</h2>
                   </button>
                   <div className="flex flex-wrap items-center gap-1 text-[10px]">
@@ -938,6 +1195,10 @@ function AdminCanonicalEventsPanel() {
                               <Pencil size={13} />
                             </button>
 
+                            <button onClick={() => duplicateEvent(event)} className="p-1 rounded hover:bg-accent text-muted transition-colors" title="Duplikuj">
+                              <Copy size={13} />
+                            </button>
+
                             <button onClick={() => toggleFeatured(event)} className={cn("p-1 rounded transition-colors", event.is_featured ? "text-amber-500 hover:bg-amber-50" : "text-muted hover:bg-accent")} title="Wyróżnij">
                               <Star size={13} fill={event.is_featured ? "currentColor" : "none"} />
                             </button>
@@ -987,7 +1248,7 @@ function AdminCanonicalEventsPanel() {
                                       onChange={(organizerId) => {
                                         const organizer = organizers.find((item) => item.id === organizerId);
                                         updateField("organizer_id", organizerId);
-                                        updateField("organizer", organizer ? organizer.organizer_name : null);
+                                        updateField("organizer", organizer ? organizer.organizer_name : (organizerId || null));
                                       }}
                                       inputClassName={inputClass}
                                     />

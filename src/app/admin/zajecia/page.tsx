@@ -771,6 +771,19 @@ export default function AdminActivitiesPage() {
       clearPendingFile();
     }
 
+    const organizerName = editForm.organizer_id && !isUUID(String(editForm.organizer_id))
+      ? String(editForm.organizer_id)
+      : (editForm.organizer ? String(editForm.organizer) : null);
+    const organizerId = await ensureOrganizerId({
+      organizers,
+      organizerId: editForm.organizer_id && isUUID(String(editForm.organizer_id)) ? String(editForm.organizer_id) : null,
+      organizerName,
+      city: editForm.city ? String(editForm.city) : "Kraków",
+      onOrganizerCreated: (organizer) => {
+        setOrganizers((current) => current.some((entry) => entry.id === organizer.id) ? current : [...current, organizer]);
+      },
+    });
+
     const updates = {
       title: String(editForm.title || ""),
       description_short: String(editForm.description_short || ""),
@@ -786,7 +799,7 @@ export default function AdminActivitiesPage() {
       age_max: editForm.age_max === "" || editForm.age_max === null ? null : Number(editForm.age_max),
       price_from: Boolean(editForm.is_free) ? 0 : (editForm.price_from === "" || editForm.price_from === null ? null : Number(editForm.price_from)),
       price_to: Boolean(editForm.is_free) ? 0 : (editForm.price_to === "" || editForm.price_to === null ? null : Number(editForm.price_to)),
-      organizer_id: editForm.organizer_id || null,
+      organizer_id: organizerId,
       source_url: editForm.source_url ? String(editForm.source_url) : null,
       facebook_url: editForm.facebook_url ? String(editForm.facebook_url) : null,
       category_lvl_1: editForm.category_lvl_1 ? String(editForm.category_lvl_1) : null,
@@ -1049,7 +1062,7 @@ export default function AdminActivitiesPage() {
                                           setEditForm((current) => ({
                                             ...current,
                                             organizer_id: organizerId,
-                                            organizer: organizer ? organizer.organizer_name : "",
+                                            organizer: organizer ? organizer.organizer_name : (organizerId || ""),
                                           }));
                                         }}
                                         inputClassName={inputClass}

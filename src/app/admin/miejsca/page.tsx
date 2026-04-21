@@ -497,6 +497,18 @@ export default function AdminPlacesPage() {
     const categoryLevel1Name = resolveTaxonomyName(categoryLevel1Options, editForm.category_lvl_1);
     const categoryLevel2Name = resolveTaxonomyName(categoryLevel2Options, editForm.category_lvl_2);
     const categoryLevel3Name = resolveTaxonomyName(categoryLevel3Options, editForm.category_lvl_3);
+    const organizerName = editForm.organizer_id && !isUUID(String(editForm.organizer_id))
+      ? String(editForm.organizer_id)
+      : (editForm.organizer ? String(editForm.organizer) : null);
+    const organizerId = await ensureOrganizerId({
+      organizers,
+      organizerId: editForm.organizer_id && isUUID(String(editForm.organizer_id)) ? String(editForm.organizer_id) : null,
+      organizerName,
+      city: editForm.city ? String(editForm.city) : "Kraków",
+      onOrganizerCreated: (organizer) => {
+        setOrganizers((current) => current.some((entry) => entry.id === organizer.id) ? current : [...current, organizer]);
+      },
+    });
 
     const dbPayload: Record<string, unknown> = {
       title: editForm.title,
@@ -519,8 +531,8 @@ export default function AdminPlacesPage() {
       note: editForm.note ? String(editForm.note) : null,
       source_url: editForm.source_url || null,
       facebook_url: editForm.facebook_url ? String(editForm.facebook_url) : null,
-      organizer_id: editForm.organizer_id && isUUID(String(editForm.organizer_id)) ? editForm.organizer_id : null,
-      organizer: editForm.organizer_id && !isUUID(String(editForm.organizer_id)) ? String(editForm.organizer_id) : (editForm.organizer || null),
+      organizer_id: organizerId,
+      organizer: organizerName,
       is_featured: Boolean(editForm.is_featured),
       likes: Number(editForm.likes) || 0,
       dislikes: Number(editForm.dislikes) || 0,
@@ -835,7 +847,11 @@ export default function AdminPlacesPage() {
                           <OrganizerCombobox
                             organizers={organizers}
                             value={(editForm.organizer_id as string) || null}
-                            onChange={(organizerId) => updateField("organizer_id", organizerId)}
+                            onChange={(organizerId) => {
+                              const organizer = organizers.find((item) => item.id === organizerId);
+                              updateField("organizer_id", organizerId);
+                              updateField("organizer", organizer ? organizer.organizer_name : (organizerId || null));
+                            }}
                             inputClassName={inputClass}
                           />
                         </div>

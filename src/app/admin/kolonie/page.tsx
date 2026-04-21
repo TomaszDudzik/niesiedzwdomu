@@ -729,6 +729,19 @@ export default function AdminCampsPage() {
 
     const dateStart = String(editForm.date_start || "");
     const dateEnd   = String(editForm.date_end || "");
+    const organizerName = editForm.organizer_id && !isUUID(String(editForm.organizer_id))
+      ? String(editForm.organizer_id)
+      : (editForm.organizer ? String(editForm.organizer) : null);
+    const organizerId = await ensureOrganizerId({
+      organizers,
+      organizerId: editForm.organizer_id && isUUID(String(editForm.organizer_id)) ? String(editForm.organizer_id) : null,
+      organizerName,
+      city: editForm.city ? String(editForm.city) : "Kraków",
+      onOrganizerCreated: (organizer) => {
+        setOrganizers((current) => current.some((entry) => entry.id === organizer.id) ? current : [...current, organizer]);
+      },
+    });
+
     const updates: Record<string, unknown> = {
       title:              String(editForm.title || ""),
       description_short:  String(editForm.description_short || ""),
@@ -746,7 +759,7 @@ export default function AdminCampsPage() {
       age_max:            editForm.age_max == null || editForm.age_max === "" ? null : Number(editForm.age_max),
       price_from:         Boolean(editForm.is_free) ? 0 : (editForm.price_from == null || editForm.price_from === "" ? null : Number(editForm.price_from)),
       price_to:           Boolean(editForm.is_free) ? 0 : (editForm.price_to == null || editForm.price_to === "" ? null : Number(editForm.price_to)),
-      organizer_id:       editForm.organizer_id && isUUID(String(editForm.organizer_id)) ? editForm.organizer_id : null,
+      organizer_id:       organizerId,
       source_url:         editForm.source_url ? String(editForm.source_url) : null,
       facebook_url:       editForm.facebook_url ? String(editForm.facebook_url) : null,
       street:             String(editForm.street || "").trim(),
@@ -1056,7 +1069,7 @@ export default function AdminCampsPage() {
                                         onChange={(organizerId) => {
                                           const organizer = organizers.find((item) => item.id === organizerId);
                                           updateField("organizer_id", organizerId);
-                                          updateField("organizer", organizer ? organizer.organizer_name : "");
+                                          updateField("organizer", organizer ? organizer.organizer_name : (organizerId || ""));
                                         }}
                                         inputClassName={inputClass}
                                       />

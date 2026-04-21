@@ -27,6 +27,13 @@ export function OrganizerCombobox({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
 
+  const findOrganizerByText = (text: string) => {
+    const normalizedText = text.trim().toLowerCase();
+    if (!normalizedText) return null;
+
+    return organizers.find((organizer) => organizer.organizer_name.trim().toLowerCase() === normalizedText) ?? null;
+  };
+
   const selectedOrganizer = useMemo(
     () => organizers.find((organizer) => organizer.id === value) ?? null,
     [organizers, value]
@@ -71,11 +78,26 @@ export function OrganizerCombobox({
 
   useEffect(() => {
     if (!open) {
-      setQuery(selectedOrganizer?.organizer_name ?? "");
+      setQuery(selectedOrganizer?.organizer_name ?? (typeof value === "string" ? value : ""));
     } else {
       queueMicrotask(() => inputRef.current?.focus());
     }
-  }, [open, selectedOrganizer]);
+  }, [open, selectedOrganizer, value]);
+
+  const commitCustomValue = () => {
+    const trimmedQuery = query.trim();
+    if (!trimmedQuery) {
+      onChange(null);
+      setQuery("");
+      setOpen(false);
+      return;
+    }
+
+    const matchedOrganizer = findOrganizerByText(trimmedQuery);
+    onChange(matchedOrganizer?.id ?? trimmedQuery);
+    setQuery(matchedOrganizer?.organizer_name ?? trimmedQuery);
+    setOpen(false);
+  };
 
   const displayValue = selectedOrganizer?.organizer_name || query;
 
@@ -91,6 +113,12 @@ export function OrganizerCombobox({
             if (!open) setOpen(true);
           }}
           onFocus={() => setOpen(true)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              commitCustomValue();
+            }
+          }}
           placeholder={placeholder}
           className={cn(inputClassName, "flex-1")}
         />
@@ -127,10 +155,7 @@ export function OrganizerCombobox({
                 <div className="mb-2">Brak wyników w bazie</div>
                 <button
                   type="button"
-                  onClick={() => {
-                    onChange(query);
-                    setOpen(false);
-                  }}
+                  onClick={commitCustomValue}
                   className="w-full rounded bg-blue-50 px-2 py-1.5 text-left text-[11px] font-medium text-blue-700 hover:bg-blue-100 transition-colors"
                 >
                   Użyj: "{query}"

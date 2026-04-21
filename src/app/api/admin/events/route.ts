@@ -215,6 +215,45 @@ function getMissingSchemaColumn(message: string | undefined) {
   return null;
 }
 
+function slugifySegment(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
+
+function isSlugUniqueViolation(error: { message?: string; code?: string } | null) {
+  if (!error) return false;
+
+  const message = error.message ?? "";
+  if (error.code === "23505" && message.toLowerCase().includes("slug")) {
+    return true;
+  }
+
+  return /duplicate key value .*slug/i.test(message);
+}
+
+function buildUniqueEventSlug(payload: Record<string, unknown>, attempt: number) {
+  const slugFromPayload = typeof payload.slug === "string" ? slugifySegment(payload.slug.trim()) : "";
+  const title = typeof payload.title === "string" ? payload.title.trim() : "";
+  const baseSlug = slugFromPayload || slugifySegment(title) || "wydarzenie";
+
+  const dateToken = typeof payload.date_start === "string"
+    ? payload.date_start.replace(/[^0-9]/g, "")
+    : "";
+  const timeToken = typeof payload.time_start === "string"
+    ? payload.time_start.replace(/[^0-9]/g, "")
+    : "";
+
+  const semanticSuffix = [dateToken, timeToken].filter(Boolean).join("-");
+  const uniqueTail = `${Date.now().toString(36)}-${attempt + 1}`;
+  const suffix = semanticSuffix ? `${semanticSuffix}-${uniqueTail}` : uniqueTail;
+
+  return `${baseSlug}-${suffix}`;
+}
+
 async function insertEventWithFallback(db: ReturnType<typeof getDb>, payload: Record<string, unknown>) {
   let currentPayload = { ...payload };
   let attemptedLegacyMapping = false;
@@ -222,6 +261,11 @@ async function insertEventWithFallback(db: ReturnType<typeof getDb>, payload: Re
   for (let attempt = 0; attempt < 8; attempt += 1) {
     const result = await db.from("events").insert(currentPayload).select().single();
     if (!result.error) return result;
+
+    if (isSlugUniqueViolation(result.error)) {
+      currentPayload.slug = buildUniqueEventSlug(currentPayload, attempt);
+      continue;
+    }
 
     const missingColumn = getMissingSchemaColumn(result.error.message);
     if (missingColumn && ["category_lvl_1", "category_lvl_2", "category_lvl_3"].includes(missingColumn)) {
@@ -252,6 +296,11 @@ async function updateEventWithFallback(db: ReturnType<typeof getDb>, id: unknown
   for (let attempt = 0; attempt < 8; attempt += 1) {
     const result = await db.from("events").update(currentUpdates).eq("id", id).select();
     if (!result.error) return result;
+
+    if (isSlugUniqueViolation(result.error)) {
+      currentUpdates.slug = buildUniqueEventSlug(currentUpdates, attempt);
+      continue;
+    }
 
     const missingColumn = getMissingSchemaColumn(result.error.message);
     if (missingColumn && ["category_lvl_1", "category_lvl_2", "category_lvl_3"].includes(missingColumn)) {
