@@ -15,7 +15,7 @@ const FOOTER_SECTIONS = [
     title: "Przewodniki",
     links: [
       { href: "/co-robic-z-dzieckiem-w-krakowie", label: "Odkryj Kraków z dzieckiem" },
-      { href: "/wydarzenia-dla-dzieci-krakow", label: "Wydarzenia dla dzieci Kraków" },
+      { href: "/wydarzenia-dla-dzieci-krakow", label: "Wydarzenia dla dzieci" },
       { href: "/polkolonie-krakow", label: "Półkolonie Kraków" },
       { href: "/place-zabaw-krakow", label: "Place zabaw Kraków" },
     ],
@@ -32,23 +32,35 @@ const FOOTER_SECTIONS = [
 
 export function Footer() {
   return (
-    <footer className="border-t border-border mt-24 bg-accent/50">
-      <div className="container-page py-10">
+    <footer className="mt-16" style={{ background: "oklch(14% 0.018 75)" }}>
+      <div className="container-page py-12">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
           <div className="col-span-2 md:col-span-1">
-            <Logo size="sm" />
-            <p className="text-[13px] text-muted mt-2 leading-relaxed max-w-[220px]">
+            <Logo size="sm" variant="light" />
+            <p
+              className="text-[13px] mt-3 leading-relaxed max-w-[220px]"
+              style={{ color: "oklch(58% 0.012 75)" }}
+            >
               Platforma dla rodziców w Krakowie. Wydarzenia, kolonie i miejsca — wszystko w jednym miejscu.
             </p>
           </div>
 
           {FOOTER_SECTIONS.map((section) => (
             <div key={section.title}>
-              <h3 className="text-[12px] font-semibold text-foreground uppercase tracking-wide mb-3">{section.title}</h3>
-              <ul className="flex flex-col gap-2">
+              <h3
+                className="text-[10px] font-bold uppercase tracking-widest mb-4"
+                style={{ color: "oklch(50% 0.012 75)" }}
+              >
+                {section.title}
+              </h3>
+              <ul className="flex flex-col gap-2.5">
                 {section.links.map((link) => (
                   <li key={link.label}>
-                    <Link href={link.href} className="inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-primary transition-colors duration-200">
+                    <Link
+                      href={link.href}
+                      className="text-[13px] transition-colors duration-200 hover:text-white"
+                      style={{ color: "oklch(68% 0.012 75)" }}
+                    >
                       {link.label}
                     </Link>
                   </li>
@@ -58,13 +70,28 @@ export function Footer() {
           ))}
         </div>
 
-        <div className="mt-10 pt-6 border-t border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <p className="text-[12px] text-muted-foreground">
+        <div
+          className="mt-10 pt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"
+          style={{ borderTop: "1px solid oklch(24% 0.015 75)" }}
+        >
+          <p className="text-[12px]" style={{ color: "oklch(42% 0.012 75)" }}>
             © {new Date().getFullYear()} niesiedzwdomu. Wszystkie prawa zastrzeżone.
           </p>
-          <div className="flex items-center gap-4 text-[12px] text-muted-foreground">
-            <Link href="/regulamin" className="hover:text-primary transition-colors duration-200">Regulamin</Link>
-            <Link href="/prywatnosc" className="hover:text-primary transition-colors duration-200">Prywatność</Link>
+          <div className="flex items-center gap-4 text-[12px]">
+            <Link
+              href="/regulamin"
+              className="transition-colors duration-200 hover:text-white"
+              style={{ color: "oklch(42% 0.012 75)" }}
+            >
+              Regulamin
+            </Link>
+            <Link
+              href="/prywatnosc"
+              className="transition-colors duration-200 hover:text-white"
+              style={{ color: "oklch(42% 0.012 75)" }}
+            >
+              Prywatność
+            </Link>
           </div>
         </div>
       </div>

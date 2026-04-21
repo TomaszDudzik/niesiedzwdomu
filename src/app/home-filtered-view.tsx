@@ -180,14 +180,6 @@ function matchesAgeFilter(ageMin: number | null, ageMax: number | null, ageGroup
   return (ageMin === null || ageMin <= ageGroup.max) && (ageMax === null || ageMax >= ageGroup.min);
 }
 
-function shuffleArray<T>(items: T[]): T[] {
-  const result = [...items];
-  for (let index = result.length - 1; index > 0; index -= 1) {
-    const randomIndex = Math.floor(Math.random() * (index + 1));
-    [result[index], result[randomIndex]] = [result[randomIndex], result[index]];
-  }
-  return result;
-}
 
 export function HomeFilteredView({ events, places, camps, activities }: HomeFilteredViewProps) {
   const { typeLevel2Options: taxonomyTypeLevel2Options } = useAdminTaxonomy();
@@ -543,15 +535,12 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
     return Array.from(map.values());
   }, [filteredCamps]);
 
-  const randomizedPlaces = useMemo(() => shuffleArray(places), [places]);
-  const randomizedEvents = useMemo(() => shuffleArray(events), [events]);
-  const randomizedOrganizers = useMemo(() => shuffleArray(organizers), [organizers]);
-  const randomizedActivities = useMemo(() => shuffleArray(activities), [activities]);
-
-  const visiblePlaces = hasActiveFilters ? filteredPlaces : randomizedPlaces.slice(0, 8);
-  const visibleEvents = hasActiveFilters ? filteredEvents : randomizedEvents.slice(0, 8);
-  const visibleOrganizers = hasActiveFilters ? organizers : randomizedOrganizers.slice(0, 8);
-  const visibleActivities = hasActiveFilters ? filteredActivities : randomizedActivities.slice(0, 8);
+  // Data from data.ts is already shuffled server-side — no client-side shuffle to
+  // avoid server/client Math.random() mismatch that causes hydration errors.
+  const visiblePlaces = hasActiveFilters ? filteredPlaces : places.slice(0, 8);
+  const visibleEvents = hasActiveFilters ? filteredEvents : events.slice(0, 8);
+  const visibleOrganizers = hasActiveFilters ? organizers : organizers.slice(0, 8);
+  const visibleActivities = hasActiveFilters ? filteredActivities : activities.slice(0, 8);
 
   const showPlaces = places.length > 0 && visiblePlaces.length > 0;
   const showEvents = events.length > 0 && visibleEvents.length > 0;
@@ -560,24 +549,158 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
   const showEmpty = hasActiveFilters && !showPlaces && !showEvents && !showCamps && !showActivities;
 
   return (
-    <div className="container-page pt-5 pb-10">
-      {/* Mobile top bar */}
-      <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 flex items-center gap-2">
-        <button
-          onClick={() => setFiltersOpen(!filtersOpen)}
-          className={cn("inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-[12px] font-semibold border-2 transition-all duration-200",
-            filtersOpen || hasActiveFilters ? "bg-primary text-primary-foreground border-primary" : "bg-primary/5 text-foreground border-primary/20 hover:bg-primary/10")}
-        >
-          <SlidersHorizontal size={13} />
-          Filtry
-          {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-primary-foreground" />}
-        </button>
-        <div className="relative flex-1">
-          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
-          <input type="text" placeholder="Szukaj miejsc, wydarzeń, kolonii..." value={search} onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-border bg-background text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-200" />
+    <div>
+      {/* ——— Hero ——— */}
+      <section className="relative overflow-hidden">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -bottom-40 left-0 h-[520px] w-[520px] -translate-x-1/3 rounded-full bg-[#FFD0C0] opacity-45 blur-[120px]" />
+          <div className="absolute -top-40 right-0 h-[520px] w-[520px] translate-x-1/3 rounded-full bg-[#B8E8DF] opacity-45 blur-[120px]" />
         </div>
-      </div>
+
+        <div className="container-page relative pb-12 pt-14 text-center">
+          {/* Location pill */}
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3.5 py-1 text-[12px] font-medium text-primary">
+            <MapPin size={11} />
+            Kraków · dla rodzin z dziećmi
+          </span>
+
+          {/* Headline */}
+          <h1 className="mt-5 font-heading font-black leading-[1.05] tracking-[-0.04em] text-foreground"
+              style={{ fontSize: "clamp(40px, 6vw, 72px)" }}>
+            Odkryj Kraków
+            <br />
+            <span className="text-gradient-hero">razem z dziećmi</span>
+          </h1>
+
+          {/* Tagline */}
+          <p className="mx-auto mt-5 max-w-md text-[15px] leading-relaxed text-muted">
+            Sprawdzone miejsca, wydarzenia i zajęcia — wszystko w jednym miejscu.
+          </p>
+
+          {/* Search bar */}
+          <div className="relative mx-auto mt-8 max-w-xl rounded-2xl shadow-[var(--shadow-card-hover)]">
+            <Search size={15} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/40" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Szukaj miejsc, wydarzeń, aktywności..."
+              className="w-full rounded-2xl border border-border bg-card py-3.5 pl-11 pr-28 text-[14px] text-foreground placeholder:text-muted-foreground transition-all focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+            <button
+              type="button"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-xl bg-primary px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-primary-hover"
+            >
+              Szukaj
+            </button>
+          </div>
+
+          {/* Age chips */}
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+            <span className="text-[12px] font-medium text-muted-foreground">Wiek:</span>
+            {AGE_GROUPS.map((group) => (
+              <button
+                key={group.key}
+                type="button"
+                onClick={() => setActiveAgeGroup(activeAgeGroup === group.key ? null : group.key)}
+                className={cn(
+                  "rounded-full border px-3 py-1 text-[12px] font-medium transition-all",
+                  activeAgeGroup === group.key
+                    ? "border-primary bg-primary text-white"
+                    : "border-border bg-card text-foreground hover:border-primary/40 hover:shadow-sm"
+                )}
+              >
+                {group.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Stats — floating cards */}
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
+            {[
+              { icon: "📍", value: `${places.length}+`, label: "Miejsc",        color: "var(--color-primary)" },
+              { icon: "🎉", value: `${events.length}+`, label: "Wydarzeń",      color: "var(--color-secondary)" },
+              { icon: "🏙️", value: "15",                label: "Dzielnic",      color: "var(--color-purple)" },
+              { icon: "👶", value: "5",                 label: "Grup wiekowych", color: "var(--color-pink)" },
+            ].map((stat) => (
+              <div
+                key={stat.label}
+                className="flex items-center gap-3 rounded-2xl border-2 border-border bg-card px-6 py-4 shadow-[var(--shadow-soft)] hover:-translate-y-1 transition-transform duration-200"
+              >
+                <span className="text-[24px]">{stat.icon}</span>
+                <div className="text-left">
+                  <p className="font-heading font-black text-[24px] leading-none" style={{ color: stat.color }}>{stat.value}</p>
+                  <p className="mt-0.5 text-[11px] font-semibold text-muted-foreground">{stat.label}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ——— Category strip ——— */}
+      {categoryOptions.length > 0 && (
+        <section className="border-b border-border bg-card/60">
+          <div className="container-page py-8">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-[20px] font-bold text-foreground">Kategorie</h2>
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="group inline-flex items-center gap-1 text-[13px] font-medium text-primary hover:text-primary-hover transition-colors"
+              >
+                Wszystkie
+                <ArrowRight size={13} className="group-hover:translate-x-0.5 transition-transform duration-200" />
+              </button>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none snap-x snap-mandatory">
+              {categoryOptions.map((option) => {
+                const selected = activeCategories.includes(option.value);
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => toggleCategory(option.value)}
+                    className={cn(
+                      "group flex shrink-0 snap-start flex-col items-center gap-2 rounded-2xl border px-5 py-4 w-[140px] transition-all duration-200 text-left",
+                      selected
+                        ? "border-primary/40 bg-primary/10 shadow-[var(--shadow-soft)]"
+                        : "border-border bg-card hover:border-primary/30 hover:shadow-[var(--shadow-soft)]"
+                    )}
+                  >
+                    <span className="text-[30px] leading-none">{option.icon}</span>
+                    <div className="w-full">
+                      <p className={cn(
+                        "text-[13px] font-semibold leading-tight",
+                        selected ? "text-primary" : "text-foreground group-hover:text-primary transition-colors"
+                      )}>
+                        {option.label}
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">
+                        {option.count} {option.count === 1 ? "wynik" : "wyników"}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
+      <div className="container-page pt-5 pb-10">
+        {/* Mobile filter bar */}
+        <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 flex items-center gap-2">
+          <button
+            onClick={() => setFiltersOpen(!filtersOpen)}
+            className={cn("inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-[12px] font-semibold border-2 transition-all duration-200",
+              filtersOpen || hasActiveFilters ? "bg-primary text-primary-foreground border-primary" : "bg-primary/5 text-foreground border-primary/20 hover:bg-primary/10")}
+          >
+            <SlidersHorizontal size={13} />
+            Filtry
+            {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-primary-foreground" />}
+          </button>
+        </div>
 
       {/* Mobile filters dropdown */}
       {filtersOpen && (
@@ -847,25 +970,30 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
           {/* Places section */}
           {showPlaces && (
             <section>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-[15px] font-semibold text-foreground">
-                  Ciekawe miejsca
-                  {hasActiveFilters && <span className="ml-2 text-[12px] font-normal text-muted-foreground">({filteredPlaces.length})</span>}
-                </h2>
-                <SectionLink href="/miejsca">Wszystkie</SectionLink>
+              <div className="flex items-center justify-between mb-1">
+                <div>
+                  <h2 className="font-heading font-black text-[22px] leading-tight text-foreground">
+                    Ciekawe miejsca
+                    {hasActiveFilters && <span className="ml-2 text-[14px] font-normal text-muted-foreground">({filteredPlaces.length})</span>}
+                  </h2>
+                  {!hasActiveFilters && (
+                    <p className="text-[13px] text-muted-foreground mt-0.5">Sprawdzone adresy dla całej rodziny w Krakowie</p>
+                  )}
+                </div>
+                <SectionLink href="/miejsca">Wszystkie miejsca</SectionLink>
               </div>
-              <HomeSectionSubmissionCta
-                title="Masz miejsce warte polecenia?"
-                description="Dodaj je do mapy rodzinnych adresów i pomóż odkrywać kolejne sprawdzone miejscówki."
-                buttonLabel="Dodaj"
-                href="/dodaj?type=place"
-              />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {visiblePlaces.map((place, idx) => (
-                  <div key={place.id} className={!hasActiveFilters && idx >= 4 ? "hidden sm:block" : ""}>
-                    <ContentCard item={place} />
-                  </div>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+                {visiblePlaces.map((place) => (
+                  <ContentCard key={place.id} item={place} variant="vertical" />
                 ))}
+              </div>
+              <div className="mt-4">
+                <HomeSectionSubmissionCta
+                  title="Masz miejsce warte polecenia?"
+                  description="Dodaj je do mapy rodzinnych adresów i pomóż odkrywać kolejne sprawdzone miejscówki."
+                  buttonLabel="Dodaj"
+                  href="/dodaj?type=place"
+                />
               </div>
             </section>
           )}
@@ -873,25 +1001,32 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
           {/* Events section */}
           {showEvents && (
             <section>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-[15px] font-semibold text-foreground">
-                  Nadchodzące wydarzenia
-                  {hasActiveFilters && <span className="ml-2 text-[12px] font-normal text-muted-foreground">({filteredEvents.length})</span>}
-                </h2>
+              <div className="flex items-center justify-between mb-1">
+                <div>
+                  <h2 className="font-heading font-black text-[22px] leading-tight text-foreground">
+                    Nadchodzące wydarzenia
+                    {hasActiveFilters && <span className="ml-2 text-[14px] font-normal text-muted-foreground">({filteredEvents.length})</span>}
+                  </h2>
+                  {!hasActiveFilters && (
+                    <p className="text-[13px] text-muted-foreground mt-0.5">Co słychać w Krakowie dla rodzin z dziećmi</p>
+                  )}
+                </div>
                 <SectionLink href="/wydarzenia">Wszystkie</SectionLink>
               </div>
-              <HomeSectionSubmissionCta
-                title="Tworzysz wydarzenie dla dzieci?"
-                description="Dodaj je do kalendarza, żeby rodziny szybciej trafiły na wartościowe wydarzenia w mieście."
-                buttonLabel="Dodaj"
-                href="/dodaj?type=event"
-              />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                 {visibleEvents.map((event, idx) => (
                   <div key={event.id} className={!hasActiveFilters && idx >= 4 ? "hidden sm:block" : ""}>
                     <ContentCard item={event} />
                   </div>
                 ))}
+              </div>
+              <div className="mt-4">
+                <HomeSectionSubmissionCta
+                  title="Tworzysz wydarzenie dla dzieci?"
+                  description="Dodaj je do kalendarza, żeby rodziny szybciej trafiły na wartościowe wydarzenia w mieście."
+                  buttonLabel="Dodaj"
+                  href="/dodaj?type=event"
+                />
               </div>
             </section>
           )}
@@ -899,20 +1034,19 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
           {/* Camps section */}
           {showCamps && (
             <section>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-[15px] font-semibold text-foreground">
-                  Kolonie dla dzieci
-                  {hasActiveFilters && <span className="ml-2 text-[12px] font-normal text-muted-foreground">({organizers.length})</span>}
-                </h2>
+              <div className="flex items-center justify-between mb-1">
+                <div>
+                  <h2 className="font-heading font-black text-[22px] leading-tight text-foreground">
+                    Kolonie dla dzieci
+                    {hasActiveFilters && <span className="ml-2 text-[14px] font-normal text-muted-foreground">({organizers.length})</span>}
+                  </h2>
+                  {!hasActiveFilters && (
+                    <p className="text-[13px] text-muted-foreground mt-0.5">Sprawdzeni organizatorzy letnich wyjazdów</p>
+                  )}
+                </div>
                 <SectionLink href="/kolonie">Wszystkie</SectionLink>
               </div>
-              <HomeSectionSubmissionCta
-                title="Prowadzisz kolonie lub półkolonie?"
-                description="Pokaż swoją ofertę w miejscu, gdzie rodzice szukają sprawdzonych wyjazdów i turnusów."
-                buttonLabel="Dodaj"
-                href="/dodaj?type=camp"
-              />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                 {visibleOrganizers.map((organizer, idx) => (
                   <div key={organizer.key} className={!hasActiveFilters && idx >= 4 ? "hidden sm:block" : ""}>
                     <article className="rounded-xl border border-border bg-card shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5 transition-all duration-200 overflow-hidden">
@@ -969,36 +1103,52 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
                   </div>
                 ))}
               </div>
+              <div className="mt-4">
+                <HomeSectionSubmissionCta
+                  title="Prowadzisz kolonie lub półkolonie?"
+                  description="Pokaż swoją ofertę w miejscu, gdzie rodzice szukają sprawdzonych wyjazdów i turnusów."
+                  buttonLabel="Dodaj"
+                  href="/dodaj?type=camp"
+                />
+              </div>
             </section>
           )}
 
           {/* Activities section */}
           {showActivities && (
             <section>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-[15px] font-semibold text-foreground">
-                  Zajęcia pozaszkolne
-                  {hasActiveFilters && <span className="ml-2 text-[12px] font-normal text-muted-foreground">({filteredActivities.length})</span>}
-                </h2>
+              <div className="flex items-center justify-between mb-1">
+                <div>
+                  <h2 className="font-heading font-black text-[22px] leading-tight text-foreground">
+                    Zajęcia pozaszkolne
+                    {hasActiveFilters && <span className="ml-2 text-[14px] font-normal text-muted-foreground">({filteredActivities.length})</span>}
+                  </h2>
+                  {!hasActiveFilters && (
+                    <p className="text-[13px] text-muted-foreground mt-0.5">Regularne aktywności dla dzieci w Krakowie</p>
+                  )}
+                </div>
                 <SectionLink href="/zajecia">Wszystkie</SectionLink>
               </div>
-              <HomeSectionSubmissionCta
-                title="Prowadzisz zajęcia dla dzieci?"
-                description="Dodaj je do katalogu i daj rodzicom prosty sposób na znalezienie regularnych aktywności."
-                buttonLabel="Dodaj"
-                href="/dodaj?type=activity"
-              />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                 {visibleActivities.map((activity, idx) => (
                   <div key={activity.id} className={!hasActiveFilters && idx >= 4 ? "hidden sm:block" : ""}>
                     <ContentCard item={activity} />
                   </div>
                 ))}
               </div>
+              <div className="mt-4">
+                <HomeSectionSubmissionCta
+                  title="Prowadzisz zajęcia dla dzieci?"
+                  description="Dodaj je do katalogu i daj rodzicom prosty sposób na znalezienie regularnych aktywności."
+                  buttonLabel="Dodaj"
+                  href="/dodaj?type=activity"
+                />
+              </div>
             </section>
           )}
         </div>
       </div>
     </div>
+  </div>
   );
 }

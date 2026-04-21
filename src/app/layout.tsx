@@ -1,12 +1,23 @@
 import type { Metadata } from "next";
-import "@fontsource/plus-jakarta-sans/400.css";
-import "@fontsource/plus-jakarta-sans/500.css";
-import "@fontsource/plus-jakarta-sans/600.css";
-import "@fontsource/plus-jakarta-sans/700.css";
+import { Nunito, Nunito_Sans } from "next/font/google";
 import "./globals.css";
 import { Footer } from "@/components/layout/footer";
 import { PageWrapper } from "@/components/layout/page-wrapper";
 import { Analytics } from "@vercel/analytics/react";
+
+const nunito = Nunito({
+  subsets: ["latin", "latin-ext"],
+  weight: ["400", "600", "700", "800", "900"],
+  variable: "--font-nunito",
+  display: "swap",
+});
+
+const nunitoSans = Nunito_Sans({
+  subsets: ["latin", "latin-ext"],
+  weight: ["400", "600", "700"],
+  variable: "--font-nunito-sans",
+  display: "swap",
+});
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.niesiedzwdomu.pl";
 
@@ -27,14 +38,7 @@ export const metadata: Metadata = {
     siteName: "NieSiedzWDomu",
     locale: "pl_PL",
     type: "website",
-    images: [
-      {
-        url: "/og-image.svg",
-        width: 1200,
-        height: 630,
-        alt: "NieSiedzWDomu - wydarzenia i miejsca dla rodzin",
-      },
-    ],
+    images: [{ url: "/og-image.svg", width: 1200, height: 630, alt: "NieSiedzWDomu" }],
   },
   twitter: {
     card: "summary_large_image",
@@ -45,25 +49,17 @@ export const metadata: Metadata = {
   robots: {
     index: true,
     follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-      "max-image-preview": "large",
-      "max-snippet": -1,
-      "max-video-preview": -1,
-    },
+    googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 },
   },
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pl">
+    <html lang="pl" className={`${nunito.variable} ${nunitoSans.variable}`}>
       <body suppressHydrationWarning className="min-h-screen flex flex-col">
-        <main className="flex-1"><PageWrapper>{children}</PageWrapper></main>
+        <main className="flex-1">
+          <PageWrapper>{children}</PageWrapper>
+        </main>
         <Footer />
         <Analytics />
       </body>

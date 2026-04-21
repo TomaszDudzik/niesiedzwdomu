@@ -21,7 +21,8 @@
       "Bash(python -c \"from backend.db import get_client; db = get_client\\(\\); r = db.table\\(''scrape_sources''\\).select\\(''id, name, extractor_type''\\).execute\\(\\); print\\(r.data\\)\")",
       "Bash(python -m backend.jobs.run_single_source \"45412445-6e8d-4fae-9b55-28d5b89ce04c\" --force)",
       "Bash(pip install:*)",
-      "Bash(python -c \":*)"
+      "Bash(python -c \":*)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000)"
     ]
   }
 }
