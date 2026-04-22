@@ -7,7 +7,7 @@ import { ContentCard } from "@/components/ui/content-card";
 import { FilterSection } from "@/components/ui/filter-section";
 import { SubmissionCta } from "@/components/ui/submission-cta";
 import { getSubcategoryIcon } from "@/lib/content-helpers";
-import { cn, toLocalDateKey } from "@/lib/utils";
+import { cn, normalizeSearchText, toLocalDateKey } from "@/lib/utils";
 import { getEventsForDate } from "@/lib/filter-events";
 import { getAgeGroupOptions, getTaxonomyOptions, matchesTaxonomyFilter, mergeSelectedTaxonomyOptions } from "@/lib/taxonomy-filters";
 import type { Event, District } from "@/types/database";
@@ -165,7 +165,7 @@ function getEventCategoryValue(event: Event): string | null {
 }
 
 export function EventsListView({ events }: EventsListViewProps) {
-  const today = getTodayStart();
+  const today = useMemo(() => getTodayStart(), []);
   const startYear = today.getFullYear();
   const startMonth = today.getMonth();
   const monthScrollerRef = useRef<HTMLDivElement | null>(null);
@@ -215,8 +215,8 @@ export function EventsListView({ events }: EventsListViewProps) {
       return true;
     }
 
-    const query = search.toLowerCase();
-    return [event.title, event.description_short, event.street, event.city, event.district].join(" ").toLowerCase().includes(query);
+    const query = normalizeSearchText(search);
+    return normalizeSearchText([event.title, event.description_short, event.street, event.city, event.district].join(" ")).includes(query);
   }
 
   function matchesAgeSelection(event: Event, selectedGroups = ageGroups) {

@@ -10,7 +10,7 @@ import { useAdminTaxonomy } from "@/lib/use-admin-taxonomy";
 import { CATEGORY_LABELS, CATEGORY_ICONS } from "@/lib/mock-data";
 import { normalizeDistrictName } from "@/lib/districts";
 import { getTaxonomyOptions, matchesTaxonomyFilter, mergeSelectedTaxonomyOptions } from "@/lib/taxonomy-filters";
-import { cn, formatDateShort, formatAgeRange, thumbUrl } from "@/lib/utils";
+import { cn, formatDateShort, formatAgeRange, normalizeSearchText, thumbUrl } from "@/lib/utils";
 import type { Event, Place, Camp, Activity, District } from "@/types/database";
 
 const DAYS_PL = ["Nd", "Pn", "Wt", "Śr", "Cz", "Pt", "So"];
@@ -390,9 +390,9 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
   const filteredEvents = useMemo(() => {
     let result = events;
     if (search) {
-      const q = search.toLowerCase();
+      const q = normalizeSearchText(search);
       result = result.filter((e) =>
-        [e.title, e.description_short, e.street, e.city, e.district].join(" ").toLowerCase().includes(q)
+        normalizeSearchText([e.title, e.description_short, e.street, e.city, e.district].join(" ")).includes(q)
       );
     }
     if (activeTypeLevel2.length > 0) {
@@ -414,9 +414,9 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
   const filteredPlaces = useMemo(() => {
     let result = places;
     if (search) {
-      const q = search.toLowerCase();
+      const q = normalizeSearchText(search);
       result = result.filter((p) =>
-        [p.title, p.description_short, p.street, p.city, p.district].join(" ").toLowerCase().includes(q)
+        normalizeSearchText([p.title, p.description_short, p.street, p.city, p.district].join(" ")).includes(q)
       );
     }
     if (activeTypeLevel2.length > 0) {
@@ -438,11 +438,10 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
   const filteredCamps = useMemo(() => {
     let result = camps;
     if (search) {
-      const q = search.toLowerCase();
+      const q = normalizeSearchText(search);
       result = result.filter((camp) =>
-        [camp.title, camp.description_short, camp.venue_name, camp.venue_address, camp.organizer]
-          .join(" ")
-          .toLowerCase()
+        normalizeSearchText([camp.title, camp.description_short, camp.venue_name, camp.venue_address, camp.organizer]
+          .join(" "))
           .includes(q)
       );
     }
@@ -465,11 +464,10 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
   const filteredActivities = useMemo(() => {
     let result = activities;
     if (search) {
-      const q = search.toLowerCase();
+      const q = normalizeSearchText(search);
       result = result.filter((activity) =>
-        [activity.title, activity.description_short, activity.venue_name, activity.venue_address, activity.organizer]
-          .join(" ")
-          .toLowerCase()
+        normalizeSearchText([activity.title, activity.description_short, activity.venue_name, activity.venue_address, activity.organizer]
+          .join(" "))
           .includes(q)
       );
     }

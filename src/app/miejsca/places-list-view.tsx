@@ -6,7 +6,7 @@ import { DISTRICT_LIST } from "@/lib/mock-data";
 import { ContentCard } from "@/components/ui/content-card";
 import { FilterSection } from "@/components/ui/filter-section";
 import { SubmissionCta } from "@/components/ui/submission-cta";
-import { cn } from "@/lib/utils";
+import { cn, normalizeSearchText } from "@/lib/utils";
 import { getAgeGroupOptions, getTaxonomyOptions, matchesTaxonomyFilter, mergeSelectedTaxonomyOptions } from "@/lib/taxonomy-filters";
 import type { Place, District } from "@/types/database";
 
@@ -81,8 +81,8 @@ export function PlacesListView({ places }: PlacesListViewProps) {
       return true;
     }
 
-    const query = search.toLowerCase();
-    return [place.title, place.description_short, place.street, place.city].join(" ").toLowerCase().includes(query);
+    const query = normalizeSearchText(search);
+    return normalizeSearchText([place.title, place.description_short, place.street, place.city].join(" ")).includes(query);
   }
 
   function matchesPlaceFilters(place: Place, excluded: Array<"type" | "district" | "age"> = []) {

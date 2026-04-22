@@ -92,6 +92,15 @@ export function slugify(text: string): string {
     .replace(/^-|-$/g, "");
 }
 
+export function normalizeSearchText(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/ł/g, "l")
+    .trim();
+}
+
 export function isWeekend(date: Date): boolean {
   const day = date.getDay();
   return day === 0 || day === 6;
