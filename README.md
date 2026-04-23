@@ -77,6 +77,9 @@ W przypadku dwoch migracji z prefiksem `002` uruchom je recznie jedna po drugiej
 NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
 SUPABASE_SERVICE_ROLE_KEY=YOUR_SUPABASE_SERVICE_ROLE_KEY
+ADMIN_BASIC_AUTH_USER=YOUR_ADMIN_LOGIN
+ADMIN_BASIC_AUTH_PASS=YOUR_STRONG_ADMIN_PASSWORD
+ADMIN_INTERNAL_API_TOKEN=RANDOM_LONG_INTERNAL_TOKEN
 OPENAI_API_KEY=YOUR_OPENAI_API_KEY
 NEXT_PUBLIC_SITE_URL=https://niesiedzwdomu.pl
 ```
@@ -95,6 +98,8 @@ OPENAI_MODEL_FALLBACK=gpt-4o
 Uwagi:
 - `SUPABASE_URL` (Python) i `NEXT_PUBLIC_SUPABASE_URL` (Next.js) wskazuja ten sam projekt Supabase.
 - Nigdy nie wystawiaj `SUPABASE_SERVICE_ROLE_KEY` do klienta przegladarki.
+- `ADMIN_BASIC_AUTH_USER` i `ADMIN_BASIC_AUTH_PASS` zabezpieczaja `/admin/*` i `/api/admin/*`.
+- `ADMIN_INTERNAL_API_TOKEN` sluzy tylko do wywolan serwer-serwer (np. `/api/submissions` -> `/api/admin/*`) i nie powinien byc publiczny.
 
 ## Uruchomienie lokalne
 

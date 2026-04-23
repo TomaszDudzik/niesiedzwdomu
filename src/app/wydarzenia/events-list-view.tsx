@@ -6,7 +6,8 @@ import { DISTRICT_LIST } from "@/lib/mock-data";
 import { ContentCard } from "@/components/ui/content-card";
 import { FilterSection } from "@/components/ui/filter-section";
 import { SubmissionCta } from "@/components/ui/submission-cta";
-import { cn, toLocalDateKey } from "@/lib/utils";
+import { getSubcategoryIcon } from "@/lib/content-helpers";
+import { cn, normalizeSearchText, toLocalDateKey } from "@/lib/utils";
 import { getEventsForDate } from "@/lib/filter-events";
 import { getAgeGroupOptions, getTaxonomyOptions, matchesTaxonomyFilter, mergeSelectedTaxonomyOptions } from "@/lib/taxonomy-filters";
 import type { Event, District } from "@/types/database";
@@ -60,6 +61,7 @@ interface MarkerGroup {
   coords: [number, number];
   events: Event[];
   label: string;
+  markerEmoji?: string;
 }
 
 interface DateRange {
@@ -136,7 +138,12 @@ function groupByLocation(events: Event[]): MarkerGroup[] {
       : (DISTRICT_COORDS[event.district] || KRAKOW_CENTER);
     const key = `${coords[0]},${coords[1]}`;
     if (!groups[key]) {
-      groups[key] = { coords, events: [], label: event.street || event.city || event.district };
+      groups[key] = {
+        coords,
+        events: [],
+        label: event.street || event.city || event.district,
+        markerEmoji: getSubcategoryIcon(event),
+      };
     }
     groups[key].events.push(event);
   }
@@ -158,7 +165,7 @@ function getEventCategoryValue(event: Event): string | null {
 }
 
 export function EventsListView({ events }: EventsListViewProps) {
-  const today = getTodayStart();
+  const today = useMemo(() => getTodayStart(), []);
   const startYear = today.getFullYear();
   const startMonth = today.getMonth();
   const monthScrollerRef = useRef<HTMLDivElement | null>(null);
@@ -208,8 +215,8 @@ export function EventsListView({ events }: EventsListViewProps) {
       return true;
     }
 
-    const query = search.toLowerCase();
-    return [event.title, event.description_short, event.street, event.city, event.district].join(" ").toLowerCase().includes(query);
+    const query = normalizeSearchText(search);
+    return normalizeSearchText([event.title, event.description_short, event.street, event.city, event.district].join(" ")).includes(query);
   }
 
   function matchesAgeSelection(event: Event, selectedGroups = ageGroups) {

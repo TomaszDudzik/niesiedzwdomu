@@ -506,10 +506,14 @@ export async function POST(request: NextRequest) {
       payload.organizer_id = organizerId;
     }
     const adminUrl = new URL(getAdminPath(contentType as SubmissionContentType), request.url);
+    const internalAdminToken = process.env.ADMIN_INTERNAL_API_TOKEN?.trim();
 
     const adminResponse = await fetch(adminUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(internalAdminToken ? { "x-internal-admin-token": internalAdminToken } : {}),
+      },
       body: JSON.stringify(payload),
       cache: "no-store",
     });

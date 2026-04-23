@@ -31,7 +31,7 @@ export default async function AddContentPage({ searchParams }: AddContentPagePro
     <section className="container-page py-8 md:py-10">
       <div className="mx-auto max-w-5xl space-y-8">
         <header className="max-w-3xl space-y-3">
-          <p className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-sky-800">
+          <p className="inline-flex rounded-full border border-primary/25 bg-[#FFF2ED] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
             Formularz zgłoszeniowy
           </p>
           <h1 className="text-[30px] font-semibold leading-tight tracking-[-0.03em] text-foreground md:text-[42px]">
