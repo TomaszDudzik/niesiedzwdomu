@@ -6,7 +6,7 @@ import { Search, SlidersHorizontal, X, MapPin, Check, Tags, Users, CalendarDays,
 import { DISTRICT_LIST } from "@/lib/mock-data";
 import { FilterSection } from "@/components/ui/filter-section";
 import { SubmissionCta } from "@/components/ui/submission-cta";
-import { cn, formatDateShort, normalizeSearchText, toLocalDateKey, thumbUrl } from "@/lib/utils";
+import { cn, formatDateShort, toLocalDateKey, thumbUrl } from "@/lib/utils";
 import { ImageWithFallback } from "@/components/ui/image-with-fallback";
 import { getAgeGroupOptions, getTaxonomyOptions, matchesTaxonomyFilter, mergeSelectedTaxonomyOptions } from "@/lib/taxonomy-filters";
 import type { Camp, District } from "@/types/database";
@@ -224,9 +224,10 @@ export function CampsListView({ camps }: CampsListViewProps) {
       return true;
     }
 
-    const query = normalizeSearchText(search);
-    return normalizeSearchText([camp.title, camp.description_short, camp.street, camp.postcode, camp.city, camp.note, camp.organizer]
-      .join(" "))
+    const query = search.toLowerCase();
+    return [camp.title, camp.description_short, camp.street, camp.postcode, camp.city, camp.note, camp.organizer]
+      .join(" ")
+      .toLowerCase()
       .includes(query);
   }
 

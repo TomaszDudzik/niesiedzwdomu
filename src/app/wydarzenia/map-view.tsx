@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { MapPin, Clock, ExternalLink } from "lucide-react";
 import Link from "next/link";
-import { getSubcategoryIcon } from "@/lib/content-helpers";
 import { cn, formatAgeRange, formatHourMinuteRange, formatPriceRange } from "@/lib/utils";
 import type { Event } from "@/types/database";
 
@@ -34,7 +33,6 @@ interface MarkerGroup {
   coords: [number, number];
   events: Event[];
   label: string;
-  markerEmoji?: string;
 }
 
 function groupByLocation(events: Event[]): MarkerGroup[] {
@@ -43,12 +41,7 @@ function groupByLocation(events: Event[]): MarkerGroup[] {
     const coords = getEventCoords(event);
     const key = `${coords[0]},${coords[1]}`;
     if (!groups[key]) {
-      groups[key] = {
-        coords,
-        events: [],
-        label: event.street || event.city || event.district,
-        markerEmoji: getSubcategoryIcon(event),
-      };
+      groups[key] = { coords, events: [], label: event.street || event.city || event.district };
     }
     groups[key].events.push(event);
   }

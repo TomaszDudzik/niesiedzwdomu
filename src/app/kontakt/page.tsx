@@ -46,7 +46,7 @@ export default function ContactPage() {
           </p>
           <a
             href="/dodaj"
-            className="inline-flex items-center rounded-full bg-primary px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-primary-hover"
+            className="inline-flex items-center rounded-full bg-sky-900 px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-sky-800"
           >
             Przejdz do formularza
           </a>

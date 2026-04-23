@@ -19,36 +19,11 @@ export interface MarkerGroup {
   coords: [number, number];
   events: { id: string; title: string; slug: string; street: string; city: string; image_url?: string | null }[];
   label: string;
-  markerEmoji?: string;
 }
 
 interface MapLeafletProps {
   groups: MarkerGroup[];
   basePath?: string;
-}
-
-const emojiIconCache = new Map<string, L.DivIcon>();
-
-function getMarkerIcon(markerEmoji?: string) {
-  if (!markerEmoji) {
-    return defaultIcon;
-  }
-
-  const cached = emojiIconCache.get(markerEmoji);
-  if (cached) {
-    return cached;
-  }
-
-  const icon = L.divIcon({
-    className: "custom-emoji-marker",
-    html: `<div style="width:34px;height:34px;border-radius:999px;background:#ffffff;border:2px solid #d8c7af;box-shadow:0 10px 22px rgba(88,63,28,0.22);display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1;">${markerEmoji}</div>`,
-    iconSize: [34, 34],
-    iconAnchor: [17, 17],
-    popupAnchor: [0, -16],
-  });
-
-  emojiIconCache.set(markerEmoji, icon);
-  return icon;
 }
 
 export function MapLeaflet({ groups, basePath = "/wydarzenia" }: MapLeafletProps) {
@@ -64,7 +39,7 @@ export function MapLeaflet({ groups, basePath = "/wydarzenia" }: MapLeafletProps
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       {groups.map((group) => (
-        <Marker key={`${group.coords[0]}-${group.coords[1]}`} position={group.coords} icon={getMarkerIcon(group.markerEmoji)}>
+        <Marker key={`${group.coords[0]}-${group.coords[1]}`} position={group.coords}>
           <Popup>
             <div className="min-w-[200px] max-w-[260px]">
               {/* Show image for the first item if available */}

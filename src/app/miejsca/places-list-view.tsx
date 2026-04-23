@@ -6,7 +6,7 @@ import { DISTRICT_LIST } from "@/lib/mock-data";
 import { ContentCard } from "@/components/ui/content-card";
 import { FilterSection } from "@/components/ui/filter-section";
 import { SubmissionCta } from "@/components/ui/submission-cta";
-import { cn, normalizeSearchText } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { getAgeGroupOptions, getTaxonomyOptions, matchesTaxonomyFilter, mergeSelectedTaxonomyOptions } from "@/lib/taxonomy-filters";
 import type { Place, District } from "@/types/database";
 
@@ -39,7 +39,6 @@ interface MarkerGroup {
   coords: [number, number];
   events: { id: string; title: string; slug: string; street: string; city: string; image_url?: string | null }[];
   label: string;
-  markerEmoji?: string;
 }
 
 interface PlacesListViewProps {
@@ -81,8 +80,8 @@ export function PlacesListView({ places }: PlacesListViewProps) {
       return true;
     }
 
-    const query = normalizeSearchText(search);
-    return normalizeSearchText([place.title, place.description_short, place.street, place.city].join(" ")).includes(query);
+    const query = search.toLowerCase();
+    return [place.title, place.description_short, place.street, place.city].join(" ").toLowerCase().includes(query);
   }
 
   function matchesPlaceFilters(place: Place, excluded: Array<"type" | "district" | "age"> = []) {
@@ -167,15 +166,8 @@ export function PlacesListView({ places }: PlacesListViewProps) {
     for (const place of filtered) {
       if (!place.lat || !place.lng) continue;
       const key = `${place.lat},${place.lng}`;
-      const typeValue = getPlaceTypeValue(place);
-      const typeOption = typeOptionsByValue.get(typeValue);
       if (!groups[key]) {
-        groups[key] = {
-          coords: [place.lat, place.lng],
-          events: [],
-          label: place.title,
-          markerEmoji: typeOption?.icon || "📍",
-        };
+        groups[key] = { coords: [place.lat, place.lng], events: [], label: place.title };
       }
       groups[key].events.push({
         id: place.id,
@@ -187,7 +179,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
       });
     }
     return Object.values(groups);
-  }, [filtered, typeOptionsByValue]);
+  }, [filtered]);
 
   const districtOptionsSource = useMemo(
     () => places.filter((place) => matchesPlaceFilters(place, ["district"])),
@@ -531,7 +523,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
                 <div className="rounded-xl border border-border bg-card px-4 py-3">
                   <h2 className="text-[15px] font-semibold text-foreground">Mapa miejsc w Krakowie</h2>
                   <p className="mt-1 text-[12px] leading-5 text-muted">
-                    Sprawdź, gdzie znajdują się sale zabaw, parki, muzea i inne rodzinne miejsca. Kliknij ikonę,
+                    Sprawdź, gdzie znajdują się sale zabaw, parki, muzea i inne rodzinne miejsca. Kliknij pinezkę,
                     aby zobaczyć szczegóły konkretnego adresu.
                   </p>
                 </div>
@@ -567,7 +559,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {group.places.map((place) => (
-                        <ContentCard key={place.id} item={place} largeImage />
+                        <ContentCard key={place.id} item={place} />
                       ))}
                     </div>
                   </section>
