@@ -42,7 +42,7 @@ export function FilterSection({
   }, [children]);
 
   return (
-    <div className={cn("rounded-lg border border-border/70 bg-background/40", className)}>
+    <div className={cn("rounded-lg border border-[#7FCBC6] bg-white", className)}>
       <button
         type="button"
         onClick={() => setCollapsed((current) => !current)}

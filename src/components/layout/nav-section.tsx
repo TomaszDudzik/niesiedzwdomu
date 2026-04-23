@@ -129,16 +129,64 @@ export function NavSection() {
     href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/");
   const { heading: pageHeading, subheading } = resolveRouteCopy(pathname);
 
+  const DECO = [
+    { e: "🎨", x: "3%",   y: "15%", r: "-12deg", s: "3rem" },
+    { e: "⛺", x: "8%",   y: "65%", r: "8deg",   s: "2.5rem" },
+    { e: "🏊", x: "13%",  y: "20%", r: "14deg",  s: "2.6rem" },
+    { e: "🎭", x: "18%",  y: "68%", r: "-8deg",  s: "2.4rem" },
+    { e: "🌳", x: "23%",  y: "12%", r: "6deg",   s: "2.8rem" },
+    { e: "🎒", x: "28%",  y: "62%", r: "-15deg", s: "2.6rem" },
+    { e: "🎪", x: "33%",  y: "18%", r: "10deg",  s: "2.7rem" },
+    { e: "🏋️", x: "38%",  y: "70%", r: "-6deg",  s: "2.4rem" },
+    { e: "🎸", x: "43%",  y: "14%", r: "16deg",  s: "2.5rem" },
+    { e: "🛝", x: "48%",  y: "64%", r: "-10deg", s: "2.8rem" },
+    { e: "🏄", x: "53%",  y: "18%", r: "8deg",   s: "2.6rem" },
+    { e: "🎯", x: "58%",  y: "68%", r: "-14deg", s: "2.4rem" },
+    { e: "🚴", x: "63%",  y: "16%", r: "11deg",  s: "2.7rem" },
+    { e: "🎻", x: "67%",  y: "65%", r: "-9deg",  s: "2.5rem" },
+    { e: "🏕️", x: "72%",  y: "20%", r: "13deg",  s: "2.6rem" },
+    { e: "🤸", x: "76%",  y: "62%", r: "-7deg",  s: "2.4rem" },
+    { e: "🎬", x: "81%",  y: "15%", r: "9deg",   s: "2.8rem" },
+    { e: "🌊", x: "85%",  y: "67%", r: "-13deg", s: "2.5rem" },
+    { e: "🧗", x: "89%",  y: "18%", r: "15deg",  s: "2.6rem" },
+    { e: "🎠", x: "93%",  y: "63%", r: "-8deg",  s: "2.7rem" },
+    { e: "🏇", x: "96%",  y: "20%", r: "6deg",   s: "2.4rem" },
+    { e: "🎡", x: "5%",   y: "40%", r: "-5deg",  s: "2.2rem" },
+    { e: "🧩", x: "21%",  y: "42%", r: "12deg",  s: "2.2rem" },
+    { e: "🪁", x: "46%",  y: "38%", r: "-11deg", s: "2.2rem" },
+  ];
+
   return (
-    <section className="container-page pt-4 pb-4 md:pt-5 md:pb-5 bg-white rounded-xl border border-border/20">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+    <section className="container-page relative overflow-hidden rounded-xl border border-[#b8d8d5] bg-[#D6EFEC] py-4 md:py-5">
+      {/* decorative emoji wallpaper */}
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        {DECO.map((d, i) => (
+          <span
+            key={i}
+            className="absolute select-none"
+            style={{
+              left: d.x,
+              top: d.y,
+              fontSize: d.s,
+              transform: `rotate(${d.r})`,
+              opacity: 0.22,
+              lineHeight: 1,
+            }}
+          >
+            {d.e}
+          </span>
+        ))}
+      </div>
+
+      {/* content */}
+      <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-3 px-5 sm:px-6 lg:px-10">
         <div className="flex items-start md:items-center gap-3">
           <Link
             href="/"
             className="inline-flex items-center rounded-lg transition-opacity duration-200 hover:opacity-85"
             title="Strona główna"
           >
-            <Logo size="sm" />
+            <Logo size="md" />
           </Link>
         </div>
         <div className="flex gap-1.5">
@@ -147,7 +195,7 @@ export function NavSection() {
             return disabled ? (
               <span
                 key={link.href}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium border border-border bg-card text-muted-foreground/40 cursor-default"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium border border-white/40 bg-white/30 text-foreground/30 cursor-default"
               >
                 <link.icon size={13} />
                 {link.label}
@@ -160,7 +208,7 @@ export function NavSection() {
                   "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-all duration-200",
                   isActive(link.href)
                     ? link.activeColor
-                    : ["border-border bg-card text-muted", link.hoverColor]
+                    : ["border-white/50 bg-white/55 text-foreground/70 backdrop-blur-sm", link.hoverColor]
                 )}
               >
                 <link.icon size={13} />

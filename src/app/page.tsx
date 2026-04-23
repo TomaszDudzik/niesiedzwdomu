@@ -67,9 +67,9 @@ export default async function HomePage() {
       <HomeFilteredView events={upcomingEvents} places={places} camps={camps} activities={activities} />
 
       <section className="container-page mt-12 mb-7">
-        <div className="overflow-hidden rounded-[22px] border border-[#ddd4c5] bg-[linear-gradient(180deg,#efe8dc_0%,#e8e0d4_100%)] px-4 py-5 shadow-[0_18px_48px_-42px_rgba(91,74,46,0.35)] sm:px-5 lg:px-6 lg:py-6">
+        <div className="overflow-hidden rounded-[22px] border border-[#9ECDB0] bg-[#D0EBD8] px-4 py-5 shadow-[0_18px_52px_-38px_rgba(26,92,53,0.12)] sm:px-5 lg:px-6 lg:py-6">
           <div className="mx-auto mb-4 max-w-lg text-center">
-            <h2 className="text-[20px] font-bold tracking-[-0.03em] text-[#2f2417] sm:text-[24px]">
+            <h2 className="text-[20px] font-bold tracking-[-0.03em] text-[#2D1B4E] sm:text-[24px]">
               Przewodniki po Krakowie
             </h2>
           </div>
@@ -84,14 +84,14 @@ export default async function HomePage() {
             <Link
               key={link.href}
               href={link.href}
-              className="group rounded-[18px] border border-[#d7cdbc] bg-[rgba(255,252,247,0.72)] px-3.5 py-3.5 shadow-[0_14px_28px_-28px_rgba(79,60,35,0.35)] transition-all duration-200 hover:-translate-y-1 hover:border-[#cabda8] hover:bg-[rgba(255,252,247,0.92)] hover:shadow-[0_18px_38px_-28px_rgba(79,60,35,0.42)]"
+              className="group rounded-[18px] border border-[#9ECDB0] bg-[#E6F5EC] px-3.5 py-3.5 shadow-[0_8px_20px_-16px_rgba(26,92,53,0.15)] transition-all duration-200 hover:-translate-y-1 hover:border-[#84BB9A] hover:bg-[#F0FAF3] hover:shadow-[0_14px_28px_-14px_rgba(26,92,53,0.18)]"
             >
               <div className="flex h-full flex-col">
                 <span className="text-[16px] leading-none">{link.icon}</span>
-                <span className="mt-3 text-[16px] font-semibold leading-[1.18] tracking-[-0.02em] text-[#2f2417]">
+                <span className="mt-3 text-[16px] font-semibold leading-[1.18] tracking-[-0.02em] text-[#2D1B4E]">
                   {link.label}
                 </span>
-                <p className="mt-2 text-[12px] leading-5 text-[#766957]">{link.description}</p>
+                <p className="mt-2 text-[12px] leading-5 text-[#6B5A88]">{link.description}</p>
                 <span className={`mt-4 inline-flex items-center gap-1 text-[12px] font-semibold transition-transform duration-200 group-hover:translate-x-0.5 ${link.accent}`}>
                   Czytaj
                   <ArrowRight size={12} />

@@ -329,7 +329,7 @@ const EMPTY_ACTIVITY_FORM: ActivityFormState = {
 
 const panelClass = "rounded-3xl border border-border bg-card p-4 shadow-[0_18px_45px_-38px_rgba(15,23,42,0.45)] md:p-5";
 const labelClass = "mb-1 block text-[12px] font-medium text-foreground";
-const inputClass = "w-full rounded-xl border border-border bg-background px-3 py-2 text-[14px] text-foreground outline-none transition-colors focus:border-sky-400 focus:ring-2 focus:ring-sky-100";
+const inputClass = "w-full rounded-xl border border-border bg-background px-3 py-2 text-[14px] text-foreground outline-none transition-colors focus:border-primary/50 focus:ring-2 focus:ring-primary/10";
 const textareaClass = `${inputClass} min-h-[96px] resize-y`;
 const sectionBodyClass = "mt-4";
 const twoColumnGridClass = "mt-4 grid gap-3 md:grid-cols-2";
@@ -713,7 +713,7 @@ function ContactFields({
                 const normalizedValue = rawValue.startsWith("+") ? rawValue : `+${rawValue.replace(/^\+/, "")}`;
                 setContact((prev) => ({ ...prev, submitter_phone_country_code: normalizedValue }));
               }}
-              className="w-full rounded-xl border border-border bg-background px-2 py-2 text-[14px] text-foreground outline-none transition-colors focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+              className="w-full rounded-xl border border-border bg-background px-2 py-2 text-[14px] text-foreground outline-none transition-colors focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
               placeholder="+48"
             />
           </label>
@@ -758,7 +758,7 @@ function FormNotice({ message, error }: { message: string | null; error?: boolea
   if (!error) {
     const sparkles = [
       { className: "left-5 top-5 bg-amber-300", delay: "0s" },
-      { className: "right-8 top-8 bg-sky-300", delay: "0.35s" },
+      { className: "right-8 top-8 bg-orange-200", delay: "0.35s" },
       { className: "left-16 bottom-7 bg-emerald-300", delay: "0.2s" },
       { className: "right-14 bottom-10 bg-rose-300", delay: "0.5s" },
       { className: "left-1/2 top-4 bg-white/80", delay: "0.15s" },
@@ -766,8 +766,8 @@ function FormNotice({ message, error }: { message: string | null; error?: boolea
     ];
 
     return (
-      <div className="relative overflow-hidden rounded-[28px] border border-emerald-200 bg-[linear-gradient(135deg,#0f4c6b_0%,#14718e_45%,#f3b550_100%)] px-5 py-5 text-white shadow-[0_24px_70px_-45px_rgba(15,23,42,0.7)]">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.22),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.14),transparent_30%)]" />
+      <div className="relative overflow-hidden rounded-[28px] border border-primary/25 bg-primary px-5 py-5 text-white shadow-[0_16px_48px_-28px_rgba(240,75,26,0.45)]">
+        <div className="pointer-events-none absolute inset-0 bg-white/5" />
         {sparkles.map((sparkle, index) => (
           <span
             key={index}
@@ -805,7 +805,7 @@ function SubmitButton({ loading }: { loading: boolean }) {
     <button
       type="submit"
       disabled={loading}
-      className="inline-flex items-center justify-center gap-2 rounded-full bg-sky-900 px-5 py-3 text-[14px] font-semibold text-white transition-colors hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-60"
+      className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-[14px] font-semibold text-white transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
     >
       {loading ? "Wysyłanie..." : "Wyślij do sprawdzenia"}
       <Send size={15} />
@@ -1153,8 +1153,8 @@ function PlaceSubmissionForm({ initialTaxonomy }: { initialTaxonomy: AdminTaxono
                 className={cn(
                   "rounded-xl border px-3 py-2 text-[13px] font-medium transition-colors",
                   form.is_indoor
-                    ? "border-sky-900 bg-sky-900 text-white"
-                    : "border-border bg-background text-foreground hover:border-sky-300"
+                    ? "border-primary bg-primary text-white"
+                    : "border-border bg-background text-foreground hover:border-primary/40"
                 )}
               >
                 Wewnątrz
@@ -1165,8 +1165,8 @@ function PlaceSubmissionForm({ initialTaxonomy }: { initialTaxonomy: AdminTaxono
                 className={cn(
                   "rounded-xl border px-3 py-2 text-[13px] font-medium transition-colors",
                   !form.is_indoor
-                    ? "border-sky-900 bg-sky-900 text-white"
-                    : "border-border bg-background text-foreground hover:border-sky-300"
+                    ? "border-primary bg-primary text-white"
+                    : "border-border bg-background text-foreground hover:border-primary/40"
                 )}
               >
                 Na zewnątrz
@@ -1550,12 +1550,12 @@ export function PublicSubmissionForms({
               className={cn(
                 "flex h-full items-start rounded-3xl border px-3.5 py-3.5 text-left transition-all duration-200",
                 selected
-                  ? "border-sky-300 bg-[linear-gradient(180deg,rgba(240,249,255,0.98),rgba(236,253,255,0.98))] shadow-[0_18px_42px_-32px_rgba(2,132,199,0.4)]"
-                  : "border-border bg-card hover:border-sky-200 hover:bg-sky-50/40",
+                  ? "border-[#C5BAE8] bg-[#EDE8F7] shadow-[0_8px_24px_-16px_rgba(74,50,114,0.12)]"
+                  : "border-border bg-card hover:border-[#C5BAE8] hover:bg-[#F5F2FC]",
               )}
             >
               <div className="flex w-full items-start gap-3">
-                <div className={cn("rounded-2xl p-2.5", selected ? "bg-sky-900 text-white" : "bg-slate-100 text-slate-700")}>
+                <div className={cn("rounded-2xl p-2.5", selected ? "bg-primary text-white" : "bg-slate-100 text-slate-700")}>
                   <Icon size={18} />
                 </div>
                 <div className="min-w-0">

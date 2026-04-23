@@ -1,37 +1,37 @@
 @import "tailwindcss";
 
 @theme {
-  /* Warm modern lifestyle palette */
-  --color-background: #FEFCF9;
-  --color-foreground: #2D2926;
-  --color-muted: #7A7572;
-  --color-muted-foreground: #A39E9A;
-  --color-border: #E8E4DF;
+  /* === VIVID CITY ENERGY palette === */
+  --color-background: #EFF9F8;
+  --color-foreground: #1C1917;
+  --color-muted: #6B6560;
+  --color-muted-foreground: #A8A29E;
+  --color-border: #EDE9E4;
   --color-card: #FFFFFF;
-  --color-card-foreground: #2D2926;
+  --color-card-foreground: #1C1917;
 
-  /* Terracotta primary — warm, friendly, not childish */
-  --color-primary: #D4623C;
+  /* Hot orange primary — vivid, energetic, modern */
+  --color-primary: #F04B1A;
   --color-primary-foreground: #FFFFFF;
-  --color-primary-hover: #C05535;
+  --color-primary-hover: #D83E10;
 
-  /* Sage teal secondary — calm, trustworthy */
-  --color-secondary: #3D8B7A;
+  /* Electric teal secondary — fresh, trustworthy */
+  --color-secondary: #0ABFA3;
   --color-secondary-foreground: #FFFFFF;
 
-  /* Warm accent surfaces */
-  --color-accent: #F7F3EE;
-  --color-accent-foreground: #2D2926;
+  /* Warm peach accent surfaces */
+  --color-accent: #E6F5EC;
+  --color-accent-foreground: #1C1917;
 
-  --color-success: #5B9A6F;
-  --color-danger: #D94F4F;
+  --color-success: #16A34A;
+  --color-danger: #DC2626;
 
   --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
 
-  /* Shadows — subtle, warm-toned */
-  --shadow-card: 0 1px 3px rgba(45, 41, 38, 0.04), 0 1px 2px rgba(45, 41, 38, 0.03);
-  --shadow-card-hover: 0 8px 24px rgba(45, 41, 38, 0.08), 0 2px 8px rgba(45, 41, 38, 0.04);
-  --shadow-soft: 0 2px 8px rgba(45, 41, 38, 0.06);
+  /* Colorful shadows — vivid, modern */
+  --shadow-card: 0 2px 8px rgba(240, 75, 26, 0.07), 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-card-hover: 0 16px 42px rgba(240, 75, 26, 0.16), 0 6px 16px rgba(0, 0, 0, 0.07);
+  --shadow-soft: 0 4px 18px rgba(240, 75, 26, 0.11);
 }
 
 @layer base {
@@ -49,13 +49,13 @@
   }
 
   ::selection {
-    background-color: #D4623C;
+    background-color: #F04B1A;
     color: #FFFFFF;
   }
 }
 
 @layer components {
   .container-page {
-    @apply mx-auto max-w-6xl px-5 sm:px-6 lg:px-8;
+    @apply mx-auto max-w-[1536px] px-5 sm:px-6 lg:px-10;
   }
 }
