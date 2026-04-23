@@ -2,42 +2,46 @@
 
 @theme {
   /* ── Palette ─────────────────────────────────── */
-  --color-background:       oklch(99% 0.012 75);
-  --color-foreground:       oklch(20% 0.02 75);
-  --color-muted:            oklch(55% 0.02 75);
-  --color-muted-foreground: oklch(65% 0.015 75);
-  --color-border:           oklch(92% 0.01 75);
+  --color-background:       #ffffff;
+  --color-foreground:       oklch(16% 0.018 255);
+  --color-muted:            oklch(50% 0.018 255);
+  --color-muted-foreground: oklch(60% 0.012 255);
+  --color-border:           oklch(90% 0.010 255);
   --color-card:             #ffffff;
-  --color-card-foreground:  oklch(20% 0.02 75);
+  --color-card-foreground:  oklch(16% 0.018 255);
 
-  /* Primary — terracotta orange */
-  --color-primary:          oklch(68% 0.18 40);
+  /* Primary — vivid energetic orange */
+  --color-primary:          oklch(62% 0.245 29);
   --color-primary-foreground: #ffffff;
-  --color-primary-hover:    oklch(62% 0.18 40);
+  --color-primary-hover:    oklch(56% 0.245 29);
 
-  /* Secondary — sage teal */
-  --color-secondary:        oklch(65% 0.15 185);
+  /* Secondary — electric teal */
+  --color-secondary:        oklch(66% 0.20 186);
   --color-secondary-foreground: #ffffff;
 
   /* Accent surfaces */
-  --color-accent:           oklch(97% 0.012 75);
-  --color-accent-foreground: oklch(20% 0.02 75);
+  --color-accent:           oklch(97% 0.010 240);
+  --color-accent-foreground: oklch(16% 0.018 255);
 
-  /* Extended palette (from prototype) */
-  --color-purple:           oklch(55% 0.19 290);
-  --color-yellow:           oklch(85% 0.18 85);
-  --color-pink:             oklch(68% 0.18 0);
+  /* Sidebar surface */
+  --color-sidebar:          oklch(97.5% 0.012 240);
 
-  --color-success:          oklch(58% 0.16 150);
-  --color-danger:           oklch(60% 0.2 20);
+  /* Extended palette (energetic & vibrant) */
+  --color-purple:           oklch(57% 0.26 286);
+  --color-yellow:           oklch(87% 0.21 88);
+  --color-pink:             oklch(64% 0.26 351);
+  --color-green:            oklch(65% 0.23 145);
+
+  --color-success:          oklch(60% 0.19 148);
+  --color-danger:           oklch(60% 0.23 22);
 
   /* ── Typography ──────────────────────────────── */
   --font-sans:    var(--font-nunito-sans), "Nunito Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-heading: var(--font-nunito),      "Nunito",      ui-sans-serif, system-ui, -apple-system, sans-serif;
 
   /* ── Shadows ─────────────────────────────────── */
-  --shadow-card:       0 2px 16px rgba(0,0,0,0.06);
-  --shadow-card-hover: 0 16px 48px rgba(0,0,0,0.14);
+  --shadow-card:       0 1px 6px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-card-hover: 0 8px 28px rgba(0,0,0,0.12), 0 4px 10px rgba(0,0,0,0.07);
   --shadow-soft:       0 4px 20px rgba(0,0,0,0.07);
 }
 
@@ -60,7 +64,7 @@
   }
 
   ::selection {
-    background-color: oklch(68% 0.18 40);
+    background-color: var(--color-primary);
     color: #ffffff;
   }
 }
@@ -71,7 +75,7 @@
   }
 
   .text-gradient-hero {
-    background: linear-gradient(135deg, var(--color-primary), var(--color-purple));
+    background: linear-gradient(135deg, var(--color-yellow), #ffffff 60%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -80,7 +84,7 @@
 
 @layer components {
   .container-page {
-    @apply mx-auto max-w-6xl px-5 sm:px-6 lg:px-8;
+    @apply mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10 xl:px-14;
   }
 
   .scrollbar-none {

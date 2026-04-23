@@ -559,7 +559,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {group.places.map((place) => (
-                        <ContentCard key={place.id} item={place} largeImage />
+                        <ContentCard key={place.id} item={place} />
                       ))}
                     </div>
                   </section>
