@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Logo } from "@/components/brand/logo";
 
 const FOOTER_SECTIONS = [
   {
@@ -37,8 +36,12 @@ export function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
 
           <div className="col-span-2 md:col-span-1">
-            <Logo size="sm" variant="dark" />
-            <p className="mt-4 text-[13px] leading-relaxed max-w-[220px] text-[oklch(55%_0.012_255)]">
+            <img
+              src="/logo-custom.png"
+              alt="NieSiedzWDomu"
+              className="h-auto w-[150px] max-w-full object-contain"
+            />
+            <p className="mt-4 text-[13px] leading-relaxed max-w-[220px] text-white/70">
               Platforma dla rodziców w Krakowie. Wydarzenia, kolonie i miejsca — wszystko w jednym miejscu.
             </p>
             <Link
@@ -51,7 +54,7 @@ export function Footer() {
 
           {FOOTER_SECTIONS.map((section) => (
             <div key={section.title}>
-              <h3 className="text-[10px] font-bold uppercase tracking-widest mb-4 text-[oklch(48%_0.012_255)]">
+              <h3 className="text-[10px] font-bold uppercase tracking-widest mb-4 text-white">
                 {section.title}
               </h3>
               <ul className="flex flex-col gap-2.5">
@@ -59,7 +62,7 @@ export function Footer() {
                   <li key={link.label}>
                     <Link
                       href={link.href}
-                      className="text-[13px] text-[oklch(65%_0.012_255)] transition-colors duration-200 hover:text-white"
+                      className="text-[13px] text-white/80 transition-colors duration-200 hover:text-white"
                     >
                       {link.label}
                     </Link>
@@ -73,12 +76,12 @@ export function Footer() {
         <div
           className="mt-10 pt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-t border-[oklch(22%_0.015_255)]"
         >
-          <p className="text-[12px] text-[oklch(40%_0.012_255)]">
+          <p className="text-[12px] text-white/50">
             © {new Date().getFullYear()} niesiedzwdomu. Wszystkie prawa zastrzeżone.
           </p>
           <div className="flex items-center gap-4 text-[12px]">
-            <Link href="/regulamin"   className="text-[oklch(40%_0.012_255)] transition-colors hover:text-white">Regulamin</Link>
-            <Link href="/prywatnosc"  className="text-[oklch(40%_0.012_255)] transition-colors hover:text-white">Prywatność</Link>
+            <Link href="/regulamin"   className="text-white/50 transition-colors hover:text-white">Regulamin</Link>
+            <Link href="/prywatnosc"  className="text-white/50 transition-colors hover:text-white">Prywatność</Link>
           </div>
         </div>
       </div>

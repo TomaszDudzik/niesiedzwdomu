@@ -83,7 +83,7 @@ export function ContentCard({ item, variant = "horizontal", showImageTag = false
 
         {/* Body */}
         <div className="flex flex-1 flex-col gap-2 p-4">
-          <h3 className="font-heading font-bold text-[14px] leading-snug line-clamp-2 text-foreground group-hover:text-primary transition-colors duration-150">
+          <h3 className="font-heading font-bold text-[14px] leading-snug line-clamp-2 text-foreground group-hover:text-[#e60100] transition-colors duration-150">
             {item.title}
           </h3>
           {item.description_short && (
@@ -93,7 +93,7 @@ export function ContentCard({ item, variant = "horizontal", showImageTag = false
           )}
           <div className="mt-auto pt-2 border-t border-border/50 space-y-1">
             {isEvent && (
-              <div className="flex items-center gap-1 text-[11px] text-primary/80 font-medium">
+              <div className="flex items-center gap-1 text-[11px] text-muted-foreground font-medium">
                 <Calendar size={10} className="shrink-0" />
                 <span className="truncate">{getDateText(item)}</span>
               </div>
@@ -103,7 +103,7 @@ export function ContentCard({ item, variant = "horizontal", showImageTag = false
                 <MapPin size={10} className="shrink-0 text-secondary" />
                 <span className="truncate">{getLocationText(item)}</span>
               </div>
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary group-hover:gap-1.5 transition-all duration-150">
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#e60100] group-hover:text-[#c40000] group-hover:gap-1.5 transition-all duration-150">
                 Sprawdź
                 <ArrowRight size={11} className="group-hover:translate-x-0.5 transition-transform duration-150" />
               </span>
@@ -143,7 +143,7 @@ export function ContentCard({ item, variant = "horizontal", showImageTag = false
       </div>
 
       <div className="flex-1 min-w-0 p-3.5 flex flex-col gap-1.5">
-        <h3 className="font-heading font-bold text-[13px] text-foreground leading-snug group-hover:text-primary transition-colors duration-150 line-clamp-2">
+        <h3 className="font-heading font-bold text-[13px] text-foreground leading-snug group-hover:text-[#e60100] transition-colors duration-150 line-clamp-2">
           {item.title}
         </h3>
         {item.description_short && (
@@ -154,7 +154,7 @@ export function ContentCard({ item, variant = "horizontal", showImageTag = false
         <div className="mt-auto space-y-1">
           {isEvent && (
             <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-              <Calendar size={9} className="shrink-0 text-primary/60" />
+              <Calendar size={9} className="shrink-0 text-muted-foreground/60" />
               <span className="truncate">{getDateText(item)}</span>
             </div>
           )}

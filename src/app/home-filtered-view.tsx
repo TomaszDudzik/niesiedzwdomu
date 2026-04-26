@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Search, ArrowRight, X, MapPin, Users, Check, ChevronDown } from "lucide-react";
 import { ContentCard } from "@/components/ui/content-card";
 import { ImageWithFallback } from "@/components/ui/image-with-fallback";
+import type { AdminTaxonomyResponse } from "@/lib/admin-taxonomy";
 import { useAdminTaxonomy } from "@/lib/use-admin-taxonomy";
 import { CATEGORY_LABELS } from "@/lib/mock-data";
 import { normalizeDistrictName } from "@/lib/districts";
@@ -110,6 +111,7 @@ interface HomeFilteredViewProps {
   places: Place[];
   camps: Camp[];
   activities: Activity[];
+  initialTaxonomy: AdminTaxonomyResponse;
 }
 
 interface UnifiedFilterEntry {
@@ -185,7 +187,7 @@ function FilterBtn({
 function SidebarSection({
   title,
   children,
-  defaultOpen = true,
+  defaultOpen = false,
 }: {
   title: string;
   children: React.ReactNode;
@@ -199,12 +201,12 @@ function SidebarSection({
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-accent/50"
       >
-        <span className="text-[11px] font-extrabold uppercase tracking-widest text-foreground/70">
+        <span className="text-[11px] font-extrabold uppercase tracking-widest text-black">
           {title}
         </span>
         <ChevronDown
           size={13}
-          className={cn("shrink-0 text-muted-foreground/40 transition-transform duration-200", open && "rotate-180")}
+          className={cn("shrink-0 text-black transition-transform duration-200", open && "rotate-180")}
         />
       </button>
       {open && <div className="pb-1">{children}</div>}
@@ -217,7 +219,7 @@ function SectionHeader({ title, subtitle, href, count }: { title: string; subtit
   return (
     <div className="flex items-end justify-between mb-4">
       <div>
-        <h2 className="font-heading font-black text-[22px] leading-tight text-foreground">
+        <h2 className="font-heading font-black text-[22px] leading-tight text-black">
           {title}
           {count !== undefined && (
             <span className="ml-2 text-[14px] font-normal text-muted-foreground">({count})</span>
@@ -227,7 +229,7 @@ function SectionHeader({ title, subtitle, href, count }: { title: string; subtit
       </div>
       <Link
         href={href}
-        className="group inline-flex items-center gap-1 text-[13px] font-semibold text-primary hover:text-primary-hover transition-colors shrink-0 mb-0.5"
+        className="group inline-flex items-center gap-1 text-[13px] font-semibold text-black hover:text-black/75 transition-colors shrink-0 mb-0.5"
       >
         Wszystkie
         <ArrowRight size={13} className="group-hover:translate-x-0.5 transition-transform duration-150" />
@@ -236,8 +238,8 @@ function SectionHeader({ title, subtitle, href, count }: { title: string; subtit
   );
 }
 
-export function HomeFilteredView({ events, places, camps, activities }: HomeFilteredViewProps) {
-  const { typeLevel2Options: taxonomyTypeLevel2Options } = useAdminTaxonomy();
+export function HomeFilteredView({ events, places, camps, activities, initialTaxonomy }: HomeFilteredViewProps) {
+  const { typeLevel2Options: taxonomyTypeLevel2Options } = useAdminTaxonomy(initialTaxonomy);
   const [search, setSearch] = useState("");
   const [activeTypeLevel2, setActiveTypeLevel2] = useState<string[]>([]);
   const [activeTypes, setActiveTypes] = useState<string[]>([]);
@@ -570,100 +572,83 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
           Hero Banner
       ────────────────────────────────────────── */}
       <section className="relative overflow-hidden">
-        {/* Full background image */}
-        <img
-          src="/hero-family.webp"
-          alt=""
-          className="pointer-events-none absolute inset-0 h-full w-full object-cover"
-        />
-        {/* Gradient overlay — dark left for text, subtle right */}
-        <div
-          className="pointer-events-none absolute inset-0"
-          style={{ background: "linear-gradient(to right, rgba(10,20,40,0.55) 0%, rgba(10,20,40,0.20) 50%, rgba(10,20,40,0.05) 100%)" }}
-        />
+        <div className="container-page relative pt-4 pb-5 md:pt-5 md:pb-6">
+          <div className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <img
+              src="/logo-custom.png"
+              alt="NieSiedzWDomu"
+              className="h-auto w-[158px] max-w-[56vw] object-contain md:w-[202px] lg:w-[216px]"
+            />
 
-        {/* Stat tiles — top-right */}
-        <div className="absolute top-5 right-5 sm:top-7 sm:right-7 hidden sm:flex flex-col gap-2">
-          {[
-            { href: "/miejsca",    emoji: "📍", label: "Miejsca",    count: places.length },
-            { href: "/wydarzenia", emoji: "🎉", label: "Wydarzenia", count: events.length },
-            { href: "/kolonie",    emoji: "⛺", label: "Kolonie",    count: camps.length },
-            { href: "/zajecia",    emoji: "🎨", label: "Zajęcia",    count: activities.length },
-          ].map((stat) => (
-            <Link
-              key={stat.href}
-              href={stat.href}
-              className="group flex items-center gap-3 rounded-2xl px-5 py-4 backdrop-blur-md border border-white/25 hover:border-white/50 transition-all duration-150"
-              style={{ background: "rgba(0,0,0,0.30)" }}
-            >
-              <span className="text-[30px] leading-none">{stat.emoji}</span>
-              <div>
-                <p className="font-heading font-black text-[24px] leading-none text-white">
-                  {stat.count}+
-                </p>
-                <p className="mt-1 text-[13px] font-semibold text-white/65">
-                  {stat.label}
-                </p>
+            <div className="flex flex-col items-start gap-2.5 lg:items-end">
+              <div className="flex flex-wrap items-center gap-2.5 lg:justify-end">
+                {[
+                  { href: "/miejsca", emoji: "📍", label: "Miejsca", count: places.length },
+                  { href: "/wydarzenia", emoji: "🎉", label: "Wydarzenia", count: events.length },
+                  { href: "/kolonie", emoji: "⛺", label: "Kolonie", count: camps.length },
+                  { href: "/zajecia", emoji: "🎨", label: "Zajęcia", count: activities.length },
+                ].map((stat) => (
+                  <Link
+                    key={stat.href}
+                    href={stat.href}
+                    className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/6 px-3 py-1.5 text-[12px] font-semibold text-white/88 shadow-[0_8px_24px_rgba(0,0,0,0.18)] transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:bg-white/10 hover:text-white"
+                  >
+                    <span>{stat.emoji}</span>
+                    <span>{stat.label}</span>
+                    <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-bold text-black">
+                      {stat.count}+
+                    </span>
+                  </Link>
+                ))}
               </div>
-            </Link>
-          ))}
-        </div>
+            </div>
+          </div>
 
-        <div className="container-page relative py-7 md:py-10 pb-10 md:pb-12">
-          <div className="max-w-2xl lg:max-w-[52%]">
-            <p className="text-[12px] font-bold uppercase tracking-widest text-white/60 mb-3">
-              Kraków dla rodzin
-            </p>
-            <h1
-              className="font-heading font-black leading-[1.05] tracking-[-0.03em] text-white"
-              style={{ fontSize: "clamp(32px, 5vw, 60px)" }}
-            >
-              Odkryj Kraków
-              <br />
-              <span className="text-yellow-300">razem z dziećmi</span>
-            </h1>
-            <p className="mt-4 text-[15px] text-white/80 leading-relaxed max-w-lg">
-              Sprawdzone miejsca, wydarzenia i zajęcia — wszystko w jednym miejscu.
-            </p>
-
-            {/* Search bar */}
-            <div className="mt-7 flex gap-2 max-w-lg">
-              <div className="relative flex-1">
-                <Search size={15} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-foreground/40" />
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Szukaj miejsc, wydarzeń, aktywności..."
-                  className="w-full h-12 rounded-xl bg-white pl-11 pr-4 text-[14px] text-foreground placeholder:text-muted-foreground/60 shadow-[0_4px_20px_rgba(0,0,0,0.25)] focus:outline-none focus:ring-2 focus:ring-white/50"
-                />
-              </div>
-              <button
-                type="button"
-                className="h-12 rounded-xl bg-white/20 px-5 text-[14px] font-bold text-white backdrop-blur-sm border border-white/30 hover:bg-white/30 transition-colors shrink-0"
+          <div className="lg:flex lg:items-stretch lg:gap-8">
+            {/* Left: heading + search */}
+            <div className="flex flex-col justify-between flex-1 max-w-2xl lg:max-w-none">
+              <h1
+                className="font-heading font-black leading-[1.05] tracking-[-0.03em] text-white"
+                style={{ fontSize: "clamp(32px, 5vw, 60px)" }}
               >
-                Szukaj
-              </button>
+                Odkryj Kraków <span className="text-primary">razem z dziećmi</span>
+              </h1>
+
+              {/* Search bar */}
+              <div className="mt-7 flex gap-2 max-w-2xl">
+                <div className="relative flex-1">
+                  <Search size={15} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-foreground/40" />
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Szukaj miejsc, wydarzeń, aktywności..."
+                    className="w-full h-9 rounded-xl border border-border bg-white pl-11 pr-4 text-[14px] text-foreground placeholder:text-muted-foreground/60 shadow-[0_4px_16px_rgba(0,0,0,0.10)] focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+                <button
+                  type="button"
+                  className="h-9 w-[152px] justify-center rounded-xl border border-[#e60100]/90 bg-[#e60100] px-5 text-[13px] font-bold text-white transition-colors hover:bg-[#c40000] shrink-0"
+                >
+                  Szukaj
+                </button>
+              </div>
             </div>
 
-            {/* Age filter chips */}
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              <span className="text-[12px] font-semibold text-white/60">Wiek:</span>
-              {AGE_GROUPS.map((group) => (
-                <button
-                  key={group.key}
-                  type="button"
-                  onClick={() => setActiveAgeGroup(activeAgeGroup === group.key ? null : group.key)}
-                  className={cn(
-                    "inline-flex items-center gap-1 rounded-full border px-3 py-1 text-[12px] font-semibold transition-all duration-150",
-                    activeAgeGroup === group.key
-                      ? "bg-white text-primary border-white shadow-[0_2px_12px_rgba(0,0,0,0.15)]"
-                      : "border-white/30 text-white/80 hover:border-white/60 hover:bg-white/15"
-                  )}
-                >
-                  {group.icon} {group.label}
-                </button>
-              ))}
+            {/* Right column: CTA top, quote bottom */}
+            <div className="hidden lg:flex lg:flex-col lg:justify-between ml-auto max-w-[480px] text-right shrink-0">
+              <Link
+                href="/dodaj"
+                className="self-end inline-flex h-9 w-[200px] justify-center items-center gap-1.5 rounded-xl border border-[#e60100]/90 bg-[#e60100] px-4 text-[12px] font-extrabold uppercase tracking-[0.04em] text-white transition-colors hover:bg-[#c40000]"
+              >
+                Dodaj swój event
+                <ArrowRight size={13} />
+              </Link>
+              <p className="font-heading text-[17px] font-black leading-[1.18] tracking-[-0.02em] text-white/90">
+                "<span className="text-primary">Razem</span> nawet zwykły <span className="text-primary">park</span> to dżungla przygody,
+                <br />
+                a <span className="text-primary">Kraków</span> ma ich tyle, że braknie ci soboty."
+              </p>
             </div>
           </div>
         </div>
@@ -674,6 +659,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
           Main content area
       ────────────────────────────────────────── */}
       <div className="container-page py-8">
+        <div className="rounded-[28px] bg-[#f2f2f2] px-4 py-5 shadow-[0_24px_70px_rgba(0,0,0,0.28)] sm:px-6 sm:py-6 lg:px-8 lg:py-8">
 
         {/* Mobile filter toggle */}
         <div className="lg:hidden mb-4 flex items-center gap-2">
@@ -724,11 +710,11 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
           <div className="lg:hidden mb-4 rounded-2xl border border-border bg-white overflow-hidden">
             <div
               className="flex items-center gap-2.5 px-4 py-3"
-              style={{ background: "#dbeaf8" }}
+              style={{ background: "var(--color-primary)" }}
             >
-              <span className="font-heading font-bold text-[14px] text-white">Wszystkie filtry</span>
+              <span className="font-heading font-bold text-[14px] text-black">Wszystkie filtry</span>
               {hasActiveFilters && (
-                <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-white/25 px-1.5 text-[11px] font-bold text-white">
+                <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-black/12 px-1.5 text-[11px] font-bold text-black">
                   {activeFilterBadges.length}
                 </span>
               )}
@@ -744,19 +730,19 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
             {/* Bold coloured header — ecommerce style */}
             <div
               className="flex items-center gap-2.5 px-4 py-3.5"
-              style={{ background: "#dbeaf8" }}
+              style={{ background: "var(--color-primary)" }}
             >
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="shrink-0 opacity-90">
-                <rect x="1" y="1" width="6" height="6" rx="1.5" fill="white" />
-                <rect x="11" y="1" width="6" height="6" rx="1.5" fill="white" />
-                <rect x="1" y="11" width="6" height="6" rx="1.5" fill="white" />
-                <rect x="11" y="11" width="6" height="6" rx="1.5" fill="white" />
+                <rect x="1" y="1" width="6" height="6" rx="1.5" fill="#161616" />
+                <rect x="11" y="1" width="6" height="6" rx="1.5" fill="#161616" />
+                <rect x="1" y="11" width="6" height="6" rx="1.5" fill="#161616" />
+                <rect x="11" y="11" width="6" height="6" rx="1.5" fill="#161616" />
               </svg>
-              <span className="font-heading font-bold text-[15px] text-white tracking-[-0.01em]">
+              <span className="font-heading font-bold text-[15px] text-black tracking-[-0.01em]">
                 Wszystkie filtry
               </span>
               {hasActiveFilters && (
-                <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-white/25 px-1.5 text-[11px] font-bold text-white">
+                <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-black/12 px-1.5 text-[11px] font-bold text-black">
                   {activeFilterBadges.length}
                 </span>
               )}
@@ -875,7 +861,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
                           </span>
                         </div>
                         <div className="flex-1 min-w-0 p-3.5 flex flex-col gap-1.5">
-                          <h3 className="font-heading font-bold text-[13px] text-foreground leading-snug group-hover:text-primary transition-colors duration-150 line-clamp-2">
+                          <h3 className="font-heading font-bold text-[13px] text-foreground leading-snug group-hover:text-[#e60100] transition-colors duration-150 line-clamp-2">
                             {organizer.name}
                           </h3>
                           {organizer.leadCamp.description_short && (
@@ -930,6 +916,7 @@ export function HomeFilteredView({ events, places, camps, activities }: HomeFilt
               </section>
             )}
           </main>
+        </div>
         </div>
       </div>
     </div>
