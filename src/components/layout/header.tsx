@@ -8,10 +8,10 @@ import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
-  { href: "/miejsca",    label: "Miejsca",    emoji: "📍" },
-  { href: "/wydarzenia", label: "Wydarzenia", emoji: "🎉" },
-  { href: "/kolonie",    label: "Kolonie",    emoji: "⛺" },
-  { href: "/zajecia",    label: "Zajęcia",    emoji: "🎨" },
+  { href: "/miejsca",    label: "Miejsca",    emoji: "📍", bg: "#3A8C3F", bgHover: "#2d6b31", textColor: "white" },
+  { href: "/wydarzenia", label: "Wydarzenia", emoji: "🎉", bg: "#FDE047", bgHover: "#FACC15", textColor: "#1a1a1a" },
+  { href: "/kolonie",    label: "Kolonie",    emoji: "⛺", bg: "#e60100", bgHover: "#c40000", textColor: "white" },
+  { href: "/zajecia",    label: "Zajęcia",    emoji: "🎨", bg: "#8B5CF6", bgHover: "#7C3AED", textColor: "white" },
 ];
 
 export function Header() {
@@ -39,25 +39,31 @@ export function Header() {
       <div className="container-page">
         <div className="flex h-[68px] items-center gap-4 lg:gap-6">
 
-          {/* Logo */}
-          <Link href="/" className="shrink-0">
-            <Logo size="md" className="scale-110 origin-left" />
-          </Link>
+          {/* Logo — background crop to remove whitespace */}
+          <Link
+            href="/"
+            className="shrink-0"
+            aria-label="Nie Siedź W Domu"
+            style={{
+              display: "block",
+              height: 52,
+              width: 170,
+              backgroundImage: "url('/logo-new.jpg')",
+              backgroundSize: "auto 170px",
+              backgroundRepeat: "no-repeat",
+              backgroundPosition: "center 45%",
+            }}
+          />
 
-          {/* Desktop nav — absolutely centred */}
-          <nav className="pointer-events-none absolute inset-x-0 hidden lg:flex items-center justify-center gap-1">
+          {/* Desktop nav — right side */}
+          <nav className="ml-auto hidden lg:flex items-center gap-2">
             {NAV_LINKS.map((link) => {
-              const isActive = pathname === link.href || pathname.startsWith(link.href + "/");
               return (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={cn(
-                    "pointer-events-auto flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-[14px] font-semibold transition-all duration-150",
-                    isActive
-                      ? "bg-primary/10 text-primary"
-                      : "text-foreground/65 hover:bg-[#36576E] hover:text-white"
-                  )}
+                  style={{ backgroundColor: link.bg, color: link.textColor }}
+                  className="flex items-center gap-1.5 rounded-full px-4 py-2 text-[14px] font-semibold transition-opacity duration-150 hover:opacity-85"
                 >
                   <span className="text-[15px]">{link.emoji}</span>
                   {link.label}
@@ -66,8 +72,8 @@ export function Header() {
             })}
           </nav>
 
-          {/* Right side */}
-          <div className="ml-auto flex items-center gap-2 sm:gap-3">
+          {/* Right side — mobile only */}
+          <div className="lg:hidden ml-auto flex items-center gap-2 sm:gap-3">
 
             {/* Mobile menu toggle */}
             <button
@@ -87,18 +93,13 @@ export function Header() {
         <div className="lg:hidden border-t border-border bg-white px-5 py-4">
           <nav className="flex flex-col gap-1">
             {NAV_LINKS.map((link) => {
-              const isActive = pathname === link.href || pathname.startsWith(link.href + "/");
               return (
                 <Link
                   key={link.href}
                   href={link.href}
                   onClick={() => setMobileOpen(false)}
-                  className={cn(
-                    "flex items-center gap-3 rounded-xl px-4 py-3 text-[15px] font-semibold transition-all duration-150",
-                    isActive
-                      ? "bg-primary/10 text-primary"
-                      : "text-foreground/75 hover:bg-[#36576E] hover:text-white"
-                  )}
+                  style={{ backgroundColor: link.bg, color: link.textColor }}
+                  className="flex items-center gap-3 rounded-full px-4 py-3 text-[15px] font-semibold transition-opacity duration-150 hover:opacity-85"
                 >
                   <span className="text-[18px]">{link.emoji}</span>
                   {link.label}

@@ -15,13 +15,12 @@ export function Logo({ size = "md", className }: LogoProps) {
 
   return (
     <span className={cn("inline-flex select-none items-center", className)}>
-      <Image
-        src="/logo.png"
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/logo3.jpg"
         alt="Nie Siedź W Domu"
-        width={w}
         height={h}
         style={{ height: h, width: "auto" }}
-        priority
       />
     </span>
   );

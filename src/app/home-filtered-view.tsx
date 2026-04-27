@@ -574,28 +574,28 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
       <section className="relative overflow-hidden">
         <div className="container-page relative pt-4 pb-5 md:pt-5 md:pb-6">
           <div className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <img
-              src="/logo-custom.png"
-              alt="NieSiedzWDomu"
-              className="h-auto w-[158px] max-w-[56vw] object-contain md:w-[202px] lg:w-[216px]"
-            />
+
 
             <div className="flex flex-col items-start gap-2.5 lg:items-end">
               <div className="flex flex-wrap items-center gap-2.5 lg:justify-end">
                 {[
-                  { href: "/miejsca", emoji: "📍", label: "Miejsca", count: places.length },
-                  { href: "/wydarzenia", emoji: "🎉", label: "Wydarzenia", count: events.length },
-                  { href: "/kolonie", emoji: "⛺", label: "Kolonie", count: camps.length },
-                  { href: "/zajecia", emoji: "🎨", label: "Zajęcia", count: activities.length },
+                  { href: "/miejsca",    emoji: "📍", label: "Miejsca",    count: places.length,     bg: "#3A8C3F", textColor: "white",   countBg: "rgba(255,255,255,0.25)" },
+                  { href: "/wydarzenia", emoji: "🎉", label: "Wydarzenia", count: events.length,     bg: "#F5C200", textColor: "#1a1a1a", countBg: "rgba(0,0,0,0.15)" },
+                  { href: "/kolonie",    emoji: "⛺", label: "Kolonie",    count: camps.length,      bg: "#2D6B1F", textColor: "white",   countBg: "rgba(255,255,255,0.25)" },
+                  { href: "/zajecia",    emoji: "🎨", label: "Zajęcia",    count: activities.length, bg: "#E8A020", textColor: "white",   countBg: "rgba(255,255,255,0.25)" },
                 ].map((stat) => (
                   <Link
                     key={stat.href}
                     href={stat.href}
-                    className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/6 px-3 py-1.5 text-[12px] font-semibold text-white/88 shadow-[0_8px_24px_rgba(0,0,0,0.18)] transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:bg-white/10 hover:text-white"
+                    style={{ backgroundColor: stat.bg, color: stat.textColor }}
+                    className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[12px] font-semibold shadow-[0_4px_12px_rgba(0,0,0,0.15)] transition-all hover:-translate-y-0.5 hover:opacity-90"
                   >
                     <span>{stat.emoji}</span>
                     <span>{stat.label}</span>
-                    <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-bold text-black">
+                    <span
+                      style={{ backgroundColor: stat.countBg, color: stat.textColor }}
+                      className="inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold"
+                    >
                       {stat.count}+
                     </span>
                   </Link>
@@ -608,7 +608,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
             {/* Left: heading + search */}
             <div className="flex flex-col justify-between flex-1 max-w-2xl lg:max-w-none">
               <h1
-                className="font-heading font-black leading-[1.05] tracking-[-0.03em] text-white"
+                className="font-heading font-black leading-[1.05] tracking-[-0.03em] text-black"
                 style={{ fontSize: "clamp(32px, 5vw, 60px)" }}
               >
                 Odkryj Kraków <span className="text-primary">razem z dziećmi</span>
@@ -644,11 +644,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
                 Dodaj swój event
                 <ArrowRight size={13} />
               </Link>
-              <p className="font-heading text-[17px] font-black leading-[1.18] tracking-[-0.02em] text-white/90">
-                "<span className="text-primary">Razem</span> nawet zwykły <span className="text-primary">park</span> to dżungla przygody,
-                <br />
-                a <span className="text-primary">Kraków</span> ma ich tyle, że braknie ci soboty."
-              </p>
+
             </div>
           </div>
         </div>
@@ -659,7 +655,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
           Main content area
       ────────────────────────────────────────── */}
       <div className="container-page py-8">
-        <div className="rounded-[28px] bg-[#f2f2f2] px-4 py-5 shadow-[0_24px_70px_rgba(0,0,0,0.28)] sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+        <div className="rounded-[28px] bg-[#E0F2E4] px-4 py-5 shadow-[0_24px_70px_rgba(0,0,0,0.28)] sm:px-6 sm:py-6 lg:px-8 lg:py-8">
 
         {/* Mobile filter toggle */}
         <div className="lg:hidden mb-4 flex items-center gap-2">
@@ -842,7 +838,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
                   {visibleOrganizers.map((organizer) => (
                     <article
                       key={organizer.key}
-                      className="rounded-xl border border-border bg-white shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5 transition-all duration-200 overflow-hidden"
+                      className="rounded-xl border border-border bg-[#E0F2E4] shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5 transition-all duration-200 overflow-hidden"
                     >
                       <Link href={`/kolonie/${organizer.leadCamp.slug}`} className="group flex overflow-hidden h-[152px]">
                         <div className="w-[148px] shrink-0 relative self-stretch bg-accent">

@@ -36,11 +36,7 @@ export function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
 
           <div className="col-span-2 md:col-span-1">
-            <img
-              src="/logo-custom.png"
-              alt="NieSiedzWDomu"
-              className="h-auto w-[150px] max-w-full object-contain"
-            />
+
             <p className="mt-4 text-[13px] leading-relaxed max-w-[220px] text-white/70">
               Platforma dla rodziców w Krakowie. Wydarzenia, kolonie i miejsca — wszystko w jednym miejscu.
             </p>
