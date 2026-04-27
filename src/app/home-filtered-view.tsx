@@ -4,6 +4,8 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import { Search, ArrowRight, X, MapPin, Users, Check, ChevronDown } from "lucide-react";
 import { ContentCard } from "@/components/ui/content-card";
+import { FilterSection } from "@/components/ui/filter-section";
+import { SubmissionCta } from "@/components/ui/submission-cta";
 import { ImageWithFallback } from "@/components/ui/image-with-fallback";
 import type { AdminTaxonomyResponse } from "@/lib/admin-taxonomy";
 import { useAdminTaxonomy } from "@/lib/use-admin-taxonomy";
@@ -157,60 +159,17 @@ function FilterBtn({
       type="button"
       onClick={onClick}
       className={cn(
-        "group flex w-full items-center gap-2.5 border-b border-border/50 last:border-0 px-4 py-2.5 text-[13px] text-left transition-all duration-150",
-        selected
-          ? "bg-primary/8 text-primary font-bold"
-          : "text-foreground font-semibold hover:bg-accent/70"
+        "flex w-full items-center gap-1.5 px-1.5 py-1 rounded-md text-[10px] font-medium text-left transition-all duration-200",
+        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent"
       )}
     >
-      {icon && (
-        <span className={cn("shrink-0 text-[14px] transition-opacity", selected ? "opacity-100" : "opacity-60 group-hover:opacity-90")}>
-          {icon}
-        </span>
-      )}
+      {icon && <span className="shrink-0 text-[12px]">{icon}</span>}
       <span className="flex-1 truncate">{label}</span>
-      {selected ? (
-        <Check size={13} className="shrink-0 text-primary" />
-      ) : (
-        <span className="flex items-center gap-1.5 shrink-0">
-          {count !== undefined && (
-            <span className="text-[11px] text-muted-foreground/50 tabular-nums">{count}</span>
-          )}
-          <ChevronDown size={11} className="-rotate-90 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors" />
-        </span>
-      )}
+      {selected
+        ? <Check size={10} className="shrink-0" />
+        : count !== undefined && <span className="text-[9px] opacity-40 tabular-nums">{count}</span>
+      }
     </button>
-  );
-}
-
-/* ─── Collapsible sidebar section ─── */
-function SidebarSection({
-  title,
-  children,
-  defaultOpen = false,
-}: {
-  title: string;
-  children: React.ReactNode;
-  defaultOpen?: boolean;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <div className="border-b border-border last:border-0">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-accent/50"
-      >
-        <span className="text-[11px] font-extrabold uppercase tracking-widest text-black">
-          {title}
-        </span>
-        <ChevronDown
-          size={13}
-          className={cn("shrink-0 text-black transition-transform duration-200", open && "rotate-180")}
-        />
-      </button>
-      {open && <div className="pb-1">{children}</div>}
-    </div>
   );
 }
 
@@ -237,6 +196,7 @@ function SectionHeader({ title, subtitle, href, count }: { title: string; subtit
     </div>
   );
 }
+
 
 export function HomeFilteredView({ events, places, camps, activities, initialTaxonomy }: HomeFilteredViewProps) {
   const { typeLevel2Options: taxonomyTypeLevel2Options } = useAdminTaxonomy(initialTaxonomy);
@@ -464,106 +424,73 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
 
   /* ─── Sidebar JSX (shared desktop/mobile) ─── */
   const sidebarContent = (
-    <>
-      {/* Search inside sidebar */}
-      <div className="px-3 py-3 border-b border-border bg-accent/40">
-        <div className="relative">
-          <Search size={13} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/40" />
-          <input
-            type="text"
-            placeholder="Szukaj w filtrach..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full h-9 rounded-xl border border-border bg-white pl-9 pr-3 text-[13px] text-foreground placeholder:text-muted-foreground/50 focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/15 transition-all"
-          />
-        </div>
+    <div className="p-2.5 space-y-2.5">
+      <div className="flex items-center gap-2 px-0.5 pb-0.5">
+        <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#e60100]">Filtry</span>
+        <div className="flex-1 h-px bg-border/70 rounded-full" />
+        {hasActiveFilters && (
+          <span className="text-[9px] font-bold text-primary">{activeFilterBadges.length} aktywne</span>
+        )}
       </div>
 
       {typeLevel2Options.length > 0 && (
-        <SidebarSection title="Grupa">
-          {typeLevel2Options.map((option) => (
-            <FilterBtn
-              key={option.value}
-              selected={activeTypeLevel2.includes(option.value)}
-              onClick={() => toggleTypeLevel2(option.value)}
-              icon={option.icon}
-              label={option.label}
-              count={option.count}
-            />
-          ))}
-        </SidebarSection>
+        <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Grupa</p>}>
+          <div className="flex flex-col gap-0.5">
+            {typeLevel2Options.map((option) => (
+              <FilterBtn key={option.value} selected={activeTypeLevel2.includes(option.value)} onClick={() => toggleTypeLevel2(option.value)} icon={option.icon} label={option.label} count={option.count} />
+            ))}
+          </div>
+        </FilterSection>
       )}
 
       {typeOptions.length > 0 && (
-        <SidebarSection title="Typ">
-          {typeOptions.map((option) => (
-            <FilterBtn
-              key={option.value}
-              selected={activeTypes.includes(option.value)}
-              onClick={() => toggleType(option.value)}
-              icon={option.icon}
-              label={option.label}
-              count={option.count}
-            />
-          ))}
-        </SidebarSection>
+        <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Typ</p>}>
+          <div className="flex flex-col gap-0.5">
+            {typeOptions.map((option) => (
+              <FilterBtn key={option.value} selected={activeTypes.includes(option.value)} onClick={() => toggleType(option.value)} icon={option.icon} label={option.label} count={option.count} />
+            ))}
+          </div>
+        </FilterSection>
       )}
 
-      <SidebarSection title="Wiek dziecka">
-        {ageOptions.filter((g) => g.count > 0 || activeAgeGroup === g.key).map((group) => (
-          <FilterBtn
-            key={group.key}
-            selected={activeAgeGroup === group.key}
-            onClick={() => setActiveAgeGroup(activeAgeGroup === group.key ? null : group.key)}
-            icon={group.icon}
-            label={group.label}
-            count={group.count}
-          />
-        ))}
-      </SidebarSection>
+      <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Wiek dziecka</p>}>
+        <div className="flex flex-col gap-0.5">
+          {ageOptions.filter((g) => g.count > 0 || activeAgeGroup === g.key).map((group) => (
+            <FilterBtn key={group.key} selected={activeAgeGroup === group.key} onClick={() => setActiveAgeGroup(activeAgeGroup === group.key ? null : group.key)} icon={group.icon} label={group.label} count={group.count} />
+          ))}
+        </div>
+      </FilterSection>
 
       {categoryOptions.length > 0 && (
-        <SidebarSection title="Kategoria" defaultOpen={false}>
-          {categoryOptions.map((option) => (
-            <FilterBtn
-              key={option.value}
-              selected={activeCategories.includes(option.value)}
-              onClick={() => toggleCategory(option.value)}
-              icon={option.icon}
-              label={option.label}
-              count={option.count}
-            />
-          ))}
-        </SidebarSection>
+        <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Kategoria</p>} defaultCollapsed>
+          <div className="flex flex-col gap-0.5">
+            {categoryOptions.map((option) => (
+              <FilterBtn key={option.value} selected={activeCategories.includes(option.value)} onClick={() => toggleCategory(option.value)} icon={option.icon} label={option.label} count={option.count} />
+            ))}
+          </div>
+        </FilterSection>
       )}
 
       {districtOptions.length > 0 && (
-        <SidebarSection title="Dzielnica" defaultOpen={false}>
-          {districtOptions.map((option) => (
-            <FilterBtn
-              key={option.value}
-              selected={activeDistricts.includes(option.value)}
-              onClick={() => toggleDistrict(option.value)}
-              icon={option.icon}
-              label={option.label}
-              count={option.count}
-            />
-          ))}
-        </SidebarSection>
+        <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Dzielnica</p>} defaultCollapsed>
+          <div className="flex flex-col gap-0.5">
+            {districtOptions.map((option) => (
+              <FilterBtn key={option.value} selected={activeDistricts.includes(option.value)} onClick={() => toggleDistrict(option.value)} icon={option.icon} label={option.label} count={option.count} />
+            ))}
+          </div>
+        </FilterSection>
       )}
 
       {hasActiveFilters && (
-        <div className="px-4 py-3">
-          <button
-            onClick={clearFilters}
-            className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-2 text-[12px] font-semibold text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-          >
-            <X size={12} />
-            Wyczyść filtry
-          </button>
-        </div>
+        <button
+          onClick={clearFilters}
+          className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-2 text-[10px] font-semibold text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+        >
+          <X size={10} />
+          Wyczyść filtry
+        </button>
       )}
-    </>
+    </div>
   );
 
   return (
@@ -574,52 +501,32 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
       <section className="relative overflow-hidden">
         <div className="container-page relative pt-4 pb-5 md:pt-5 md:pb-6">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-
-            <div className="flex flex-col items-start gap-2.5">
-            </div>
-          </div>
-
-          <div className="lg:flex lg:items-stretch lg:gap-8">
-            {/* Left: heading + search */}
-            <div className="flex flex-col justify-between flex-1 max-w-2xl lg:max-w-none">
+            <div>
               <h1
                 className="font-heading font-black leading-[1.05] tracking-[-0.03em] text-black"
-                style={{ fontSize: "clamp(32px, 5vw, 60px)" }}
+                style={{ fontSize: "clamp(26px, 4vw, 48px)" }}
               >
-                Odkryj Kraków <span className="text-primary">razem z dziećmi</span>
+                Odkryj Kraków razem z dziećmi
               </h1>
-
-              {/* Search bar */}
-              <div className="mt-7 flex gap-2 max-w-2xl">
-                <div className="relative flex-1">
-                  <Search size={15} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-foreground/40" />
-                  <input
-                    type="text"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Szukaj miejsc, wydarzeń, aktywności..."
-                    className="w-full h-9 rounded-xl border border-border bg-white pl-11 pr-4 text-[14px] text-foreground placeholder:text-muted-foreground/60 shadow-[0_4px_16px_rgba(0,0,0,0.10)] focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  />
-                </div>
-                <button
-                  type="button"
-                  className="h-9 w-[152px] justify-center rounded-xl border border-[#e60100]/90 bg-[#e60100] px-5 text-[13px] font-bold text-white transition-colors hover:bg-[#c40000] shrink-0"
-                >
-                  Szukaj
-                </button>
-              </div>
+              <p className="mt-2 text-[15px] text-muted-foreground">
+                Sprawdzone miejsca, wydarzenia i aktywności dla rodzin w Krakowie
+              </p>
             </div>
 
-            {/* Right column: CTA top, quote bottom */}
-            <div className="hidden lg:flex lg:flex-col lg:justify-between ml-auto max-w-[480px] text-right shrink-0">
-              <Link
-                href="/dodaj"
-                className="self-end inline-flex h-9 w-[200px] justify-center items-center gap-1.5 rounded-xl border border-[#e60100]/90 bg-[#e60100] px-4 text-[12px] font-extrabold uppercase tracking-[0.04em] text-white transition-colors hover:bg-[#c40000]"
+            <div className="self-end w-full lg:w-[640px] shrink-0 flex items-center rounded-xl border border-border bg-white shadow-[0_4px_16px_rgba(0,0,0,0.10)] overflow-hidden">
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Szukaj miejsc, wydarzeń..."
+                className="flex-1 h-10 pl-4 pr-2 text-[14px] text-foreground placeholder:text-muted-foreground/50 bg-transparent focus:outline-none"
+              />
+              <button
+                type="button"
+                className="h-10 w-11 flex items-center justify-center bg-[#e60100] text-white hover:bg-[#c40000] transition-colors shrink-0"
               >
-                Dodaj swój event
-                <ArrowRight size={13} />
-              </Link>
-
+                <Search size={15} />
+              </button>
             </div>
           </div>
         </div>
@@ -629,8 +536,8 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
       {/* ──────────────────────────────────────────
           Main content area
       ────────────────────────────────────────── */}
-      <div className="container-page py-8">
-        <div className="rounded-[28px] bg-[#f2f2f2] px-4 py-5 shadow-[0_24px_70px_rgba(0,0,0,0.28)] sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+      <div className="container-page pt-3 pb-8">
+        <div className="olive-gradient-panel rounded-[28px] px-4 py-5 shadow-[0_24px_70px_rgba(0,0,0,0.28)] sm:px-6 sm:py-6 lg:px-8 lg:py-8">
 
         {/* Mobile filter toggle */}
         <div className="lg:hidden mb-4 flex items-center gap-2">
@@ -679,17 +586,6 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
         {/* Mobile filters panel */}
         {mobileFiltersOpen && (
           <div className="lg:hidden mb-4 rounded-2xl border border-border bg-white overflow-hidden">
-            <div
-              className="flex items-center gap-2.5 px-4 py-3"
-              style={{ background: "var(--color-primary)" }}
-            >
-              <span className="font-heading font-bold text-[14px] text-black">Wszystkie filtry</span>
-              {hasActiveFilters && (
-                <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-black/12 px-1.5 text-[11px] font-bold text-black">
-                  {activeFilterBadges.length}
-                </span>
-              )}
-            </div>
             {sidebarContent}
           </div>
         )}
@@ -698,26 +594,6 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
 
           {/* ── Desktop sidebar ── */}
           <aside className="hidden lg:block w-[240px] xl:w-[260px] shrink-0 rounded-2xl overflow-hidden border border-border bg-white">
-            {/* Bold coloured header — ecommerce style */}
-            <div
-              className="flex items-center gap-2.5 px-4 py-3.5"
-              style={{ background: "var(--color-primary)" }}
-            >
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="shrink-0 opacity-90">
-                <rect x="1" y="1" width="6" height="6" rx="1.5" fill="#161616" />
-                <rect x="11" y="1" width="6" height="6" rx="1.5" fill="#161616" />
-                <rect x="1" y="11" width="6" height="6" rx="1.5" fill="#161616" />
-                <rect x="11" y="11" width="6" height="6" rx="1.5" fill="#161616" />
-              </svg>
-              <span className="font-heading font-bold text-[15px] text-black tracking-[-0.01em]">
-                Wszystkie filtry
-              </span>
-              {hasActiveFilters && (
-                <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-black/12 px-1.5 text-[11px] font-bold text-black">
-                  {activeFilterBadges.length}
-                </span>
-              )}
-            </div>
             {sidebarContent}
           </aside>
 
@@ -775,6 +651,24 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
                   href="/miejsca"
                   count={hasActiveFilters ? filteredPlaces.length : undefined}
                 />
+                {!hasActiveFilters && (
+                  <>
+                    <SubmissionCta
+                      mobile
+                      title="Chcesz stworzyć z nami mapę miejsc?"
+                      description="Dodaj swoje miejsce i pomóż rodzicom odkrywać wartościowe adresy w Krakowie."
+                      buttonLabel="Dodaj swoje miejsce"
+                      mobileLabel="Dodaj miejsce"
+                      href="/dodaj?type=place"
+                    />
+                    <SubmissionCta
+                      title="Chcesz stworzyć z nami mapę miejsc?"
+                      description="Dodaj swoje miejsce i pomóż rodzicom odkrywać wartościowe adresy w Krakowie."
+                      buttonLabel="Dodaj swoje miejsce"
+                      href="/dodaj?type=place"
+                    />
+                  </>
+                )}
                 <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
                   {visiblePlaces.map((place) => (
                     <ContentCard key={place.id} item={place} variant="vertical" />
@@ -792,6 +686,24 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
                   href="/wydarzenia"
                   count={hasActiveFilters ? filteredEvents.length : undefined}
                 />
+                {!hasActiveFilters && (
+                  <>
+                    <SubmissionCta
+                      mobile
+                      title="Organizujesz wydarzenie dla dzieci?"
+                      description="Dodaj je do kalendarza i pomóż rodzinom znaleźć pomysł na dziś albo weekend."
+                      buttonLabel="Dodaj swoje wydarzenie"
+                      mobileLabel="Dodaj wydarzenie"
+                      href="/dodaj?type=event"
+                    />
+                    <SubmissionCta
+                      title="Organizujesz wydarzenie dla dzieci?"
+                      description="Dodaj je do kalendarza i pomóż rodzinom znaleźć pomysł na dziś albo weekend."
+                      buttonLabel="Dodaj swoje wydarzenie"
+                      href="/dodaj?type=event"
+                    />
+                  </>
+                )}
                 <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
                   {visibleEvents.map((event) => (
                     <ContentCard key={event.id} item={event} variant="vertical" />

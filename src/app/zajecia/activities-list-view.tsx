@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Search, LayoutGrid, MapIcon, SlidersHorizontal, X, MapPin, Check, ChevronDown } from "lucide-react";
+import { PageHero } from "@/components/layout/page-hero";
 import { DISTRICT_LIST } from "@/lib/mock-data";
 import { ContentCard } from "@/components/ui/content-card";
 import { FilterSection } from "@/components/ui/filter-section";
@@ -35,6 +36,29 @@ const DISTRICT_ICONS: Partial<Record<District, string>> = {
 
 type ViewMode = "list" | "map";
 
+const KRAKOW_CENTER: [number, number] = [50.0614, 19.9372];
+const DISTRICT_COORDS: Partial<Record<District, [number, number]>> = {
+  "Stare Miasto": [50.0614, 19.9372],
+  "Kazimierz": [50.05, 19.946],
+  "Podgórze": [50.042, 19.951],
+  "Nowa Huta": [50.072, 20.037],
+  "Krowodrza": [50.077, 19.913],
+  "Bronowice": [50.081, 19.89],
+  "Zwierzyniec": [50.056, 19.89],
+  "Dębniki": [50.043, 19.92],
+  "Prądnik Czerwony": [50.087, 19.955],
+  "Prądnik Biały": [50.095, 19.92],
+  "Czyżyny": [50.072, 20.005],
+  "Bieżanów-Prokocim": [50.015, 20.005],
+};
+
+interface MarkerGroup {
+  coords: [number, number];
+  events: { id: string; title: string; slug: string; street: string; city: string; image_url?: string | null }[];
+  label: string;
+  markerIcon?: string;
+}
+
 interface ActivitiesListViewProps {
   activities: Activity[];
 }
@@ -61,6 +85,7 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
   const [view, setView] = useState<ViewMode>("list");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filtersOpenDesktop, setFiltersOpenDesktop] = useState(false);
+  const [MapComponent, setMapComponent] = useState<React.ComponentType<{ groups: MarkerGroup[]; basePath?: string }> | null>(null);
 
   const ageGroups = useMemo(
     () => AGE_GROUPS.filter((group) => activeAgeGroups.includes(group.key)),
@@ -69,6 +94,14 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
 
   const hasActiveFilters =
     !!search || activeTypes.length > 0 || activeCategories.length > 0 || activeSubcategories.length > 0 || activeDistricts.length > 0 || activeAgeGroups.length > 0;
+
+  useEffect(() => {
+    if (view === "map" && !MapComponent) {
+      import("@/app/wydarzenia/map-leaflet").then((mod) => {
+        setMapComponent(() => mod.MapLeaflet);
+      });
+    }
+  }, [view, MapComponent]);
   function matchesSearch(activity: Activity) {
     if (!search) {
       return true;
@@ -211,6 +244,38 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
     return groups;
   }, [filteredActivities, typeOptionsByValue]);
 
+  const mapGroups = useMemo((): MarkerGroup[] => {
+    const groups: Record<string, MarkerGroup> = {};
+
+    for (const activity of filteredActivities) {
+      const coords: [number, number] = activity.lat && activity.lng
+        ? [activity.lat, activity.lng]
+        : (DISTRICT_COORDS[activity.district] || KRAKOW_CENTER);
+      const key = `${coords[0]},${coords[1]}`;
+      const markerIcon = typeOptionsByValue.get(getActivityTypeValue(activity))?.icon || "🎯";
+
+      if (!groups[key]) {
+        groups[key] = {
+          coords,
+          events: [],
+          label: activity.title,
+          markerIcon,
+        };
+      }
+
+      groups[key].events.push({
+        id: activity.id,
+        title: activity.title,
+        slug: activity.slug,
+        street: activity.venue_address || activity.street || "",
+        city: activity.city || activity.district,
+        image_url: activity.image_url,
+      });
+    }
+
+    return Object.values(groups);
+  }, [filteredActivities, typeOptionsByValue]);
+
   const activeFilterBadges = useMemo(() => {
     const badges: { id: string; label: string; onRemove: () => void }[] = [];
 
@@ -310,8 +375,15 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
   }
 
   return (
-    <div className="container-page pt-5 pb-10">
-      <div className="rounded-[28px] bg-[#f2f2f2] px-4 py-5 shadow-[0_24px_70px_rgba(0,0,0,0.28)] sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+    <div>
+    <PageHero
+      title="Regularne zajęcia dla dzieci w Krakowie"
+      subtitle="Sport, muzyka, języki, sztuka — znajdź aktywności dopasowane do wieku i zainteresowań dziecka"
+      search={search}
+      onSearch={setSearch}
+    />
+    <div className="container-page pt-3 pb-10">
+      <div className="olive-gradient-panel rounded-[28px] px-4 py-5 shadow-[0_24px_70px_rgba(0,0,0,0.28)] sm:px-6 sm:py-6 lg:px-8 lg:py-8">
       <SubmissionCta
         mobile
         title="Tworzysz ciekawe zajęcia dla dzieci?"
@@ -463,8 +535,12 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
       )}
 
       <div className="lg:flex lg:gap-6 lg:items-start">
-        <aside className="hidden lg:block w-52 shrink-0">
-          <div className="rounded-xl border border-border bg-card p-2.5 space-y-2.5">
+        <aside className="hidden lg:block w-[240px] xl:w-[260px] shrink-0 rounded-2xl overflow-hidden border border-border bg-white">
+          <div className="p-2.5 space-y-2.5">
+            <div className="flex items-center gap-2 px-0.5 pb-0.5">
+              <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#e60100]">Filtry</span>
+              <div className="flex-1 h-px bg-border/70 rounded-full" />
+            </div>
             <div className="flex items-center gap-1 rounded-lg border border-border p-0.5 bg-accent/50">
               <button onClick={() => setView("list")} className={cn("flex-1 inline-flex items-center justify-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all duration-200", view === "list" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
                 <LayoutGrid size={11} /> Lista
@@ -475,12 +551,6 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
             </div>
 
             <div className="border-t border-border" />
-
-            <div className="relative">
-              <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
-              <input type="text" placeholder="Szukaj..." value={search} onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-7 pr-2 py-1 rounded-lg border border-border bg-background text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-200" />
-            </div>
 
             <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Typ</p>} defaultCollapsed={!filtersOpenDesktop}>
               <div className="flex flex-col gap-0.5">
@@ -636,13 +706,14 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
 
           {view === "map" ? (
             <div className="rounded-xl overflow-hidden border border-border" style={{ height: "500px" }}>
-              <div className="w-full h-full flex items-center justify-center bg-accent/20 px-6 text-center">
-                <div>
-                  <MapIcon size={30} className="mx-auto text-muted-foreground/30 mb-3" />
-                  <p className="text-[14px] font-semibold text-foreground">Mapa zajęć pojawi się wkrótce.</p>
-                  <p className="text-[12px] text-muted mt-1">Przygotowujemy ten widok w tym samym modelu co miejsca.</p>
+              {MapComponent ? (
+                <MapComponent groups={mapGroups} basePath="/zajecia" />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center bg-accent/20 gap-3">
+                  <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                  <p className="text-[13px] text-muted-foreground">Ładowanie mapy…</p>
                 </div>
-              </div>
+              )}
             </div>
           ) : filteredActivities.length === 0 ? (
             <div className="text-center py-16">
@@ -664,9 +735,9 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
                     <h2 className="text-[15px] font-semibold text-foreground">{group.label}</h2>
                     <span className="text-[12px] text-muted-foreground">({group.activities.length})</span>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
                     {group.activities.map((activity) => (
-                      <ContentCard key={activity.id} item={activity} />
+                      <ContentCard key={activity.id} item={activity} variant="vertical" />
                     ))}
                   </div>
                 </section>
@@ -676,6 +747,7 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
         </div>
       </div>
       </div>
+    </div>
     </div>
   );
 }

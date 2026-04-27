@@ -57,24 +57,51 @@ interface MapItem {
 }
 
 const KIND_META: Record<ContentKind, { emoji: string; color: string; bgClass: string; textClass: string; label: string }> = {
-  event:    { emoji: "🎪", color: "#D4623C", bgClass: "bg-[#FFF5F2]", textClass: "text-[#D4623C]", label: "Wydarzenie" },
+  event:    { emoji: "🎪", color: "#D4623C", bgClass: "bg-[#FFF5F2]", textClass: "text-[#D4623C]", label: "Liczba" },
   place:    { emoji: "📍", color: "#3D8B7A", bgClass: "bg-[#F0F9F7]", textClass: "text-[#3D8B7A]", label: "Miejsce" },
   activity: { emoji: "🎯", color: "#7B5EA7", bgClass: "bg-purple-50",  textClass: "text-purple-600", label: "Zajęcia" },
 };
 
+/* ─── Category colors for map markers ────────────────────── */
+const CATEGORY_COLORS: Record<string, { emoji: string; color: string }> = {
+  // Event categories
+  warsztaty: { emoji: "✂️", color: "#E8A937" },
+  spektakl: { emoji: "🎭", color: "#C4245B" },
+  muzyka: { emoji: "🎵", color: "#3D6BA8" },
+  sport: { emoji: "⚽", color: "#E34234" },
+  natura: { emoji: "🌿", color: "#4BA566" },
+  edukacja: { emoji: "📚", color: "#1E88E5" },
+  festyn: { emoji: "🎉", color: "#F48024" },
+  kino: { emoji: "🎬", color: "#6B47B5" },
+  wystawa: { emoji: "🖼️", color: "#D4A5A5" },
+  // Activity types
+  sportowe: { emoji: "⚽", color: "#E34234" },
+  artystyczne: { emoji: "🎨", color: "#C4245B" },
+  edukacyjne: { emoji: "📚", color: "#1E88E5" },
+  // Fallbacks
+  inne: { emoji: "✨", color: "#999999" },
+  default: { emoji: "📍", color: "#999999" },
+};
+
+function getCategoryColor(category: string | null | undefined, fallback: { emoji: string; color: string }): { emoji: string; color: string } {
+  if (!category) return fallback;
+  const categoryKey = category.toLowerCase().replace(/\s+/g, "_");
+  return CATEGORY_COLORS[categoryKey] ?? fallback;
+}
+
 /* ─── Normalise raw DB types into MapItem ─────────────────── */
 function fromEvent(e: Event): MapItem {
-  const meta = KIND_META.event;
+  const categoryMeta = getCategoryColor(e.main_category ?? e.category, KIND_META.event);
   const isFree = e.is_free || (e.price_from === 0 && e.price_to === 0) || (e.price_from === null && e.price_to === null);
   return {
     id: e.id,
     kind: "event",
     title: e.title,
     href: `/wydarzenia/${e.slug}`,
-    emoji: meta.emoji,
-    color: meta.color,
-    bgClass: meta.bgClass,
-    textClass: meta.textClass,
+    emoji: categoryMeta.emoji,
+    color: categoryMeta.color,
+    bgClass: KIND_META.event.bgClass,
+    textClass: KIND_META.event.textClass,
     coords: coords(e.lat, e.lng, e.district),
     street: e.street,
     city: e.city,
@@ -86,16 +113,16 @@ function fromEvent(e: Event): MapItem {
 }
 
 function fromPlace(p: Place): MapItem {
-  const meta = KIND_META.place;
+  const categoryMeta = getCategoryColor(p.main_category ?? p.category, KIND_META.place);
   return {
     id: p.id,
     kind: "place",
     title: p.title,
     href: `/miejsca/${p.slug}`,
-    emoji: meta.emoji,
-    color: meta.color,
-    bgClass: meta.bgClass,
-    textClass: meta.textClass,
+    emoji: categoryMeta.emoji,
+    color: categoryMeta.color,
+    bgClass: KIND_META.place.bgClass,
+    textClass: KIND_META.place.textClass,
     coords: coords(p.lat, p.lng, p.district),
     street: p.street,
     city: p.city,
@@ -107,17 +134,17 @@ function fromPlace(p: Place): MapItem {
 }
 
 function fromActivity(a: Activity): MapItem {
-  const meta = KIND_META.activity;
+  const categoryMeta = getCategoryColor(a.main_category ?? a.activity_type, KIND_META.activity);
   const isFree = a.is_free || (a.price_from === 0 && a.price_to === 0);
   return {
     id: a.id,
     kind: "activity",
     title: a.title,
     href: `/zajecia/${a.slug}`,
-    emoji: meta.emoji,
-    color: meta.color,
-    bgClass: meta.bgClass,
-    textClass: meta.textClass,
+    emoji: categoryMeta.emoji,
+    color: categoryMeta.color,
+    bgClass: KIND_META.activity.bgClass,
+    textClass: KIND_META.activity.textClass,
     coords: coords(a.lat ?? null, a.lng ?? null, a.district),
     street: a.venue_address ?? null,
     city: a.city ?? null,

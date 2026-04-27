@@ -36,6 +36,11 @@ export function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
 
           <div className="col-span-2 md:col-span-1">
+            <Link href="/" aria-label="NieSiedzWDomu">
+              <span style={{ fontFamily: "var(--font-pacifico)", fontSize: "22px", letterSpacing: "-0.01em" }}>
+                <span style={{ color: "#3A8C3F" }}>Nie</span><span style={{ color: "#F5C200" }}>Siedź</span><span style={{ color: "#e60100" }}>W</span><span style={{ color: "#8B5CF6" }}>Domu</span>
+              </span>
+            </Link>
 
             <p className="mt-4 text-[13px] leading-relaxed max-w-[220px] text-white/70">
               Platforma dla rodziców w Krakowie. Wydarzenia, kolonie i miejsca — wszystko w jednym miejscu.

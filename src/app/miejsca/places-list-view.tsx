@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { Search, LayoutGrid, MapIcon, SlidersHorizontal, X, MapPin, Check, ChevronDown } from "lucide-react";
+import { PageHero } from "@/components/layout/page-hero";
 import { DISTRICT_LIST } from "@/lib/mock-data";
 import { ContentCard } from "@/components/ui/content-card";
 import { FilterSection } from "@/components/ui/filter-section";
@@ -39,6 +40,7 @@ interface MarkerGroup {
   coords: [number, number];
   events: { id: string; title: string; slug: string; street: string; city: string; image_url?: string | null }[];
   label: string;
+  markerIcon: string;
 }
 
 interface PlacesListViewProps {
@@ -166,8 +168,10 @@ export function PlacesListView({ places }: PlacesListViewProps) {
     for (const place of filtered) {
       if (!place.lat || !place.lng) continue;
       const key = `${place.lat},${place.lng}`;
+      const typeValue = getPlaceTypeValue(place);
+      const typeIcon = typeOptionsByValue.get(typeValue)?.icon || "📍";
       if (!groups[key]) {
-        groups[key] = { coords: [place.lat, place.lng], events: [], label: place.title };
+        groups[key] = { coords: [place.lat, place.lng], events: [], label: place.title, markerIcon: typeIcon };
       }
       groups[key].events.push({
         id: place.id,
@@ -179,7 +183,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
       });
     }
     return Object.values(groups);
-  }, [filtered]);
+  }, [filtered, typeOptionsByValue]);
 
   const districtOptionsSource = useMemo(
     () => places.filter((place) => matchesPlaceFilters(place, ["district"])),
@@ -264,8 +268,15 @@ export function PlacesListView({ places }: PlacesListViewProps) {
   }
 
   return (
-    <div className="container-page pt-5 pb-10">
-      <div className="rounded-[28px] bg-[#f2f2f2] px-4 py-5 shadow-[0_24px_70px_rgba(0,0,0,0.28)] sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+    <div>
+    <PageHero
+      title="Najlepsze miejsca dla rodzin w Krakowie"
+      subtitle="Sale zabaw, parki, muzea i atrakcje — sprawdzone adresy dla dzieci w każdym wieku"
+      search={search}
+      onSearch={setSearch}
+    />
+    <div className="container-page pt-3 pb-10">
+      <div className="olive-gradient-panel rounded-[28px] px-4 py-5 shadow-[0_24px_70px_rgba(0,0,0,0.28)] sm:px-6 sm:py-6 lg:px-8 lg:py-8">
       <SubmissionCta
         mobile
         title="Chcesz stworzyć z nami mapę miejsc?"
@@ -382,8 +393,12 @@ export function PlacesListView({ places }: PlacesListViewProps) {
       <div className="lg:flex lg:gap-10 lg:items-start">
 
         {/* Sidebar filters — desktop only, sticky */}
-        <aside className="hidden lg:block w-52 shrink-0">
-          <div className="rounded-xl border border-border bg-card p-2.5 space-y-2.5">
+        <aside className="hidden lg:block w-[240px] xl:w-[260px] shrink-0 rounded-2xl overflow-hidden border border-border bg-white">
+          <div className="p-2.5 space-y-2.5">
+            <div className="flex items-center gap-2 px-0.5 pb-0.5">
+              <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#e60100]">Filtry</span>
+              <div className="flex-1 h-px bg-border/70 rounded-full" />
+            </div>
             <div className="flex items-center gap-1 rounded-lg border border-border p-0.5 bg-accent/50">
               <button onClick={() => setView("list")} className={cn("flex-1 inline-flex items-center justify-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all duration-200", view === "list" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
                 <LayoutGrid size={11} /> Lista
@@ -394,12 +409,6 @@ export function PlacesListView({ places }: PlacesListViewProps) {
             </div>
 
             <div className="border-t border-border" />
-
-            <div className="relative">
-              <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
-              <input type="text" placeholder="Szukaj..." value={search} onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-7 pr-2 py-1 rounded-lg border border-border bg-background text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-200" />
-            </div>
 
             <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Typ</p>} defaultCollapsed={!filtersOpenDesktop}>
               <div className="flex flex-col gap-0.5">
@@ -558,9 +567,9 @@ export function PlacesListView({ places }: PlacesListViewProps) {
                       <h2 className="text-[15px] font-semibold text-foreground">{group.label}</h2>
                       <span className="text-[12px] text-muted-foreground">({group.places.length})</span>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
                       {group.places.map((place) => (
-                        <ContentCard key={place.id} item={place} />
+                        <ContentCard key={place.id} item={place} variant="vertical" />
                       ))}
                     </div>
                   </section>
@@ -571,6 +580,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
         </div>
       </div>
       </div>
+    </div>
     </div>
   );
 }

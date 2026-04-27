@@ -3,22 +3,24 @@
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-/* Fix default marker icons (Leaflet + webpack issue) */
-const defaultIcon = L.icon({
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
-L.Marker.prototype.options.icon = defaultIcon;
+
+function createPlacePin(count: number, markerIcon: string) {
+  const size = count > 1 ? 40 : 34;
+  const emojiSize = count > 1 ? 26 : 22;
+  return L.divIcon({
+    className: "",
+    html: `<div style="width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;font-size:${emojiSize}px;line-height:1;position:relative;filter:drop-shadow(0 3px 5px rgba(0,0,0,0.35));">${markerIcon}${count > 1 ? `<span style=\"position:absolute;right:-6px;top:-6px;min-width:18px;height:18px;padding:0 4px;border-radius:999px;background:#111;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,0.75);\">${count}</span>` : ""}</div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, Math.round(size * 0.82)],
+    popupAnchor: [0, -Math.round(size * 0.6)],
+  });
+}
 
 export interface MarkerGroup {
   coords: [number, number];
   events: { id: string; title: string; slug: string; street: string; city: string; image_url?: string | null }[];
   label: string;
+  markerIcon?: string;
 }
 
 interface MapLeafletProps {
@@ -39,7 +41,11 @@ export function MapLeaflet({ groups, basePath = "/wydarzenia" }: MapLeafletProps
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       {groups.map((group) => (
-        <Marker key={`${group.coords[0]}-${group.coords[1]}`} position={group.coords}>
+        <Marker
+          key={`${group.coords[0]}-${group.coords[1]}`}
+          position={group.coords}
+          icon={createPlacePin(group.events.length, group.markerIcon || "📍")}
+        >
           <Popup>
             <div className="min-w-[200px] max-w-[260px]">
               {/* Show image for the first item if available */}

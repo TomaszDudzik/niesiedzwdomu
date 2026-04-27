@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 import { Search, SlidersHorizontal, X, MapPin, Check, Tags, Users, CalendarDays, ChevronDown } from "lucide-react";
+import { PageHero } from "@/components/layout/page-hero";
 import { DISTRICT_LIST } from "@/lib/mock-data";
 import { FilterSection } from "@/components/ui/filter-section";
 import { SubmissionCta } from "@/components/ui/submission-cta";
@@ -639,8 +640,15 @@ export function CampsListView({ camps }: CampsListViewProps) {
   }
 
   return (
-    <div className="container-page pt-5 pb-10">
-      <div className="rounded-[28px] bg-[#f2f2f2] px-4 py-5 shadow-[0_24px_70px_rgba(0,0,0,0.28)] sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+    <div>
+    <PageHero
+      title="Wakacje pełne przygód dla dzieci"
+      subtitle="Sprawdzeni organizatorzy kolonii i półkolonii — letnie i zimowe wyjazdy w Krakowie i okolicach"
+      search={search}
+      onSearch={setSearch}
+    />
+    <div className="container-page pt-3 pb-10">
+      <div className="olive-gradient-panel rounded-[28px] px-4 py-5 shadow-[0_24px_70px_rgba(0,0,0,0.28)] sm:px-6 sm:py-6 lg:px-8 lg:py-8">
       <SubmissionCta
         mobile
         title="Prowadzisz kolonie lub półkolonie?"
@@ -865,19 +873,15 @@ export function CampsListView({ camps }: CampsListViewProps) {
       )}
 
       <div className="lg:flex lg:gap-6 lg:items-start">
-        <aside className="hidden lg:block w-52 shrink-0">
-          <div className="rounded-xl border border-border bg-card p-2.5 space-y-2.5">
-            <div className="relative">
-              <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
-              <input
-                type="text"
-                placeholder="Szukaj..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-7 pr-2 py-1 rounded-lg border border-border bg-background text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-200"
-              />
+        <aside className="hidden lg:block w-[240px] xl:w-[260px] shrink-0 rounded-2xl overflow-hidden border border-border bg-white">
+          <div className="p-2.5 space-y-2.5">
+            <div className="flex items-center gap-2 px-0.5 pb-0.5">
+              <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#e60100]">Filtry</span>
+              <div className="flex-1 h-px bg-border/70 rounded-full" />
+              {hasActiveFilters && (
+                <span className="text-[9px] font-bold text-primary">{activeFilterBadges.length} aktywne</span>
+              )}
             </div>
-
             <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Data</p>} defaultCollapsed={!filtersOpenDesktop}>
               <p className="text-[10px] text-muted-foreground mb-1">Konkretna data</p>
               <input
@@ -1328,6 +1332,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
         </div>
       </div>
       </div>
+    </div>
     </div>
   );
 }
