@@ -2,7 +2,7 @@
 
 @theme {
   /* ── Palette ─────────────────────────────────── */
-  --color-background:       #5F7F95;
+  --color-background:       #36576E;
   --color-foreground:       oklch(20% 0.02 88);
   --color-muted:            oklch(43% 0.02 88);
   --color-muted-foreground: oklch(52% 0.018 88);
@@ -56,7 +56,7 @@
     background-color: var(--color-background);
     background-image:
       radial-gradient(circle at 10% 90%, rgba(255,255,255,0.15), transparent 40%),
-      linear-gradient(315deg, #5F7F95 0%, #6C7F8C 40%, #6A4E4A 100%),
+      linear-gradient(315deg, #36576E 0%, #6C7F8C 40%, #6A4E4A 100%),
       linear-gradient(315deg, rgba(0,0,0,0.15), rgba(0,0,0,0.35));
     background-attachment: fixed;
     color: var(--color-foreground);
