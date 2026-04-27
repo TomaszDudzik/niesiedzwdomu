@@ -265,6 +265,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
 
   return (
     <div className="container-page pt-5 pb-10">
+      <div className="rounded-[28px] bg-[#f2f2f2] px-4 py-5 shadow-[0_24px_70px_rgba(0,0,0,0.28)] sm:px-6 sm:py-6 lg:px-8 lg:py-8">
       <SubmissionCta
         mobile
         title="Chcesz stworzyć z nami mapę miejsc?"
@@ -568,6 +569,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
             )}
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

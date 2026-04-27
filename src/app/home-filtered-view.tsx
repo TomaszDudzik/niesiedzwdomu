@@ -573,34 +573,9 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
       ────────────────────────────────────────── */}
       <section className="relative overflow-hidden">
         <div className="container-page relative pt-4 pb-5 md:pt-5 md:pb-6">
-          <div className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
 
-
-            <div className="flex flex-col items-start gap-2.5 lg:items-end">
-              <div className="flex flex-wrap items-center gap-2.5 lg:justify-end">
-                {[
-                  { href: "/miejsca",    emoji: "📍", label: "Miejsca",    count: places.length,     bg: "#3A8C3F", textColor: "white",   countBg: "rgba(255,255,255,0.25)" },
-                  { href: "/wydarzenia", emoji: "🎉", label: "Wydarzenia", count: events.length,     bg: "#F5C200", textColor: "#1a1a1a", countBg: "rgba(0,0,0,0.15)" },
-                  { href: "/kolonie",    emoji: "⛺", label: "Kolonie",    count: camps.length,      bg: "#2D6B1F", textColor: "white",   countBg: "rgba(255,255,255,0.25)" },
-                  { href: "/zajecia",    emoji: "🎨", label: "Zajęcia",    count: activities.length, bg: "#E8A020", textColor: "white",   countBg: "rgba(255,255,255,0.25)" },
-                ].map((stat) => (
-                  <Link
-                    key={stat.href}
-                    href={stat.href}
-                    style={{ backgroundColor: stat.bg, color: stat.textColor }}
-                    className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[12px] font-semibold shadow-[0_4px_12px_rgba(0,0,0,0.15)] transition-all hover:-translate-y-0.5 hover:opacity-90"
-                  >
-                    <span>{stat.emoji}</span>
-                    <span>{stat.label}</span>
-                    <span
-                      style={{ backgroundColor: stat.countBg, color: stat.textColor }}
-                      className="inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold"
-                    >
-                      {stat.count}+
-                    </span>
-                  </Link>
-                ))}
-              </div>
+            <div className="flex flex-col items-start gap-2.5">
             </div>
           </div>
 
@@ -655,7 +630,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
           Main content area
       ────────────────────────────────────────── */}
       <div className="container-page py-8">
-        <div className="rounded-[28px] bg-[#E0F2E4] px-4 py-5 shadow-[0_24px_70px_rgba(0,0,0,0.28)] sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+        <div className="rounded-[28px] bg-[#f2f2f2] px-4 py-5 shadow-[0_24px_70px_rgba(0,0,0,0.28)] sm:px-6 sm:py-6 lg:px-8 lg:py-8">
 
         {/* Mobile filter toggle */}
         <div className="lg:hidden mb-4 flex items-center gap-2">

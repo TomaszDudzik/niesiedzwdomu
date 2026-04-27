@@ -8,13 +8,20 @@ import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
-  { href: "/miejsca",    label: "Miejsca",    emoji: "📍", bg: "#3A8C3F", bgHover: "#2d6b31", textColor: "white" },
-  { href: "/wydarzenia", label: "Wydarzenia", emoji: "🎉", bg: "#FDE047", bgHover: "#FACC15", textColor: "#1a1a1a" },
-  { href: "/kolonie",    label: "Kolonie",    emoji: "⛺", bg: "#e60100", bgHover: "#c40000", textColor: "white" },
-  { href: "/zajecia",    label: "Zajęcia",    emoji: "🎨", bg: "#8B5CF6", bgHover: "#7C3AED", textColor: "white" },
-];
+  { href: "/miejsca",    label: "Miejsca",    emoji: "📍", bg: "#3A8C3F", textColor: "white",   countBg: "rgba(255,255,255,0.25)", countKey: "places" },
+  { href: "/wydarzenia", label: "Wydarzenia", emoji: "🎉", bg: "#F5C200", textColor: "#1a1a1a", countBg: "rgba(0,0,0,0.15)",         countKey: "events" },
+  { href: "/kolonie",    label: "Kolonie",    emoji: "⛺", bg: "#e60100", textColor: "white",   countBg: "rgba(255,255,255,0.25)", countKey: "camps" },
+  { href: "/zajecia",    label: "Zajęcia",    emoji: "🎨", bg: "#8B5CF6", textColor: "white",   countBg: "rgba(255,255,255,0.25)", countKey: "activities" },
+] as const;
 
-export function Header() {
+interface NavCounts {
+  places?: number;
+  events?: number;
+  camps?: number;
+  activities?: number;
+}
+
+export function Header({ counts }: { counts?: NavCounts }) {
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -39,34 +46,38 @@ export function Header() {
       <div className="container-page">
         <div className="flex h-[68px] items-center gap-4 lg:gap-6">
 
-          {/* Logo — background crop to remove whitespace */}
+          {/* Logo */}
           <Link
             href="/"
-            className="shrink-0"
-            aria-label="Nie Siedź W Domu"
-            style={{
-              display: "block",
-              height: 52,
-              width: 170,
-              backgroundImage: "url('/logo-new.jpg')",
-              backgroundSize: "auto 170px",
-              backgroundRepeat: "no-repeat",
-              backgroundPosition: "center 45%",
-            }}
-          />
+            className="shrink-0 whitespace-nowrap"
+            aria-label="NieSiedzWDomu"
+          >
+            <span style={{ fontFamily: "var(--font-pacifico)", fontSize: "22px", color: "#1a1a1a", letterSpacing: "-0.01em" }}>
+              <span style={{ color: "#3A8C3F" }}>Nie</span><span style={{ color: "#F5C200" }}>Siedź</span><span style={{ color: "#e60100" }}>W</span><span style={{ color: "#8B5CF6" }}>Domu</span>
+            </span>
+          </Link>
 
           {/* Desktop nav — right side */}
           <nav className="ml-auto hidden lg:flex items-center gap-2">
             {NAV_LINKS.map((link) => {
+              const count = counts?.[link.countKey];
               return (
                 <Link
                   key={link.href}
                   href={link.href}
                   style={{ backgroundColor: link.bg, color: link.textColor }}
-                  className="flex items-center gap-1.5 rounded-full px-4 py-2 text-[14px] font-semibold transition-opacity duration-150 hover:opacity-85"
+                  className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-semibold transition-opacity duration-150 hover:opacity-85"
                 >
-                  <span className="text-[15px]">{link.emoji}</span>
-                  {link.label}
+                  <span>{link.emoji}</span>
+                  <span>{link.label}</span>
+                  {count !== undefined && (
+                    <span
+                      style={{ backgroundColor: link.countBg, color: link.textColor }}
+                      className="inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold"
+                    >
+                      {count}+
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -93,16 +104,25 @@ export function Header() {
         <div className="lg:hidden border-t border-border bg-white px-5 py-4">
           <nav className="flex flex-col gap-1">
             {NAV_LINKS.map((link) => {
+              const count = counts?.[link.countKey];
               return (
                 <Link
                   key={link.href}
                   href={link.href}
                   onClick={() => setMobileOpen(false)}
                   style={{ backgroundColor: link.bg, color: link.textColor }}
-                  className="flex items-center gap-3 rounded-full px-4 py-3 text-[15px] font-semibold transition-opacity duration-150 hover:opacity-85"
+                  className="inline-flex items-center gap-3 rounded-full px-4 py-3 text-[15px] font-semibold transition-opacity duration-150 hover:opacity-85"
                 >
                   <span className="text-[18px]">{link.emoji}</span>
-                  {link.label}
+                  <span className="flex-1">{link.label}</span>
+                  {count !== undefined && (
+                    <span
+                      style={{ backgroundColor: link.countBg, color: link.textColor }}
+                      className="inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold"
+                    >
+                      {count}+
+                    </span>
+                  )}
                 </Link>
               );
             })}
