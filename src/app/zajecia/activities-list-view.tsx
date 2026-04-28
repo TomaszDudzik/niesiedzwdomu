@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Search, LayoutGrid, MapIcon, SlidersHorizontal, X, MapPin, Check, ChevronDown } from "lucide-react";
 import { MobileActionBar } from "@/components/ui/mobile-action-bar";
 import { PageHero } from "@/components/layout/page-hero";
+import { ListGroupHeader } from "@/components/layout/list-group-header";
+import { ListPageMainContent } from "@/components/layout/list-page-main-content";
 import { DISTRICT_LIST } from "@/lib/mock-data";
 import { ContentCard } from "@/components/ui/content-card";
 import { FilterSection } from "@/components/ui/filter-section";
@@ -630,8 +632,9 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
           </div>
         </aside>
 
-        <div className="flex-1 min-w-0">
-          <div className="space-y-7">
+        <ListPageMainContent
+          topContent={(
+            <>
             <SubmissionCta
               title="Tworzysz ciekawe zajęcia dla dzieci?"
               description="Dodaj je do katalogu i ułatw rodzicom znalezienie regularnych aktywności w okolicy."
@@ -675,7 +678,9 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
                 )}
               </div>
             </div>
-          </div>
+            </>
+          )}
+        >
 
           {view === "map" ? (
             <div className="rounded-xl overflow-hidden border border-border" style={{ height: "500px" }}>
@@ -703,11 +708,7 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
             <div className="space-y-12">
               {grouped.map((group) => (
                 <section key={group.type}>
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="text-lg">{group.icon}</span>
-                    <h2 className="text-[15px] font-semibold text-foreground">{group.label}</h2>
-                    <span className="text-[12px] text-muted-foreground">({group.activities.length})</span>
-                  </div>
+                  <ListGroupHeader icon={group.icon} title={group.label} count={group.activities.length} />
                   <div className="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-4 gap-4">
                     {group.activities.map((activity) => (
                       <ContentCard key={activity.id} item={activity} variant="vertical" />
@@ -717,7 +718,7 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
               ))}
             </div>
           )}
-        </div>
+        </ListPageMainContent>
       </div>
       </div>
     </div>

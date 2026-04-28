@@ -4,6 +4,8 @@ import { useState, useMemo, useEffect } from "react";
 import { Search, LayoutGrid, MapIcon, SlidersHorizontal, X, MapPin, Check, ChevronDown } from "lucide-react";
 import { MobileActionBar } from "@/components/ui/mobile-action-bar";
 import { PageHero } from "@/components/layout/page-hero";
+import { ListGroupHeader } from "@/components/layout/list-group-header";
+import { ListPageMainContent } from "@/components/layout/list-page-main-content";
 import { DISTRICT_LIST } from "@/lib/mock-data";
 import { ContentCard } from "@/components/ui/content-card";
 import { FilterSection } from "@/components/ui/filter-section";
@@ -457,8 +459,9 @@ export function PlacesListView({ places }: PlacesListViewProps) {
         </aside>
 
         {/* Main content */}
-        <div className="flex-1 min-w-0">
-          <div className="space-y-7">
+        <ListPageMainContent
+          topContent={(
+            <>
             <SubmissionCta
               title="Chcesz stworzyć z nami mapę miejsc?"
               description="Dodaj swoje miejsce i pomóż rodzicom odkrywać wartościowe adresy w Krakowie."
@@ -502,10 +505,11 @@ export function PlacesListView({ places }: PlacesListViewProps) {
                 )}
               </div>
             </div>
-          </div>
+            </>
+          )}
+        >
 
-          <div className="mt-4">
-            {view === "map" ? (
+          {view === "map" ? (
               <div className="space-y-3">
                 <div className="rounded-xl border border-border bg-card px-4 py-3">
                   <h2 className="text-[15px] font-semibold text-foreground">Mapa miejsc w Krakowie</h2>
@@ -539,11 +543,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
               <div className="space-y-12">
                 {grouped.map((group) => (
                   <section key={group.type}>
-                    <div className="flex items-center gap-2 mb-4">
-                      <span className="text-lg">{group.icon}</span>
-                      <h2 className="text-[15px] font-semibold text-foreground">{group.label}</h2>
-                      <span className="text-[12px] text-muted-foreground">({group.places.length})</span>
-                    </div>
+                    <ListGroupHeader icon={group.icon} title={group.label} count={group.places.length} />
                     <div className="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-4 gap-4">
                       {group.places.map((place) => (
                         <ContentCard key={place.id} item={place} variant="vertical" />
@@ -553,8 +553,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
                 ))}
               </div>
             )}
-          </div>
-        </div>
+        </ListPageMainContent>
       </div>
       </div>
     </div>

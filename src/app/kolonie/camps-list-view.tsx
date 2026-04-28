@@ -5,6 +5,8 @@ import { useMemo, useRef, useState } from "react";
 import { Search, SlidersHorizontal, X, MapPin, Check, Tags, Users, CalendarDays, ChevronDown } from "lucide-react";
 import { MobileActionBar } from "@/components/ui/mobile-action-bar";
 import { PageHero } from "@/components/layout/page-hero";
+import { ListGroupHeader } from "@/components/layout/list-group-header";
+import { ListPageMainContent } from "@/components/layout/list-page-main-content";
 import { DISTRICT_LIST } from "@/lib/mock-data";
 import { FilterSection } from "@/components/ui/filter-section";
 import { SubmissionCta } from "@/components/ui/submission-cta";
@@ -1027,8 +1029,9 @@ export function CampsListView({ camps }: CampsListViewProps) {
           </div>
         </aside>
 
-        <div className="flex-1 min-w-0">
-          <div className="space-y-7">
+        <ListPageMainContent
+          topContent={(
+            <>
             <SubmissionCta
               title="Prowadzisz kolonie lub półkolonie?"
               description="Pokaż ofertę rodzinom szukającym sprawdzonych wyjazdów i turnusów w Krakowie."
@@ -1036,7 +1039,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
               href="/dodaj?type=camp"
             />
 
-            <div ref={calendarRef} className="rounded-xl border border-border bg-white overflow-hidden mb-4 scroll-mt-24">
+            <div ref={calendarRef} className="rounded-xl border border-border bg-white overflow-hidden scroll-mt-24">
               <div className="px-3 pt-2 pb-1 border-b border-border/50">
                 <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: "none" }}>
                   {monthOptions.map((opt) => {
@@ -1153,10 +1156,11 @@ export function CampsListView({ camps }: CampsListViewProps) {
                 )}
               </div>
             </div>
-          </div>
+            </>
+          )}
+        >
 
-          <div className="mt-4">
-            {filteredCamps.length === 0 ? (
+          {filteredCamps.length === 0 ? (
               <div className="text-center py-16">
                 <Search size={32} className="mx-auto text-muted-foreground/20 mb-3" />
                 <p className="text-[14px] text-muted mb-3">Brak kolonii pasujących do filtrów.</p>
@@ -1173,11 +1177,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
               <div className="space-y-12">
                 {grouped.map((group) => (
                   <section key={group.type}>
-                    <div className="flex items-center gap-2 mb-4">
-                      <span className="text-lg">{group.icon}</span>
-                      <h2 className="text-[15px] font-semibold text-foreground">{group.label}</h2>
-                      <span className="text-[12px] text-muted-foreground">({group.organizers.length})</span>
-                    </div>
+                    <ListGroupHeader icon={group.icon} title={group.label} count={group.organizers.length} />
                     <div className="space-y-4">
                       {group.organizers.map((organizer) => {
                       const sortedCamps = sortCampsByNearest(organizer.camps, today);
@@ -1303,8 +1303,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                 ))}
               </div>
             )}
-          </div>
-        </div>
+        </ListPageMainContent>
       </div>
       </div>
     </div>

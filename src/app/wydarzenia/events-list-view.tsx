@@ -4,6 +4,8 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { Search, LayoutGrid, CalendarDays, SlidersHorizontal, X, MapPin, MapIcon, Check, ChevronDown } from "lucide-react";
 import { MobileActionBar } from "@/components/ui/mobile-action-bar";
 import { PageHero } from "@/components/layout/page-hero";
+import { ListGroupHeader } from "@/components/layout/list-group-header";
+import { ListPageMainContent } from "@/components/layout/list-page-main-content";
 import { DISTRICT_LIST } from "@/lib/mock-data";
 import { ContentCard } from "@/components/ui/content-card";
 import { FilterSection } from "@/components/ui/filter-section";
@@ -835,9 +837,9 @@ export function EventsListView({ events }: EventsListViewProps) {
         </aside>
 
         {/* Main content */}
-        <div className="flex-1 min-w-0">
-          <>
-            <div className="space-y-7">
+        <ListPageMainContent
+          topContent={(
+            <>
               <SubmissionCta
                 title="Organizujesz wydarzenie dla dzieci?"
                 description="Dodaj je do kalendarza i pomóż rodzinom znaleźć pomysł na dziś albo weekend."
@@ -845,7 +847,7 @@ export function EventsListView({ events }: EventsListViewProps) {
                 href="/dodaj?type=event"
               />
 
-              <div className="rounded-xl border border-border bg-white overflow-hidden mb-4">
+              <div className="rounded-xl border border-border bg-white overflow-hidden">
                 <div className="px-3 pt-2 pb-1 border-b border-border/50">
                   <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: "none" }}>
                     {monthOptions.map((opt) => {
@@ -963,10 +965,11 @@ export function EventsListView({ events }: EventsListViewProps) {
                   )}
                 </div>
               </div>
-            </div>
+            </>
+          )}
+        >
 
-            <div className="mt-4">
-              {view === "map" ? (
+          {view === "map" ? (
                 <div className="space-y-3">
                   <div className="rounded-xl border border-border bg-card px-4 py-3">
                     <h2 className="text-[15px] font-semibold text-foreground">Mapa wydarzeń w Krakowie</h2>
@@ -1000,11 +1003,7 @@ export function EventsListView({ events }: EventsListViewProps) {
                 <div className="space-y-12">
                   {grouped.map((group) => (
                     <section key={group.category}>
-                      <div className="flex items-center gap-2 mb-4">
-                        <span className="text-lg">{group.icon}</span>
-                        <h2 className="text-[15px] font-semibold text-foreground">{group.label}</h2>
-                        <span className="text-[12px] text-muted-foreground">({group.events.length})</span>
-                      </div>
+                      <ListGroupHeader icon={group.icon} title={group.label} count={group.events.length} />
                       <div className="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-4 gap-4">
                         {group.events.map((event) => (
                           <ContentCard key={event.id} item={event} variant="vertical" />
@@ -1014,9 +1013,7 @@ export function EventsListView({ events }: EventsListViewProps) {
                   ))}
                 </div>
               )}
-            </div>
-          </>
-        </div>
+        </ListPageMainContent>
       </div>
       </div>
     </div>

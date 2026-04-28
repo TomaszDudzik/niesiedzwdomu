@@ -206,11 +206,14 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
   const [activeTypes, setActiveTypes] = useState<string[]>([]);
   const [activeCategories, setActiveCategories] = useState<string[]>([]);
   const [activeDistricts, setActiveDistricts] = useState<District[]>([]);
-  const [activeAgeGroup, setActiveAgeGroup] = useState<string | null>(null);
+  const [activeAgeGroups, setActiveAgeGroups] = useState<string[]>([]);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
-  const ageGroup = AGE_GROUPS.find((g) => g.key === activeAgeGroup) ?? null;
-  const hasActiveFilters = !!(search || activeTypeLevel2.length > 0 || activeTypes.length > 0 || activeCategories.length > 0 || activeDistricts.length > 0 || activeAgeGroup !== null);
+  const selectedAgeGroups = useMemo(
+    () => AGE_GROUPS.filter((group) => activeAgeGroups.includes(group.key)),
+    [activeAgeGroups]
+  );
+  const hasActiveFilters = !!(search || activeTypeLevel2.length > 0 || activeTypes.length > 0 || activeCategories.length > 0 || activeDistricts.length > 0 || activeAgeGroups.length > 0);
 
   const unifiedFilterEntries = useMemo<UnifiedFilterEntry[]>(
     () => [
@@ -260,7 +263,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
     if (!excluded.includes("type") && !matchesTaxonomyFilter(entry.type, activeTypes)) return false;
     if (!excluded.includes("category") && !matchesTaxonomyFilter(entry.category, activeCategories)) return false;
     if (!excluded.includes("district") && activeDistricts.length > 0 && !activeDistricts.includes(entry.district)) return false;
-    if (!excluded.includes("age") && !matchesAgeFilter(entry.ageMin, entry.ageMax, ageGroup)) return false;
+    if (!excluded.includes("age") && selectedAgeGroups.length > 0 && !selectedAgeGroups.some((group) => matchesAgeFilter(entry.ageMin, entry.ageMax, group))) return false;
     return true;
   }
 
@@ -269,7 +272,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
       getTaxonomyOptions(unifiedFilterEntries.filter((e) => matchesUnifiedFilters(e, ["type"])), (e) => e.type),
       activeTypes,
     ),
-    [unifiedFilterEntries, search, activeTypeLevel2, activeCategories, activeDistricts, ageGroup, activeTypes]
+    [unifiedFilterEntries, search, activeTypeLevel2, activeCategories, activeDistricts, activeAgeGroups, selectedAgeGroups, activeTypes]
   );
 
   const typeLevel2LabelMap = useMemo(
@@ -283,7 +286,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
       activeTypeLevel2,
       typeLevel2LabelMap,
     ),
-    [unifiedFilterEntries, typeLevel2LabelMap, search, activeTypes, activeCategories, activeDistricts, ageGroup, activeTypeLevel2]
+    [unifiedFilterEntries, typeLevel2LabelMap, search, activeTypes, activeCategories, activeDistricts, activeAgeGroups, selectedAgeGroups, activeTypeLevel2]
   );
 
   const typeLevel2OptionsByValue = useMemo(
@@ -297,7 +300,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
       activeCategories,
       CATEGORY_LABELS as Record<string, string>,
     ),
-    [unifiedFilterEntries, search, activeTypeLevel2, activeTypes, activeDistricts, ageGroup, activeCategories]
+    [unifiedFilterEntries, search, activeTypeLevel2, activeTypes, activeDistricts, activeAgeGroups, selectedAgeGroups, activeCategories]
   );
 
   const typeOptionsByValue = useMemo(() => new Map(typeOptions.map((o) => [o.value, o])), [typeOptions]);
@@ -311,7 +314,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
     return Array.from(counts.entries())
       .map(([value, count]) => ({ value, label: value, icon: DISTRICT_ICONS[value] || "📍", count }))
       .sort((a, b) => a.label.localeCompare(b.label, "pl"));
-  }, [unifiedFilterEntries, search, activeTypeLevel2, activeTypes, activeCategories, ageGroup]);
+  }, [unifiedFilterEntries, search, activeTypeLevel2, activeTypes, activeCategories, activeAgeGroups, selectedAgeGroups]);
 
   const ageOptions = useMemo(
     () => AGE_GROUPS.map((group) => ({
@@ -339,12 +342,12 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
     activeDistricts.forEach((v) => {
       badges.push({ id: `dist-${v}`, label: v, onRemove: () => setActiveDistricts((p) => p.filter((x) => x !== v)) });
     });
-    if (activeAgeGroup) {
-      const group = AGE_GROUPS.find((g) => g.key === activeAgeGroup);
-      badges.push({ id: `age-${activeAgeGroup}`, label: group?.label || activeAgeGroup, onRemove: () => setActiveAgeGroup(null) });
-    }
+    activeAgeGroups.forEach((key) => {
+      const group = AGE_GROUPS.find((g) => g.key === key);
+      badges.push({ id: `age-${key}`, label: group?.label || key, onRemove: () => setActiveAgeGroups((prev) => prev.filter((x) => x !== key)) });
+    });
     return badges;
-  }, [search, activeTypeLevel2, activeTypes, activeCategories, activeDistricts, activeAgeGroup, typeLevel2OptionsByValue, typeOptionsByValue, categoryOptionsByValue]);
+  }, [search, activeTypeLevel2, activeTypes, activeCategories, activeDistricts, activeAgeGroups, typeLevel2OptionsByValue, typeOptionsByValue, categoryOptionsByValue]);
 
   /* ─── Filtered data ─── */
   const filteredEvents = useMemo(() => {
@@ -354,8 +357,8 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
     if (activeTypes.length > 0) result = result.filter((e) => matchesTaxonomyFilter(getEventCategoryLvl1(e), activeTypes));
     if (activeCategories.length > 0) result = result.filter((e) => matchesTaxonomyFilter(getEventCategoryLvl2(e), activeCategories));
     if (activeDistricts.length > 0) result = result.filter((e) => activeDistricts.includes(normalizeDistrictName(e.district)));
-    return result.filter((e) => matchesAgeFilter(e.age_min, e.age_max, ageGroup)).sort((a, b) => b.likes - a.likes);
-  }, [events, search, activeTypeLevel2, activeTypes, activeCategories, activeDistricts, ageGroup]);
+    return result.filter((e) => selectedAgeGroups.length === 0 || selectedAgeGroups.some((group) => matchesAgeFilter(e.age_min, e.age_max, group))).sort((a, b) => b.likes - a.likes);
+  }, [events, search, activeTypeLevel2, activeTypes, activeCategories, activeDistricts, selectedAgeGroups]);
 
   const filteredPlaces = useMemo(() => {
     let result = places;
@@ -364,8 +367,8 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
     if (activeTypes.length > 0) result = result.filter((p) => matchesTaxonomyFilter(getPlaceCategoryLvl1(p), activeTypes));
     if (activeCategories.length > 0) result = result.filter((p) => matchesTaxonomyFilter(getPlaceCategoryLvl2(p), activeCategories));
     if (activeDistricts.length > 0) result = result.filter((p) => activeDistricts.includes(normalizeDistrictName(p.district)));
-    return result.filter((p) => matchesAgeFilter(p.age_min, p.age_max, ageGroup)).sort((a, b) => b.likes - a.likes);
-  }, [places, search, activeTypeLevel2, activeTypes, activeCategories, activeDistricts, ageGroup]);
+    return result.filter((p) => selectedAgeGroups.length === 0 || selectedAgeGroups.some((group) => matchesAgeFilter(p.age_min, p.age_max, group))).sort((a, b) => b.likes - a.likes);
+  }, [places, search, activeTypeLevel2, activeTypes, activeCategories, activeDistricts, selectedAgeGroups]);
 
   const filteredCamps = useMemo(() => {
     let result = camps;
@@ -374,8 +377,8 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
     if (activeTypes.length > 0) result = result.filter((c) => matchesTaxonomyFilter(getCampCategoryLvl1(c), activeTypes));
     if (activeCategories.length > 0) result = result.filter((c) => matchesTaxonomyFilter(getCampCategoryLvl2(c), activeCategories));
     if (activeDistricts.length > 0) result = result.filter((c) => activeDistricts.includes(normalizeDistrictName(c.district)));
-    return result.filter((c) => matchesAgeFilter(c.age_min, c.age_max, ageGroup)).sort((a, b) => new Date(a.date_start).getTime() - new Date(b.date_start).getTime());
-  }, [camps, search, activeTypeLevel2, activeTypes, activeCategories, activeDistricts, ageGroup]);
+    return result.filter((c) => selectedAgeGroups.length === 0 || selectedAgeGroups.some((group) => matchesAgeFilter(c.age_min, c.age_max, group))).sort((a, b) => new Date(a.date_start).getTime() - new Date(b.date_start).getTime());
+  }, [camps, search, activeTypeLevel2, activeTypes, activeCategories, activeDistricts, selectedAgeGroups]);
 
   const filteredActivities = useMemo(() => {
     let result = activities;
@@ -384,14 +387,14 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
     if (activeTypes.length > 0) result = result.filter((a) => matchesTaxonomyFilter(getActivityCategoryLvl1(a), activeTypes));
     if (activeCategories.length > 0) result = result.filter((a) => matchesTaxonomyFilter(getActivityCategoryLvl2(a), activeCategories));
     if (activeDistricts.length > 0) result = result.filter((a) => activeDistricts.includes(normalizeDistrictName(a.district)));
-    return result.filter((a) => matchesAgeFilter(a.age_min, a.age_max, ageGroup)).sort((a, b) => b.likes - a.likes);
-  }, [activities, search, activeTypeLevel2, activeTypes, activeCategories, activeDistricts, ageGroup]);
+    return result.filter((a) => selectedAgeGroups.length === 0 || selectedAgeGroups.some((group) => matchesAgeFilter(a.age_min, a.age_max, group))).sort((a, b) => b.likes - a.likes);
+  }, [activities, search, activeTypeLevel2, activeTypes, activeCategories, activeDistricts, selectedAgeGroups]);
 
   function toggleTypeLevel2(v: string) { setActiveTypeLevel2((p) => p.includes(v) ? p.filter((x) => x !== v) : [...p, v]); }
   function toggleType(v: string) { setActiveTypes((p) => p.includes(v) ? p.filter((x) => x !== v) : [...p, v]); }
   function toggleCategory(v: string) { setActiveCategories((p) => p.includes(v) ? p.filter((x) => x !== v) : [...p, v]); }
   function toggleDistrict(v: District) { setActiveDistricts((p) => p.includes(v) ? p.filter((x) => x !== v) : [...p, v]); }
-  function clearFilters() { setSearch(""); setActiveTypeLevel2([]); setActiveTypes([]); setActiveCategories([]); setActiveDistricts([]); setActiveAgeGroup(null); }
+  function clearFilters() { setSearch(""); setActiveTypeLevel2([]); setActiveTypes([]); setActiveCategories([]); setActiveDistricts([]); setActiveAgeGroups([]); }
 
   const organizers = useMemo<OrganizerTile[]>(() => {
     const map = new Map<string, OrganizerTile>();
@@ -422,6 +425,46 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
   const showCamps      = camps.length > 0 && visibleOrganizers.length > 0;
   const showActivities = activities.length > 0 && visibleActivities.length > 0;
   const showEmpty      = hasActiveFilters && !showPlaces && !showEvents && !showCamps && !showActivities;
+  const firstVisibleSection = showPlaces ? "places" : showEvents ? "events" : showCamps ? "camps" : showActivities ? "activities" : null;
+
+  const activeFiltersBox = (
+    <div className="mt-4 mb-4 rounded-xl border border-border bg-card px-2.5 py-2">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <p className="shrink-0 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Filtry:</p>
+        {activeFilterBadges.length > 0 ? (
+          <>
+            {activeFilterBadges.map((badge) => (
+              <span
+                key={badge.id}
+                className="inline-flex max-w-full items-center gap-1 rounded-full border border-border bg-accent/60 px-2 py-0.5 text-[10px] font-medium text-foreground"
+              >
+                <span className="min-w-0 whitespace-normal break-words">{badge.label}</span>
+                <button
+                  type="button"
+                  onClick={badge.onRemove}
+                  className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-muted-foreground hover:bg-border/70 hover:text-foreground transition-colors"
+                  aria-label={`Usuń filtr ${badge.label}`}
+                  title={`Usuń: ${badge.label}`}
+                >
+                  <X size={9} />
+                </button>
+              </span>
+            ))}
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="inline-flex max-w-full items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            >
+              <X size={9} />
+              Wyczyść
+            </button>
+          </>
+        ) : (
+          <p className="text-[11px] text-muted-foreground">Brak aktywnych filtrów.</p>
+        )}
+      </div>
+    </div>
+  );
 
   /* ─── Sidebar JSX (shared desktop/mobile) ─── */
   const sidebarContent = (
@@ -456,8 +499,8 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
 
       <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Wiek dziecka</p>}>
         <div className="flex flex-col gap-0.5">
-          {ageOptions.filter((g) => g.count > 0 || activeAgeGroup === g.key).map((group) => (
-            <FilterBtn key={group.key} selected={activeAgeGroup === group.key} onClick={() => setActiveAgeGroup(activeAgeGroup === group.key ? null : group.key)} icon={group.icon} label={group.label} count={group.count} />
+          {ageOptions.filter((g) => g.count > 0 || activeAgeGroups.includes(g.key)).map((group) => (
+            <FilterBtn key={group.key} selected={activeAgeGroups.includes(group.key)} onClick={() => setActiveAgeGroups((prev) => prev.includes(group.key) ? prev.filter((x) => x !== group.key) : [...prev, group.key])} icon={group.icon} label={group.label} count={group.count} />
           ))}
         </div>
       </FilterSection>
@@ -591,10 +634,10 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
             )}
             <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Wiek dziecka</p>} defaultCollapsed={false}>
               <div className="flex flex-wrap gap-1">
-                {ageOptions.filter((g) => g.count > 0 || activeAgeGroup === g.key).map((group) => {
-                  const selected = activeAgeGroup === group.key;
+                {ageOptions.filter((g) => g.count > 0 || activeAgeGroups.includes(g.key)).map((group) => {
+                  const selected = activeAgeGroups.includes(group.key);
                   return (
-                    <button key={group.key} onClick={() => setActiveAgeGroup(selected ? null : group.key)}
+                    <button key={group.key} onClick={() => setActiveAgeGroups((prev) => prev.includes(group.key) ? prev.filter((x) => x !== group.key) : [...prev, group.key])}
                       className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
                         selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
                       <span>{group.icon}</span>
@@ -670,35 +713,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
           </aside>
 
           {/* ── Main content ── */}
-          <main className="flex-1 min-w-0 space-y-10">
-
-            {/* Active filter badges — desktop */}
-            {hasActiveFilters && activeFilterBadges.length > 0 && (
-              <div className="hidden lg:flex flex-wrap items-center gap-2">
-                <span className="text-[12px] font-semibold text-muted-foreground">Aktywne filtry:</span>
-                {activeFilterBadges.map((badge) => (
-                  <span
-                    key={badge.id}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white px-3 py-1 text-[12px] font-medium text-foreground"
-                  >
-                    {badge.label}
-                    <button
-                      onClick={badge.onRemove}
-                      className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-muted-foreground hover:bg-border hover:text-foreground transition-colors"
-                    >
-                      <X size={9} />
-                    </button>
-                  </span>
-                ))}
-                <button
-                  onClick={clearFilters}
-                  className="text-[12px] font-semibold text-primary hover:text-primary-hover transition-colors"
-                >
-                  Wyczyść wszystko
-                </button>
-              </div>
-            )}
-
+          <main className="flex-1 min-w-0 space-y-2">
             {/* Empty state */}
             {showEmpty && (
               <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -717,14 +732,13 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
             {/* ── Places ── */}
             {showPlaces && (
               <section>
-                {!hasActiveFilters && (
-                  <SubmissionCta
-                    title="Chcesz stworzyć z nami mapę miejsc?"
-                    description="Dodaj swoje miejsce i pomóż rodzicom odkrywać wartościowe adresy w Krakowie."
-                    buttonLabel="Dodaj miejsce"
-                    href="/dodaj?type=place"
-                  />
-                )}
+                <SubmissionCta
+                  title="Chcesz stworzyć z nami mapę miejsc?"
+                  description="Dodaj swoje miejsce i pomóż rodzicom odkrywać wartościowe adresy w Krakowie."
+                  buttonLabel="Dodaj miejsce"
+                  href="/dodaj?type=place"
+                />
+                {firstVisibleSection === "places" && activeFiltersBox}
                 <SectionHeader
                   title="Magiczne Miejsca"
                   subtitle={hasActiveFilters ? undefined : "Sale zabaw, parki, muzea i atrakcje — sprawdzone adresy dla dzieci w każdym wieku"}
@@ -742,14 +756,13 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
             {/* ── Events ── */}
             {showEvents && (
               <section>
-                {!hasActiveFilters && (
-                  <SubmissionCta
-                    title="Organizujesz wydarzenie dla dzieci?"
-                    description="Dodaj je do kalendarza i pomóż rodzinom znaleźć pomysł na dziś albo weekend."
-                    buttonLabel="Dodaj wydarzenie"
-                    href="/dodaj?type=event"
-                  />
-                )}
+                <SubmissionCta
+                  title="Organizujesz wydarzenie dla dzieci?"
+                  description="Dodaj je do kalendarza i pomóż rodzinom znaleźć pomysł na dziś albo weekend."
+                  buttonLabel="Dodaj wydarzenie"
+                  href="/dodaj?type=event"
+                />
+                {firstVisibleSection === "events" && activeFiltersBox}
                 <SectionHeader
                   title="Wyjątkowe Wydarzenia"
                   subtitle={hasActiveFilters ? undefined : "Warsztaty, spektakle, festyny i rodzinne atrakcje — aktualne wydarzenia na każdy dzień"}
@@ -767,14 +780,13 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
             {/* ── Camps ── */}
             {showCamps && (
               <section>
-                {!hasActiveFilters && (
-                  <SubmissionCta
-                    title="Prowadzisz kolonie lub półkolonie?"
-                    description="Pokaż ofertę rodzinom szukającym sprawdzonych wyjazdów i turnusów w Krakowie."
-                    buttonLabel="Dodaj ofertę"
-                    href="/dodaj?type=camp"
-                  />
-                )}
+                <SubmissionCta
+                  title="Prowadzisz kolonie lub półkolonie?"
+                  description="Pokaż ofertę rodzinom szukającym sprawdzonych wyjazdów i turnusów w Krakowie."
+                  buttonLabel="Dodaj ofertę"
+                  href="/dodaj?type=camp"
+                />
+                {firstVisibleSection === "camps" && activeFiltersBox}
                 <SectionHeader
                   title="Niezapomniane Kolonie"
                   subtitle={hasActiveFilters ? undefined : "Sprawdzeni organizatorzy kolonii i p\u00f3\u0142kolonii \u2014 letnie i zimowe wyjazdy w Krakowie i okolicach"}
@@ -845,14 +857,13 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
             {/* ── Activities ── */}
             {showActivities && (
               <section>
-                {!hasActiveFilters && (
-                  <SubmissionCta
-                    title="Tworzysz ciekawe zajęcia dla dzieci?"
-                    description="Dodaj je do katalogu i ułatw rodzicom znalezienie regularnych aktywności w okolicy."
-                    buttonLabel="Dodaj zajęcia"
-                    href="/dodaj?type=activity"
-                  />
-                )}
+                <SubmissionCta
+                  title="Tworzysz ciekawe zajęcia dla dzieci?"
+                  description="Dodaj je do katalogu i ułatw rodzicom znalezienie regularnych aktywności w okolicy."
+                  buttonLabel="Dodaj zajęcia"
+                  href="/dodaj?type=activity"
+                />
+                {firstVisibleSection === "activities" && activeFiltersBox}
                 <SectionHeader
                   title="Inspirujące Zajęcia"
                   subtitle={hasActiveFilters ? undefined : "Sport, muzyka, j\u0119zyki, sztuka \u2014 znajd\u017a aktywno\u015bci dopasowane do wieku i zainteresowa\u0144 dziecka"}
