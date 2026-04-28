@@ -46,8 +46,8 @@ export function Header({ counts }: { counts?: NavCounts }) {
   return (
     <header
       className={cn(
-        "sticky top-0 z-50 bg-white transition-shadow duration-200",
-        scrolled ? "shadow-[0_2px_16px_rgba(0,0,0,0.08)]" : "border-b border-border"
+        "sticky top-0 z-50 bg-[#111111] transition-shadow duration-200",
+        scrolled ? "shadow-[0_2px_16px_rgba(0,0,0,0.4)]" : "border-b border-white/10"
       )}
     >
       {/* ── Main bar ── */}
@@ -60,7 +60,7 @@ export function Header({ counts }: { counts?: NavCounts }) {
             className="shrink-0 inline-flex items-center whitespace-nowrap"
             aria-label="NieSiedzWDomu"
           >
-            <span style={{ fontFamily: "var(--font-pacifico)", fontSize: "22px", color: "#1a1a1a", letterSpacing: "-0.01em" }}>
+            <span style={{ fontFamily: "var(--font-pacifico)", fontSize: "30px", color: "#ffffff", letterSpacing: "-0.01em" }}>
               <span style={{ color: "#3A8C3F" }}>Nie</span><span style={{ color: "#F5C200" }}>Siedź</span><span style={{ color: "#e60100" }}>W</span><span style={{ color: "#8B5CF6" }}>Domu</span>
             </span>
           </Link>
@@ -115,7 +115,7 @@ export function Header({ counts }: { counts?: NavCounts }) {
             {/* Mobile menu toggle */}
             <button
               type="button"
-              className="lg:hidden flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-accent text-foreground/70 hover:bg-accent/80 transition-colors"
+              className="lg:hidden flex h-9 w-9 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white hover:bg-white/20 transition-colors"
               onClick={() => setMobileOpen((v) => !v)}
               aria-label="Menu"
             >
@@ -127,7 +127,7 @@ export function Header({ counts }: { counts?: NavCounts }) {
 
       {/* ── Mobile nav drawer ── */}
       {mobileOpen && (
-        <div className="lg:hidden border-t border-border bg-white px-5 py-4">
+                <div className="lg:hidden border-t border-white/10 bg-[#111111] px-5 py-4">
           <nav className="flex flex-col gap-1">
             {NAV_LINKS.map((link) => {
               const count = counts?.[link.countKey];
