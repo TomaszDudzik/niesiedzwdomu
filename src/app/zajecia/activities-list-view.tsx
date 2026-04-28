@@ -398,7 +398,7 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
       />
 
       {filtersOpen && (
-        <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 space-y-2.5">
+        <div className="lg:hidden rounded-xl border border-sky-100 bg-sky-50 p-3 mb-4 space-y-2.5">
           <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Typ</p>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
               {typeOptions.map((option) => {
@@ -510,7 +510,7 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
       )}
 
       <div className="lg:flex lg:gap-6 lg:items-start">
-        <aside className="hidden lg:block w-[240px] xl:w-[260px] shrink-0 rounded-2xl overflow-hidden border border-border bg-white">
+        <aside className="hidden lg:block w-[240px] xl:w-[260px] shrink-0 rounded-2xl overflow-hidden border border-sky-100 bg-sky-50">
           <div className="p-2.5 space-y-2.5">
             <div className="flex items-center gap-2 px-0.5 pb-0.5">
               <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#e60100]">Filtry</span>

@@ -161,7 +161,7 @@ function FilterBtn({
       onClick={onClick}
       className={cn(
         "flex w-full items-center gap-1.5 px-1.5 py-1 rounded-md text-[10px] font-medium text-left transition-all duration-200",
-        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent"
+        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-sky-50 hover:text-sky-900"
       )}
     >
       {icon && <span className="shrink-0 text-[12px]">{icon}</span>}
@@ -436,7 +436,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
             {activeFilterBadges.map((badge) => (
               <span
                 key={badge.id}
-                className="inline-flex max-w-full items-center gap-1 rounded-full border border-border bg-accent/60 px-2 py-0.5 text-[10px] font-medium text-foreground"
+                className="inline-flex max-w-full items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-medium text-sky-900"
               >
                 <span className="min-w-0 whitespace-normal break-words">{badge.label}</span>
                 <button
@@ -544,8 +544,8 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
       ────────────────────────────────────────── */}
       <section className="relative overflow-hidden">
         <div className="container-page relative pt-4 pb-5 md:pt-5 md:pb-6">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div>
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-end">
+            <div className="flex-1 min-w-0">
               <h1
                 className="font-heading font-black leading-[1.05] tracking-[-0.03em] text-black"
                 style={{ fontSize: "clamp(26px, 4vw, 48px)" }}
@@ -557,7 +557,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
               </p>
             </div>
 
-            <div className="self-end w-full lg:w-[640px] shrink-0 flex items-center rounded-xl border border-[#999999] bg-white shadow-[0_4px_16px_rgba(0,0,0,0.10)] overflow-hidden">
+            <div className="w-full lg:ml-auto lg:mr-6 lg:mb-2 lg:max-w-[700px] xl:mr-8 xl:max-w-[760px] shrink-0 flex items-center rounded-xl border border-[#999999] bg-white shadow-[0_4px_16px_rgba(0,0,0,0.10)] overflow-hidden">
               <input
                 type="text"
                 value={search}
@@ -593,7 +593,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
 
         {/* Mobile filters panel */}
         {mobileFiltersOpen && (
-          <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 space-y-2.5">
+          <div className="lg:hidden rounded-xl border border-sky-100 bg-sky-50 p-3 mb-4 space-y-2.5">
             {typeLevel2Options.length > 0 && (
               <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Grupa</p>} defaultCollapsed={false}>
                 <div className="flex flex-wrap gap-1">
@@ -708,7 +708,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
         <div className="lg:flex lg:gap-6 lg:items-start">
 
           {/* ── Desktop sidebar ── */}
-          <aside className="hidden lg:block w-[240px] xl:w-[260px] shrink-0 rounded-2xl overflow-hidden border border-border bg-white">
+          <aside className="hidden lg:block w-[240px] xl:w-[260px] shrink-0 rounded-2xl overflow-hidden border border-sky-100 bg-sky-50">
             {sidebarContent}
           </aside>
 

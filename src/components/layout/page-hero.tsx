@@ -13,8 +13,8 @@ export function PageHero({ title, subtitle, search, onSearch }: PageHeroProps) {
   return (
     <section className="relative overflow-hidden">
       <div className="container-page relative pt-4 pb-5 md:pt-5 md:pb-6">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-          <div>
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end">
+          <div className="flex-1 min-w-0">
             <h1
               className="font-heading font-black leading-[1.05] tracking-[-0.03em] text-black"
               style={{ fontSize: "clamp(26px, 4vw, 48px)" }}
@@ -24,7 +24,7 @@ export function PageHero({ title, subtitle, search, onSearch }: PageHeroProps) {
             <p className="mt-2 text-[15px] text-muted-foreground">{subtitle}</p>
           </div>
 
-          <div className="self-end w-full lg:w-[640px] shrink-0 flex items-center rounded-xl border border-border bg-white shadow-[0_4px_16px_rgba(0,0,0,0.10)] overflow-hidden">
+          <div className="w-full lg:ml-auto lg:mr-6 lg:mb-2 lg:max-w-[700px] xl:mr-8 xl:max-w-[760px] shrink-0 flex items-center rounded-xl border border-border bg-white shadow-[0_4px_16px_rgba(0,0,0,0.10)] overflow-hidden">
             <input
               type="text"
               value={search}
