@@ -4,6 +4,7 @@ import { ArrowRight } from "lucide-react";
 import { withPublicSubmissionTaxonomyFallback } from "@/lib/admin-taxonomy";
 import { loadAdminTaxonomy } from "@/lib/admin-taxonomy-server";
 import { getPublishedEvents, getPublishedPlaces, getPublishedCamps, getPublishedActivities } from "@/lib/data";
+import { getShopifyProducts } from "@/lib/shopify";
 import { HomeFilteredView } from "./home-filtered-view";
 
 export const revalidate = 60;
@@ -19,12 +20,13 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const [upcomingEvents, places, camps, activities, initialTaxonomy] = await Promise.all([
+  const [upcomingEvents, places, camps, activities, initialTaxonomy, shopifyProducts] = await Promise.all([
     getPublishedEvents(200),
     getPublishedPlaces(200),
     getPublishedCamps(40),
     getPublishedActivities(8),
     loadAdminTaxonomy().then(withPublicSubmissionTaxonomyFallback),
+    getShopifyProducts(8),
   ]);
 
   const organizationSchema = {
@@ -73,6 +75,8 @@ export default async function HomePage() {
         camps={camps}
         activities={activities}
         initialTaxonomy={initialTaxonomy}
+        shopifyProducts={shopifyProducts}
+        shopifyStoreUrl={`https://${process.env.SHOPIFY_STORE_DOMAIN || ""}`}
       />
 
       <section>

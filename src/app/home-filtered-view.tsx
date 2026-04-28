@@ -15,6 +15,8 @@ import { normalizeDistrictName } from "@/lib/districts";
 import { getTaxonomyOptions, matchesTaxonomyFilter, mergeSelectedTaxonomyOptions } from "@/lib/taxonomy-filters";
 import { cn, formatDateShort, formatAgeRange, thumbUrl } from "@/lib/utils";
 import type { Event, Place, Camp, Activity, District } from "@/types/database";
+import type { ShopifyProduct } from "@/lib/shopify";
+import { ShopifyProductCard } from "@/components/ui/shopify-product-card";
 
 const DAYS_PL = ["Nd", "Pn", "Wt", "Śr", "Cz", "Pt", "So"];
 
@@ -115,6 +117,8 @@ interface HomeFilteredViewProps {
   camps: Camp[];
   activities: Activity[];
   initialTaxonomy: AdminTaxonomyResponse;
+  shopifyProducts?: ShopifyProduct[];
+  shopifyStoreUrl?: string;
 }
 
 interface UnifiedFilterEntry {
@@ -199,7 +203,7 @@ function SectionHeader({ title, subtitle, href, count }: { title: string; subtit
 }
 
 
-export function HomeFilteredView({ events, places, camps, activities, initialTaxonomy }: HomeFilteredViewProps) {
+export function HomeFilteredView({ events, places, camps, activities, initialTaxonomy, shopifyProducts = [], shopifyStoreUrl = "" }: HomeFilteredViewProps) {
   const { typeLevel2Options: taxonomyTypeLevel2Options } = useAdminTaxonomy(initialTaxonomy);
   const [search, setSearch] = useState("");
   const [activeTypeLevel2, setActiveTypeLevel2] = useState<string[]>([]);
@@ -873,6 +877,33 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                   {visibleActivities.map((activity) => (
                     <ContentCard key={activity.id} item={activity} />
+                  ))}
+                </div>
+              </section>
+            )}
+            {/* ── Shopify Products ── */}
+            {shopifyProducts.length > 0 && (
+              <section className="mt-10">
+                <div className="flex items-end justify-between mb-4">
+                  <div>
+                    <h2 className="font-heading font-black text-[22px] leading-tight text-black">
+                      Sklep
+                    </h2>
+                    <p className="mt-0.5 text-[13px] text-muted-foreground">Produkty dla aktywnych rodzin</p>
+                  </div>
+                  <a
+                    href={shopifyStoreUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group inline-flex items-center gap-1 text-[13px] font-semibold text-black hover:text-black/75 transition-colors shrink-0 mb-0.5"
+                  >
+                    Wszystkie
+                    <ArrowRight size={13} className="group-hover:translate-x-0.5 transition-transform duration-150" />
+                  </a>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {shopifyProducts.map((product) => (
+                    <ShopifyProductCard key={product.id} product={product} storeUrl={shopifyStoreUrl} />
                   ))}
                 </div>
               </section>
