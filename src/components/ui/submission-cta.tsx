@@ -26,7 +26,7 @@ export function SubmissionCta({
       <Link
         href={href}
         className={cn(
-          "relative mb-6 block overflow-hidden rounded-2xl border border-border bg-white px-3 py-2.5 lg:hidden",
+          "relative mb-6 block overflow-hidden rounded-2xl border border-sky-300/70 bg-[linear-gradient(180deg,rgba(214,238,252,0.98),rgba(200,230,250,0.98))] px-3 py-2.5 shadow-[0_14px_34px_-30px_rgba(14,116,144,0.35)] lg:hidden",
           className
         )}
       >
@@ -49,7 +49,7 @@ export function SubmissionCta({
     <Link
       href={href}
       className={cn(
-        "group relative overflow-hidden rounded-2xl border border-border bg-white px-3 py-2 transition-colors duration-200 hover:border-border/60",
+        "group relative overflow-hidden rounded-2xl border border-sky-300/70 bg-[linear-gradient(180deg,rgba(214,238,252,0.98),rgba(200,230,250,0.98))] px-3 py-2 shadow-[0_14px_34px_-30px_rgba(14,116,144,0.35)] transition-colors duration-200 hover:border-sky-400/70",
         "mb-4 hidden lg:flex",
         className
       )}
