@@ -651,7 +651,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
       onSearch={setSearch}
     />
     <div className="container-page pt-3 pb-10">
-      <div className="rounded-[28px] border border-[#d0e8f8] px-4 py-5 shadow-[0_8px_32px_rgba(0,0,0,0.08)] sm:px-6 sm:py-6 lg:px-8 lg:py-8" style={{background: 'radial-gradient(1200px 500px at -10% -20%, rgba(100,160,220,0.07), transparent 55%), radial-gradient(900px 420px at 110% 10%, rgba(130,180,230,0.08), transparent 60%), linear-gradient(180deg, #f4f9fe 0%, #edf4fb 100%)'}}>
+      <div className="rounded-[28px] bg-white px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
       <MobileActionBar
         filtersOpen={filtersOpen}
         hasActiveFilters={hasActiveFilters}

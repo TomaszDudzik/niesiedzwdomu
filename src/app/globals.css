@@ -87,13 +87,6 @@
     @apply mx-auto w-full px-4 sm:px-6 lg:px-10 xl:px-14;
   }
 
-  .olive-gradient-panel {
-    background:
-      radial-gradient(1200px 500px at -10% -20%, rgba(143,169,137,0.16), transparent 55%),
-      radial-gradient(900px 420px at 110% 10%, rgba(180,190,150,0.18), transparent 60%),
-      linear-gradient(180deg, #eef2ea 0%, #e6ebdf 100%);
-  }
-
   .scrollbar-none {
     scrollbar-width: none;
     -ms-overflow-style: none;
