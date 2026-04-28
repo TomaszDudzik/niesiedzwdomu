@@ -77,7 +77,7 @@ export default async function HomePage() {
 
       <section>
         <div className="container-page pb-14">
-          <div className="olive-gradient-panel rounded-[28px] px-4 py-10 shadow-[0_24px_70px_rgba(0,0,0,0.28)] sm:px-6 lg:px-8">
+          <div className="rounded-[28px] border border-[#d0e8f8] px-4 py-10 shadow-[0_8px_32px_rgba(0,0,0,0.08)] sm:px-6 lg:px-8" style={{background: 'radial-gradient(1200px 500px at -10% -20%, rgba(100,160,220,0.07), transparent 55%), radial-gradient(900px 420px at 110% 10%, rgba(130,180,230,0.08), transparent 60%), linear-gradient(180deg, #f4f9fe 0%, #edf4fb 100%)'}}>
           <div className="text-center mb-10">
             <h2 className="font-heading font-black leading-tight text-foreground" style={{ fontSize: "clamp(26px, 4vw, 36px)" }}>
               Przewodniki po Krakowie

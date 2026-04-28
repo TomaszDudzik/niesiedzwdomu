@@ -2,7 +2,7 @@
 
 @theme {
   /* ── Palette ─────────────────────────────────── */
-  --color-background:       #E0F2E4;
+  --color-background:       #ffffff;
   --color-foreground:       oklch(20% 0.02 88);
   --color-muted:            oklch(43% 0.02 88);
   --color-muted-foreground: oklch(52% 0.018 88);

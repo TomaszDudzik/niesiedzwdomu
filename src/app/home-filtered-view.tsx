@@ -557,7 +557,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
               </p>
             </div>
 
-            <div className="self-end w-full lg:w-[640px] shrink-0 flex items-center rounded-xl border border-border bg-white shadow-[0_4px_16px_rgba(0,0,0,0.10)] overflow-hidden">
+            <div className="self-end w-full lg:w-[640px] shrink-0 flex items-center rounded-xl border border-[#999999] bg-white shadow-[0_4px_16px_rgba(0,0,0,0.10)] overflow-hidden">
               <input
                 type="text"
                 value={search}
@@ -581,7 +581,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
           Main content area
       ────────────────────────────────────────── */}
       <div className="container-page pt-3 pb-8">
-        <div className="olive-gradient-panel rounded-[28px] px-4 py-5 shadow-[0_24px_70px_rgba(0,0,0,0.28)] sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+        <div className="rounded-[28px] border border-[#d0e8f8] px-4 py-5 shadow-[0_8px_32px_rgba(0,0,0,0.08)] sm:px-6 sm:py-6 lg:px-8 lg:py-8" style={{background: 'radial-gradient(1200px 500px at -10% -20%, rgba(100,160,220,0.07), transparent 55%), radial-gradient(900px 420px at 110% 10%, rgba(130,180,230,0.08), transparent 60%), linear-gradient(180deg, #f4f9fe 0%, #edf4fb 100%)'}}>
 
         <MobileActionBar
           filtersOpen={mobileFiltersOpen}
@@ -755,7 +755,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
 
             {/* ── Events ── */}
             {showEvents && (
-              <section>
+              <section className="mt-10">
                 <SubmissionCta
                   title="Organizujesz wydarzenie dla dzieci?"
                   description="Dodaj je do kalendarza i pomóż rodzinom znaleźć pomysł na dziś albo weekend."
@@ -779,7 +779,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
 
             {/* ── Camps ── */}
             {showCamps && (
-              <section>
+              <section className="mt-10">
                 <SubmissionCta
                   title="Prowadzisz kolonie lub półkolonie?"
                   description="Pokaż ofertę rodzinom szukającym sprawdzonych wyjazdów i turnusów w Krakowie."
@@ -797,7 +797,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
                   {visibleOrganizers.map((organizer) => (
                     <article
                       key={organizer.key}
-                      className="rounded-xl border border-border bg-[#E0F2E4] shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5 transition-all duration-200 overflow-hidden"
+                      className="rounded-xl border border-border bg-[#daeaf7] shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5 transition-all duration-200 overflow-hidden"
                     >
                       <Link href={`/kolonie/${organizer.leadCamp.slug}`} className="group flex overflow-hidden h-[152px]">
                         <div className="w-[148px] shrink-0 relative self-stretch bg-accent">
@@ -856,7 +856,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
 
             {/* ── Activities ── */}
             {showActivities && (
-              <section>
+              <section className="mt-10">
                 <SubmissionCta
                   title="Tworzysz ciekawe zajęcia dla dzieci?"
                   description="Dodaj je do katalogu i ułatw rodzicom znalezienie regularnych aktywności w okolicy."
