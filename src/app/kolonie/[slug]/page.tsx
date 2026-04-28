@@ -278,6 +278,7 @@ export default async function CampDetailPage({ params }: PageProps) {
           </div>
         </div>
       </div>
+      </div>
 
       {sessions.length > 0 && (
         <section className="mt-10 pt-8 border-t border-border">
