@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Calendar, MapPin, ArrowRight } from "lucide-react";
+import { Calendar, MapPin } from "lucide-react";
 import type { DiscoveryItem } from "@/types/database";
 import { getItemHref, getDateText, getLocationText, getPlaceholderIcon } from "@/lib/content-helpers";
 import { thumbUrl } from "@/lib/utils";
@@ -56,24 +56,24 @@ export function ContentCard({ item, variant = "horizontal", showImageTag = false
     return (
       <Link
         href={href}
-        className="group flex flex-col rounded-2xl border border-border bg-card overflow-hidden shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-1.5 transition-all duration-200"
+        className="group flex h-[152px] rounded-xl border border-border bg-card overflow-hidden shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5 transition-all duration-200 sm:h-auto sm:flex-col sm:rounded-2xl sm:hover:-translate-y-1.5"
       >
         {/* Image */}
-        <div className="relative aspect-[4/3] overflow-hidden bg-accent shrink-0">
+        <div className="relative w-[148px] shrink-0 self-stretch overflow-hidden bg-accent sm:w-full sm:aspect-[4/3]">
           {item.image_url ? (
             <img
               src={thumbUrl(item.image_thumb, item.image_url) || item.image_url}
               alt={item.title}
-              className="h-full w-full object-cover group-hover:scale-[1.06] transition-transform duration-400"
+              className="h-full w-full object-cover group-hover:scale-[1.04] transition-transform duration-300 sm:group-hover:scale-[1.06] sm:duration-400"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-5xl text-muted-foreground/20">
+            <div className="flex h-full w-full items-center justify-center text-2xl text-muted-foreground/25 sm:text-5xl sm:text-muted-foreground/20">
               {getPlaceholderIcon(item)}
             </div>
           )}
           {tag && (
             <span
-              className="absolute left-3 top-3 rounded-full px-2.5 py-1 text-[11px] font-bold text-white leading-none shadow-sm"
+              className="absolute left-2.5 top-2.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold text-white leading-none shadow-sm sm:left-3 sm:top-3 sm:py-1 sm:text-[11px]"
               style={{ background: badgeColor }}
             >
               {tag}
@@ -82,31 +82,27 @@ export function ContentCard({ item, variant = "horizontal", showImageTag = false
         </div>
 
         {/* Body */}
-        <div className="flex flex-1 flex-col gap-2 p-4">
-          <h3 className="font-heading font-bold text-[14px] leading-snug line-clamp-2 text-foreground group-hover:text-[#e60100] transition-colors duration-150">
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5 p-3.5 sm:gap-2 sm:p-4">
+          <h3 className="font-heading font-bold text-[13px] leading-snug line-clamp-2 text-foreground group-hover:text-[#e60100] transition-colors duration-150 sm:text-[14px]">
             {item.title}
           </h3>
           {item.description_short && (
-            <p className="text-[12px] text-muted-foreground leading-relaxed line-clamp-2">
+            <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-2 sm:text-[12px]">
               {item.description_short}
             </p>
           )}
-          <div className="mt-auto pt-2 border-t border-border/50 space-y-1">
+          <div className="mt-auto space-y-1 border-t border-border/50 pt-2">
             {isEvent && (
-              <div className="flex items-center gap-1 text-[11px] text-muted-foreground font-medium">
-                <Calendar size={10} className="shrink-0" />
+              <div className="flex items-center gap-1 text-[10px] text-muted-foreground font-medium sm:text-[11px]">
+                <Calendar size={9} className="shrink-0 sm:size-[10px]" />
                 <span className="truncate">{getDateText(item)}</span>
               </div>
             )}
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                <MapPin size={10} className="shrink-0 text-secondary" />
+              <div className="flex items-center gap-1 text-[10px] text-muted-foreground sm:text-[11px]">
+                <MapPin size={9} className="shrink-0 text-secondary sm:size-[10px]" />
                 <span className="truncate">{getLocationText(item)}</span>
               </div>
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#e60100] group-hover:text-[#c40000] group-hover:gap-1.5 transition-all duration-150">
-                Sprawdź
-                <ArrowRight size={11} className="group-hover:translate-x-0.5 transition-transform duration-150" />
-              </span>
             </div>
           </div>
         </div>

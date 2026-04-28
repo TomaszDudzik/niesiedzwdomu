@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 import { Search, SlidersHorizontal, X, MapPin, Check, Tags, Users, CalendarDays, ChevronDown } from "lucide-react";
+import { MobileActionBar } from "@/components/ui/mobile-action-bar";
 import { PageHero } from "@/components/layout/page-hero";
 import { DISTRICT_LIST } from "@/lib/mock-data";
 import { FilterSection } from "@/components/ui/filter-section";
@@ -642,46 +643,20 @@ export function CampsListView({ camps }: CampsListViewProps) {
   return (
     <div>
     <PageHero
-      title="Wakacje pełne przygód dla dzieci"
+      title="Niezapomniane Kolonie"
       subtitle="Sprawdzeni organizatorzy kolonii i półkolonii — letnie i zimowe wyjazdy w Krakowie i okolicach"
       search={search}
       onSearch={setSearch}
     />
     <div className="container-page pt-3 pb-10">
       <div className="olive-gradient-panel rounded-[28px] px-4 py-5 shadow-[0_24px_70px_rgba(0,0,0,0.28)] sm:px-6 sm:py-6 lg:px-8 lg:py-8">
-      <SubmissionCta
-        mobile
-        title="Prowadzisz kolonie lub półkolonie?"
-        description="Pokaż ofertę rodzinom szukającym sprawdzonych wyjazdów i turnusów w Krakowie."
-        buttonLabel="Dodaj ofertę"
-        href="/dodaj?type=camp"
+      <MobileActionBar
+        filtersOpen={filtersOpen}
+        hasActiveFilters={hasActiveFilters}
+        onToggleFilters={() => setFiltersOpen(!filtersOpen)}
+        addHref="/dodaj?type=camp"
+        addLabel="Dodaj kolonie"
       />
-
-      <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 flex items-center gap-2">
-        <button
-          onClick={() => setFiltersOpen(!filtersOpen)}
-          className={cn(
-            "inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-[12px] font-semibold border-2 transition-all duration-200",
-            filtersOpen || hasActiveFilters
-              ? "bg-primary text-primary-foreground border-primary"
-              : "bg-primary/5 text-foreground border-primary/20 hover:bg-primary/10"
-          )}
-        >
-          <SlidersHorizontal size={13} />
-          Filtry
-          {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-primary-foreground" />}
-        </button>
-        <div className="relative flex-1">
-          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
-          <input
-            type="text"
-            placeholder="Szukaj kolonii..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-border bg-background text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-200"
-          />
-        </div>
-      </div>
 
       {filtersOpen && (
         <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 space-y-2.5">

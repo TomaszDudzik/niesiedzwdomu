@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { Search, ArrowRight, X, MapPin, Users, Check, ChevronDown } from "lucide-react";
+import { MobileActionBar } from "@/components/ui/mobile-action-bar";
 import { ContentCard } from "@/components/ui/content-card";
 import { FilterSection } from "@/components/ui/filter-section";
 import { SubmissionCta } from "@/components/ui/submission-cta";
@@ -506,7 +507,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
                 className="font-heading font-black leading-[1.05] tracking-[-0.03em] text-black"
                 style={{ fontSize: "clamp(26px, 4vw, 48px)" }}
               >
-                Odkryj Kraków razem z dziećmi
+                Odkryj Kraków z dziećmi
               </h1>
               <p className="mt-2 text-[15px] text-muted-foreground">
                 Sprawdzone miejsca, wydarzenia i aktywności dla rodzin w Krakowie
@@ -539,54 +540,125 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
       <div className="container-page pt-3 pb-8">
         <div className="olive-gradient-panel rounded-[28px] px-4 py-5 shadow-[0_24px_70px_rgba(0,0,0,0.28)] sm:px-6 sm:py-6 lg:px-8 lg:py-8">
 
-        {/* Mobile filter toggle */}
-        <div className="lg:hidden mb-4 flex items-center gap-2">
-          <button
-            onClick={() => setMobileFiltersOpen((v) => !v)}
-            className={cn(
-              "inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-[13px] font-semibold transition-all duration-150",
-              mobileFiltersOpen || hasActiveFilters
-                ? "border-primary bg-primary text-white"
-                : "border-border bg-white text-foreground hover:border-primary/40 hover:bg-primary/5"
-            )}
-          >
-            <span>Filtry</span>
-            {hasActiveFilters && (
-              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white/25 text-[10px] font-bold">
-                {activeFilterBadges.length}
-              </span>
-            )}
-          </button>
-
-          {/* Active filter badges on mobile */}
-          {activeFilterBadges.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 overflow-hidden">
-              {activeFilterBadges.slice(0, 3).map((badge) => (
-                <span
-                  key={badge.id}
-                  className="inline-flex items-center gap-1 rounded-full border border-border bg-white px-2.5 py-1 text-[11px] font-medium"
-                >
-                  {badge.label}
-                  <button
-                    onClick={badge.onRemove}
-                    className="text-muted-foreground hover:text-foreground"
-                    aria-label={`Usuń ${badge.label}`}
-                  >
-                    <X size={10} />
-                  </button>
-                </span>
-              ))}
-              {activeFilterBadges.length > 3 && (
-                <span className="text-[11px] text-muted-foreground self-center">+{activeFilterBadges.length - 3}</span>
-              )}
-            </div>
-          )}
-        </div>
+        <MobileActionBar
+          filtersOpen={mobileFiltersOpen}
+          hasActiveFilters={hasActiveFilters}
+          onToggleFilters={() => setMobileFiltersOpen((v) => !v)}
+          addHref="/dodaj"
+          addLabel="Dodaj swój event"
+        />
 
         {/* Mobile filters panel */}
         {mobileFiltersOpen && (
-          <div className="lg:hidden mb-4 rounded-2xl border border-border bg-white overflow-hidden">
-            {sidebarContent}
+          <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 space-y-2.5">
+            {typeLevel2Options.length > 0 && (
+              <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Grupa</p>} defaultCollapsed={false}>
+                <div className="flex flex-wrap gap-1">
+                  {typeLevel2Options.map((option) => {
+                    const selected = activeTypeLevel2.includes(option.value);
+                    return (
+                      <button key={option.value} onClick={() => toggleTypeLevel2(option.value)}
+                        className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
+                          selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
+                        <span>{option.icon}</span>
+                        <span>{option.label}</span>
+                        <span className="text-[10px] opacity-60">{option.count}</span>
+                        {selected && <Check size={11} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </FilterSection>
+            )}
+            {typeOptions.length > 0 && (
+              <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Typ</p>} defaultCollapsed={false}>
+                <div className="flex flex-wrap gap-1">
+                  {typeOptions.map((option) => {
+                    const selected = activeTypes.includes(option.value);
+                    return (
+                      <button key={option.value} onClick={() => toggleType(option.value)}
+                        className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
+                          selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
+                        <span>{option.icon}</span>
+                        <span>{option.label}</span>
+                        <span className="text-[10px] opacity-60">{option.count}</span>
+                        {selected && <Check size={11} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </FilterSection>
+            )}
+            <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Wiek dziecka</p>} defaultCollapsed={false}>
+              <div className="flex flex-wrap gap-1">
+                {ageOptions.filter((g) => g.count > 0 || activeAgeGroup === g.key).map((group) => {
+                  const selected = activeAgeGroup === group.key;
+                  return (
+                    <button key={group.key} onClick={() => setActiveAgeGroup(selected ? null : group.key)}
+                      className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
+                        selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
+                      <span>{group.icon}</span>
+                      <span>{group.label}</span>
+                      <span className="text-[10px] opacity-60">{group.count}</span>
+                      {selected && <Check size={11} />}
+                    </button>
+                  );
+                })}
+              </div>
+            </FilterSection>
+            {categoryOptions.length > 0 && (
+              <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Kategoria</p>} defaultCollapsed={false}>
+                <div className="flex flex-wrap gap-1">
+                  {categoryOptions.map((option) => {
+                    const selected = activeCategories.includes(option.value);
+                    return (
+                      <button key={option.value} onClick={() => toggleCategory(option.value)}
+                        className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
+                          selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
+                        <span>{option.icon}</span>
+                        <span>{option.label}</span>
+                        <span className="text-[10px] opacity-60">{option.count}</span>
+                        {selected && <Check size={11} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </FilterSection>
+            )}
+            {districtOptions.length > 0 && (
+              <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Dzielnica</p>} defaultCollapsed={false}>
+                <div className="flex flex-wrap gap-1">
+                  {districtOptions.map((option) => {
+                    const selected = activeDistricts.includes(option.value as District);
+                    return (
+                      <button key={option.value} onClick={() => toggleDistrict(option.value as District)}
+                        className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
+                          selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
+                        <span>{option.icon}</span>
+                        <span>{option.label}</span>
+                        <span className="text-[10px] opacity-60">{option.count}</span>
+                        {selected && <Check size={11} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </FilterSection>
+            )}
+            <div className="flex items-center gap-2 border-t border-border/70 pt-2">
+              {hasActiveFilters && (
+                <button onClick={clearFilters} className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors">
+                  <X size={11} /> Wyczyść filtry
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setMobileFiltersOpen(false)}
+                className="ml-auto inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-[11px] font-medium text-foreground hover:bg-accent/60 transition-colors"
+              >
+                Schowaj filtry
+                <ChevronDown size={11} className="rotate-180" />
+              </button>
+            </div>
           </div>
         )}
 
@@ -645,31 +717,21 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
             {/* ── Places ── */}
             {showPlaces && (
               <section>
+                {!hasActiveFilters && (
+                  <SubmissionCta
+                    title="Chcesz stworzyć z nami mapę miejsc?"
+                    description="Dodaj swoje miejsce i pomóż rodzicom odkrywać wartościowe adresy w Krakowie."
+                    buttonLabel="Dodaj miejsce"
+                    href="/dodaj?type=place"
+                  />
+                )}
                 <SectionHeader
-                  title="Ciekawe miejsca"
-                  subtitle={hasActiveFilters ? undefined : "Sprawdzone adresy dla całej rodziny w Krakowie"}
+                  title="Magiczne Miejsca"
+                  subtitle={hasActiveFilters ? undefined : "Sale zabaw, parki, muzea i atrakcje — sprawdzone adresy dla dzieci w każdym wieku"}
                   href="/miejsca"
                   count={hasActiveFilters ? filteredPlaces.length : undefined}
                 />
-                {!hasActiveFilters && (
-                  <>
-                    <SubmissionCta
-                      mobile
-                      title="Chcesz stworzyć z nami mapę miejsc?"
-                      description="Dodaj swoje miejsce i pomóż rodzicom odkrywać wartościowe adresy w Krakowie."
-                      buttonLabel="Dodaj swoje miejsce"
-                      mobileLabel="Dodaj miejsce"
-                      href="/dodaj?type=place"
-                    />
-                    <SubmissionCta
-                      title="Chcesz stworzyć z nami mapę miejsc?"
-                      description="Dodaj swoje miejsce i pomóż rodzicom odkrywać wartościowe adresy w Krakowie."
-                      buttonLabel="Dodaj swoje miejsce"
-                      href="/dodaj?type=place"
-                    />
-                  </>
-                )}
-                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-4 gap-4">
                   {visiblePlaces.map((place) => (
                     <ContentCard key={place.id} item={place} variant="vertical" />
                   ))}
@@ -680,31 +742,21 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
             {/* ── Events ── */}
             {showEvents && (
               <section>
+                {!hasActiveFilters && (
+                  <SubmissionCta
+                    title="Organizujesz wydarzenie dla dzieci?"
+                    description="Dodaj je do kalendarza i pomóż rodzinom znaleźć pomysł na dziś albo weekend."
+                    buttonLabel="Dodaj wydarzenie"
+                    href="/dodaj?type=event"
+                  />
+                )}
                 <SectionHeader
-                  title="Nadchodzące wydarzenia"
-                  subtitle={hasActiveFilters ? undefined : "Co słychać w Krakowie dla rodzin z dziećmi"}
+                  title="Wyjątkowe Wydarzenia"
+                  subtitle={hasActiveFilters ? undefined : "Warsztaty, spektakle, festyny i rodzinne atrakcje — aktualne wydarzenia na każdy dzień"}
                   href="/wydarzenia"
                   count={hasActiveFilters ? filteredEvents.length : undefined}
                 />
-                {!hasActiveFilters && (
-                  <>
-                    <SubmissionCta
-                      mobile
-                      title="Organizujesz wydarzenie dla dzieci?"
-                      description="Dodaj je do kalendarza i pomóż rodzinom znaleźć pomysł na dziś albo weekend."
-                      buttonLabel="Dodaj swoje wydarzenie"
-                      mobileLabel="Dodaj wydarzenie"
-                      href="/dodaj?type=event"
-                    />
-                    <SubmissionCta
-                      title="Organizujesz wydarzenie dla dzieci?"
-                      description="Dodaj je do kalendarza i pomóż rodzinom znaleźć pomysł na dziś albo weekend."
-                      buttonLabel="Dodaj swoje wydarzenie"
-                      href="/dodaj?type=event"
-                    />
-                  </>
-                )}
-                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-4 gap-4">
                   {visibleEvents.map((event) => (
                     <ContentCard key={event.id} item={event} variant="vertical" />
                   ))}
@@ -715,9 +767,17 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
             {/* ── Camps ── */}
             {showCamps && (
               <section>
+                {!hasActiveFilters && (
+                  <SubmissionCta
+                    title="Prowadzisz kolonie lub półkolonie?"
+                    description="Pokaż ofertę rodzinom szukającym sprawdzonych wyjazdów i turnusów w Krakowie."
+                    buttonLabel="Dodaj ofertę"
+                    href="/dodaj?type=camp"
+                  />
+                )}
                 <SectionHeader
-                  title="Kolonie dla dzieci"
-                  subtitle={hasActiveFilters ? undefined : "Sprawdzeni organizatorzy letnich wyjazdów"}
+                  title="Niezapomniane Kolonie"
+                  subtitle={hasActiveFilters ? undefined : "Sprawdzeni organizatorzy kolonii i p\u00f3\u0142kolonii \u2014 letnie i zimowe wyjazdy w Krakowie i okolicach"}
                   href="/kolonie"
                   count={hasActiveFilters ? organizers.length : undefined}
                 />
@@ -785,9 +845,17 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
             {/* ── Activities ── */}
             {showActivities && (
               <section>
+                {!hasActiveFilters && (
+                  <SubmissionCta
+                    title="Tworzysz ciekawe zajęcia dla dzieci?"
+                    description="Dodaj je do katalogu i ułatw rodzicom znalezienie regularnych aktywności w okolicy."
+                    buttonLabel="Dodaj zajęcia"
+                    href="/dodaj?type=activity"
+                  />
+                )}
                 <SectionHeader
-                  title="Zajęcia pozaszkolne"
-                  subtitle={hasActiveFilters ? undefined : "Regularne aktywności dla dzieci w Krakowie"}
+                  title="Inspirujące Zajęcia"
+                  subtitle={hasActiveFilters ? undefined : "Sport, muzyka, j\u0119zyki, sztuka \u2014 znajd\u017a aktywno\u015bci dopasowane do wieku i zainteresowa\u0144 dziecka"}
                   href="/zajecia"
                   count={hasActiveFilters ? filteredActivities.length : undefined}
                 />

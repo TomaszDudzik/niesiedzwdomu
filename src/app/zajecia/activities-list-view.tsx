@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Search, LayoutGrid, MapIcon, SlidersHorizontal, X, MapPin, Check, ChevronDown } from "lucide-react";
+import { MobileActionBar } from "@/components/ui/mobile-action-bar";
 import { PageHero } from "@/components/layout/page-hero";
 import { DISTRICT_LIST } from "@/lib/mock-data";
 import { ContentCard } from "@/components/ui/content-card";
@@ -377,50 +378,22 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
   return (
     <div>
     <PageHero
-      title="Regularne zajęcia dla dzieci w Krakowie"
+      title="Inspirujące Zajęcia"
       subtitle="Sport, muzyka, języki, sztuka — znajdź aktywności dopasowane do wieku i zainteresowań dziecka"
       search={search}
       onSearch={setSearch}
     />
     <div className="container-page pt-3 pb-10">
       <div className="olive-gradient-panel rounded-[28px] px-4 py-5 shadow-[0_24px_70px_rgba(0,0,0,0.28)] sm:px-6 sm:py-6 lg:px-8 lg:py-8">
-      <SubmissionCta
-        mobile
-        title="Tworzysz ciekawe zajęcia dla dzieci?"
-        description="Dodaj je do katalogu i ułatw rodzicom znalezienie regularnych aktywności w okolicy."
-        buttonLabel="Dodaj zajęcia"
-        href="/dodaj?type=activity"
+      <MobileActionBar
+        filtersOpen={filtersOpen}
+        hasActiveFilters={hasActiveFilters}
+        onToggleFilters={() => setFiltersOpen(!filtersOpen)}
+        view={view}
+        onSetView={setView}
+        addHref="/dodaj?type=activity"
+        addLabel="Dodaj zajęcia"
       />
-
-      <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 flex items-center gap-2">
-        <button
-          onClick={() => setFiltersOpen(!filtersOpen)}
-          className={cn(
-            "inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-[12px] font-semibold border-2 transition-all duration-200",
-            filtersOpen || hasActiveFilters
-              ? "bg-primary text-primary-foreground border-primary"
-              : "bg-primary/5 text-foreground border-primary/20 hover:bg-primary/10"
-          )}
-        >
-          <SlidersHorizontal size={13} />
-          Filtry
-          {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-primary-foreground" />}
-        </button>
-        <div className="relative flex-1">
-          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
-          <input
-            type="text"
-            placeholder="Szukaj zajęć..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-border bg-background text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-200"
-          />
-        </div>
-        <div className="flex items-center gap-1 rounded-lg border border-border p-0.5 bg-accent/50">
-          <button onClick={() => setView("list")} className={cn("inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-all duration-200", view === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}><LayoutGrid size={12} /></button>
-          <button onClick={() => setView("map")} className={cn("inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-all duration-200", view === "map" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}><MapIcon size={12} /></button>
-        </div>
-      </div>
 
       {filtersOpen && (
         <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 space-y-2.5">
@@ -735,7 +708,7 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
                     <h2 className="text-[15px] font-semibold text-foreground">{group.label}</h2>
                     <span className="text-[12px] text-muted-foreground">({group.activities.length})</span>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-4 gap-4">
                     {group.activities.map((activity) => (
                       <ContentCard key={activity.id} item={activity} variant="vertical" />
                     ))}
