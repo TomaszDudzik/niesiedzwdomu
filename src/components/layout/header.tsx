@@ -60,7 +60,7 @@ export function Header({ counts }: { counts?: NavCounts }) {
             className="shrink-0 inline-flex items-center whitespace-nowrap"
             aria-label="NieSiedzWDomu"
           >
-            <span style={{ fontFamily: "var(--font-pacifico)", fontSize: "30px", color: "#ffffff", letterSpacing: "-0.01em" }}>
+            <span style={{ fontFamily: "var(--font-pacifico)", fontSize: "clamp(22px, 4vw, 30px)", color: "#ffffff", letterSpacing: "-0.01em" }}>
               <span style={{ color: "#3A8C3F" }}>Nie</span><span style={{ color: "#F5C200" }}>Siedź</span><span style={{ color: "#e60100" }}>W</span><span style={{ color: "#8B5CF6" }}>Domu</span>
             </span>
           </Link>
