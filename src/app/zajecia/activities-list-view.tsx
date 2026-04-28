@@ -385,7 +385,7 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
       search={search}
       onSearch={setSearch}
     />
-    <div className="container-page pt-3 pb-10">
+    <div className="container-page pt-0 pb-10">
       <div className="rounded-[28px] bg-white px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
       <MobileActionBar
         filtersOpen={filtersOpen}

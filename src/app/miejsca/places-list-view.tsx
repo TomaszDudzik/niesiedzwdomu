@@ -278,7 +278,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
       search={search}
       onSearch={setSearch}
     />
-    <div className="container-page pt-3 pb-10">
+    <div className="container-page pt-0 pb-10">
       <div className="rounded-[28px] bg-white px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
       <MobileActionBar
         filtersOpen={filtersOpen}
@@ -369,7 +369,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
       )}
 
       {/* Desktop layout: sidebar + content */}
-      <div className="lg:flex lg:gap-10 lg:items-start">
+      <div className="lg:flex lg:gap-6 lg:items-start">
 
         {/* Sidebar filters — desktop only, sticky */}
         <aside className="hidden lg:block w-[240px] xl:w-[260px] shrink-0 rounded-2xl overflow-hidden border border-sky-100 bg-sky-50">

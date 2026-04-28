@@ -26,33 +26,32 @@ export function MobileActionBar({
   const hasViewToggle = view !== undefined && onSetView !== undefined;
 
   return (
-    <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4">
-      <div className="flex items-stretch gap-1.5">
-        <div className={cn("h-9 inline-flex items-center gap-1 rounded-lg border border-border bg-accent/50 p-0.5", hasViewToggle ? "flex-[1.45]" : "w-full")}>
-          <button
-            onClick={onToggleFilters}
-            className={cn(
-              "flex-1 h-full inline-flex items-center justify-center gap-1 rounded-md border text-[11px] font-semibold transition-all duration-200",
-              filtersOpen || hasActiveFilters
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border bg-background text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <SlidersHorizontal size={11} />
-            Filtry
-            {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-primary-foreground" />}
-          </button>
+    <div className="lg:hidden w-full -mt-4 mb-4">
+      <div className="w-full flex items-stretch gap-2">
+        <button
+          onClick={onToggleFilters}
+          className={cn(
+            "flex-1 h-10 inline-flex items-center justify-center gap-1.5 rounded-xl border px-4 text-[12px] font-semibold transition-all duration-200",
+            filtersOpen || hasActiveFilters
+              ? "border-primary bg-primary text-primary-foreground"
+              : "border-border bg-background text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <SlidersHorizontal size={12} />
+          Filtry
+          {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-primary-foreground" />}
+        </button>
 
-          <a
-            href={addHref}
-            className="flex-1 h-full inline-flex items-center justify-center rounded-md border border-[#e60100] bg-[#e60100] px-2 text-[10px] font-bold text-white whitespace-nowrap transition-colors hover:bg-[#c40000] hover:border-[#c40000]"
-          >
-            {addLabel}
-          </a>
-        </div>
+        <a
+          href={addHref}
+          className="flex-1 h-10 inline-flex items-center justify-center rounded-xl border border-[#e60100] bg-[#e60100] px-4 text-[12px] font-bold text-white whitespace-nowrap transition-colors hover:bg-[#c40000] hover:border-[#c40000]"
+        >
+          {addLabel}
+        </a>
+      </div>
 
-        {hasViewToggle && (
-          <div className="h-9 flex-1 inline-flex items-center gap-1 rounded-lg border border-border bg-accent/50 p-0.5">
+      {hasViewToggle && (
+          <div className="mt-2 h-9 w-full inline-flex items-center gap-1 rounded-lg border border-border bg-accent/50 p-0.5">
             <button
               onClick={() => onSetView!("list")}
               className={cn(
@@ -78,8 +77,7 @@ export function MobileActionBar({
               Mapa
             </button>
           </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }
