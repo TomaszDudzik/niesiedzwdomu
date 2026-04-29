@@ -313,16 +313,12 @@ export async function getRelatedEvents(event: Event, limit = 3): Promise<Event[]
   const db = getDb();
   const maps = await getCategoryMaps();
   const today = new Date().toISOString().slice(0, 10);
-  const eventRow = event as Event & {
-    category_lvl_1_id?: string | null;
-    category_lvl_2_id?: string | null;
-  };
   const relatedConditions = [`district.eq.${event.district}`];
 
-  if (eventRow.category_lvl_2_id) {
-    relatedConditions.unshift(`category_lvl_2_id.eq.${eventRow.category_lvl_2_id}`);
-  } else if (eventRow.category_lvl_1_id) {
-    relatedConditions.unshift(`category_lvl_1_id.eq.${eventRow.category_lvl_1_id}`);
+  if (event.category_lvl_2) {
+    relatedConditions.unshift(`category_lvl_2.eq.${event.category_lvl_2}`);
+  } else if (event.category_lvl_1) {
+    relatedConditions.unshift(`category_lvl_1.eq.${event.category_lvl_1}`);
   }
 
   const { data } = await db

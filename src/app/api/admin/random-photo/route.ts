@@ -31,17 +31,8 @@ function normalizePathSegment(value: string | null | undefined) {
   return normalized || null;
 }
 
-async function resolveTypeSegment(db: ReturnType<typeof getDb>, tableName: "type_lvl_1" | "type_lvl_2", id: string | null | undefined) {
-  if (!id) return null;
-
-  const { data } = await db
-    .from(tableName)
-    .select("name, slug")
-    .eq("id", id)
-    .maybeSingle();
-
-  if (!data) return null;
-  return normalizePathSegment(data.slug ?? data.name ?? null);
+function resolveTypeSegment(value: string | null | undefined) {
+  return normalizePathSegment(value ?? null);
 }
 
 function buildFolderCandidates(table: keyof typeof TABLE_ROOT_BY_NAME, typeSegments: string[], categorySegments: string[]) {
@@ -109,8 +100,8 @@ async function findRandomPhotoFolder(db: ReturnType<typeof getDb>, folderCandida
 export async function POST(request: NextRequest) {
   const {
     id,
-    type_lvl_1_id,
-    type_lvl_2_id,
+    type_lvl_1,
+    type_lvl_2,
     type_id,
     subtype_id,
     category_lvl_1,
@@ -131,10 +122,8 @@ export async function POST(request: NextRequest) {
 
   const db = getDb();
 
-  const [typeLevel1Segment, typeLevel2Segment] = await Promise.all([
-    resolveTypeSegment(db, "type_lvl_1", type_lvl_1_id ?? type_id),
-    resolveTypeSegment(db, "type_lvl_2", type_lvl_2_id ?? subtype_id),
-  ]);
+  const typeLevel1Segment = resolveTypeSegment(type_lvl_1 ?? type_id);
+  const typeLevel2Segment = resolveTypeSegment(type_lvl_2 ?? subtype_id);
 
   const categorySegments = [category_lvl_1 ?? main_category, category_lvl_2 ?? category, category_lvl_3 ?? subcategory]
     .map((segment) => normalizePathSegment(typeof segment === "string" ? segment : null))

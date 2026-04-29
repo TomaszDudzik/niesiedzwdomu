@@ -544,7 +544,7 @@ export function EventsListView({ events }: EventsListViewProps) {
 
       {/* Mobile filters dropdown */}
       {filtersOpen && (
-        <div className="lg:hidden rounded-xl border border-sky-100 bg-sky-50 p-3 mb-4 space-y-2.5">
+        <div className="lg:hidden rounded-xl p-3 mb-4 space-y-2.5">
           <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Data</p>} defaultCollapsed={false}>
             <p className="text-[10px] text-muted-foreground mb-1">Konkretna data</p>
             <input
@@ -688,12 +688,8 @@ export function EventsListView({ events }: EventsListViewProps) {
       <div className="lg:flex lg:gap-6 lg:items-start">
 
         {/* Sidebar — desktop only */}
-        <aside className="hidden lg:block w-[240px] xl:w-[260px] shrink-0 rounded-2xl overflow-hidden border border-sky-100 bg-sky-50">
+        <aside className="hidden lg:block w-[240px] xl:w-[260px] shrink-0 rounded-2xl overflow-hidden -mt-3">
           <div className="p-2.5 space-y-2.5">
-            <div className="flex items-center gap-2 px-0.5 pb-0.5">
-              <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#e60100]">Filtry</span>
-              <div className="flex-1 h-px bg-border/70 rounded-full" />
-            </div>
             <div className="flex items-center gap-1 rounded-lg border border-border p-0.5 bg-accent/50">
               <button onClick={() => setView("list")} className={cn("flex-1 inline-flex items-center justify-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all duration-200", view === "list" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
                 <LayoutGrid size={11} /> Lista
@@ -705,7 +701,7 @@ export function EventsListView({ events }: EventsListViewProps) {
 
             <div className="border-t border-border" />
 
-            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Data</p>} defaultCollapsed={!filtersOpenDesktop}>
+            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Data</p>} defaultCollapsed={!filtersOpenDesktop}>
               <p className="text-[10px] text-muted-foreground mb-1">Konkretna data</p>
               <input
                 type="date"
@@ -747,7 +743,7 @@ export function EventsListView({ events }: EventsListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Typ</p>} defaultCollapsed={!filtersOpenDesktop}>
+            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Typ</p>} defaultCollapsed={!filtersOpenDesktop}>
               <div className="flex flex-col gap-0.5">
                 {typeOptions.map((option) => {
                   const selected = activeTypes.includes(option.value);
@@ -765,7 +761,7 @@ export function EventsListView({ events }: EventsListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Wiek</p>} defaultCollapsed={!filtersOpenDesktop}>
+            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Wiek</p>} defaultCollapsed={!filtersOpenDesktop}>
               <div className="flex flex-col gap-0.5">
                 {ageOptions.filter((group) => group.count > 0 || activeAgeGroups.includes(group.key)).map((group) => {
                   const selected = activeAgeGroups.includes(group.key);
@@ -783,7 +779,7 @@ export function EventsListView({ events }: EventsListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Kategoria</p>} defaultCollapsed>
+            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Kategoria</p>} defaultCollapsed>
               <div className="flex flex-col gap-0.5">
                 {categoryOptions.map((option) => {
                   const selected = activeCategories.includes(option.value);
@@ -801,7 +797,7 @@ export function EventsListView({ events }: EventsListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Dzielnica</p>} defaultCollapsed>
+            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Dzielnica</p>} defaultCollapsed>
               <div className="flex flex-col gap-0.5">
                 {availableDistricts.map((district) => {
                   const selected = activeDistricts.includes(district);
@@ -937,7 +933,7 @@ export function EventsListView({ events }: EventsListViewProps) {
                       {activeFilterBadges.map((badge) => (
                         <span
                           key={badge.id}
-                          className="inline-flex items-center gap-1 rounded-full border border-border bg-accent/60 px-2 py-0.5 text-[10px] font-medium text-foreground"
+                          className="inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[10px] font-medium text-primary-foreground"
                         >
                           <span>{badge.label}</span>
                           <button

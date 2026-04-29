@@ -1,15 +1,19 @@
 "use client";
 
-import { Search } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 interface PageHeroProps {
   title: string;
   subtitle: string;
-  search: string;
-  onSearch: (value: string) => void;
+  search?: string;
+  onSearch?: (value: string) => void;
+  addHref?: string;
+  addTitle?: string;
+  addDescription?: string;
+  addLabel?: string;
 }
 
-export function PageHero({ title, subtitle, search, onSearch }: PageHeroProps) {
+export function PageHero({ title, subtitle, addHref, addTitle, addDescription, addLabel }: PageHeroProps) {
   return (
     <section className="relative overflow-hidden">
       <div className="container-page relative pt-4 pb-2 md:pt-5 md:pb-3">
@@ -24,21 +28,22 @@ export function PageHero({ title, subtitle, search, onSearch }: PageHeroProps) {
             <p className="mt-2 text-[15px] text-muted-foreground">{subtitle}</p>
           </div>
 
-          <div className="w-full lg:ml-auto lg:mr-6 lg:mt-[58px] lg:max-w-[700px] xl:mr-8 xl:max-w-[760px] shrink-0 flex items-center rounded-xl border border-border bg-white shadow-[0_4px_16px_rgba(0,0,0,0.10)] overflow-hidden">
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => onSearch(e.target.value)}
-              placeholder="Szukaj..."
-              className="flex-1 h-10 pl-4 pr-2 text-[14px] text-foreground placeholder:text-muted-foreground/50 bg-transparent focus:outline-none"
-            />
-            <button
-              type="button"
-              className="h-10 w-11 flex items-center justify-center bg-[#e60100] text-white hover:bg-[#c40000] transition-colors shrink-0"
+          {addHref && (
+            <a
+              href={addHref}
+              className="group relative hidden lg:flex shrink-0 self-center overflow-hidden rounded-2xl border border-sky-300/70 bg-[linear-gradient(180deg,rgba(214,238,252,0.98),rgba(200,230,250,0.98))] px-4 py-3 shadow-[0_14px_34px_-30px_rgba(14,116,144,0.35)] transition-colors duration-200 hover:border-sky-400/70 items-center gap-3 w-[408px] mr-8"
             >
-              <Search size={15} />
-            </button>
-          </div>
+              <div className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-cyan-700" />
+              <div className="min-w-0 flex-1 pl-2">
+                <p className="text-[13px] font-semibold text-slate-900">{addTitle ?? "Chcesz tu być?"}</p>
+                <p className="mt-0.5 text-[11px] text-slate-600">{addDescription ?? "Dodaj swój wpis i dotrzyj do rodziców w Krakowie."}</p>
+              </div>
+              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-cyan-700/20 bg-white/85 px-3 py-1.5 text-[11px] font-semibold text-cyan-800 transition-all duration-200 group-hover:bg-cyan-700 group-hover:text-white">
+                {addLabel ?? "Dodaj"}
+                <ArrowRight size={13} className="transition-transform duration-200 group-hover:translate-x-0.5" />
+              </span>
+            </a>
+          )}
         </div>
       </div>
     </section>

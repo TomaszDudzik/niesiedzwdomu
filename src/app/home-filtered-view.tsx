@@ -6,7 +6,6 @@ import { Search, ArrowRight, X, MapPin, Users, Check, ChevronDown } from "lucide
 import { MobileActionBar } from "@/components/ui/mobile-action-bar";
 import { ContentCard } from "@/components/ui/content-card";
 import { FilterSection } from "@/components/ui/filter-section";
-import { SubmissionCta } from "@/components/ui/submission-cta";
 import { ImageWithFallback } from "@/components/ui/image-with-fallback";
 import type { AdminTaxonomyResponse } from "@/lib/admin-taxonomy";
 import { useAdminTaxonomy } from "@/lib/use-admin-taxonomy";
@@ -165,7 +164,7 @@ function FilterBtn({
       onClick={onClick}
       className={cn(
         "flex w-full items-center gap-1.5 px-1.5 py-1 rounded-md text-[10px] font-medium text-left transition-all duration-200",
-        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-sky-50 hover:text-sky-900"
+        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-primary/15 hover:text-foreground"
       )}
     >
       {icon && <span className="shrink-0 text-[12px]">{icon}</span>}
@@ -222,7 +221,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
   const unifiedFilterEntries = useMemo<UnifiedFilterEntry[]>(
     () => [
       ...events.map((event) => ({
-        typeLevel2: event.type_lvl_2_id ?? null,
+        typeLevel2: event.type_lvl_2 ?? null,
         type: getEventCategoryLvl1(event),
         category: getEventCategoryLvl2(event),
         district: normalizeDistrictName(event.district),
@@ -231,7 +230,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
         searchText: [event.title, event.description_short, event.street, event.city, event.district].join(" ").toLowerCase(),
       })),
       ...places.map((place) => ({
-        typeLevel2: place.type_lvl_2_id ?? null,
+        typeLevel2: place.type_lvl_2 ?? null,
         type: getPlaceCategoryLvl1(place),
         category: getPlaceCategoryLvl2(place),
         district: normalizeDistrictName(place.district),
@@ -240,7 +239,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
         searchText: [place.title, place.description_short, place.street, place.city, place.district].join(" ").toLowerCase(),
       })),
       ...camps.map((camp) => ({
-        typeLevel2: camp.type_lvl_2_id ?? null,
+        typeLevel2: camp.type_lvl_2 ?? null,
         type: getCampCategoryLvl1(camp),
         category: getCampCategoryLvl2(camp),
         district: normalizeDistrictName(camp.district),
@@ -249,7 +248,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
         searchText: [camp.title, camp.description_short, camp.venue_name, camp.venue_address, camp.organizer].join(" ").toLowerCase(),
       })),
       ...activities.map((activity) => ({
-        typeLevel2: activity.type_lvl_2_id ?? null,
+        typeLevel2: activity.type_lvl_2 ?? null,
         type: getActivityCategoryLvl1(activity),
         category: getActivityCategoryLvl2(activity),
         district: normalizeDistrictName(activity.district),
@@ -357,7 +356,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
   const filteredEvents = useMemo(() => {
     let result = events;
     if (search) result = result.filter((e) => [e.title, e.description_short, e.street, e.city, e.district].join(" ").toLowerCase().includes(search.toLowerCase()));
-    if (activeTypeLevel2.length > 0) result = result.filter((e) => matchesTaxonomyFilter(e.type_lvl_2_id ?? null, activeTypeLevel2));
+    if (activeTypeLevel2.length > 0) result = result.filter((e) => matchesTaxonomyFilter(e.type_lvl_2 ?? null, activeTypeLevel2));
     if (activeTypes.length > 0) result = result.filter((e) => matchesTaxonomyFilter(getEventCategoryLvl1(e), activeTypes));
     if (activeCategories.length > 0) result = result.filter((e) => matchesTaxonomyFilter(getEventCategoryLvl2(e), activeCategories));
     if (activeDistricts.length > 0) result = result.filter((e) => activeDistricts.includes(normalizeDistrictName(e.district)));
@@ -367,7 +366,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
   const filteredPlaces = useMemo(() => {
     let result = places;
     if (search) result = result.filter((p) => [p.title, p.description_short, p.street, p.city, p.district].join(" ").toLowerCase().includes(search.toLowerCase()));
-    if (activeTypeLevel2.length > 0) result = result.filter((p) => matchesTaxonomyFilter(p.type_lvl_2_id ?? null, activeTypeLevel2));
+    if (activeTypeLevel2.length > 0) result = result.filter((p) => matchesTaxonomyFilter(p.type_lvl_2 ?? null, activeTypeLevel2));
     if (activeTypes.length > 0) result = result.filter((p) => matchesTaxonomyFilter(getPlaceCategoryLvl1(p), activeTypes));
     if (activeCategories.length > 0) result = result.filter((p) => matchesTaxonomyFilter(getPlaceCategoryLvl2(p), activeCategories));
     if (activeDistricts.length > 0) result = result.filter((p) => activeDistricts.includes(normalizeDistrictName(p.district)));
@@ -377,7 +376,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
   const filteredCamps = useMemo(() => {
     let result = camps;
     if (search) result = result.filter((c) => [c.title, c.description_short, c.venue_name, c.venue_address, c.organizer].join(" ").toLowerCase().includes(search.toLowerCase()));
-    if (activeTypeLevel2.length > 0) result = result.filter((c) => matchesTaxonomyFilter(c.type_lvl_2_id ?? null, activeTypeLevel2));
+    if (activeTypeLevel2.length > 0) result = result.filter((c) => matchesTaxonomyFilter(c.type_lvl_2 ?? null, activeTypeLevel2));
     if (activeTypes.length > 0) result = result.filter((c) => matchesTaxonomyFilter(getCampCategoryLvl1(c), activeTypes));
     if (activeCategories.length > 0) result = result.filter((c) => matchesTaxonomyFilter(getCampCategoryLvl2(c), activeCategories));
     if (activeDistricts.length > 0) result = result.filter((c) => activeDistricts.includes(normalizeDistrictName(c.district)));
@@ -387,7 +386,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
   const filteredActivities = useMemo(() => {
     let result = activities;
     if (search) result = result.filter((a) => [a.title, a.description_short, a.venue_name, a.venue_address, a.organizer].join(" ").toLowerCase().includes(search.toLowerCase()));
-    if (activeTypeLevel2.length > 0) result = result.filter((a) => matchesTaxonomyFilter(a.type_lvl_2_id ?? null, activeTypeLevel2));
+    if (activeTypeLevel2.length > 0) result = result.filter((a) => matchesTaxonomyFilter(a.type_lvl_2 ?? null, activeTypeLevel2));
     if (activeTypes.length > 0) result = result.filter((a) => matchesTaxonomyFilter(getActivityCategoryLvl1(a), activeTypes));
     if (activeCategories.length > 0) result = result.filter((a) => matchesTaxonomyFilter(getActivityCategoryLvl2(a), activeCategories));
     if (activeDistricts.length > 0) result = result.filter((a) => activeDistricts.includes(normalizeDistrictName(a.district)));
@@ -432,57 +431,60 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
   const firstVisibleSection = showPlaces ? "places" : showEvents ? "events" : showCamps ? "camps" : showActivities ? "activities" : null;
 
   const activeFiltersBox = (
-    <div className="mt-4 mb-4 rounded-xl border border-border bg-card px-2.5 py-2">
-      <div className="flex flex-wrap items-center gap-1.5">
-        <p className="shrink-0 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Filtry:</p>
-        {activeFilterBadges.length > 0 ? (
-          <>
-            {activeFilterBadges.map((badge) => (
-              <span
-                key={badge.id}
-                className="inline-flex max-w-full items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-medium text-sky-900"
-              >
-                <span className="min-w-0 whitespace-normal break-words">{badge.label}</span>
-                <button
-                  type="button"
-                  onClick={badge.onRemove}
-                  className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-muted-foreground hover:bg-border/70 hover:text-foreground transition-colors"
-                  aria-label={`Usuń filtr ${badge.label}`}
-                  title={`Usuń: ${badge.label}`}
-                >
-                  <X size={9} />
-                </button>
-              </span>
-            ))}
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="inline-flex max-w-full items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+    hasActiveFilters ? (
+      <div className="mb-4 rounded-xl border border-border bg-card px-2.5 py-2">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <p className="shrink-0 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Filtry:</p>
+          {activeFilterBadges.map((badge) => (
+            <span
+              key={badge.id}
+              className="inline-flex max-w-full items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[10px] font-medium text-primary-foreground"
             >
-              <X size={9} />
-              Wyczyść
-            </button>
-          </>
-        ) : (
-          <p className="text-[11px] text-muted-foreground">Brak aktywnych filtrów.</p>
-        )}
+              <span className="min-w-0 whitespace-normal break-words">{badge.label}</span>
+              <button
+                type="button"
+                onClick={badge.onRemove}
+                className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-muted-foreground hover:bg-border/70 hover:text-foreground transition-colors"
+                aria-label={`Usuń filtr ${badge.label}`}
+                title={`Usuń: ${badge.label}`}
+              >
+                <X size={9} />
+              </button>
+            </span>
+          ))}
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="inline-flex max-w-full items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          >
+            <X size={9} />
+            Wyczyść
+          </button>
+        </div>
       </div>
-    </div>
+    ) : null
   );
 
   /* ─── Sidebar JSX (shared desktop/mobile) ─── */
   const sidebarContent = (
     <div className="p-2.5 space-y-2.5">
-      <div className="flex items-center gap-2 px-0.5 pb-0.5">
-        <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#e60100]">Filtry</span>
-        <div className="flex-1 h-px bg-border/70 rounded-full" />
-        {hasActiveFilters && (
-          <span className="text-[9px] font-bold text-primary">{activeFilterBadges.length} aktywne</span>
-        )}
+
+      {/* Search */}
+      <div className="flex items-center rounded-lg border border-border bg-white overflow-hidden">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Szukaj..."
+          className="flex-1 h-[36px] pl-3 pr-2 text-[12px] text-foreground placeholder:text-muted-foreground/50 bg-transparent focus:outline-none"
+        />
+        <div className="h-[36px] w-9 flex items-center justify-center bg-[#e60100] text-white shrink-0">
+          <Search size={13} />
+        </div>
       </div>
 
       {typeLevel2Options.length > 0 && (
-        <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Grupa</p>}>
+        <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Grupa</p>}>
           <div className="flex flex-col gap-0.5">
             {typeLevel2Options.map((option) => (
               <FilterBtn key={option.value} selected={activeTypeLevel2.includes(option.value)} onClick={() => toggleTypeLevel2(option.value)} icon={option.icon} label={option.label} count={option.count} />
@@ -492,7 +494,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
       )}
 
       {typeOptions.length > 0 && (
-        <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Typ</p>}>
+        <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Typ</p>}>
           <div className="flex flex-col gap-0.5">
             {typeOptions.map((option) => (
               <FilterBtn key={option.value} selected={activeTypes.includes(option.value)} onClick={() => toggleType(option.value)} icon={option.icon} label={option.label} count={option.count} />
@@ -501,7 +503,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
         </FilterSection>
       )}
 
-      <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Wiek dziecka</p>}>
+      <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Wiek dziecka</p>}>
         <div className="flex flex-col gap-0.5">
           {ageOptions.filter((g) => g.count > 0 || activeAgeGroups.includes(g.key)).map((group) => (
             <FilterBtn key={group.key} selected={activeAgeGroups.includes(group.key)} onClick={() => setActiveAgeGroups((prev) => prev.includes(group.key) ? prev.filter((x) => x !== group.key) : [...prev, group.key])} icon={group.icon} label={group.label} count={group.count} />
@@ -510,7 +512,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
       </FilterSection>
 
       {categoryOptions.length > 0 && (
-        <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Kategoria</p>} defaultCollapsed>
+        <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Kategoria</p>} defaultCollapsed>
           <div className="flex flex-col gap-0.5">
             {categoryOptions.map((option) => (
               <FilterBtn key={option.value} selected={activeCategories.includes(option.value)} onClick={() => toggleCategory(option.value)} icon={option.icon} label={option.label} count={option.count} />
@@ -520,7 +522,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
       )}
 
       {districtOptions.length > 0 && (
-        <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Dzielnica</p>} defaultCollapsed>
+        <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Dzielnica</p>} defaultCollapsed>
           <div className="flex flex-col gap-0.5">
             {districtOptions.map((option) => (
               <FilterBtn key={option.value} selected={activeDistricts.includes(option.value)} onClick={() => toggleDistrict(option.value)} icon={option.icon} label={option.label} count={option.count} />
@@ -561,21 +563,20 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
               </p>
             </div>
 
-            <div className="w-full lg:ml-auto lg:mr-6 lg:mt-[58px] lg:max-w-[700px] xl:mr-8 xl:max-w-[760px] shrink-0 flex items-center rounded-xl border border-[#999999] bg-white shadow-[0_4px_16px_rgba(0,0,0,0.10)] overflow-hidden">
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Szukaj miejsc, wydarzeń..."
-                className="flex-1 h-10 pl-4 pr-2 text-[14px] text-foreground placeholder:text-muted-foreground/50 bg-transparent focus:outline-none"
-              />
-              <button
-                type="button"
-                className="h-10 w-11 flex items-center justify-center bg-[#e60100] text-white hover:bg-[#c40000] transition-colors shrink-0"
-              >
-                <Search size={15} />
-              </button>
-            </div>
+            {/* Add CTA — desktop right of heading */}
+            <a
+              href="/dodaj"
+              className="group relative hidden lg:flex shrink-0 self-center overflow-hidden rounded-2xl border border-sky-300/70 bg-[linear-gradient(180deg,rgba(214,238,252,0.98),rgba(200,230,250,0.98))] px-4 py-3 shadow-[0_14px_34px_-30px_rgba(14,116,144,0.35)] transition-colors duration-200 hover:border-sky-400/70 items-center gap-3 w-[408px] mr-8"
+            >
+              <div className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-cyan-700" />
+              <div className="min-w-0 flex-1 pl-2">
+                <p className="text-[13px] font-semibold text-slate-900">Chcesz tu być?</p>
+                <p className="mt-0.5 text-[11px] text-slate-600">Dodaj event, miejsce, zajęcia lub kolonie.</p>
+              </div>
+              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-cyan-700/20 bg-white/85 px-3 py-1.5 text-[11px] font-semibold text-cyan-800 transition-all duration-200 group-hover:bg-cyan-700 group-hover:text-white">
+                Dodaj →
+              </span>
+            </a>
           </div>
         </div>
       </section>
@@ -597,7 +598,21 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
 
         {/* Mobile filters panel */}
         {mobileFiltersOpen && (
-          <div className="lg:hidden rounded-xl border border-sky-100 bg-sky-50 p-3 mb-4 space-y-2.5">
+          <div className="lg:hidden rounded-xl p-3 mb-4 space-y-2.5">
+            {/* Search */}
+            <div className="flex items-center rounded-lg border border-border bg-white overflow-hidden">
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Szukaj..."
+                className="flex-1 h-8 pl-3 pr-2 text-[12px] text-foreground placeholder:text-muted-foreground/50 bg-transparent focus:outline-none"
+              />
+              <div className="h-8 w-8 flex items-center justify-center bg-[#e60100] text-white shrink-0">
+                <Search size={13} />
+              </div>
+            </div>
+
             {typeLevel2Options.length > 0 && (
               <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Grupa</p>} defaultCollapsed={false}>
                 <div className="flex flex-wrap gap-1">
@@ -709,15 +724,16 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
           </div>
         )}
 
-        <div className="lg:flex lg:gap-6 lg:items-start">
+        <div className="lg:flex lg:gap-6 lg:items-start -mt-5">
 
           {/* ── Desktop sidebar ── */}
-          <aside className="hidden lg:block w-[240px] xl:w-[260px] shrink-0 rounded-2xl overflow-hidden border border-sky-100 bg-sky-50">
+          <aside className="hidden lg:block w-[240px] xl:w-[260px] shrink-0 rounded-2xl overflow-hidden -mt-[10px]">
             {sidebarContent}
           </aside>
 
           {/* ── Main content ── */}
           <main className="flex-1 min-w-0 space-y-2">
+
             {/* Empty state */}
             {showEmpty && (
               <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -736,12 +752,6 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
             {/* ── Places ── */}
             {showPlaces && (
               <section>
-                <SubmissionCta
-                  title="Chcesz stworzyć z nami mapę miejsc?"
-                  description="Dodaj swoje miejsce i pomóż rodzicom odkrywać wartościowe adresy w Krakowie."
-                  buttonLabel="Dodaj miejsce"
-                  href="/dodaj?type=place"
-                />
                 {firstVisibleSection === "places" && activeFiltersBox}
                 <SectionHeader
                   title="Magiczne Miejsca"
@@ -760,12 +770,6 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
             {/* ── Events ── */}
             {showEvents && (
               <section className="mt-10">
-                <SubmissionCta
-                  title="Organizujesz wydarzenie dla dzieci?"
-                  description="Dodaj je do kalendarza i pomóż rodzinom znaleźć pomysł na dziś albo weekend."
-                  buttonLabel="Dodaj wydarzenie"
-                  href="/dodaj?type=event"
-                />
                 {firstVisibleSection === "events" && activeFiltersBox}
                 <SectionHeader
                   title="Wyjątkowe Wydarzenia"
@@ -784,12 +788,6 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
             {/* ── Camps ── */}
             {showCamps && (
               <section className="mt-10">
-                <SubmissionCta
-                  title="Prowadzisz kolonie lub półkolonie?"
-                  description="Pokaż ofertę rodzinom szukającym sprawdzonych wyjazdów i turnusów w Krakowie."
-                  buttonLabel="Dodaj ofertę"
-                  href="/dodaj?type=camp"
-                />
                 {firstVisibleSection === "camps" && activeFiltersBox}
                 <SectionHeader
                   title="Niezapomniane Kolonie"
@@ -861,12 +859,6 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
             {/* ── Activities ── */}
             {showActivities && (
               <section className="mt-10">
-                <SubmissionCta
-                  title="Tworzysz ciekawe zajęcia dla dzieci?"
-                  description="Dodaj je do katalogu i ułatw rodzicom znalezienie regularnych aktywności w okolicy."
-                  buttonLabel="Dodaj zajęcia"
-                  href="/dodaj?type=activity"
-                />
                 {firstVisibleSection === "activities" && activeFiltersBox}
                 <SectionHeader
                   title="Inspirujące Zajęcia"
@@ -882,32 +874,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
               </section>
             )}
             {/* ── Shopify Products ── */}
-            {shopifyProducts.length > 0 && (
-              <section className="mt-10">
-                <div className="flex items-end justify-between mb-4">
-                  <div>
-                    <h2 className="font-heading font-black text-[22px] leading-tight text-black">
-                      Sklep
-                    </h2>
-                    <p className="mt-0.5 text-[13px] text-muted-foreground">Produkty dla aktywnych rodzin</p>
-                  </div>
-                  <a
-                    href={shopifyStoreUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="group inline-flex items-center gap-1 text-[13px] font-semibold text-black hover:text-black/75 transition-colors shrink-0 mb-0.5"
-                  >
-                    Wszystkie
-                    <ArrowRight size={13} className="group-hover:translate-x-0.5 transition-transform duration-150" />
-                  </a>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {shopifyProducts.map((product) => (
-                    <ShopifyProductCard key={product.id} product={product} storeUrl={shopifyStoreUrl} />
-                  ))}
-                </div>
-              </section>
-            )}
+            {/* hidden for now */}
           </main>
         </div>
         </div>

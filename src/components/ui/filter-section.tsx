@@ -47,7 +47,7 @@ export function FilterSection({
         type="button"
         onClick={() => setCollapsed((current) => !current)}
         className={cn(
-          "flex w-full items-center justify-between gap-2 px-2.5 py-2 text-left transition-colors hover:bg-accent/50",
+          "flex w-full items-center justify-between gap-2 px-2.5 py-2 text-left transition-colors bg-sky-50 hover:bg-sky-100",
           triggerClassName
         )}
         aria-expanded={!collapsed}

@@ -647,8 +647,10 @@ export function CampsListView({ camps }: CampsListViewProps) {
     <PageHero
       title="Niezapomniane Kolonie"
       subtitle="Sprawdzeni organizatorzy kolonii i półkolonii — letnie i zimowe wyjazdy w Krakowie i okolicach"
-      search={search}
-      onSearch={setSearch}
+      addHref="/dodaj?type=camp"
+      addTitle="Prowadzisz kolonie lub półkolonie?"
+      addDescription="Pokaż ofertę rodzinom szukającym sprawdzonych wyjazdów w Krakowie."
+      addLabel="Dodaj ofertę"
     />
     <div className="container-page pt-0 pb-10">
       <div className="rounded-[28px] bg-white px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
@@ -661,7 +663,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
       />
 
       {filtersOpen && (
-        <div className="lg:hidden rounded-xl border border-sky-100 bg-sky-50 p-3 mb-4 space-y-2.5">
+        <div className="lg:hidden rounded-xl p-3 mb-4 space-y-2.5">
           <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Data</p>} defaultCollapsed={false}>
             <p className="text-[10px] text-muted-foreground mb-1">Konkretna data</p>
             <input
@@ -849,17 +851,14 @@ export function CampsListView({ camps }: CampsListViewProps) {
         </div>
       )}
 
-      <div className="lg:flex lg:gap-6 lg:items-start">
-        <aside className="hidden lg:block w-[240px] xl:w-[260px] shrink-0 rounded-2xl overflow-hidden border border-sky-100 bg-sky-50">
+      <div className="lg:flex lg:gap-6 lg:items-start -mt-5">
+        <aside className="hidden lg:block w-[240px] xl:w-[260px] shrink-0 rounded-2xl overflow-hidden -mt-[10px]">
           <div className="p-2.5 space-y-2.5">
-            <div className="flex items-center gap-2 px-0.5 pb-0.5">
-              <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#e60100]">Filtry</span>
-              <div className="flex-1 h-px bg-border/70 rounded-full" />
-              {hasActiveFilters && (
-                <span className="text-[9px] font-bold text-primary">{activeFilterBadges.length} aktywne</span>
-              )}
+            <div className="flex items-center rounded-lg border border-border bg-white overflow-hidden">
+              <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Szukaj..." className="flex-1 h-[36px] pl-3 pr-2 text-[12px] text-foreground placeholder:text-muted-foreground/50 bg-transparent focus:outline-none" />
+              <div className="h-[36px] w-9 flex items-center justify-center bg-[#e60100] text-white shrink-0"><Search size={13} /></div>
             </div>
-            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Data</p>} defaultCollapsed={!filtersOpenDesktop}>
+            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Data</p>} defaultCollapsed={!filtersOpenDesktop}>
               <p className="text-[10px] text-muted-foreground mb-1">Konkretna data</p>
               <input
                 type="date"
@@ -901,7 +900,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Typ</p>} defaultCollapsed={!filtersOpenDesktop}>
+            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Typ</p>} defaultCollapsed={!filtersOpenDesktop}>
               <div className="flex flex-col gap-0.5">
                 {typeOptions.map((option) => {
                   const selected = activeTypes.includes(option.value);
@@ -924,7 +923,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Wiek</p>} defaultCollapsed={!filtersOpenDesktop}>
+            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Wiek</p>} defaultCollapsed={!filtersOpenDesktop}>
               <div className="flex flex-col gap-0.5">
                 {ageOptions.filter((group) => group.count > 0 || activeAgeGroups.includes(group.key)).map((group) => {
                   const selected = activeAgeGroups.includes(group.key);
@@ -947,7 +946,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Kategoria</p>} defaultCollapsed>
+            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Kategoria</p>} defaultCollapsed>
               <div className="flex flex-col gap-0.5">
                 {categoryOptions.map((option) => {
                   const selected = activeCategories.includes(option.value);
@@ -970,7 +969,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Tematyka</p>} defaultCollapsed>
+            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Tematyka</p>} defaultCollapsed>
               <div className="flex flex-col gap-0.5">
                 {subcategoryOptions.map((option) => {
                   const selected = activeSubcategories.includes(option.value);
@@ -993,7 +992,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Dzielnica</p>} defaultCollapsed>
+            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Dzielnica</p>} defaultCollapsed>
               <div className="flex flex-col gap-0.5">
                 {availableDistricts.map((district) => {
                   const selected = activeDistricts.includes(district);
@@ -1128,7 +1127,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                     {activeFilterBadges.map((badge) => (
                       <span
                         key={badge.id}
-                        className="inline-flex max-w-full items-center gap-1 rounded-full border border-border bg-accent/60 px-2 py-0.5 text-[10px] font-medium text-foreground"
+                        className="inline-flex max-w-full items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[10px] font-medium text-primary-foreground"
                       >
                         <span className="min-w-0 whitespace-normal break-words">{badge.label}</span>
                         <button

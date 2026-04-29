@@ -60,17 +60,17 @@ function splitLegacyEventAddress(value: unknown) {
 function normalizeEventPayload(input: unknown, categoryMaps: Awaited<ReturnType<typeof loadAdminCategoryMaps>>) {
   const payload = withCategoryIds(sanitizeEventPayload(input), categoryMaps);
 
-  const hasTypeLevel1 = "type_lvl_1_id" in payload || "type_id" in payload;
-  const typeLevel1 = payload.type_lvl_1_id ?? payload.type_id ?? null;
+  const hasTypeLevel1 = "type_lvl_1" in payload || "type_id" in payload;
+  const typeLevel1 = payload.type_lvl_1 ?? payload.type_id ?? null;
   if (hasTypeLevel1) {
-    payload.type_lvl_1_id = typeLevel1;
+    payload.type_lvl_1 = typeLevel1;
   }
   delete payload.type_id;
 
-  const hasTypeLevel2 = "type_lvl_2_id" in payload || "subtype_id" in payload;
-  const typeLevel2 = payload.type_lvl_2_id ?? payload.subtype_id ?? null;
+  const hasTypeLevel2 = "type_lvl_2" in payload || "subtype_id" in payload;
+  const typeLevel2 = payload.type_lvl_2 ?? payload.subtype_id ?? null;
   if (hasTypeLevel2) {
-    payload.type_lvl_2_id = typeLevel2;
+    payload.type_lvl_2 = typeLevel2;
   }
   delete payload.subtype_id;
 
@@ -124,29 +124,26 @@ function normalizeEventPayload(input: unknown, categoryMaps: Awaited<ReturnType<
 function withLegacyEventTaxonomy(input: Record<string, unknown>) {
   const payload = { ...input };
 
-  if ("type_lvl_1_id" in payload) {
-    payload.type_id = payload.type_lvl_1_id ?? null;
-    delete payload.type_lvl_1_id;
+  if ("type_lvl_1" in payload) {
+    payload.type_id = payload.type_lvl_1 ?? null;
+    delete payload.type_lvl_1;
   }
 
-  if ("type_lvl_2_id" in payload) {
-    payload.subtype_id = payload.type_lvl_2_id ?? null;
-    delete payload.type_lvl_2_id;
+  if ("type_lvl_2" in payload) {
+    payload.subtype_id = payload.type_lvl_2 ?? null;
+    delete payload.type_lvl_2;
   }
 
-  delete payload.category_lvl_1_id;
   if ("category_lvl_1" in payload) {
     payload.main_category = payload.category_lvl_1 ?? null;
     delete payload.category_lvl_1;
   }
 
-  delete payload.category_lvl_2_id;
   if ("category_lvl_2" in payload) {
     payload.category = payload.category_lvl_2 ?? null;
     delete payload.category_lvl_2;
   }
 
-  delete payload.category_lvl_3_id;
   if ("category_lvl_3" in payload) {
     payload.subcategory = payload.category_lvl_3 ?? null;
     delete payload.category_lvl_3;
@@ -156,8 +153,8 @@ function withLegacyEventTaxonomy(input: Record<string, unknown>) {
 }
 
 function normalizeEventRecord(record: Record<string, unknown>) {
-  const typeLevel1 = record.type_lvl_1_id ?? record.type_id ?? null;
-  const typeLevel2 = record.type_lvl_2_id ?? record.subtype_id ?? null;
+  const typeLevel1 = record.type_lvl_1 ?? record.type_id ?? null;
+  const typeLevel2 = record.type_lvl_2 ?? record.subtype_id ?? null;
   const categoryLevel1 = record.category_lvl_1 ?? record.main_category ?? null;
   const categoryLevel2 = record.category_lvl_2 ?? record.category ?? null;
   const categoryLevel3 = record.category_lvl_3 ?? record.subcategory ?? null;
@@ -171,8 +168,8 @@ function normalizeEventRecord(record: Record<string, unknown>) {
 
   return {
     ...record,
-    type_lvl_1_id: typeLevel1,
-    type_lvl_2_id: typeLevel2,
+    type_lvl_1: typeLevel1,
+    type_lvl_2: typeLevel2,
     type_id: typeLevel1,
     subtype_id: typeLevel2,
     category_lvl_1: categoryLevel1,
@@ -192,11 +189,8 @@ function isMissingNewEventTaxonomyColumn(message: string | undefined) {
   if (!message) return false;
 
   return [
-    "type_lvl_1_id",
-    "type_lvl_2_id",
-    "category_lvl_1_id",
-    "category_lvl_2_id",
-    "category_lvl_3_id",
+    "type_lvl_1",
+    "type_lvl_2",
     "category_lvl_1",
     "category_lvl_2",
     "category_lvl_3",

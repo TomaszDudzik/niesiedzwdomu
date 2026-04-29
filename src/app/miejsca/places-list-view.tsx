@@ -11,7 +11,7 @@ import { ContentCard } from "@/components/ui/content-card";
 import { FilterSection } from "@/components/ui/filter-section";
 import { SubmissionCta } from "@/components/ui/submission-cta";
 import { cn } from "@/lib/utils";
-import { getAgeGroupOptions, getTaxonomyOptions, matchesTaxonomyFilter, mergeSelectedTaxonomyOptions } from "@/lib/taxonomy-filters";
+import { getAgeGroupOptions, getTaxonomyIcon, getTaxonomyOptions, matchesTaxonomyFilter, mergeSelectedTaxonomyOptions } from "@/lib/taxonomy-filters";
 import type { Place, District } from "@/types/database";
 
 const AGE_GROUPS = [
@@ -54,9 +54,14 @@ function getPlaceTypeValue(place: Place): string {
   return place.category_lvl_1 ?? "Bez kategorii";
 }
 
+function getPlaceCategoryValue(place: Place): string {
+  return place.category_lvl_2 ?? "";
+}
+
 export function PlacesListView({ places }: PlacesListViewProps) {
   const [search, setSearch] = useState("");
   const [activeTypes, setActiveTypes] = useState<string[]>([]);
+  const [activeCategories, setActiveCategories] = useState<string[]>([]);
   const [activeDistricts, setActiveDistricts] = useState<District[]>([]);
   const [activeAgeGroups, setActiveAgeGroups] = useState<string[]>([]);
   const [view, setView] = useState<ViewMode>("list");
@@ -68,7 +73,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
     () => AGE_GROUPS.filter((group) => activeAgeGroups.includes(group.key)),
     [activeAgeGroups]
   );
-  const hasActiveFilters = !!search || activeTypes.length > 0 || activeDistricts.length > 0 || activeAgeGroups.length > 0;
+  const hasActiveFilters = !!search || activeTypes.length > 0 || activeCategories.length > 0 || activeDistricts.length > 0 || activeAgeGroups.length > 0;
   function matchesAgeSelection(place: Place, selectedGroups = ageGroups) {
     if (selectedGroups.length === 0) {
       return true;
@@ -89,11 +94,14 @@ export function PlacesListView({ places }: PlacesListViewProps) {
     return [place.title, place.description_short, place.street, place.city].join(" ").toLowerCase().includes(query);
   }
 
-  function matchesPlaceFilters(place: Place, excluded: Array<"type" | "district" | "age"> = []) {
+  function matchesPlaceFilters(place: Place, excluded: Array<"type" | "category" | "district" | "age"> = []) {
     if (!matchesSearch(place)) {
       return false;
     }
     if (!excluded.includes("type") && !matchesTaxonomyFilter(getPlaceTypeValue(place), activeTypes)) {
+      return false;
+    }
+    if (!excluded.includes("category") && !matchesTaxonomyFilter(getPlaceCategoryValue(place), activeCategories)) {
       return false;
     }
     if (!excluded.includes("district") && activeDistricts.length > 0 && !activeDistricts.includes(place.district)) {
@@ -107,12 +115,12 @@ export function PlacesListView({ places }: PlacesListViewProps) {
 
   const filtered = useMemo(
     () => places.filter((place) => matchesPlaceFilters(place)),
-    [places, search, activeTypes, activeDistricts, ageGroups]
+    [places, search, activeTypes, activeCategories, activeDistricts, ageGroups]
   );
 
   const typeOptionsSource = useMemo(
     () => places.filter((place) => matchesPlaceFilters(place, ["type"])),
-    [places, search, activeDistricts, ageGroups]
+    [places, search, activeCategories, activeDistricts, ageGroups]
   );
 
   const typeOptions = useMemo(
@@ -125,9 +133,25 @@ export function PlacesListView({ places }: PlacesListViewProps) {
     [typeOptions]
   );
 
+  const categoryOptionsSource = useMemo(
+    () => places.filter((place) => matchesPlaceFilters(place, ["category"])),
+    [places, search, activeTypes, activeDistricts, ageGroups]
+  );
+
+  const categoryOptions = useMemo(() => {
+    const options = mergeSelectedTaxonomyOptions(
+      getTaxonomyOptions(categoryOptionsSource, getPlaceCategoryValue),
+      activeCategories
+    );
+    return options.map((option) => {
+      const firstMatch = categoryOptionsSource.find((p) => getPlaceCategoryValue(p) === option.value);
+      return { ...option, icon: getTaxonomyIcon(firstMatch?.category_lvl_1 ?? option.value) };
+    });
+  }, [categoryOptionsSource, activeCategories]);
+
   const ageOptionsSource = useMemo(
     () => places.filter((place) => matchesPlaceFilters(place, ["age"])),
-    [places, search, activeTypes, activeDistricts]
+    [places, search, activeTypes, activeCategories, activeDistricts]
   );
 
   const ageOptions = useMemo(
@@ -190,7 +214,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
 
   const districtOptionsSource = useMemo(
     () => places.filter((place) => matchesPlaceFilters(place, ["district"])),
-    [places, search, activeTypes, ageGroups]
+    [places, search, activeTypes, activeCategories, ageGroups]
   );
 
   const districtCounts = useMemo(() => {
@@ -223,6 +247,15 @@ export function PlacesListView({ places }: PlacesListViewProps) {
       });
     });
 
+    activeCategories.forEach((cat) => {
+      const catOption = categoryOptions.find((o) => o.value === cat);
+      badges.push({
+        id: `cat-${cat}`,
+        label: catOption?.label || cat,
+        onRemove: () => setActiveCategories((prev) => prev.filter((item) => item !== cat)),
+      });
+    });
+
     activeAgeGroups.forEach((ageKey) => {
       const group = AGE_GROUPS.find((item) => item.key === ageKey);
       if (group) {
@@ -243,13 +276,20 @@ export function PlacesListView({ places }: PlacesListViewProps) {
     });
 
     return badges;
-  }, [search, activeTypes, activeAgeGroups, activeDistricts, typeOptionsByValue]);
+  }, [search, activeTypes, activeCategories, activeAgeGroups, activeDistricts, typeOptionsByValue, categoryOptions]);
 
   function clearFilters() {
     setSearch("");
     setActiveTypes([]);
+    setActiveCategories([]);
     setActiveDistricts([]);
     setActiveAgeGroups([]);
+  }
+
+  function toggleCategory(cat: string) {
+    setActiveCategories((prev) =>
+      prev.includes(cat) ? prev.filter((item) => item !== cat) : [...prev, cat]
+    );
   }
 
   function toggleType(type: string) {
@@ -275,8 +315,10 @@ export function PlacesListView({ places }: PlacesListViewProps) {
     <PageHero
       title="Magiczne Miejsca"
       subtitle="Sale zabaw, parki, muzea i atrakcje — sprawdzone adresy dla dzieci w każdym wieku"
-      search={search}
-      onSearch={setSearch}
+      addHref="/dodaj?type=place"
+      addTitle="Chcesz stworzyć z nami mapę miejsc?"
+      addDescription="Dodaj swoje miejsce i pomóż rodzicom odkrywać wartościowe adresy w Krakowie."
+      addLabel="Dodaj miejsce"
     />
     <div className="container-page pt-0 pb-10">
       <div className="rounded-[28px] bg-white px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
@@ -292,7 +334,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
 
       {/* Mobile filters dropdown */}
       {filtersOpen && (
-        <div className="lg:hidden rounded-xl border border-sky-100 bg-sky-50 p-3 mb-4 space-y-2.5">
+        <div className="lg:hidden rounded-xl p-3 mb-4 space-y-2.5">
           <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Typ</p>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
               {typeOptions.map((option) => {
@@ -310,6 +352,25 @@ export function PlacesListView({ places }: PlacesListViewProps) {
               })}
             </div>
           </FilterSection>
+          {categoryOptions.length > 0 && (
+            <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Kategoria</p>} defaultCollapsed={false}>
+              <div className="flex flex-wrap gap-1">
+                {categoryOptions.map((option) => {
+                  const selected = activeCategories.includes(option.value);
+                  return (
+                    <button key={option.value} onClick={() => toggleCategory(option.value)}
+                      className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
+                        selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
+                      <span>{option.icon}</span>
+                      <span>{option.label}</span>
+                      <span className="text-[10px] opacity-60">{option.count}</span>
+                      {selected && <Check size={11} />}
+                    </button>
+                  );
+                })}
+              </div>
+            </FilterSection>
+          )}
           <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Wiek dziecka</p>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
               {ageOptions.filter((group) => group.count > 0 || activeAgeGroups.includes(group.key)).map((group) => {
@@ -369,14 +430,14 @@ export function PlacesListView({ places }: PlacesListViewProps) {
       )}
 
       {/* Desktop layout: sidebar + content */}
-      <div className="lg:flex lg:gap-6 lg:items-start">
+      <div className="lg:flex lg:gap-6 lg:items-start -mt-5">
 
         {/* Sidebar filters — desktop only, sticky */}
-        <aside className="hidden lg:block w-[240px] xl:w-[260px] shrink-0 rounded-2xl overflow-hidden border border-sky-100 bg-sky-50">
+        <aside className="hidden lg:block w-[240px] xl:w-[260px] shrink-0 rounded-2xl overflow-hidden -mt-[10px]">
           <div className="p-2.5 space-y-2.5">
-            <div className="flex items-center gap-2 px-0.5 pb-0.5">
-              <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#e60100]">Filtry</span>
-              <div className="flex-1 h-px bg-border/70 rounded-full" />
+            <div className="flex items-center rounded-lg border border-border bg-white overflow-hidden">
+              <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Szukaj..." className="flex-1 h-[36px] pl-3 pr-2 text-[12px] text-foreground placeholder:text-muted-foreground/50 bg-transparent focus:outline-none" />
+              <div className="h-[36px] w-9 flex items-center justify-center bg-[#e60100] text-white shrink-0"><Search size={13} /></div>
             </div>
             <div className="flex items-center gap-1 rounded-lg border border-border p-0.5 bg-accent/50">
               <button onClick={() => setView("list")} className={cn("flex-1 inline-flex items-center justify-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all duration-200", view === "list" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
@@ -389,7 +450,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
 
             <div className="border-t border-border" />
 
-            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Typ</p>} defaultCollapsed={!filtersOpenDesktop}>
+            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Typ</p>} defaultCollapsed={!filtersOpenDesktop}>
               <div className="flex flex-col gap-0.5">
                 {typeOptions.map((option) => {
                   const selected = activeTypes.includes(option.value);
@@ -407,7 +468,23 @@ export function PlacesListView({ places }: PlacesListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Wiek</p>} defaultCollapsed={!filtersOpenDesktop}>
+            {categoryOptions.length > 0 && (
+              <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Kategoria</p>} defaultCollapsed={!filtersOpenDesktop}>
+                <div className="flex flex-col gap-0.5">
+                  {categoryOptions.map((option) => (
+                    <button key={option.value} onClick={() => toggleCategory(option.value)}
+                      className={cn("flex w-full items-center gap-1.5 px-1.5 py-1 rounded-md text-[10px] font-medium text-left transition-all duration-200",
+                        activeCategories.includes(option.value) ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-primary/15 hover:text-foreground")}>
+                      {option.icon && <span className="shrink-0 text-[12px]">{option.icon}</span>}
+                      <span className="flex-1 truncate">{option.label}</span>
+                      {activeCategories.includes(option.value) ? <Check size={10} className="shrink-0" /> : <span className="text-[9px] opacity-40 tabular-nums">{option.count}</span>}
+                    </button>
+                  ))}
+                </div>
+              </FilterSection>
+            )}
+
+            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Wiek</p>} defaultCollapsed={!filtersOpenDesktop}>
               <div className="flex flex-col gap-0.5">
                 {ageOptions.filter((group) => group.count > 0 || activeAgeGroups.includes(group.key)).map((group) => {
                   const selected = activeAgeGroups.includes(group.key);
@@ -425,7 +502,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Dzielnica</p>} defaultCollapsed={!filtersOpenDesktop}>
+            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Dzielnica</p>} defaultCollapsed={!filtersOpenDesktop}>
               <div className="flex flex-col gap-0.5">
                 {availableDistricts.map((district) => {
                   const selected = activeDistricts.includes(district);
@@ -477,7 +554,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
                     {activeFilterBadges.map((badge) => (
                       <span
                         key={badge.id}
-                        className="inline-flex max-w-full items-center gap-1 rounded-full border border-border bg-accent/60 px-2 py-0.5 text-[10px] font-medium text-foreground"
+                        className="inline-flex max-w-full items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[10px] font-medium text-primary-foreground"
                       >
                         <span className="min-w-0 whitespace-normal break-words">{badge.label}</span>
                         <button

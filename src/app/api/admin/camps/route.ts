@@ -36,17 +36,17 @@ function toSlug(value: string) {
 function normalizeCampPayload(input: Record<string, unknown>, categoryMaps: Awaited<ReturnType<typeof loadAdminCategoryMaps>>) {
   const payload = withCategoryIds(input, categoryMaps);
 
-  const hasTypeLevel1 = "type_lvl_1_id" in payload || "type_id" in payload;
-  const typeLevel1 = payload.type_lvl_1_id ?? payload.type_id ?? null;
+  const hasTypeLevel1 = "type_lvl_1" in payload || "type_id" in payload;
+  const typeLevel1 = payload.type_lvl_1 ?? payload.type_id ?? null;
   if (hasTypeLevel1) {
-    payload.type_lvl_1_id = typeLevel1;
+    payload.type_lvl_1 = typeLevel1;
   }
   delete payload.type_id;
 
-  const hasTypeLevel2 = "type_lvl_2_id" in payload || "subtype_id" in payload;
-  const typeLevel2 = payload.type_lvl_2_id ?? payload.subtype_id ?? null;
+  const hasTypeLevel2 = "type_lvl_2" in payload || "subtype_id" in payload;
+  const typeLevel2 = payload.type_lvl_2 ?? payload.subtype_id ?? null;
   if (hasTypeLevel2) {
-    payload.type_lvl_2_id = typeLevel2;
+    payload.type_lvl_2 = typeLevel2;
   }
   delete payload.subtype_id;
 
@@ -78,30 +78,27 @@ function normalizeCampPayload(input: Record<string, unknown>, categoryMaps: Awai
 function withLegacyCampTaxonomy(input: Record<string, unknown>) {
   const payload = { ...input };
 
-  if ("type_lvl_1_id" in payload) {
-    payload.type_id = payload.type_lvl_1_id ?? null;
-    delete payload.type_lvl_1_id;
+  if ("type_lvl_1" in payload) {
+    payload.type_id = payload.type_lvl_1 ?? null;
+    delete payload.type_lvl_1;
   }
 
-  if ("type_lvl_2_id" in payload) {
-    payload.subtype_id = payload.type_lvl_2_id ?? null;
-    delete payload.type_lvl_2_id;
+  if ("type_lvl_2" in payload) {
+    payload.subtype_id = payload.type_lvl_2 ?? null;
+    delete payload.type_lvl_2;
   }
 
-  delete payload.category_lvl_1_id;
   if ("category_lvl_1" in payload) {
     payload.main_category = payload.category_lvl_1 ?? null;
     payload.camp_type = payload.category_lvl_1 ?? null;
     delete payload.category_lvl_1;
   }
 
-  delete payload.category_lvl_2_id;
   if ("category_lvl_2" in payload) {
     payload.category = payload.category_lvl_2 ?? null;
     delete payload.category_lvl_2;
   }
 
-  delete payload.category_lvl_3_id;
   if ("category_lvl_3" in payload) {
     payload.subcategory = payload.category_lvl_3 ?? null;
     delete payload.category_lvl_3;
@@ -111,8 +108,8 @@ function withLegacyCampTaxonomy(input: Record<string, unknown>) {
 }
 
 function normalizeCampRecord(record: Record<string, unknown>) {
-  const typeLevel1 = record.type_lvl_1_id ?? record.type_id ?? null;
-  const typeLevel2 = record.type_lvl_2_id ?? record.subtype_id ?? null;
+  const typeLevel1 = record.type_lvl_1 ?? record.type_id ?? null;
+  const typeLevel2 = record.type_lvl_2 ?? record.subtype_id ?? null;
   const categoryLevel1 = record.category_lvl_1 ?? record.main_category ?? record.camp_type ?? null;
   const categoryLevel2 = record.category_lvl_2 ?? record.category ?? null;
   const categoryLevel3 = record.category_lvl_3 ?? record.subcategory ?? null;
@@ -125,8 +122,8 @@ function normalizeCampRecord(record: Record<string, unknown>) {
 
   return {
     ...record,
-    type_lvl_1_id: typeLevel1,
-    type_lvl_2_id: typeLevel2,
+    type_lvl_1: typeLevel1,
+    type_lvl_2: typeLevel2,
     type_id: typeLevel1,
     subtype_id: typeLevel2,
     category_lvl_1: categoryLevel1,
@@ -145,11 +142,8 @@ function isMissingNewCampTaxonomyColumn(message: string | undefined) {
   if (!message) return false;
 
   return [
-    "type_lvl_1_id",
-    "type_lvl_2_id",
-    "category_lvl_1_id",
-    "category_lvl_2_id",
-    "category_lvl_3_id",
+    "type_lvl_1",
+    "type_lvl_2",
     "category_lvl_1",
     "category_lvl_2",
     "category_lvl_3",
@@ -236,11 +230,8 @@ function pickCampFields(input: Record<string, unknown>) {
     image_cover: input.image_cover ?? input.image_url,
     image_thumb: input.image_thumb ?? null,
     image_set: input.image_set ?? null,
-    type_lvl_1_id: input.type_lvl_1_id ?? input.type_id ?? null,
-    type_lvl_2_id: input.type_lvl_2_id ?? input.subtype_id ?? null,
-    category_lvl_1_id: input.category_lvl_1_id ?? null,
-    category_lvl_2_id: input.category_lvl_2_id ?? null,
-    category_lvl_3_id: input.category_lvl_3_id ?? null,
+    type_lvl_1: input.type_lvl_1 ?? input.type_id ?? null,
+    type_lvl_2: input.type_lvl_2 ?? input.subtype_id ?? null,
     date_start: input.date_start,
     date_end: input.date_end,
     category_lvl_1: input.category_lvl_1 ?? input.main_category,
@@ -301,8 +292,7 @@ export async function POST(request: NextRequest) {
 const ALLOWED_CAMP_FIELDS = new Set([
   "title", "description_short", "description_long",
   "image_url", "image_cover", "image_thumb", "image_set",
-  "type_lvl_1_id", "type_lvl_2_id", "type_id", "subtype_id",
-  "category_lvl_1_id", "category_lvl_2_id", "category_lvl_3_id",
+  "type_lvl_1", "type_lvl_2", "type_id", "subtype_id",
   "date_start", "date_end", "category_lvl_1", "category_lvl_2", "category_lvl_3", "main_category", "category", "subcategory", "season",
   "duration_days", "meals_included", "transport_included",
   "age_min", "age_max", "price_from", "price_to",

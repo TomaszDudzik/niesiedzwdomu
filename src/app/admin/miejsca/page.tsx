@@ -174,8 +174,8 @@ export default function AdminPlacesPage() {
     organizer: ["organizer", "organizator"],
     description_short: ["description_short", "krótki opis", "krotki opis", "opis krótki", "short description", "opis"],
     description_long: ["description_long", "długi opis", "dlugi opis", "opis długi", "long description"],
-    type_lvl_1_id: ["type_lvl_1_id", "type_id", "type level 1", "typ poziom 1"],
-    type_lvl_2_id: ["type_lvl_2_id", "subtype_id", "type level 2", "typ poziom 2"],
+    type_lvl_1: ["type_lvl_1", "type_id", "type level 1", "typ poziom 1"],
+    type_lvl_2: ["type_lvl_2", "subtype_id", "type level 2", "typ poziom 2"],
     category_lvl_1: ["category_lvl_1", "category_lvl_1_id", "main_category", "place_type", "typ", "type", "kategoria glowna", "kategoria", "category"],
     category_lvl_2: ["category_lvl_2", "category_lvl_2_id", "subcategory", "sub_category", "kategoria 2", "category level 2"],
     category_lvl_3: ["category_lvl_3", "category_lvl_3_id", "subsubcategory", "kategoria 3", "category level 3"],
@@ -240,14 +240,14 @@ export default function AdminPlacesPage() {
           setOrganizers((current) => current.some((entry) => entry.id === organizer.id) ? current : [...current, organizer]);
         },
       });
-      place.type_lvl_1_id = resolveTypeLevel1Id(
+      place.type_lvl_1 = resolveTypeLevel1Id(
         typeLevel1Options,
-        typeof place.type_lvl_1_id === "string" ? place.type_lvl_1_id : null,
+        typeof place.type_lvl_1 === "string" ? place.type_lvl_1 : null,
       );
-      place.type_lvl_2_id = resolveTypeLevel2Id(
+      place.type_lvl_2 = resolveTypeLevel2Id(
         typeLevel2Options,
-        typeof place.type_lvl_2_id === "string" ? place.type_lvl_2_id : null,
-        typeof place.type_lvl_1_id === "string" ? place.type_lvl_1_id : null,
+        typeof place.type_lvl_2 === "string" ? place.type_lvl_2 : null,
+        typeof place.type_lvl_1 === "string" ? place.type_lvl_1 : null,
       );
       place.category_lvl_1 = resolveCategoryLevel1Name(
         categoryLevel1Options,
@@ -448,8 +448,8 @@ export default function AdminPlacesPage() {
       title: place.title,
       description_short: place.description_short,
       description_long: place.description_long,
-      type_lvl_1_id: place.type_lvl_1_id ?? place.type_id ?? null,
-      type_lvl_2_id: place.type_lvl_2_id ?? place.subtype_id ?? null,
+      type_lvl_1: place.type_lvl_1 ?? place.type_id ?? null,
+      type_lvl_2: place.type_lvl_2 ?? place.subtype_id ?? null,
       category_lvl_1: resolveTaxonomyName(categoryLevel1Options, place.category_lvl_1 ?? place.main_category ?? null),
       category_lvl_2: resolveTaxonomyName(categoryLevel2Options, place.category_lvl_2 ?? place.category ?? null),
       category_lvl_3: resolveTaxonomyName(categoryLevel3Options, place.category_lvl_3 ?? place.subcategory ?? null),
@@ -514,8 +514,8 @@ export default function AdminPlacesPage() {
       title: editForm.title,
       description_short: editForm.description_short,
       description_long: editForm.description_long,
-      type_lvl_1_id: editForm.type_lvl_1_id ? String(editForm.type_lvl_1_id) : null,
-      type_lvl_2_id: editForm.type_lvl_2_id ? String(editForm.type_lvl_2_id) : null,
+      type_lvl_1: editForm.type_lvl_1 ? String(editForm.type_lvl_1) : null,
+      type_lvl_2: editForm.type_lvl_2 ? String(editForm.type_lvl_2) : null,
       category_lvl_1: categoryLevel1Name,
       category_lvl_2: categoryLevel2Name,
       category_lvl_3: categoryLevel3Name,
@@ -880,8 +880,8 @@ export default function AdminPlacesPage() {
                           categoryLevel1Label="Typ"
                           categoryLevel2Label="Kategoria"
                           categoryLevel3Label="Tematyka"
-                          selectedTypeLevel1Id={typeof editForm.type_lvl_1_id === "string" ? editForm.type_lvl_1_id : null}
-                          selectedTypeLevel2Id={typeof editForm.type_lvl_2_id === "string" ? editForm.type_lvl_2_id : null}
+                          selectedTypeLevel1Id={typeof editForm.type_lvl_1 === "string" ? editForm.type_lvl_1 : null}
+                          selectedTypeLevel2Id={typeof editForm.type_lvl_2 === "string" ? editForm.type_lvl_2 : null}
                           selectedCategoryLevel1={typeof editForm.category_lvl_1 === "string" ? editForm.category_lvl_1 : null}
                           selectedCategoryLevel2={typeof editForm.category_lvl_2 === "string" ? editForm.category_lvl_2 : null}
                           selectedCategoryLevel3={typeof editForm.category_lvl_3 === "string" ? editForm.category_lvl_3 : null}
@@ -889,10 +889,10 @@ export default function AdminPlacesPage() {
                           inputClass={inputClass}
                           labelClass={labelClass}
                           onTypeLevel1Change={(value) => {
-                            updateField("type_lvl_1_id", value);
-                            updateField("type_lvl_2_id", null);
+                            updateField("type_lvl_1", value);
+                            updateField("type_lvl_2", null);
                           }}
-                          onTypeLevel2Change={(value) => updateField("type_lvl_2_id", value)}
+                          onTypeLevel2Change={(value) => updateField("type_lvl_2", value)}
                           onCategoryLevel1Change={(value) => {
                             updateField("category_lvl_1", value);
                             updateField("category_lvl_2", null);
@@ -1018,8 +1018,8 @@ export default function AdminPlacesPage() {
                         onClearPending={clearPendingFile}
                         table="places"
                         itemId={place.id}
-                        typeLvl1Id={String(editForm.type_lvl_1_id || place.type_lvl_1_id || place.type_id || "") || null}
-                        typeLvl2Id={String(editForm.type_lvl_2_id || place.type_lvl_2_id || place.subtype_id || "") || null}
+                        typeLvl1Id={String(editForm.type_lvl_1 || place.type_lvl_1 || place.type_id || "") || null}
+                        typeLvl2Id={String(editForm.type_lvl_2 || place.type_lvl_2 || place.subtype_id || "") || null}
                         categoryLvl1={String(editForm.category_lvl_1 || place.category_lvl_1 || place.main_category || "")}
                         categoryLvl2={String(editForm.category_lvl_2 || place.category_lvl_2 || place.category || "")}
                         categoryLvl3={String(editForm.category_lvl_3 || place.category_lvl_3 || place.subcategory || "")}

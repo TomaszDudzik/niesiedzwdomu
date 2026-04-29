@@ -48,6 +48,8 @@ export function getTaxonomyIcon(value: string): string {
   if (normalized.includes("kino") || normalized.includes("film")) return "🎬";
   if (normalized.includes("festyn")) return "🎉";
   if (normalized.includes("wystaw")) return "🖼️";
+  if (normalized.includes("tworczos") || normalized.includes("tworcz")) return "🎨";
+  if (normalized.includes("zabaw")) return "🧸";
   if (normalized.includes("sala zabaw")) return "🧸";
   if (normalized.includes("plac zabaw")) return "🛝";
   if (normalized.includes("kultura") || normalized.includes("oglada")) return "🎭";
