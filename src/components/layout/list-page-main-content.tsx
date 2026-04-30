@@ -18,8 +18,8 @@ export function ListPageMainContent({
 }: ListPageMainContentProps) {
   return (
     <div className={cn("flex-1 min-w-0", className)}>
-      <div className={cn("space-y-4", topClassName)}>{topContent}</div>
-      <div className={cn("mt-4", contentClassName)}>{children}</div>
+      {topContent && <div className={cn("space-y-4 mb-4", topClassName)}>{topContent}</div>}
+      <div className={cn(contentClassName)}>{children}</div>
     </div>
   );
 }
