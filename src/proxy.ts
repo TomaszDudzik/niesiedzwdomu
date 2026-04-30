@@ -92,8 +92,8 @@ export function proxy(request: NextRequest) {
   return NextResponse.next();
 }
 
-export function middleware(request: NextRequest) {
-  return proxy(request);
+export function middleware(_request: NextRequest) {
+  return NextResponse.next();
 }
 
 export const config = {
