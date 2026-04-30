@@ -31,7 +31,7 @@ export function PageHero({ title, subtitle, addHref, addTitle, addDescription, a
           {addHref && (
             <a
               href={addHref}
-              className="group relative hidden lg:flex shrink-0 self-center overflow-hidden rounded-2xl border border-sky-300/70 bg-[linear-gradient(180deg,rgba(214,238,252,0.98),rgba(200,230,250,0.98))] px-4 py-3 shadow-[0_14px_34px_-30px_rgba(14,116,144,0.35)] transition-colors duration-200 hover:border-sky-400/70 items-center gap-3 w-[583px] mr-8"
+              className="group relative hidden xl:flex shrink-0 self-center overflow-hidden rounded-2xl border border-sky-300/70 bg-[linear-gradient(180deg,rgba(214,238,252,0.98),rgba(200,230,250,0.98))] px-4 py-3 shadow-[0_14px_34px_-30px_rgba(14,116,144,0.35)] transition-colors duration-200 hover:border-sky-400/70 items-center gap-3 w-[583px] mr-8"
             >
               <div className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-cyan-700" />
               <div className="min-w-0 flex-1 pl-2">
