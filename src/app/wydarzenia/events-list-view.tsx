@@ -2,10 +2,13 @@
 
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Search, LayoutGrid, CalendarDays, SlidersHorizontal, X, MapPin, MapIcon, Check, ChevronDown } from "lucide-react";
+import { MobileActionBar } from "@/components/ui/mobile-action-bar";
+import { PageHero } from "@/components/layout/page-hero";
+import { ListGroupHeader } from "@/components/layout/list-group-header";
+import { ListPageMainContent } from "@/components/layout/list-page-main-content";
 import { DISTRICT_LIST } from "@/lib/mock-data";
 import { ContentCard } from "@/components/ui/content-card";
 import { FilterSection } from "@/components/ui/filter-section";
-import { SubmissionCta } from "@/components/ui/submission-cta";
 import { cn, toLocalDateKey } from "@/lib/utils";
 import { getEventsForDate } from "@/lib/filter-events";
 import { getAgeGroupOptions, getTaxonomyOptions, matchesTaxonomyFilter, mergeSelectedTaxonomyOptions } from "@/lib/taxonomy-filters";
@@ -60,6 +63,7 @@ interface MarkerGroup {
   coords: [number, number];
   events: Event[];
   label: string;
+  markerIcon?: string;
 }
 
 interface DateRange {
@@ -128,15 +132,16 @@ function eventIntersectsRange(event: Event, range: DateRange): boolean {
   return eventStart <= range.end && eventEnd >= range.start;
 }
 
-function groupByLocation(events: Event[]): MarkerGroup[] {
+function groupByLocation(events: Event[], typeIconByValue?: Map<string, { icon?: string }>): MarkerGroup[] {
   const groups: Record<string, MarkerGroup> = {};
   for (const event of events) {
     const coords: [number, number] = event.lat && event.lng
       ? [event.lat, event.lng]
       : (DISTRICT_COORDS[event.district] || KRAKOW_CENTER);
     const key = `${coords[0]},${coords[1]}`;
+    const markerIcon = typeIconByValue?.get(getEventTypeValue(event))?.icon || "📍";
     if (!groups[key]) {
-      groups[key] = { coords, events: [], label: event.street || event.city || event.district };
+      groups[key] = { coords, events: [], label: event.street || event.city || event.district, markerIcon };
     }
     groups[key].events.push(event);
   }
@@ -335,7 +340,10 @@ export function EventsListView({ events }: EventsListViewProps) {
     [events, search, activeTypes, activeCategories, activeDistricts, rangeFrom, rangeTo, singleDate]
   );
 
-  const sidebarMapGroups = useMemo(() => groupByLocation(listEvents), [listEvents]);
+  const sidebarMapGroups = useMemo(
+    () => groupByLocation(listEvents, typeOptionsByValue as Map<string, { icon?: string }>),
+    [listEvents, typeOptionsByValue]
+  );
 
   const grouped = useMemo(() => {
     const groups: { category: string; label: string; icon: string; events: Event[] }[] = [];
@@ -514,40 +522,32 @@ export function EventsListView({ events }: EventsListViewProps) {
   }
 
   return (
-    <div className="container-page pt-5 pb-10">
-      <SubmissionCta
-        mobile
-        title="Organizujesz wydarzenie dla dzieci?"
-        description="Dodaj je do kalendarza i pomóż rodzinom znaleźć pomysł na dziś albo weekend."
-        buttonLabel="Dodaj wydarzenie"
-        href="/dodaj?type=event"
+    <div>
+    <PageHero
+      title="Wyjątkowe Wydarzenia"
+      subtitle="Warsztaty, spektakle, festyny i rodzinne atrakcje — aktualne wydarzenia na każdy dzień"
+      search={search}
+      onSearch={setSearch}
+      addHref="/dodaj?type=event"
+      addTitle="Organizujesz wydarzenie dla dzieci?"
+      addDescription="Dodaj je do kalendarza i pomóż rodzinom znaleźć pomysł na dziś albo weekend."
+      addLabel="Dodaj wydarzenie"
+    />
+    <div className="container-page pt-0 pb-10">
+      <div className="rounded-[28px] bg-white px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+      <MobileActionBar
+        filtersOpen={filtersOpen}
+        hasActiveFilters={hasActiveFilters}
+        onToggleFilters={() => setFiltersOpen(!filtersOpen)}
+        view={view}
+        onSetView={setView}
+        addHref="/dodaj?type=event"
+        addLabel="Dodaj wydarzenie"
       />
-
-      {/* Mobile top bar */}
-      <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 flex items-center gap-2">
-        <button
-          onClick={() => setFiltersOpen(!filtersOpen)}
-          className={cn("inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-[12px] font-semibold border-2 transition-all duration-200",
-            filtersOpen || hasActiveFilters ? "bg-primary text-primary-foreground border-primary" : "bg-primary/5 text-foreground border-primary/20 hover:bg-primary/10")}
-        >
-          <SlidersHorizontal size={13} />
-          Filtry
-          {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-primary-foreground" />}
-        </button>
-        <div className="relative flex-1">
-          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
-          <input type="text" placeholder="Szukaj wydarzeń..." value={search} onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-border bg-background text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-200" />
-        </div>
-        <div className="flex items-center gap-1 rounded-lg border border-border p-0.5 bg-accent/50">
-          <button onClick={() => setView("list")} className={cn("px-2 py-1 rounded-lg text-[11px] font-medium transition-all duration-200", view === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}><LayoutGrid size={12} /></button>
-          <button onClick={() => setView("map")} className={cn("px-2 py-1 rounded-lg text-[11px] font-medium transition-all duration-200", view === "map" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}><MapIcon size={12} /></button>
-        </div>
-      </div>
 
       {/* Mobile filters dropdown */}
       {filtersOpen && (
-        <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 space-y-2.5">
+        <div className="lg:hidden rounded-xl p-3 mb-4 space-y-2.5">
           <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Data</p>} defaultCollapsed={false}>
             <p className="text-[10px] text-muted-foreground mb-1">Konkretna data</p>
             <input
@@ -691,8 +691,8 @@ export function EventsListView({ events }: EventsListViewProps) {
       <div className="lg:flex lg:gap-6 lg:items-start">
 
         {/* Sidebar — desktop only */}
-        <aside className="hidden lg:block w-52 shrink-0">
-          <div className="rounded-xl border border-border bg-card p-2.5 space-y-2.5">
+        <aside className="hidden lg:block w-[240px] xl:w-[260px] shrink-0 rounded-2xl overflow-hidden -mt-3">
+          <div className="p-2.5 space-y-2.5">
             <div className="flex items-center gap-1 rounded-lg border border-border p-0.5 bg-accent/50">
               <button onClick={() => setView("list")} className={cn("flex-1 inline-flex items-center justify-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all duration-200", view === "list" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
                 <LayoutGrid size={11} /> Lista
@@ -704,13 +704,7 @@ export function EventsListView({ events }: EventsListViewProps) {
 
             <div className="border-t border-border" />
 
-            <div className="relative">
-              <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
-              <input type="text" placeholder="Szukaj..." value={search} onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-7 pr-2 py-1 rounded-lg border border-border bg-background text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-200" />
-            </div>
-
-            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Data</p>} defaultCollapsed={!filtersOpenDesktop}>
+            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Data</p>} defaultCollapsed={!filtersOpenDesktop}>
               <p className="text-[10px] text-muted-foreground mb-1">Konkretna data</p>
               <input
                 type="date"
@@ -752,7 +746,7 @@ export function EventsListView({ events }: EventsListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Typ</p>} defaultCollapsed={!filtersOpenDesktop}>
+            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Typ</p>} defaultCollapsed={!filtersOpenDesktop}>
               <div className="flex flex-col gap-0.5">
                 {typeOptions.map((option) => {
                   const selected = activeTypes.includes(option.value);
@@ -770,7 +764,7 @@ export function EventsListView({ events }: EventsListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Wiek</p>} defaultCollapsed={!filtersOpenDesktop}>
+            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Wiek</p>} defaultCollapsed={!filtersOpenDesktop}>
               <div className="flex flex-col gap-0.5">
                 {ageOptions.filter((group) => group.count > 0 || activeAgeGroups.includes(group.key)).map((group) => {
                   const selected = activeAgeGroups.includes(group.key);
@@ -788,7 +782,7 @@ export function EventsListView({ events }: EventsListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Kategoria</p>} defaultCollapsed>
+            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Kategoria</p>} defaultCollapsed>
               <div className="flex flex-col gap-0.5">
                 {categoryOptions.map((option) => {
                   const selected = activeCategories.includes(option.value);
@@ -806,7 +800,7 @@ export function EventsListView({ events }: EventsListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Dzielnica</p>} defaultCollapsed>
+            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Dzielnica</p>} defaultCollapsed>
               <div className="flex flex-col gap-0.5">
                 {availableDistricts.map((district) => {
                   const selected = activeDistricts.includes(district);
@@ -842,17 +836,10 @@ export function EventsListView({ events }: EventsListViewProps) {
         </aside>
 
         {/* Main content */}
-        <div className="flex-1 min-w-0">
-          <>
-            <div className="space-y-7">
-              <SubmissionCta
-                title="Organizujesz wydarzenie dla dzieci?"
-                description="Dodaj je do kalendarza i pomóż rodzinom znaleźć pomysł na dziś albo weekend."
-                buttonLabel="Dodaj wydarzenie"
-                href="/dodaj?type=event"
-              />
-
-              <div className="rounded-xl border border-border bg-white overflow-hidden mb-4">
+        <ListPageMainContent
+          topContent={(
+            <>
+              <div className="rounded-xl border border-border bg-white overflow-hidden">
                 <div className="px-3 pt-2 pb-1 border-b border-border/50">
                   <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: "none" }}>
                     {monthOptions.map((opt) => {
@@ -934,46 +921,43 @@ export function EventsListView({ events }: EventsListViewProps) {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-border bg-card px-2.5 py-2">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Filtry:</p>
-                  {activeFilterBadges.length > 0 ? (
-                    <>
-                      {activeFilterBadges.map((badge) => (
-                        <span
-                          key={badge.id}
-                          className="inline-flex items-center gap-1 rounded-full border border-border bg-accent/60 px-2 py-0.5 text-[10px] font-medium text-foreground"
-                        >
-                          <span>{badge.label}</span>
-                          <button
-                            type="button"
-                            onClick={badge.onRemove}
-                            className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-muted-foreground hover:bg-border/70 hover:text-foreground transition-colors"
-                            aria-label={`Usuń filtr ${badge.label}`}
-                            title={`Usuń: ${badge.label}`}
-                          >
-                            <X size={9} />
-                          </button>
-                        </span>
-                      ))}
-                      <button
-                        type="button"
-                        onClick={clearFilters}
-                        className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              {activeFilterBadges.length > 0 && (
+                <div className="rounded-xl border border-border bg-card px-2.5 py-2">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Filtry:</p>
+                    {activeFilterBadges.map((badge) => (
+                      <span
+                        key={badge.id}
+                        className="inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[10px] font-medium text-primary-foreground"
                       >
-                        <X size={9} />
-                        Wyczyść
-                      </button>
-                    </>
-                  ) : (
-                    <p className="text-[11px] text-muted-foreground">Brak aktywnych filtrów.</p>
-                  )}
+                        <span>{badge.label}</span>
+                        <button
+                          type="button"
+                          onClick={badge.onRemove}
+                          className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-muted-foreground hover:bg-border/70 hover:text-foreground transition-colors"
+                          aria-label={`Usuń filtr ${badge.label}`}
+                          title={`Usuń: ${badge.label}`}
+                        >
+                          <X size={9} />
+                        </button>
+                      </span>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={clearFilters}
+                      className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                    >
+                      <X size={9} />
+                      Wyczyść
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </div>
+              )}
+            </>
+          )}
+        >
 
-            <div className="mt-4">
-              {view === "map" ? (
+          {view === "map" ? (
                 <div className="space-y-3">
                   <div className="rounded-xl border border-border bg-card px-4 py-3">
                     <h2 className="text-[15px] font-semibold text-foreground">Mapa wydarzeń w Krakowie</h2>
@@ -1007,24 +991,20 @@ export function EventsListView({ events }: EventsListViewProps) {
                 <div className="space-y-12">
                   {grouped.map((group) => (
                     <section key={group.category}>
-                      <div className="flex items-center gap-2 mb-4">
-                        <span className="text-lg">{group.icon}</span>
-                        <h2 className="text-[15px] font-semibold text-foreground">{group.label}</h2>
-                        <span className="text-[12px] text-muted-foreground">({group.events.length})</span>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <ListGroupHeader icon={group.icon} title={group.label} count={group.events.length} />
+                      <div className="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-4 gap-4">
                         {group.events.map((event) => (
-                          <ContentCard key={event.id} item={event} />
+                          <ContentCard key={event.id} item={event} variant="vertical" />
                         ))}
                       </div>
                     </section>
                   ))}
                 </div>
               )}
-            </div>
-          </>
-        </div>
+        </ListPageMainContent>
       </div>
+      </div>
+    </div>
     </div>
   );
 }

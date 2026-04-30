@@ -1,37 +1,48 @@
 @import "tailwindcss";
 
 @theme {
-  /* Warm modern lifestyle palette */
-  --color-background: #FEFCF9;
-  --color-foreground: #2D2926;
-  --color-muted: #7A7572;
-  --color-muted-foreground: #A39E9A;
-  --color-border: #E8E4DF;
-  --color-card: #FFFFFF;
-  --color-card-foreground: #2D2926;
+  /* ── Palette ─────────────────────────────────── */
+  --color-background:       #ffffff;
+  --color-foreground:       oklch(20% 0.02 88);
+  --color-muted:            oklch(43% 0.02 88);
+  --color-muted-foreground: oklch(52% 0.018 88);
+  --color-border:           oklch(88% 0.02 88);
+  --color-card:             #ffffff;
+  --color-card-foreground:  oklch(20% 0.02 88);
 
-  /* Terracotta primary — warm, friendly, not childish */
-  --color-primary: #D4623C;
-  --color-primary-foreground: #FFFFFF;
-  --color-primary-hover: #C05535;
+  /* Primary — logo yellow */
+  --color-primary:          oklch(87% 0.19 95);
+  --color-primary-foreground: #161616;
+  --color-primary-hover:    oklch(80% 0.18 95);
 
-  /* Sage teal secondary — calm, trustworthy */
-  --color-secondary: #3D8B7A;
-  --color-secondary-foreground: #FFFFFF;
+  /* Secondary — warm graphite */
+  --color-secondary:        oklch(26% 0.02 88);
+  --color-secondary-foreground: #ffffff;
 
-  /* Warm accent surfaces */
-  --color-accent: #F7F3EE;
-  --color-accent-foreground: #2D2926;
+  /* Accent surfaces */
+  --color-accent:           oklch(97% 0.02 90);
+  --color-accent-foreground: oklch(20% 0.02 88);
 
-  --color-success: #5B9A6F;
-  --color-danger: #D94F4F;
+  /* Sidebar surface */
+  --color-sidebar:          oklch(97.5% 0.018 90);
 
-  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  /* Extended palette (energetic & vibrant) */
+  --color-purple:           oklch(57% 0.26 286);
+  --color-yellow:           oklch(89% 0.2 95);
+  --color-pink:             oklch(64% 0.26 351);
+  --color-green:            oklch(65% 0.23 145);
 
-  /* Shadows — subtle, warm-toned */
-  --shadow-card: 0 1px 3px rgba(45, 41, 38, 0.04), 0 1px 2px rgba(45, 41, 38, 0.03);
-  --shadow-card-hover: 0 8px 24px rgba(45, 41, 38, 0.08), 0 2px 8px rgba(45, 41, 38, 0.04);
-  --shadow-soft: 0 2px 8px rgba(45, 41, 38, 0.06);
+  --color-success:          oklch(60% 0.19 148);
+  --color-danger:           oklch(60% 0.23 22);
+
+  /* ── Typography ──────────────────────────────── */
+  --font-sans:    var(--font-nunito-sans), "Nunito Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-heading: var(--font-nunito),      "Nunito",      ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  /* ── Shadows ─────────────────────────────────── */
+  --shadow-card:       0 1px 6px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-card-hover: 0 8px 28px rgba(0,0,0,0.12), 0 4px 10px rgba(0,0,0,0.07);
+  --shadow-soft:       0 4px 20px rgba(0,0,0,0.07);
 }
 
 @layer base {
@@ -48,14 +59,39 @@
     line-height: 1.6;
   }
 
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+  }
+
   ::selection {
-    background-color: #D4623C;
-    color: #FFFFFF;
+    background-color: #000000;
+    color: #ffffff;
+  }
+}
+
+@layer utilities {
+  .font-heading {
+    font-family: var(--font-heading);
+  }
+
+  .text-gradient-hero {
+    background: linear-gradient(135deg, var(--color-yellow), #ffffff 60%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 }
 
 @layer components {
   .container-page {
-    @apply mx-auto max-w-6xl px-5 sm:px-6 lg:px-8;
+    @apply mx-auto w-full px-4 sm:px-6 lg:px-10 xl:px-14;
+  }
+
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
   }
 }

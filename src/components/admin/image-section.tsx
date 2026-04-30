@@ -139,8 +139,8 @@ export function ImageSection({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: itemId,
-          type_lvl_1_id: typeLvl1Id,
-          type_lvl_2_id: typeLvl2Id,
+          type_lvl_1: typeLvl1Id,
+          type_lvl_2: typeLvl2Id,
           category_lvl_1: categoryLvl1,
           category_lvl_2: categoryLvl2,
           category_lvl_3: categoryLvl3,

@@ -1,6 +1,6 @@
 import type { Event, Camp, Place, EventFilters, CampFilters, PlaceFilters } from "@/types/database";
 import { AGE_GROUPS } from "./mock-data";
-import { getNextWeekend, toLocalDateKey } from "./utils";
+import { getNextWeekend, normalizeSearchText, toLocalDateKey } from "./utils";
 import { normalizeDistrictName } from "./districts";
 
 // ============================================
@@ -18,8 +18,8 @@ function matchesAge(ageMin: number | null, ageMax: number | null, ageGroup?: str
 
 function matchesSearch(searchable: (string | null | undefined)[], query?: string): boolean {
   if (!query) return true;
-  const q = query.toLowerCase();
-  return searchable.filter(Boolean).join(" ").toLowerCase().includes(q);
+  const q = normalizeSearchText(query);
+  return normalizeSearchText(searchable.filter(Boolean).join(" ")).includes(q);
 }
 
 function matchesDateRange(dateStart: string, dateRange?: string): boolean {

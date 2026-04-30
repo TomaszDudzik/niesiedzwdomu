@@ -2,12 +2,15 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { Search, LayoutGrid, MapIcon, SlidersHorizontal, X, MapPin, Check, ChevronDown } from "lucide-react";
+import { MobileActionBar } from "@/components/ui/mobile-action-bar";
+import { PageHero } from "@/components/layout/page-hero";
+import { ListGroupHeader } from "@/components/layout/list-group-header";
+import { ListPageMainContent } from "@/components/layout/list-page-main-content";
 import { DISTRICT_LIST } from "@/lib/mock-data";
 import { ContentCard } from "@/components/ui/content-card";
 import { FilterSection } from "@/components/ui/filter-section";
-import { SubmissionCta } from "@/components/ui/submission-cta";
 import { cn } from "@/lib/utils";
-import { getAgeGroupOptions, getTaxonomyOptions, matchesTaxonomyFilter, mergeSelectedTaxonomyOptions } from "@/lib/taxonomy-filters";
+import { getAgeGroupOptions, getTaxonomyIcon, getTaxonomyOptions, matchesTaxonomyFilter, mergeSelectedTaxonomyOptions } from "@/lib/taxonomy-filters";
 import type { Place, District } from "@/types/database";
 
 const AGE_GROUPS = [
@@ -39,6 +42,7 @@ interface MarkerGroup {
   coords: [number, number];
   events: { id: string; title: string; slug: string; street: string; city: string; image_url?: string | null }[];
   label: string;
+  markerIcon: string;
 }
 
 interface PlacesListViewProps {
@@ -49,9 +53,14 @@ function getPlaceTypeValue(place: Place): string {
   return place.category_lvl_1 ?? "Bez kategorii";
 }
 
+function getPlaceCategoryValue(place: Place): string {
+  return place.category_lvl_2 ?? "";
+}
+
 export function PlacesListView({ places }: PlacesListViewProps) {
   const [search, setSearch] = useState("");
   const [activeTypes, setActiveTypes] = useState<string[]>([]);
+  const [activeCategories, setActiveCategories] = useState<string[]>([]);
   const [activeDistricts, setActiveDistricts] = useState<District[]>([]);
   const [activeAgeGroups, setActiveAgeGroups] = useState<string[]>([]);
   const [view, setView] = useState<ViewMode>("list");
@@ -63,7 +72,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
     () => AGE_GROUPS.filter((group) => activeAgeGroups.includes(group.key)),
     [activeAgeGroups]
   );
-  const hasActiveFilters = !!search || activeTypes.length > 0 || activeDistricts.length > 0 || activeAgeGroups.length > 0;
+  const hasActiveFilters = !!search || activeTypes.length > 0 || activeCategories.length > 0 || activeDistricts.length > 0 || activeAgeGroups.length > 0;
   function matchesAgeSelection(place: Place, selectedGroups = ageGroups) {
     if (selectedGroups.length === 0) {
       return true;
@@ -84,11 +93,14 @@ export function PlacesListView({ places }: PlacesListViewProps) {
     return [place.title, place.description_short, place.street, place.city].join(" ").toLowerCase().includes(query);
   }
 
-  function matchesPlaceFilters(place: Place, excluded: Array<"type" | "district" | "age"> = []) {
+  function matchesPlaceFilters(place: Place, excluded: Array<"type" | "category" | "district" | "age"> = []) {
     if (!matchesSearch(place)) {
       return false;
     }
     if (!excluded.includes("type") && !matchesTaxonomyFilter(getPlaceTypeValue(place), activeTypes)) {
+      return false;
+    }
+    if (!excluded.includes("category") && !matchesTaxonomyFilter(getPlaceCategoryValue(place), activeCategories)) {
       return false;
     }
     if (!excluded.includes("district") && activeDistricts.length > 0 && !activeDistricts.includes(place.district)) {
@@ -102,12 +114,12 @@ export function PlacesListView({ places }: PlacesListViewProps) {
 
   const filtered = useMemo(
     () => places.filter((place) => matchesPlaceFilters(place)),
-    [places, search, activeTypes, activeDistricts, ageGroups]
+    [places, search, activeTypes, activeCategories, activeDistricts, ageGroups]
   );
 
   const typeOptionsSource = useMemo(
     () => places.filter((place) => matchesPlaceFilters(place, ["type"])),
-    [places, search, activeDistricts, ageGroups]
+    [places, search, activeCategories, activeDistricts, ageGroups]
   );
 
   const typeOptions = useMemo(
@@ -120,9 +132,25 @@ export function PlacesListView({ places }: PlacesListViewProps) {
     [typeOptions]
   );
 
+  const categoryOptionsSource = useMemo(
+    () => places.filter((place) => matchesPlaceFilters(place, ["category"])),
+    [places, search, activeTypes, activeDistricts, ageGroups]
+  );
+
+  const categoryOptions = useMemo(() => {
+    const options = mergeSelectedTaxonomyOptions(
+      getTaxonomyOptions(categoryOptionsSource, getPlaceCategoryValue),
+      activeCategories
+    );
+    return options.map((option) => {
+      const firstMatch = categoryOptionsSource.find((p) => getPlaceCategoryValue(p) === option.value);
+      return { ...option, icon: getTaxonomyIcon(firstMatch?.category_lvl_1 ?? option.value) };
+    });
+  }, [categoryOptionsSource, activeCategories]);
+
   const ageOptionsSource = useMemo(
     () => places.filter((place) => matchesPlaceFilters(place, ["age"])),
-    [places, search, activeTypes, activeDistricts]
+    [places, search, activeTypes, activeCategories, activeDistricts]
   );
 
   const ageOptions = useMemo(
@@ -166,8 +194,10 @@ export function PlacesListView({ places }: PlacesListViewProps) {
     for (const place of filtered) {
       if (!place.lat || !place.lng) continue;
       const key = `${place.lat},${place.lng}`;
+      const typeValue = getPlaceTypeValue(place);
+      const typeIcon = typeOptionsByValue.get(typeValue)?.icon || "📍";
       if (!groups[key]) {
-        groups[key] = { coords: [place.lat, place.lng], events: [], label: place.title };
+        groups[key] = { coords: [place.lat, place.lng], events: [], label: place.title, markerIcon: typeIcon };
       }
       groups[key].events.push({
         id: place.id,
@@ -179,11 +209,11 @@ export function PlacesListView({ places }: PlacesListViewProps) {
       });
     }
     return Object.values(groups);
-  }, [filtered]);
+  }, [filtered, typeOptionsByValue]);
 
   const districtOptionsSource = useMemo(
     () => places.filter((place) => matchesPlaceFilters(place, ["district"])),
-    [places, search, activeTypes, ageGroups]
+    [places, search, activeTypes, activeCategories, ageGroups]
   );
 
   const districtCounts = useMemo(() => {
@@ -216,6 +246,15 @@ export function PlacesListView({ places }: PlacesListViewProps) {
       });
     });
 
+    activeCategories.forEach((cat) => {
+      const catOption = categoryOptions.find((o) => o.value === cat);
+      badges.push({
+        id: `cat-${cat}`,
+        label: catOption?.label || cat,
+        onRemove: () => setActiveCategories((prev) => prev.filter((item) => item !== cat)),
+      });
+    });
+
     activeAgeGroups.forEach((ageKey) => {
       const group = AGE_GROUPS.find((item) => item.key === ageKey);
       if (group) {
@@ -236,13 +275,20 @@ export function PlacesListView({ places }: PlacesListViewProps) {
     });
 
     return badges;
-  }, [search, activeTypes, activeAgeGroups, activeDistricts, typeOptionsByValue]);
+  }, [search, activeTypes, activeCategories, activeAgeGroups, activeDistricts, typeOptionsByValue, categoryOptions]);
 
   function clearFilters() {
     setSearch("");
     setActiveTypes([]);
+    setActiveCategories([]);
     setActiveDistricts([]);
     setActiveAgeGroups([]);
+  }
+
+  function toggleCategory(cat: string) {
+    setActiveCategories((prev) =>
+      prev.includes(cat) ? prev.filter((item) => item !== cat) : [...prev, cat]
+    );
   }
 
   function toggleType(type: string) {
@@ -264,44 +310,30 @@ export function PlacesListView({ places }: PlacesListViewProps) {
   }
 
   return (
-    <div className="container-page pt-5 pb-10">
-      <SubmissionCta
-        mobile
-        title="Chcesz stworzyć z nami mapę miejsc?"
-        description="Dodaj swoje miejsce i pomóż rodzicom odkrywać wartościowe adresy w Krakowie."
-        buttonLabel="Dodaj miejsce"
-        href="/dodaj?type=place"
+    <div>
+    <PageHero
+      title="Magiczne Miejsca"
+      subtitle="Sale zabaw, parki, muzea i atrakcje — sprawdzone adresy dla dzieci w każdym wieku"
+      addHref="/dodaj?type=place"
+      addTitle="Chcesz stworzyć z nami mapę miejsc?"
+      addDescription="Dodaj swoje miejsce i pomóż rodzicom odkrywać wartościowe adresy w Krakowie."
+      addLabel="Dodaj miejsce"
+    />
+    <div className="container-page pt-0 pb-10">
+      <div className="rounded-[28px] bg-white px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+      <MobileActionBar
+        filtersOpen={filtersOpen}
+        hasActiveFilters={hasActiveFilters}
+        onToggleFilters={() => setFiltersOpen(!filtersOpen)}
+        view={view}
+        onSetView={setView}
+        addHref="/dodaj?type=place"
+        addLabel="Dodaj miejsce"
       />
-
-      {/* Mobile top bar */}
-      <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 flex items-center gap-2">
-        <button
-          onClick={() => setFiltersOpen(!filtersOpen)}
-          className={cn(
-            "inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-[12px] font-semibold border-2 transition-all duration-200",
-            filtersOpen || hasActiveFilters
-              ? "bg-primary text-primary-foreground border-primary"
-              : "bg-primary/5 text-foreground border-primary/20 hover:bg-primary/10"
-          )}
-        >
-          <SlidersHorizontal size={13} />
-          Filtry
-          {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-primary-foreground" />}
-        </button>
-        <div className="relative flex-1">
-          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
-          <input type="text" placeholder="Szukaj miejsc..." value={search} onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-border bg-background text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-200" />
-        </div>
-        <div className="flex items-center gap-1 rounded-lg border border-border p-0.5 bg-accent/50">
-          <button onClick={() => setView("list")} className={cn("inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-all duration-200", view === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}><LayoutGrid size={12} /></button>
-          <button onClick={() => setView("map")} className={cn("inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-all duration-200", view === "map" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}><MapIcon size={12} /></button>
-        </div>
-      </div>
 
       {/* Mobile filters dropdown */}
       {filtersOpen && (
-        <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 space-y-2.5">
+        <div className="lg:hidden rounded-xl p-3 mb-4 space-y-2.5">
           <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Typ</p>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
               {typeOptions.map((option) => {
@@ -319,6 +351,25 @@ export function PlacesListView({ places }: PlacesListViewProps) {
               })}
             </div>
           </FilterSection>
+          {categoryOptions.length > 0 && (
+            <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Kategoria</p>} defaultCollapsed={false}>
+              <div className="flex flex-wrap gap-1">
+                {categoryOptions.map((option) => {
+                  const selected = activeCategories.includes(option.value);
+                  return (
+                    <button key={option.value} onClick={() => toggleCategory(option.value)}
+                      className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
+                        selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
+                      <span>{option.icon}</span>
+                      <span>{option.label}</span>
+                      <span className="text-[10px] opacity-60">{option.count}</span>
+                      {selected && <Check size={11} />}
+                    </button>
+                  );
+                })}
+              </div>
+            </FilterSection>
+          )}
           <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Wiek dziecka</p>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
               {ageOptions.filter((group) => group.count > 0 || activeAgeGroups.includes(group.key)).map((group) => {
@@ -378,11 +429,15 @@ export function PlacesListView({ places }: PlacesListViewProps) {
       )}
 
       {/* Desktop layout: sidebar + content */}
-      <div className="lg:flex lg:gap-10 lg:items-start">
+      <div className="lg:flex lg:gap-6 lg:items-start -mt-5">
 
         {/* Sidebar filters — desktop only, sticky */}
-        <aside className="hidden lg:block w-52 shrink-0">
-          <div className="rounded-xl border border-border bg-card p-2.5 space-y-2.5">
+        <aside className="hidden lg:block w-[240px] xl:w-[260px] shrink-0 rounded-2xl overflow-hidden -mt-[10px]">
+          <div className="p-2.5 space-y-2.5">
+            <div className="flex items-center rounded-lg border border-border bg-white overflow-hidden">
+              <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Szukaj..." className="flex-1 h-[36px] pl-3 pr-2 text-[12px] text-foreground placeholder:text-muted-foreground/50 bg-transparent focus:outline-none" />
+              <div className="h-[36px] w-9 flex items-center justify-center bg-[#e60100] text-white shrink-0"><Search size={13} /></div>
+            </div>
             <div className="flex items-center gap-1 rounded-lg border border-border p-0.5 bg-accent/50">
               <button onClick={() => setView("list")} className={cn("flex-1 inline-flex items-center justify-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all duration-200", view === "list" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
                 <LayoutGrid size={11} /> Lista
@@ -394,13 +449,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
 
             <div className="border-t border-border" />
 
-            <div className="relative">
-              <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
-              <input type="text" placeholder="Szukaj..." value={search} onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-7 pr-2 py-1 rounded-lg border border-border bg-background text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-200" />
-            </div>
-
-            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Typ</p>} defaultCollapsed={!filtersOpenDesktop}>
+            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Typ</p>} defaultCollapsed={!filtersOpenDesktop}>
               <div className="flex flex-col gap-0.5">
                 {typeOptions.map((option) => {
                   const selected = activeTypes.includes(option.value);
@@ -418,7 +467,23 @@ export function PlacesListView({ places }: PlacesListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Wiek</p>} defaultCollapsed={!filtersOpenDesktop}>
+            {categoryOptions.length > 0 && (
+              <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Kategoria</p>} defaultCollapsed={!filtersOpenDesktop}>
+                <div className="flex flex-col gap-0.5">
+                  {categoryOptions.map((option) => (
+                    <button key={option.value} onClick={() => toggleCategory(option.value)}
+                      className={cn("flex w-full items-center gap-1.5 px-1.5 py-1 rounded-md text-[10px] font-medium text-left transition-all duration-200",
+                        activeCategories.includes(option.value) ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-primary/15 hover:text-foreground")}>
+                      {option.icon && <span className="shrink-0 text-[12px]">{option.icon}</span>}
+                      <span className="flex-1 truncate">{option.label}</span>
+                      {activeCategories.includes(option.value) ? <Check size={10} className="shrink-0" /> : <span className="text-[9px] opacity-40 tabular-nums">{option.count}</span>}
+                    </button>
+                  ))}
+                </div>
+              </FilterSection>
+            )}
+
+            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Wiek</p>} defaultCollapsed={!filtersOpenDesktop}>
               <div className="flex flex-col gap-0.5">
                 {ageOptions.filter((group) => group.count > 0 || activeAgeGroups.includes(group.key)).map((group) => {
                   const selected = activeAgeGroups.includes(group.key);
@@ -436,7 +501,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Dzielnica</p>} defaultCollapsed={!filtersOpenDesktop}>
+            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Dzielnica</p>} defaultCollapsed={!filtersOpenDesktop}>
               <div className="flex flex-col gap-0.5">
                 {availableDistricts.map((district) => {
                   const selected = activeDistricts.includes(district);
@@ -470,55 +535,42 @@ export function PlacesListView({ places }: PlacesListViewProps) {
         </aside>
 
         {/* Main content */}
-        <div className="flex-1 min-w-0">
-          <div className="space-y-7">
-            <SubmissionCta
-              title="Chcesz stworzyć z nami mapę miejsc?"
-              description="Dodaj swoje miejsce i pomóż rodzicom odkrywać wartościowe adresy w Krakowie."
-              buttonLabel="Dodaj miejsce"
-              href="/dodaj?type=place"
-            />
-
+        <ListPageMainContent
+          topContent={activeFilterBadges.length > 0 ? (
             <div className="rounded-xl border border-border bg-card px-2.5 py-2">
               <div className="flex flex-wrap items-center gap-1.5">
                 <p className="shrink-0 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Filtry:</p>
-                {activeFilterBadges.length > 0 ? (
-                  <>
-                    {activeFilterBadges.map((badge) => (
-                      <span
-                        key={badge.id}
-                        className="inline-flex max-w-full items-center gap-1 rounded-full border border-border bg-accent/60 px-2 py-0.5 text-[10px] font-medium text-foreground"
-                      >
-                        <span className="min-w-0 whitespace-normal break-words">{badge.label}</span>
-                        <button
-                          type="button"
-                          onClick={badge.onRemove}
-                          className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-muted-foreground hover:bg-border/70 hover:text-foreground transition-colors"
-                          aria-label={`Usuń filtr ${badge.label}`}
-                          title={`Usuń: ${badge.label}`}
-                        >
-                          <X size={9} />
-                        </button>
-                      </span>
-                    ))}
+                {activeFilterBadges.map((badge) => (
+                  <span
+                    key={badge.id}
+                    className="inline-flex max-w-full items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[10px] font-medium text-primary-foreground"
+                  >
+                    <span className="min-w-0 whitespace-normal break-words">{badge.label}</span>
                     <button
                       type="button"
-                      onClick={clearFilters}
-                      className="inline-flex max-w-full items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                      onClick={badge.onRemove}
+                      className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-muted-foreground hover:bg-border/70 hover:text-foreground transition-colors"
+                      aria-label={`Usuń filtr ${badge.label}`}
+                      title={`Usuń: ${badge.label}`}
                     >
                       <X size={9} />
-                      Wyczyść
                     </button>
-                  </>
-                ) : (
-                  <p className="text-[11px] text-muted-foreground">Brak aktywnych filtrów.</p>
-                )}
+                  </span>
+                ))}
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="inline-flex max-w-full items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                >
+                  <X size={9} />
+                  Wyczyść
+                </button>
               </div>
             </div>
-          </div>
+          ) : undefined}
+        >
 
-          <div className="mt-4">
-            {view === "map" ? (
+          {view === "map" ? (
               <div className="space-y-3">
                 <div className="rounded-xl border border-border bg-card px-4 py-3">
                   <h2 className="text-[15px] font-semibold text-foreground">Mapa miejsc w Krakowie</h2>
@@ -552,23 +604,20 @@ export function PlacesListView({ places }: PlacesListViewProps) {
               <div className="space-y-12">
                 {grouped.map((group) => (
                   <section key={group.type}>
-                    <div className="flex items-center gap-2 mb-4">
-                      <span className="text-lg">{group.icon}</span>
-                      <h2 className="text-[15px] font-semibold text-foreground">{group.label}</h2>
-                      <span className="text-[12px] text-muted-foreground">({group.places.length})</span>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <ListGroupHeader icon={group.icon} title={group.label} count={group.places.length} />
+                    <div className="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-4 gap-4">
                       {group.places.map((place) => (
-                        <ContentCard key={place.id} item={place} largeImage />
+                        <ContentCard key={place.id} item={place} variant="vertical" />
                       ))}
                     </div>
                   </section>
                 ))}
               </div>
             )}
-          </div>
-        </div>
+        </ListPageMainContent>
       </div>
+      </div>
+    </div>
     </div>
   );
 }

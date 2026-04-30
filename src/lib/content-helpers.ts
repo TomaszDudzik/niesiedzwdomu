@@ -2,6 +2,59 @@ import type { DiscoveryItem, ContentType } from "@/types/database";
 import { CONTENT_TYPE_LABELS, CONTENT_TYPE_ICONS, CONTENT_TYPE_COLORS, CATEGORY_LABELS, CATEGORY_ICONS, CAMP_MAIN_CATEGORY_LABELS, CAMP_MAIN_CATEGORY_ICONS, PLACE_TYPE_LABELS, PLACE_TYPE_ICONS, ACTIVITY_TYPE_LABELS, ACTIVITY_TYPE_ICONS } from "./mock-data";
 import { formatDateShort, formatPriceRange, formatAgeRange, toHourMinute } from "./utils";
 
+const CATEGORY_LEVEL_1_LABELS: Record<string, string> = {
+  edukacja: "Edukacja",
+  integracja: "Integracja",
+  kreatywnosc: "Kreatywność",
+  kulinaria: "Kulinaria",
+  kultura: "Kultura",
+  nauka: "Nauka",
+  plac_zabaw: "Plac zabaw",
+  przygoda: "Przygoda",
+  przyroda: "Przyroda",
+  relaks: "Relaks",
+  sala_zabaw: "Sala zabaw",
+  sport: "Sport",
+  technologia: "Technologia",
+};
+
+const CATEGORY_LEVEL_1_ICONS: Record<string, string> = {
+  edukacja: "📚",
+  integracja: "🤝",
+  kreatywnosc: "🎨",
+  kulinaria: "🍳",
+  kultura: "🎭",
+  nauka: "🔬",
+  plac_zabaw: "🛝",
+  przygoda: "🏕️",
+  przyroda: "🌿",
+  relaks: "🌤️",
+  sala_zabaw: "🧸",
+  sport: "⚽",
+  technologia: "💻",
+};
+
+function normalizeCategoryLevel1Key(value: string | null | undefined) {
+  if (!value) return null;
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[\s/-]+/g, "_");
+}
+
+function getCategoryLevel1Label(value: string | null | undefined) {
+  const normalized = normalizeCategoryLevel1Key(value);
+  if (!normalized) return null;
+  return CATEGORY_LEVEL_1_LABELS[normalized] ?? value;
+}
+
+function getCategoryLevel1Icon(value: string | null | undefined) {
+  const normalized = normalizeCategoryLevel1Key(value);
+  if (!normalized) return null;
+  return CATEGORY_LEVEL_1_ICONS[normalized] ?? null;
+}
+
 function getPlaceCategoryLabel(value: string | null | undefined) {
   if (!value) return "Miejsce";
   return PLACE_TYPE_LABELS[value as keyof typeof PLACE_TYPE_LABELS] ?? value;
@@ -41,12 +94,16 @@ export function getTypeBadgeColors(type: ContentType) {
 export function getSubcategoryLabel(item: DiscoveryItem): string {
   switch (item.content_type) {
     case "event": {
-      const key = item.category_lvl_2 ?? item.category;
-      return CATEGORY_LABELS[key as keyof typeof CATEGORY_LABELS] ?? key;
+      return getCategoryLevel1Label(item.category_lvl_1 ?? item.main_category)
+        ?? CATEGORY_LABELS[(item.category_lvl_2 ?? item.category) as keyof typeof CATEGORY_LABELS]
+        ?? item.category_lvl_2
+        ?? item.category;
     }
     case "camp": return CAMP_MAIN_CATEGORY_LABELS[item.category_lvl_1 ?? item.main_category];
     case "place": return getPlaceCategoryLabel(item.category_lvl_1 ?? item.main_category ?? item.place_type);
-    case "activity": return ACTIVITY_TYPE_LABELS[item.activity_type];
+    case "activity":
+      return getCategoryLevel1Label(item.category_lvl_1 ?? item.main_category)
+        ?? ACTIVITY_TYPE_LABELS[item.activity_type];
   }
 }
 
@@ -54,12 +111,15 @@ export function getSubcategoryLabel(item: DiscoveryItem): string {
 export function getSubcategoryIcon(item: DiscoveryItem): string {
   switch (item.content_type) {
     case "event": {
-      const key = item.category_lvl_2 ?? item.category;
-      return CATEGORY_ICONS[key as keyof typeof CATEGORY_ICONS] ?? "📅";
+      return getCategoryLevel1Icon(item.category_lvl_1 ?? item.main_category)
+        ?? CATEGORY_ICONS[(item.category_lvl_2 ?? item.category) as keyof typeof CATEGORY_ICONS]
+        ?? "📅";
     }
     case "camp": return CAMP_MAIN_CATEGORY_ICONS[item.category_lvl_1 ?? item.main_category];
     case "place": return getPlaceCategoryIcon(item.category_lvl_1 ?? item.main_category ?? item.place_type);
-    case "activity": return ACTIVITY_TYPE_ICONS[item.activity_type];
+    case "activity":
+      return getCategoryLevel1Icon(item.category_lvl_1 ?? item.main_category)
+        ?? ACTIVITY_TYPE_ICONS[item.activity_type];
   }
 }
 

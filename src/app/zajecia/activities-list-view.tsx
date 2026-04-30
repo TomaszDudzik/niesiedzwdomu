@@ -1,11 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Search, LayoutGrid, MapIcon, SlidersHorizontal, X, MapPin, Check, ChevronDown } from "lucide-react";
+import { MobileActionBar } from "@/components/ui/mobile-action-bar";
+import { PageHero } from "@/components/layout/page-hero";
+import { ListGroupHeader } from "@/components/layout/list-group-header";
+import { ListPageMainContent } from "@/components/layout/list-page-main-content";
 import { DISTRICT_LIST } from "@/lib/mock-data";
 import { ContentCard } from "@/components/ui/content-card";
 import { FilterSection } from "@/components/ui/filter-section";
-import { SubmissionCta } from "@/components/ui/submission-cta";
 import { cn } from "@/lib/utils";
 import { getAgeGroupOptions, getTaxonomyOptions, matchesTaxonomyFilter, mergeSelectedTaxonomyOptions } from "@/lib/taxonomy-filters";
 import type { Activity, District } from "@/types/database";
@@ -35,6 +38,29 @@ const DISTRICT_ICONS: Partial<Record<District, string>> = {
 
 type ViewMode = "list" | "map";
 
+const KRAKOW_CENTER: [number, number] = [50.0614, 19.9372];
+const DISTRICT_COORDS: Partial<Record<District, [number, number]>> = {
+  "Stare Miasto": [50.0614, 19.9372],
+  "Kazimierz": [50.05, 19.946],
+  "Podgórze": [50.042, 19.951],
+  "Nowa Huta": [50.072, 20.037],
+  "Krowodrza": [50.077, 19.913],
+  "Bronowice": [50.081, 19.89],
+  "Zwierzyniec": [50.056, 19.89],
+  "Dębniki": [50.043, 19.92],
+  "Prądnik Czerwony": [50.087, 19.955],
+  "Prądnik Biały": [50.095, 19.92],
+  "Czyżyny": [50.072, 20.005],
+  "Bieżanów-Prokocim": [50.015, 20.005],
+};
+
+interface MarkerGroup {
+  coords: [number, number];
+  events: { id: string; title: string; slug: string; street: string; city: string; image_url?: string | null }[];
+  label: string;
+  markerIcon?: string;
+}
+
 interface ActivitiesListViewProps {
   activities: Activity[];
 }
@@ -61,6 +87,7 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
   const [view, setView] = useState<ViewMode>("list");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filtersOpenDesktop, setFiltersOpenDesktop] = useState(false);
+  const [MapComponent, setMapComponent] = useState<React.ComponentType<{ groups: MarkerGroup[]; basePath?: string }> | null>(null);
 
   const ageGroups = useMemo(
     () => AGE_GROUPS.filter((group) => activeAgeGroups.includes(group.key)),
@@ -69,6 +96,14 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
 
   const hasActiveFilters =
     !!search || activeTypes.length > 0 || activeCategories.length > 0 || activeSubcategories.length > 0 || activeDistricts.length > 0 || activeAgeGroups.length > 0;
+
+  useEffect(() => {
+    if (view === "map" && !MapComponent) {
+      import("@/app/wydarzenia/map-leaflet").then((mod) => {
+        setMapComponent(() => mod.MapLeaflet);
+      });
+    }
+  }, [view, MapComponent]);
   function matchesSearch(activity: Activity) {
     if (!search) {
       return true;
@@ -211,6 +246,38 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
     return groups;
   }, [filteredActivities, typeOptionsByValue]);
 
+  const mapGroups = useMemo((): MarkerGroup[] => {
+    const groups: Record<string, MarkerGroup> = {};
+
+    for (const activity of filteredActivities) {
+      const coords: [number, number] = activity.lat && activity.lng
+        ? [activity.lat, activity.lng]
+        : (DISTRICT_COORDS[activity.district] || KRAKOW_CENTER);
+      const key = `${coords[0]},${coords[1]}`;
+      const markerIcon = typeOptionsByValue.get(getActivityTypeValue(activity))?.icon || "🎯";
+
+      if (!groups[key]) {
+        groups[key] = {
+          coords,
+          events: [],
+          label: activity.title,
+          markerIcon,
+        };
+      }
+
+      groups[key].events.push({
+        id: activity.id,
+        title: activity.title,
+        slug: activity.slug,
+        street: activity.venue_address || activity.street || "",
+        city: activity.city || activity.district,
+        image_url: activity.image_url,
+      });
+    }
+
+    return Object.values(groups);
+  }, [filteredActivities, typeOptionsByValue]);
+
   const activeFilterBadges = useMemo(() => {
     const badges: { id: string; label: string; onRemove: () => void }[] = [];
 
@@ -310,47 +377,31 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
   }
 
   return (
-    <div className="container-page pt-5 pb-10">
-      <SubmissionCta
-        mobile
-        title="Tworzysz ciekawe zajęcia dla dzieci?"
-        description="Dodaj je do katalogu i ułatw rodzicom znalezienie regularnych aktywności w okolicy."
-        buttonLabel="Dodaj zajęcia"
-        href="/dodaj?type=activity"
+    <div>
+    <PageHero
+      title="Inspirujące Zajęcia"
+      subtitle="Sport, muzyka, języki, sztuka — znajdź aktywności dopasowane do wieku i zainteresowań dziecka"
+      search={search}
+      onSearch={setSearch}
+      addHref="/dodaj?type=activity"
+      addTitle="Tworzysz ciekawe zajęcia dla dzieci?"
+      addDescription="Dodaj je do katalogu i ułatw rodzicom znalezienie regularnych aktywności w okolicy."
+      addLabel="Dodaj zajęcia"
+    />
+    <div className="container-page pt-0 pb-10">
+      <div className="rounded-[28px] bg-white px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+      <MobileActionBar
+        filtersOpen={filtersOpen}
+        hasActiveFilters={hasActiveFilters}
+        onToggleFilters={() => setFiltersOpen(!filtersOpen)}
+        view={view}
+        onSetView={setView}
+        addHref="/dodaj?type=activity"
+        addLabel="Dodaj zajęcia"
       />
 
-      <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 flex items-center gap-2">
-        <button
-          onClick={() => setFiltersOpen(!filtersOpen)}
-          className={cn(
-            "inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-[12px] font-semibold border-2 transition-all duration-200",
-            filtersOpen || hasActiveFilters
-              ? "bg-primary text-primary-foreground border-primary"
-              : "bg-primary/5 text-foreground border-primary/20 hover:bg-primary/10"
-          )}
-        >
-          <SlidersHorizontal size={13} />
-          Filtry
-          {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-primary-foreground" />}
-        </button>
-        <div className="relative flex-1">
-          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
-          <input
-            type="text"
-            placeholder="Szukaj zajęć..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-border bg-background text-[12px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-200"
-          />
-        </div>
-        <div className="flex items-center gap-1 rounded-lg border border-border p-0.5 bg-accent/50">
-          <button onClick={() => setView("list")} className={cn("inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-all duration-200", view === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}><LayoutGrid size={12} /></button>
-          <button onClick={() => setView("map")} className={cn("inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-all duration-200", view === "map" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}><MapIcon size={12} /></button>
-        </div>
-      </div>
-
       {filtersOpen && (
-        <div className="lg:hidden rounded-xl border border-border bg-card p-3 mb-4 space-y-2.5">
+        <div className="lg:hidden rounded-xl p-3 mb-4 space-y-2.5">
           <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Typ</p>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
               {typeOptions.map((option) => {
@@ -462,8 +513,8 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
       )}
 
       <div className="lg:flex lg:gap-6 lg:items-start">
-        <aside className="hidden lg:block w-52 shrink-0">
-          <div className="rounded-xl border border-border bg-card p-2.5 space-y-2.5">
+        <aside className="hidden lg:block w-[240px] xl:w-[260px] shrink-0 rounded-2xl overflow-hidden -mt-3">
+          <div className="p-2.5 space-y-2.5">
             <div className="flex items-center gap-1 rounded-lg border border-border p-0.5 bg-accent/50">
               <button onClick={() => setView("list")} className={cn("flex-1 inline-flex items-center justify-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all duration-200", view === "list" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
                 <LayoutGrid size={11} /> Lista
@@ -475,13 +526,7 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
 
             <div className="border-t border-border" />
 
-            <div className="relative">
-              <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
-              <input type="text" placeholder="Szukaj..." value={search} onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-7 pr-2 py-1 rounded-lg border border-border bg-background text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-200" />
-            </div>
-
-            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Typ</p>} defaultCollapsed={!filtersOpenDesktop}>
+            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Typ</p>} defaultCollapsed={!filtersOpenDesktop}>
               <div className="flex flex-col gap-0.5">
                 {typeOptions.map((option) => {
                   const selected = activeTypes.includes(option.value);
@@ -499,7 +544,7 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Wiek</p>} defaultCollapsed={!filtersOpenDesktop}>
+            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Wiek</p>} defaultCollapsed={!filtersOpenDesktop}>
               <div className="flex flex-col gap-0.5">
                 {ageOptions.filter((group) => group.count > 0 || activeAgeGroups.includes(group.key)).map((group) => {
                   const selected = activeAgeGroups.includes(group.key);
@@ -517,7 +562,7 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Kategoria</p>} defaultCollapsed={!filtersOpenDesktop}>
+            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Kategoria</p>} defaultCollapsed={!filtersOpenDesktop}>
               <div className="flex flex-col gap-0.5">
                 {categoryOptions.map((option) => {
                   const selected = activeCategories.includes(option.value);
@@ -535,7 +580,7 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Tematyka</p>} defaultCollapsed>
+            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Tematyka</p>} defaultCollapsed>
               <div className="flex flex-col gap-0.5">
                 {subcategoryOptions.map((option) => {
                   const selected = activeSubcategories.includes(option.value);
@@ -553,7 +598,7 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Dzielnica</p>} defaultCollapsed>
+            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Dzielnica</p>} defaultCollapsed>
               <div className="flex flex-col gap-0.5">
                 {availableDistricts.map((district) => {
                   const selected = activeDistricts.includes(district);
@@ -586,62 +631,51 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
           </div>
         </aside>
 
-        <div className="flex-1 min-w-0">
-          <div className="space-y-7">
-            <SubmissionCta
-              title="Tworzysz ciekawe zajęcia dla dzieci?"
-              description="Dodaj je do katalogu i ułatw rodzicom znalezienie regularnych aktywności w okolicy."
-              buttonLabel="Dodaj zajęcia"
-              href="/dodaj?type=activity"
-            />
-
+        <ListPageMainContent
+          topContent={activeFilterBadges.length > 0 ? (
             <div className="rounded-xl border border-border bg-card px-2.5 py-2">
               <div className="flex flex-wrap items-center gap-1.5">
                 <p className="shrink-0 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Filtry:</p>
-                {activeFilterBadges.length > 0 ? (
-                  <>
-                    {activeFilterBadges.map((badge) => (
-                      <span
-                        key={badge.id}
-                        className="inline-flex max-w-full items-center gap-1 rounded-full border border-border bg-accent/60 px-2 py-0.5 text-[10px] font-medium text-foreground"
-                      >
-                        <span className="min-w-0 whitespace-normal break-words">{badge.label}</span>
-                        <button
-                          type="button"
-                          onClick={badge.onRemove}
-                          className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-muted-foreground hover:bg-border/70 hover:text-foreground transition-colors"
-                          aria-label={`Usuń filtr ${badge.label}`}
-                          title={`Usuń: ${badge.label}`}
-                        >
-                          <X size={9} />
-                        </button>
-                      </span>
-                    ))}
+                {activeFilterBadges.map((badge) => (
+                  <span
+                    key={badge.id}
+                    className="inline-flex max-w-full items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[10px] font-medium text-primary-foreground"
+                  >
+                    <span className="min-w-0 whitespace-normal break-words">{badge.label}</span>
                     <button
                       type="button"
-                      onClick={clearFilters}
-                      className="inline-flex max-w-full items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                      onClick={badge.onRemove}
+                      className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-muted-foreground hover:bg-border/70 hover:text-foreground transition-colors"
+                      aria-label={`Usuń filtr ${badge.label}`}
+                      title={`Usuń: ${badge.label}`}
                     >
                       <X size={9} />
-                      Wyczyść
                     </button>
-                  </>
-                ) : (
-                  <p className="text-[11px] text-muted-foreground">Brak aktywnych filtrów.</p>
-                )}
+                  </span>
+                ))}
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="inline-flex max-w-full items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                >
+                  <X size={9} />
+                  Wyczyść
+                </button>
               </div>
             </div>
-          </div>
+          ) : undefined}
+        >
 
           {view === "map" ? (
             <div className="rounded-xl overflow-hidden border border-border" style={{ height: "500px" }}>
-              <div className="w-full h-full flex items-center justify-center bg-accent/20 px-6 text-center">
-                <div>
-                  <MapIcon size={30} className="mx-auto text-muted-foreground/30 mb-3" />
-                  <p className="text-[14px] font-semibold text-foreground">Mapa zajęć pojawi się wkrótce.</p>
-                  <p className="text-[12px] text-muted mt-1">Przygotowujemy ten widok w tym samym modelu co miejsca.</p>
+              {MapComponent ? (
+                <MapComponent groups={mapGroups} basePath="/zajecia" />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center bg-accent/20 gap-3">
+                  <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                  <p className="text-[13px] text-muted-foreground">Ładowanie mapy…</p>
                 </div>
-              </div>
+              )}
             </div>
           ) : filteredActivities.length === 0 ? (
             <div className="text-center py-16">
@@ -658,22 +692,20 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
             <div className="space-y-12">
               {grouped.map((group) => (
                 <section key={group.type}>
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="text-lg">{group.icon}</span>
-                    <h2 className="text-[15px] font-semibold text-foreground">{group.label}</h2>
-                    <span className="text-[12px] text-muted-foreground">({group.activities.length})</span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <ListGroupHeader icon={group.icon} title={group.label} count={group.activities.length} />
+                  <div className="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-4 gap-4">
                     {group.activities.map((activity) => (
-                      <ContentCard key={activity.id} item={activity} />
+                      <ContentCard key={activity.id} item={activity} variant="vertical" />
                     ))}
                   </div>
                 </section>
               ))}
             </div>
           )}
-        </div>
+        </ListPageMainContent>
       </div>
+      </div>
+    </div>
     </div>
   );
 }

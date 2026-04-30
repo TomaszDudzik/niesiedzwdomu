@@ -144,17 +144,34 @@ export default async function PlaceDetailPage({ params }: PageProps) {
         )}
       </div>
 
-      {/* Outer grid: content | panel */}
-      <div className="grid lg:grid-cols-[1fr_360px] gap-5 lg:gap-6 items-start">
-
-        {/* Lewa strona: image (lewo) + AI link i long desc (środek) */}
-        <div className="grid lg:grid-cols-[288px_1fr] gap-5 items-start">
+      {/* Unified wrapper: image + description + info box */}
+      <div className="rounded-[28px] bg-white px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8 mb-8">
+        <div className="grid lg:grid-cols-[476px_1fr_360px] gap-6 lg:gap-8 items-start">
           {place.image_url && (
-            <div className="relative rounded-xl overflow-hidden bg-accent min-h-[337px]">
+            <div className="relative rounded-xl overflow-hidden bg-accent w-full" style={{ minHeight: "448px" }}>
               <img src={place.image_url} alt={place.title} className="absolute inset-0 w-full h-full object-cover" />
             </div>
           )}
+
           <div className="space-y-3">
+            <div className="rounded-xl border border-border/70 bg-white/80 p-4 shadow-sm">
+              <p className="text-[13px] text-foreground leading-relaxed font-bold">Miejsce:</p>
+              <p className="mt-1 text-[13px] text-foreground/80 leading-relaxed">
+                {place.title}
+                {place.description_short ? ` - ${place.description_short}` : ""}
+              </p>
+              {place.description_long && place.description_long !== place.description_short && (
+                <div className="mt-3">
+                  <p className="text-[13px] text-foreground/90 leading-relaxed font-bold">Opis:</p>
+                  <div className="mt-1 space-y-2">
+                    {place.description_long.split("\n").filter(p => p.trim()).map((p, i) => (
+                      <p key={i} className="text-[13px] text-foreground/80 leading-relaxed">{p}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
             <AiLearnMoreLink
               queryParts={[
                 place.title,
@@ -166,14 +183,10 @@ export default async function PlaceDetailPage({ params }: PageProps) {
                 "praktyczne wskazówki",
               ]}
             />
-            {place.description_long && place.description_long !== place.description_short && place.description_long.split("\n").filter(p => p.trim()).map((p, i) => (
-              <p key={i} className="text-[13px] text-foreground/80 leading-relaxed mb-2 last:mb-0">{p}</p>
-            ))}
           </div>
-        </div>
 
-        {/* Prawa kolumna: info card — sticky na desktop */}
-        <div className="lg:sticky lg:top-20 self-start">
+          {/* Info card */}
+          <div className="lg:sticky lg:top-20 self-start">
           <div className="rounded-xl border border-border bg-card shadow-[var(--shadow-card)] overflow-hidden">
             <div className="px-4 py-4 space-y-3">
 
@@ -238,6 +251,7 @@ export default async function PlaceDetailPage({ params }: PageProps) {
             )}
 
           </div>
+        </div>
         </div>
       </div>
     </div>

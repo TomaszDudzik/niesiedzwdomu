@@ -80,8 +80,8 @@ export interface Event {
   image_cover?: string | null;
   image_thumb?: string | null;
   image_set?: string | null;
-  type_lvl_1_id?: string | null;
-  type_lvl_2_id?: string | null;
+  type_lvl_1?: string | null;
+  type_lvl_2?: string | null;
   category_lvl_1?: string | null;
   category_lvl_3?: string | null;
   date_start: string;
@@ -152,8 +152,8 @@ export interface Camp {
   image_cover?: string | null;
   image_thumb?: string | null;
   image_set?: string | null;
-  type_lvl_1_id?: string | null;
-  type_lvl_2_id?: string | null;
+  type_lvl_1?: string | null;
+  type_lvl_2?: string | null;
   date_start: string;
   date_end: string;
   category_lvl_1?: CampMainCategory;
@@ -207,8 +207,8 @@ export interface Activity {
   image_cover?: string | null;
   image_thumb?: string | null;
   image_set?: string | null;
-  type_lvl_1_id?: string | null;
-  type_lvl_2_id?: string | null;
+  type_lvl_1?: string | null;
+  type_lvl_2?: string | null;
   category_lvl_1?: string | null;
   category_lvl_2?: string | null;
   category_lvl_3?: string | null;
@@ -262,8 +262,8 @@ export interface Place {
   image_cover?: string | null;
   image_thumb?: string | null;
   image_set?: string | null;
-  type_lvl_1_id?: string | null;
-  type_lvl_2_id?: string | null;
+  type_lvl_1?: string | null;
+  type_lvl_2?: string | null;
   category_lvl_1?: string | null;
   category_lvl_2?: string | null;
   category_lvl_3?: string | null;

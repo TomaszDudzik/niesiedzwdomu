@@ -34,8 +34,8 @@ type EventFormState = {
   organizer: string;
   description_short: string;
   description_long: string;
-  type_lvl_1_id: string;
-  type_lvl_2_id: string;
+  type_lvl_1: string;
+  type_lvl_2: string;
   category_lvl_1: string;
   category_lvl_2: string;
   category_lvl_3: string;
@@ -62,8 +62,8 @@ type PlaceFormState = {
   title: string;
   description_short: string;
   description_long: string;
-  type_lvl_1_id: string;
-  type_lvl_2_id: string;
+  type_lvl_1: string;
+  type_lvl_2: string;
   category_lvl_1: string;
   category_lvl_2: string;
   category_lvl_3: string;
@@ -84,8 +84,8 @@ type CampFormState = {
   title: string;
   description_short: string;
   description_long: string;
-  type_lvl_1_id: string;
-  type_lvl_2_id: string;
+  type_lvl_1: string;
+  type_lvl_2: string;
   category_lvl_1: string;
   category_lvl_2: string;
   category_lvl_3: string;
@@ -114,8 +114,8 @@ type ActivityFormState = {
   title: string;
   description_short: string;
   description_long: string;
-  type_lvl_1_id: string;
-  type_lvl_2_id: string;
+  type_lvl_1: string;
+  type_lvl_2: string;
   category_lvl_1: string;
   category_lvl_2: string;
   category_lvl_3: string;
@@ -222,8 +222,8 @@ const EMPTY_EVENT_FORM: EventFormState = {
   organizer: "",
   description_short: "",
   description_long: "",
-  type_lvl_1_id: "",
-  type_lvl_2_id: "",
+  type_lvl_1: "",
+  type_lvl_2: "",
   category_lvl_1: "",
   category_lvl_2: "",
   category_lvl_3: "",
@@ -250,8 +250,8 @@ const EMPTY_PLACE_FORM: PlaceFormState = {
   title: "",
   description_short: "",
   description_long: "",
-  type_lvl_1_id: "",
-  type_lvl_2_id: "",
+  type_lvl_1: "",
+  type_lvl_2: "",
   category_lvl_1: "",
   category_lvl_2: "",
   category_lvl_3: "",
@@ -272,8 +272,8 @@ const EMPTY_CAMP_FORM: CampFormState = {
   title: "",
   description_short: "",
   description_long: "",
-  type_lvl_1_id: "",
-  type_lvl_2_id: "",
+  type_lvl_1: "",
+  type_lvl_2: "",
   category_lvl_1: "",
   category_lvl_2: "",
   category_lvl_3: "",
@@ -302,8 +302,8 @@ const EMPTY_ACTIVITY_FORM: ActivityFormState = {
   title: "",
   description_short: "",
   description_long: "",
-  type_lvl_1_id: "",
-  type_lvl_2_id: "",
+  type_lvl_1: "",
+  type_lvl_2: "",
   category_lvl_1: "",
   category_lvl_2: "",
   category_lvl_3: "",
@@ -337,8 +337,8 @@ const detailGridClass = "mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4";
 const checkboxCardClass = "flex items-center gap-3 rounded-xl border border-border px-3 py-2 text-[13px] text-foreground";
 
 type TaxonomyState = {
-  type_lvl_1_id: string;
-  type_lvl_2_id: string;
+  type_lvl_1: string;
+  type_lvl_2: string;
   category_lvl_1: string;
   category_lvl_2: string;
   category_lvl_3: string;
@@ -543,8 +543,8 @@ function TaxonomyFields({
   categoryLevel1Required?: boolean;
 }) {
   const availableTypeLevel2 = useMemo(
-    () => getTypeLevel2ForTypeLevel1(typeLevel2Options, state.type_lvl_1_id || null),
-    [typeLevel2Options, state.type_lvl_1_id],
+    () => getTypeLevel2ForTypeLevel1(typeLevel2Options, state.type_lvl_1 || null),
+    [typeLevel2Options, state.type_lvl_1],
   );
 
   const selectedCategoryLevel1 = categoryLevel1Options.find(
@@ -577,8 +577,8 @@ function TaxonomyFields({
         <>
           <Field label="Grupa">
             <select
-              value={state.type_lvl_1_id}
-              onChange={(event) => onChange({ type_lvl_1_id: event.target.value, type_lvl_2_id: "" })}
+              value={state.type_lvl_1}
+              onChange={(event) => onChange({ type_lvl_1: event.target.value, type_lvl_2: "" })}
               className={inputClass}
             >
               <option value="">Wybierz</option>
@@ -590,12 +590,12 @@ function TaxonomyFields({
 
           <Field label="Typ szczegółowy">
             <select
-              value={state.type_lvl_2_id}
-              onChange={(event) => onChange({ type_lvl_2_id: event.target.value })}
+              value={state.type_lvl_2}
+              onChange={(event) => onChange({ type_lvl_2: event.target.value })}
               className={inputClass}
-              disabled={!state.type_lvl_1_id}
+              disabled={!state.type_lvl_1}
             >
-              <option value="">{state.type_lvl_1_id ? "Wybierz" : "Najpierw grupa"}</option>
+              <option value="">{state.type_lvl_1 ? "Wybierz" : "Najpierw grupa"}</option>
               {availableTypeLevel2.map((entry) => (
                 <option key={entry.id} value={entry.id}>{entry.name}</option>
               ))}
@@ -1026,7 +1026,7 @@ function PlaceSubmissionForm({ initialTaxonomy }: { initialTaxonomy: AdminTaxono
     [typeLevel1Options],
   );
   const defaultPlaceTypeLevel2Id = useMemo(
-    () => typeLevel2Options.find((entry) => entry.name === "Miejsca" && entry.type_lvl_1_id === defaultPlaceTypeLevel1Id)?.id
+    () => typeLevel2Options.find((entry) => entry.name === "Miejsca" && entry.type_lvl_1 === defaultPlaceTypeLevel1Id)?.id
       ?? typeLevel2Options.find((entry) => entry.name === "Miejsca")?.id
       ?? "",
     [typeLevel2Options, defaultPlaceTypeLevel1Id],
@@ -1044,8 +1044,8 @@ function PlaceSubmissionForm({ initialTaxonomy }: { initialTaxonomy: AdminTaxono
     try {
       const result = await submitForm("place", {
         ...form,
-        type_lvl_1_id: defaultPlaceTypeLevel1Id,
-        type_lvl_2_id: defaultPlaceTypeLevel2Id,
+        type_lvl_1: defaultPlaceTypeLevel1Id,
+        type_lvl_2: defaultPlaceTypeLevel2Id,
       }, contact);
       setSuccessMessage(result.message);
       setForm(EMPTY_PLACE_FORM);

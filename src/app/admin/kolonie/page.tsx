@@ -52,8 +52,8 @@ const FIELD_ALIASES: Record<string, string[]> = {
   title:               ["title", "tytul", "tytuł", "nazwa", "nazwa turnusu", "nazwa_polkolonii"],
   description_short:   ["description_short", "krotki opis", "krótki opis", "tematyka", "temat", "program"],
   description_long:    ["description_long", "dlugi opis", "długi opis"],
-  type_lvl_1_id:       ["type_lvl_1_id", "type_id", "type level 1", "typ poziom 1"],
-  type_lvl_2_id:       ["type_lvl_2_id", "subtype_id", "type level 2", "typ poziom 2"],
+  type_lvl_1:       ["type_lvl_1", "type_id", "type level 1", "typ poziom 1"],
+  type_lvl_2:       ["type_lvl_2", "subtype_id", "type level 2", "typ poziom 2"],
   category_lvl_1:      ["category_lvl_1", "category_lvl_1_id", "main_category", "camp_type", "typ", "rodzaj", "typ_oferty", "type"],
   category_lvl_2:      ["category_lvl_2", "category_lvl_2_id", "category", "kategoria", "kategoria_obozu", "camp_subtype", "podtyp"],
   category_lvl_3:      ["category_lvl_3", "category_lvl_3_id", "subcategory", "podkategoria", "sub_category", "dyscyplina"],
@@ -494,8 +494,8 @@ export default function AdminCampsPage() {
           setOrganizers((current) => current.some((entry) => entry.id === organizer.id) ? current : [...current, organizer]);
         },
       });
-      const typeLevel1Id = resolveTypeLevel1Id(typeLevel1Options, mapped.type_lvl_1_id?.trim() || null);
-      const typeLevel2Id = resolveTypeLevel2Id(typeLevel2Options, mapped.type_lvl_2_id?.trim() || null, typeLevel1Id);
+      const typeLevel1Id = resolveTypeLevel1Id(typeLevel1Options, mapped.type_lvl_1?.trim() || null);
+      const typeLevel2Id = resolveTypeLevel2Id(typeLevel2Options, mapped.type_lvl_2?.trim() || null, typeLevel1Id);
       const categoryLevel1 = resolveCategoryLevel1Name(
         categoryLevel1Options,
         mapped.category_lvl_1?.trim() || inferMainCategory(mapped.main_category, mapped.title),
@@ -526,8 +526,8 @@ export default function AdminCampsPage() {
             title:            mapped.title.trim(),
             description_short: shortDesc,
             description_long:  longDesc,
-            type_lvl_1_id:     typeLevel1Id,
-            type_lvl_2_id:     typeLevel2Id,
+            type_lvl_1:     typeLevel1Id,
+            type_lvl_2:     typeLevel2Id,
             date_start:        dateStart,
             date_end:          dateEnd,
             category_lvl_1:    categoryLevel1,
@@ -670,8 +670,8 @@ export default function AdminCampsPage() {
       title:              camp.title,
       description_short:  camp.description_short,
       description_long:   camp.description_long,
-      type_lvl_1_id:      camp.type_lvl_1_id ?? camp.type_id ?? null,
-      type_lvl_2_id:      camp.type_lvl_2_id ?? camp.subtype_id ?? null,
+      type_lvl_1:      camp.type_lvl_1 ?? camp.type_id ?? null,
+      type_lvl_2:      camp.type_lvl_2 ?? camp.subtype_id ?? null,
       category_lvl_1:     camp.category_lvl_1 ?? camp.main_category,
       category_lvl_2:     camp.category_lvl_2 ?? camp.category ?? null,
       category_lvl_3:     camp.category_lvl_3 ?? camp.subcategory ?? null,
@@ -746,8 +746,8 @@ export default function AdminCampsPage() {
       title:              String(editForm.title || ""),
       description_short:  String(editForm.description_short || ""),
       description_long:   String(editForm.description_long || ""),
-      type_lvl_1_id:      editForm.type_lvl_1_id ? String(editForm.type_lvl_1_id) : null,
-      type_lvl_2_id:      editForm.type_lvl_2_id ? String(editForm.type_lvl_2_id) : null,
+      type_lvl_1:      editForm.type_lvl_1 ? String(editForm.type_lvl_1) : null,
+      type_lvl_2:      editForm.type_lvl_2 ? String(editForm.type_lvl_2) : null,
       category_lvl_1:     editForm.category_lvl_1,
       category_lvl_2:     editForm.category_lvl_2 ?? null,
       category_lvl_3:     editForm.category_lvl_3 ?? null,
@@ -1094,16 +1094,16 @@ export default function AdminCampsPage() {
                                       categoryLevel1Options={categoryLevel1Options}
                                       categoryLevel2Options={categoryLevel2Options}
                                       categoryLevel3Options={categoryLevel3Options}
-                                      selectedTypeLevel1Id={typeof editForm.type_lvl_1_id === "string" ? editForm.type_lvl_1_id : null}
-                                      selectedTypeLevel2Id={typeof editForm.type_lvl_2_id === "string" ? editForm.type_lvl_2_id : null}
+                                      selectedTypeLevel1Id={typeof editForm.type_lvl_1 === "string" ? editForm.type_lvl_1 : null}
+                                      selectedTypeLevel2Id={typeof editForm.type_lvl_2 === "string" ? editForm.type_lvl_2 : null}
                                       selectedCategoryLevel1={typeof editForm.category_lvl_1 === "string" ? editForm.category_lvl_1 : null}
                                       selectedCategoryLevel2={typeof editForm.category_lvl_2 === "string" ? editForm.category_lvl_2 : null}
                                       selectedCategoryLevel3={typeof editForm.category_lvl_3 === "string" ? editForm.category_lvl_3 : null}
                                       loading={taxonomyLoading}
                                       inputClass={inputClass}
                                       labelClass={labelClass}
-                                      onTypeLevel1Change={(value) => updateField("type_lvl_1_id", value)}
-                                      onTypeLevel2Change={(value) => updateField("type_lvl_2_id", value)}
+                                      onTypeLevel1Change={(value) => updateField("type_lvl_1", value)}
+                                      onTypeLevel2Change={(value) => updateField("type_lvl_2", value)}
                                       onCategoryLevel1Change={(value) => updateField("category_lvl_1", value)}
                                       onCategoryLevel2Change={(value) => updateField("category_lvl_2", value)}
                                       onCategoryLevel3Change={(value) => updateField("category_lvl_3", value)}
@@ -1234,8 +1234,8 @@ export default function AdminCampsPage() {
                                     onClearPending={clearPendingFile}
                                     table="camps"
                                     itemId={camp.id}
-                                    typeLvl1Id={String(editForm.type_lvl_1_id || camp.type_lvl_1_id || camp.type_id || "") || null}
-                                    typeLvl2Id={String(editForm.type_lvl_2_id || camp.type_lvl_2_id || camp.subtype_id || "") || null}
+                                    typeLvl1Id={String(editForm.type_lvl_1 || camp.type_lvl_1 || camp.type_id || "") || null}
+                                    typeLvl2Id={String(editForm.type_lvl_2 || camp.type_lvl_2 || camp.subtype_id || "") || null}
                                     categoryLvl1={String(editForm.category_lvl_1 || camp.category_lvl_1 || camp.main_category || "")}
                                     categoryLvl2={String(editForm.category_lvl_2 || camp.category_lvl_2 || camp.category || "")}
                                     categoryLvl3={String(editForm.category_lvl_3 || camp.category_lvl_3 || camp.subcategory || "")}
