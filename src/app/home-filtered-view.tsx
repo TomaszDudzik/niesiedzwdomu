@@ -566,15 +566,16 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
             {/* Add CTA — desktop right of heading */}
             <a
               href="/dodaj"
-              className="group relative hidden lg:flex shrink-0 self-center overflow-hidden rounded-2xl border border-sky-300/70 bg-[linear-gradient(180deg,rgba(214,238,252,0.98),rgba(200,230,250,0.98))] px-4 py-3 shadow-[0_14px_34px_-30px_rgba(14,116,144,0.35)] transition-colors duration-200 hover:border-sky-400/70 items-center gap-3 w-[408px] mr-8"
+              className="group relative hidden lg:flex shrink-0 self-center overflow-hidden rounded-2xl border border-sky-300/70 bg-[linear-gradient(180deg,rgba(214,238,252,0.98),rgba(200,230,250,0.98))] px-4 py-3 shadow-[0_14px_34px_-30px_rgba(14,116,144,0.35)] transition-colors duration-200 hover:border-sky-400/70 items-center gap-3 w-[583px] mr-8"
             >
               <div className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-cyan-700" />
               <div className="min-w-0 flex-1 pl-2">
-                <p className="text-[13px] font-semibold text-slate-900">Chcesz tu być?</p>
-                <p className="mt-0.5 text-[11px] text-slate-600">Dodaj event, miejsce, zajęcia lub kolonie.</p>
+                <p className="text-[13px] font-semibold text-slate-900">Prowadzisz miejsce, zajęcia lub wydarzenie?</p>
+                <p className="mt-0.5 text-[11px] text-slate-600">Dodaj swoje miejsce, wydarzenie, zajęcia lub kolonie i bądź widoczny dla rodzin.</p>
               </div>
               <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-cyan-700/20 bg-white/85 px-3 py-1.5 text-[11px] font-semibold text-cyan-800 transition-all duration-200 group-hover:bg-cyan-700 group-hover:text-white">
-                Dodaj →
+                Dodaj wpis
+                <ArrowRight size={13} className="transition-transform duration-200 group-hover:translate-x-0.5" />
               </span>
             </a>
           </div>
