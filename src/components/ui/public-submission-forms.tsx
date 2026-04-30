@@ -1026,7 +1026,7 @@ function PlaceSubmissionForm({ initialTaxonomy }: { initialTaxonomy: AdminTaxono
     [typeLevel1Options],
   );
   const defaultPlaceTypeLevel2Id = useMemo(
-    () => typeLevel2Options.find((entry) => entry.name === "Miejsca" && entry.type_lvl_1 === defaultPlaceTypeLevel1Id)?.id
+    () => typeLevel2Options.find((entry) => entry.name === "Miejsca" && entry.type_lvl_1_id === defaultPlaceTypeLevel1Id)?.id
       ?? typeLevel2Options.find((entry) => entry.name === "Miejsca")?.id
       ?? "",
     [typeLevel2Options, defaultPlaceTypeLevel1Id],
