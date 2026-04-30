@@ -26,7 +26,7 @@ export function MobileActionBar({
   const hasViewToggle = view !== undefined && onSetView !== undefined;
 
   return (
-    <div className="lg:hidden w-full -mt-4 mb-4">
+    <div className="lg:hidden w-full -mt-4 mb-8">
       <div className="w-full flex items-stretch gap-2">
         <button
           onClick={onToggleFilters}
