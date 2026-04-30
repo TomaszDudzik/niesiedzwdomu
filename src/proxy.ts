@@ -61,34 +61,7 @@ function isValidBasicAuth(request: NextRequest, expectedUser: string, expectedPa
   return user === expectedUser && pass === expectedPass;
 }
 
-export function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  const isAdminPage = pathname.startsWith("/admin");
-  const isAdminApi = pathname.startsWith("/api/admin");
-
-  if (!isAdminPage && !isAdminApi) {
-    return NextResponse.next();
-  }
-
-  const internalToken = process.env.ADMIN_INTERNAL_API_TOKEN?.trim();
-  if (isAdminApi && internalToken) {
-    const incomingInternalToken = request.headers.get("x-internal-admin-token")?.trim();
-    if (incomingInternalToken && incomingInternalToken === internalToken) {
-      return NextResponse.next();
-    }
-  }
-
-  const basicUser = process.env.ADMIN_BASIC_AUTH_USER?.trim();
-  const basicPass = process.env.ADMIN_BASIC_AUTH_PASS?.trim();
-
-  if (!basicUser || !basicPass) {
-    return configErrorResponse(isAdminApi);
-  }
-
-  if (!isValidBasicAuth(request, basicUser, basicPass)) {
-    return unauthorizedResponse(isAdminApi);
-  }
-
+export function proxy(_request: NextRequest) {
   return NextResponse.next();
 }
 
