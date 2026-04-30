@@ -20,9 +20,6 @@ function getPlaceCategoryLabel(value: string | null | undefined) {
   return value || "Miejsce";
 }
 
-function getPlaceCategoryIcon(value: string | null | undefined) {
-  return value ? "🏷️" : "📍";
-}
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.niesiedzwdomu.pl";
 
@@ -129,11 +126,10 @@ export default async function PlaceDetailPage({ params }: PageProps) {
             <ArrowLeft size={11} /> Miejsca
           </Link>
           <span className="text-muted-foreground/30">·</span>
-          <span className="text-lg mr-0.5">{getPlaceCategoryIcon(placeCategory)}</span>
-          <span className="text-primary">{getPlaceCategoryLabel(placeCategory)}</span>
-          <span className="text-muted-foreground/30">·</span>
+          <span className="text-muted-foreground">{getPlaceCategoryLabel(placeCategory)}</span>
+          <span className="text-muted-foreground/40">|</span>
           <span className="text-muted-foreground">{place.is_indoor ? "Wewnątrz" : "Na zewnątrz"}</span>
-          <span className="text-muted-foreground/30">·</span>
+          <span className="text-muted-foreground/40">|</span>
           <span className="text-muted-foreground">{place.district}</span>
         </div>
         <h1 className="text-xl lg:text-2xl font-bold text-foreground leading-tight tracking-[-0.02em] mb-2">
