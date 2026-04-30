@@ -9,7 +9,6 @@ import { ListPageMainContent } from "@/components/layout/list-page-main-content"
 import { DISTRICT_LIST } from "@/lib/mock-data";
 import { ContentCard } from "@/components/ui/content-card";
 import { FilterSection } from "@/components/ui/filter-section";
-import { SubmissionCta } from "@/components/ui/submission-cta";
 import { cn } from "@/lib/utils";
 import { getAgeGroupOptions, getTaxonomyIcon, getTaxonomyOptions, matchesTaxonomyFilter, mergeSelectedTaxonomyOptions } from "@/lib/taxonomy-filters";
 import type { Place, District } from "@/types/database";
@@ -537,53 +536,38 @@ export function PlacesListView({ places }: PlacesListViewProps) {
 
         {/* Main content */}
         <ListPageMainContent
-          topContent={(
-            <>
-            <SubmissionCta
-              title="Chcesz stworzyć z nami mapę miejsc?"
-              description="Dodaj swoje miejsce i pomóż rodzicom odkrywać wartościowe adresy w Krakowie."
-              buttonLabel="Dodaj miejsce"
-              href="/dodaj?type=place"
-            />
-
+          topContent={activeFilterBadges.length > 0 ? (
             <div className="rounded-xl border border-border bg-card px-2.5 py-2">
               <div className="flex flex-wrap items-center gap-1.5">
                 <p className="shrink-0 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Filtry:</p>
-                {activeFilterBadges.length > 0 ? (
-                  <>
-                    {activeFilterBadges.map((badge) => (
-                      <span
-                        key={badge.id}
-                        className="inline-flex max-w-full items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[10px] font-medium text-primary-foreground"
-                      >
-                        <span className="min-w-0 whitespace-normal break-words">{badge.label}</span>
-                        <button
-                          type="button"
-                          onClick={badge.onRemove}
-                          className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-muted-foreground hover:bg-border/70 hover:text-foreground transition-colors"
-                          aria-label={`Usuń filtr ${badge.label}`}
-                          title={`Usuń: ${badge.label}`}
-                        >
-                          <X size={9} />
-                        </button>
-                      </span>
-                    ))}
+                {activeFilterBadges.map((badge) => (
+                  <span
+                    key={badge.id}
+                    className="inline-flex max-w-full items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[10px] font-medium text-primary-foreground"
+                  >
+                    <span className="min-w-0 whitespace-normal break-words">{badge.label}</span>
                     <button
                       type="button"
-                      onClick={clearFilters}
-                      className="inline-flex max-w-full items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                      onClick={badge.onRemove}
+                      className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-muted-foreground hover:bg-border/70 hover:text-foreground transition-colors"
+                      aria-label={`Usuń filtr ${badge.label}`}
+                      title={`Usuń: ${badge.label}`}
                     >
                       <X size={9} />
-                      Wyczyść
                     </button>
-                  </>
-                ) : (
-                  <p className="text-[11px] text-muted-foreground">Brak aktywnych filtrów.</p>
-                )}
+                  </span>
+                ))}
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="inline-flex max-w-full items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                >
+                  <X size={9} />
+                  Wyczyść
+                </button>
               </div>
             </div>
-            </>
-          )}
+          ) : undefined}
         >
 
           {view === "map" ? (
