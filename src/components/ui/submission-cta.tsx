@@ -50,7 +50,7 @@ export function SubmissionCta({
       href={href}
       className={cn(
         "group relative overflow-hidden rounded-2xl border border-sky-300/70 bg-[linear-gradient(180deg,rgba(214,238,252,0.98),rgba(200,230,250,0.98))] px-3 py-2 shadow-[0_14px_34px_-30px_rgba(14,116,144,0.35)] transition-colors duration-200 hover:border-sky-400/70",
-        "mb-4 hidden lg:flex",
+        "mb-4 hidden lg:flex -ml-[20%] w-[calc(100%+20%)]",
         className
       )}
     >
