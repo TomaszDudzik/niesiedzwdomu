@@ -9,7 +9,6 @@ import { ListPageMainContent } from "@/components/layout/list-page-main-content"
 import { DISTRICT_LIST } from "@/lib/mock-data";
 import { ContentCard } from "@/components/ui/content-card";
 import { FilterSection } from "@/components/ui/filter-section";
-import { SubmissionCta } from "@/components/ui/submission-cta";
 import { cn } from "@/lib/utils";
 import { getAgeGroupOptions, getTaxonomyOptions, matchesTaxonomyFilter, mergeSelectedTaxonomyOptions } from "@/lib/taxonomy-filters";
 import type { Activity, District } from "@/types/database";
@@ -384,6 +383,10 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
       subtitle="Sport, muzyka, języki, sztuka — znajdź aktywności dopasowane do wieku i zainteresowań dziecka"
       search={search}
       onSearch={setSearch}
+      addHref="/dodaj?type=activity"
+      addTitle="Tworzysz ciekawe zajęcia dla dzieci?"
+      addDescription="Dodaj je do katalogu i ułatw rodzicom znalezienie regularnych aktywności w okolicy."
+      addLabel="Dodaj zajęcia"
     />
     <div className="container-page pt-0 pb-10">
       <div className="rounded-[28px] bg-white px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
@@ -631,13 +634,6 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
         <ListPageMainContent
           topContent={(
             <>
-            <SubmissionCta
-              title="Tworzysz ciekawe zajęcia dla dzieci?"
-              description="Dodaj je do katalogu i ułatw rodzicom znalezienie regularnych aktywności w okolicy."
-              buttonLabel="Dodaj zajęcia"
-              href="/dodaj?type=activity"
-            />
-
             <div className="rounded-xl border border-border bg-card px-2.5 py-2">
               <div className="flex flex-wrap items-center gap-1.5">
                 <p className="shrink-0 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Filtry:</p>

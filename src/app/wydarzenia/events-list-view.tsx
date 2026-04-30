@@ -9,7 +9,6 @@ import { ListPageMainContent } from "@/components/layout/list-page-main-content"
 import { DISTRICT_LIST } from "@/lib/mock-data";
 import { ContentCard } from "@/components/ui/content-card";
 import { FilterSection } from "@/components/ui/filter-section";
-import { SubmissionCta } from "@/components/ui/submission-cta";
 import { cn, toLocalDateKey } from "@/lib/utils";
 import { getEventsForDate } from "@/lib/filter-events";
 import { getAgeGroupOptions, getTaxonomyOptions, matchesTaxonomyFilter, mergeSelectedTaxonomyOptions } from "@/lib/taxonomy-filters";
@@ -529,6 +528,10 @@ export function EventsListView({ events }: EventsListViewProps) {
       subtitle="Warsztaty, spektakle, festyny i rodzinne atrakcje — aktualne wydarzenia na każdy dzień"
       search={search}
       onSearch={setSearch}
+      addHref="/dodaj?type=event"
+      addTitle="Organizujesz wydarzenie dla dzieci?"
+      addDescription="Dodaj je do kalendarza i pomóż rodzinom znaleźć pomysł na dziś albo weekend."
+      addLabel="Dodaj wydarzenie"
     />
     <div className="container-page pt-0 pb-10">
       <div className="rounded-[28px] bg-white px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
@@ -836,13 +839,6 @@ export function EventsListView({ events }: EventsListViewProps) {
         <ListPageMainContent
           topContent={(
             <>
-              <SubmissionCta
-                title="Organizujesz wydarzenie dla dzieci?"
-                description="Dodaj je do kalendarza i pomóż rodzinom znaleźć pomysł na dziś albo weekend."
-                buttonLabel="Dodaj wydarzenie"
-                href="/dodaj?type=event"
-              />
-
               <div className="rounded-xl border border-border bg-white overflow-hidden">
                 <div className="px-3 pt-2 pb-1 border-b border-border/50">
                   <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: "none" }}>

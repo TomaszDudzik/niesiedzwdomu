@@ -9,7 +9,6 @@ import { ListGroupHeader } from "@/components/layout/list-group-header";
 import { ListPageMainContent } from "@/components/layout/list-page-main-content";
 import { DISTRICT_LIST } from "@/lib/mock-data";
 import { FilterSection } from "@/components/ui/filter-section";
-import { SubmissionCta } from "@/components/ui/submission-cta";
 import { cn, formatDateShort, toLocalDateKey, thumbUrl } from "@/lib/utils";
 import { ImageWithFallback } from "@/components/ui/image-with-fallback";
 import { getAgeGroupOptions, getTaxonomyOptions, matchesTaxonomyFilter, mergeSelectedTaxonomyOptions } from "@/lib/taxonomy-filters";
@@ -1031,13 +1030,6 @@ export function CampsListView({ camps }: CampsListViewProps) {
         <ListPageMainContent
           topContent={(
             <>
-            <SubmissionCta
-              title="Prowadzisz kolonie lub półkolonie?"
-              description="Pokaż ofertę rodzinom szukającym sprawdzonych wyjazdów i turnusów w Krakowie."
-              buttonLabel="Dodaj ofertę"
-              href="/dodaj?type=camp"
-            />
-
             <div ref={calendarRef} className="rounded-xl border border-border bg-white overflow-hidden scroll-mt-24">
               <div className="px-3 pt-2 pb-1 border-b border-border/50">
                 <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: "none" }}>
