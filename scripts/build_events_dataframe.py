@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
 Proces:
-- prompt chagpt
+- prompt chagpt + musimy dodac aby zrobil kolumne z juz promptem dla midjurney
 - recznie wrzucamy do folderu
 - skrypt sciaga dane z supabase
 - bierze dane z csv
 - append wszsytko
-- dedup ale fuzzy musi byc jakis i dodaje status nowe
+- dedup ale fuzzy musi byc jakis i dodaje status nowe i dodajemy EVENT-000001 itd
+- 
 - dodaje kolumny z cover i thumb image url, losowo wybierając z folderów zgodnie z typem/kategorią
 - zapisuje do csv ale tylko nowe
 - admin czyta csv i wrzuca do supabase
@@ -31,7 +32,6 @@ Photo selection:
 
 import argparse
 import os
-import random
 import sys
 from pathlib import Path
 
@@ -43,12 +43,12 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 NEXTJS_ROOT = SCRIPT_DIR.parent
 PROJECT_ROOT = NEXTJS_ROOT.parent
 
-PHOTOS_DIR = Path(r"C:\Users\dudzi\OneDrive\NieSiedzWDomu\photos\dzieci\wydarzenia")
 EVENTS_DIR = Path(r"C:\Users\dudzi\OneDrive\NieSiedzWDomu\data\dzieci\wydarzenia")
 
 DEDUP_KEYS = ["title", "date_start", "time_start", "organizer_id"]
 CSV_SEP = "~"
 EVENT_COLUMNS = [
+    "event_id",
     "title",
     "description_short",
     "description_long",
@@ -121,80 +121,6 @@ def _load_csv_files() -> pd.DataFrame:
     return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
 
-def _photos_in(folder: Path) -> tuple[list[Path], list[Path]]:
-    return sorted(folder.glob("cover-*.webp")), sorted(folder.glob("thumb-*.webp"))
-
-
-def _resolve_photo_folder(t1: str, t2: str, c1: str, c2: str) -> Path:
-    candidates = [
-        PHOTOS_DIR / t1 / t2 / c1 / c2,
-        PHOTOS_DIR / t1 / t2 / c1,
-        PHOTOS_DIR / t1 / t2,
-        PHOTOS_DIR / t1,
-        PHOTOS_DIR,
-    ]
-    for folder in candidates:
-        if folder.is_dir():
-            covers, thumbs = _photos_in(folder)
-            if covers and thumbs:
-                return folder
-    return PHOTOS_DIR
-
-
-def _assign_photos(df: pd.DataFrame) -> pd.DataFrame:
-    cover_urls: list[str] = []
-    thumb_urls: list[str] = []
-
-    for _, row in df.iterrows():
-        def _val(col: str) -> str:
-            return str(row.get(col) or "").strip()
-
-        folder = _resolve_photo_folder(_val("type_lvl_1"), _val("type_lvl_2"),
-                                       _val("category_lvl_1"), _val("category_lvl_2"))
-        covers, thumbs = _photos_in(folder)
-
-        def _storage(p: Path | None) -> str:
-            return p.relative_to(PHOTOS_DIR).as_posix() if p else ""
-
-        cover_urls.append(_storage(random.choice(covers) if covers else None))
-        thumb_urls.append(_storage(random.choice(thumbs) if thumbs else None))
-
-    df = df.copy()
-    df["cover_image_url"] = cover_urls
-    df["thumb_image_url"] = thumb_urls
-    return df
-
-
-def _add_midjourney_prompt(df: pd.DataFrame) -> pd.DataFrame:
-    def _text(row: pd.Series, col: str) -> str:
-        value = row.get(col, "")
-        if pd.isna(value):
-            return ""
-        return str(value).strip()
-
-    def _build_prompt(row: pd.Series) -> str:
-        title = _text(row, "title")
-        description_short = _text(row, "description_short")
-        description_long = _text(row, "description_long")
-        category_lvl_1 = _text(row, "category_lvl_1")
-        category_lvl_2 = _text(row, "category_lvl_2")
-        type_lvl_1 = _text(row, "type_lvl_1")
-
-        return (
-            f"{title}, {description_short}, {description_long}, "
-            "scene representing the event in a visually clear and engaging way, "
-            "focus on main activity and audience, emotional storytelling moment, "
-            "natural interactions between people, "
-            f"environment reflecting {category_lvl_1} and {category_lvl_2}, "
-            f"atmosphere appropriate for {type_lvl_1}, candid lifestyle photography, "
-            "soft warm lighting, pastel tones, shallow depth of field, realistic details, "
-            "50mm lens, cinematic composition, high detail, gentle mood, authentic atmosphere "
-            "--ar 1:1 --style raw --v 6 --s 150 --q 1 --no text, watermark, logo, distorted hands, deformed faces"
-        )
-
-    df = df.copy()
-    df["midjourney_prompt"] = df.apply(_build_prompt, axis=1)
-    return df
 
 
 def main() -> None:
@@ -221,19 +147,32 @@ def main() -> None:
     # Sort so 'exist' rows come first, ensuring they win over 'new' during dedup
     df = df.sort_values("status", key=lambda s: s.map({"exist": 0, "new": 1}))
     df = df.drop_duplicates(subset=dedup_cols, keep="first")
-    print(f"After dedup on {dedup_cols}: {len(df)} rows")
+    df = df.reset_index(drop=True)
 
-    print("Building Midjourney prompts ...")
-    df = _add_midjourney_prompt(df)
+    existing_ids = df["event_id"].dropna().str.extract(r"EVENT-(\d+)")[0].dropna().astype(int)
+    next_id = existing_ids.max() + 1 if not existing_ids.empty else 1
+    missing_mask = df["event_id"].isna() | (df["event_id"] == "")
+    new_ids = [f"EVENT-{next_id + i:06d}" for i in range(missing_mask.sum())]
+    df.loc[missing_mask, "event_id"] = new_ids
+    print(f"After dedup on {dedup_cols}: {len(df)} rows, {missing_mask.sum()} new event_ids assigned (starting EVENT-{next_id:06d})")
 
-    df.to_excel("events_merged_with_prompts.xlsx", index=False, engine="openpyxl")
-
-    print("Assigning random cover/thumb photos ...")
-    df = _assign_photos(df)
+    if "image_prompt" in df.columns:
+        df["image_prompt"] = (
+            df["event_id"].fillna("").astype(str) + " " +
+            df["title"].fillna("").astype(str) + " " +
+            df["image_prompt"].fillna("").astype(str)
+        ).str.strip()
 
     out_path = Path(args.output)
+    df.to_excel(out_path.with_suffix(".xlsx"), index=False, engine="openpyxl")
     df.to_csv(out_path, index=False, sep=CSV_SEP)
     print(f"Saved -> {out_path}  ({len(df)} rows)")
+
+    new_df = df[df["status"] == "new"][["event_id", "title", "image_prompt"]].copy() if "image_prompt" in df.columns else df[df["status"] == "new"][["event_id", "title"]].copy()
+    new_df = new_df.fillna("")
+    json_path = out_path.with_name("events_new.json")
+    new_df.to_json(json_path, orient="records", force_ascii=False)
+    print(f"New events -> {json_path}  ({len(new_df)} rows)")
 
 
 if __name__ == "__main__":

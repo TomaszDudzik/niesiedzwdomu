@@ -6,8 +6,10 @@ import {
   ChevronDown, ChevronUp, X,
   Loader2, Save, ExternalLink,
   Star, ClipboardPaste, Upload, MapPin, Copy,
+  Sparkles, Play,
 } from "lucide-react";
 import { CATEGORY_ICONS, CATEGORY_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
+import { PROMPTS } from "@/lib/prompts";
 import { normalizeDistrictName } from "@/lib/districts";
 import { cn, formatDateShort, formatHourMinuteRange, formatPriceRange, slugify, thumbUrl, toHourMinute, withCacheBust } from "@/lib/utils";
 import type { Event, Organizer } from "@/types/database";
@@ -59,6 +61,16 @@ function AdminCanonicalEventsPanel() {
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState({ done: 0, total: 0 });
   const [organizers, setOrganizers] = useState<Organizer[]>([]);
+  const [promptModal, setPromptModal] = useState(false);
+  const [activePromptTab, setActivePromptTab] = useState(0);
+  const [prompts, setPrompts] = useState(PROMPTS);
+  const [editingPrompt, setEditingPrompt] = useState(false);
+  const [editingContent, setEditingContent] = useState("");
+  const [savingPrompt, setSavingPrompt] = useState(false);
+  const [buildingDataframe, setBuildingDataframe] = useState(false);
+  const [buildResult, setBuildResult] = useState<{ ok: boolean; message: string; newEvents?: { event_id: string; title: string; image_prompt: string }[] } | null>(null);
+  const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  const [assigningPhotos, setAssigningPhotos] = useState(false);
 
   const FIELD_ALIASES: Record<string, string[]> = {
     title: ["title", "tytul", "tytuł", "nazwa", "name"],
@@ -1065,6 +1077,55 @@ function AdminCanonicalEventsPanel() {
     setEditForm({});
   };
 
+  const openPromptModal = async () => {
+    setEditingPrompt(false);
+    setPromptModal(true);
+    try {
+      const res = await fetch("/api/admin/prompts");
+      const data = await res.json();
+      setPrompts(data);
+    } catch { /* use static fallback */ }
+  };
+
+  const savePrompt = async () => {
+    setSavingPrompt(true);
+    const updated = prompts.map((p, i) => i === activePromptTab ? { ...p, content: editingContent } : p);
+    try {
+      await fetch("/api/admin/prompts", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updated) });
+      setPrompts(updated);
+      setEditingPrompt(false);
+    } catch { /* ignore */ }
+    setSavingPrompt(false);
+  };
+
+  const assignPhotos = async () => {
+    setAssigningPhotos(true);
+    setBuildResult(null);
+    try {
+      const res = await fetch("/api/admin/assign-photos", { method: "POST" });
+      const data = await res.json();
+      setBuildResult({ ok: data.ok, message: data.ok ? data.output : data.error });
+    } catch (err) {
+      setBuildResult({ ok: false, message: String(err) });
+    } finally {
+      setAssigningPhotos(false);
+    }
+  };
+
+  const buildEventsDataframe = async () => {
+    setBuildingDataframe(true);
+    setBuildResult(null);
+    try {
+      const res = await fetch("/api/admin/build-events", { method: "POST" });
+      const data = await res.json();
+      setBuildResult({ ok: data.ok, message: data.ok ? data.output : data.error, newEvents: data.newEvents ?? [] });
+    } catch (err) {
+      setBuildResult({ ok: false, message: String(err) });
+    } finally {
+      setBuildingDataframe(false);
+    }
+  };
+
   const inputClass = "w-full px-2 py-1.5 rounded-md border border-border text-[12px] bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30";
   const labelClass = "block text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1";
 
@@ -1073,6 +1134,29 @@ function AdminCanonicalEventsPanel() {
       <div className="flex items-center justify-between mb-2">
         <h1 className="text-2xl font-bold text-foreground">Wydarzenia</h1>
         <div className="flex items-center gap-2">
+          <button
+            onClick={openPromptModal}
+            className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-muted border border-border rounded-xl hover:border-[#CCC] transition-colors"
+          >
+            <Sparkles size={14} />
+            Prompt
+          </button>
+          <button
+            onClick={buildEventsDataframe}
+            disabled={buildingDataframe}
+            className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-muted border border-border rounded-xl hover:border-[#CCC] transition-colors disabled:opacity-50"
+          >
+            {buildingDataframe ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
+            Build DataFrame
+          </button>
+          <button
+            onClick={assignPhotos}
+            disabled={assigningPhotos}
+            className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-muted border border-border rounded-xl hover:border-[#CCC] transition-colors disabled:opacity-50"
+          >
+            {assigningPhotos ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+            Przypisz zdjęcia
+          </button>
           <button onClick={() => setPasteModal(true)} className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-muted border border-border rounded-xl hover:border-[#CCC] transition-colors">
             <ClipboardPaste size={14} />
             Wklej dane
@@ -1563,6 +1647,167 @@ function AdminCanonicalEventsPanel() {
                   {importing ? "Importowanie..." : `Importuj ${pastePreview.length} wydarzeń`}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {promptModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col mx-4">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+                <Sparkles size={16} />
+                Prompt
+              </h2>
+              <button onClick={() => { setPromptModal(false); setEditingPrompt(false); }} className="text-muted-foreground hover:text-foreground transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="flex gap-1 px-5 pt-3 border-b border-border">
+              {prompts.map((p, i) => (
+                <button
+                  key={i}
+                  onClick={() => { setActivePromptTab(i); setEditingPrompt(false); }}
+                  className={cn(
+                    "px-3 py-1.5 text-[12px] font-medium rounded-t-md transition-colors border-b-2 -mb-px",
+                    activePromptTab === i
+                      ? "border-foreground text-foreground"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex-1 overflow-y-auto p-5">
+              {editingPrompt ? (
+                <textarea
+                  className="w-full h-full min-h-[300px] text-sm font-mono text-foreground border border-border rounded-lg p-3 focus:outline-none focus:ring-1 focus:ring-primary/30 resize-none"
+                  value={editingContent}
+                  onChange={(e) => setEditingContent(e.target.value)}
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap font-mono leading-relaxed">
+                  {prompts[activePromptTab]?.content}
+                </p>
+              )}
+            </div>
+            <div className="flex justify-between gap-2 px-5 py-4 border-t border-border">
+              <button
+                onClick={() => {
+                  if (editingPrompt) {
+                    setEditingPrompt(false);
+                  } else {
+                    setEditingContent(prompts[activePromptTab]?.content ?? "");
+                    setEditingPrompt(true);
+                  }
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-muted border border-border rounded-lg hover:border-[#CCC] transition-colors"
+              >
+                <Pencil size={12} />
+                {editingPrompt ? "Anuluj" : "Edytuj"}
+              </button>
+              <div className="flex gap-2">
+                {editingPrompt ? (
+                  <button
+                    onClick={savePrompt}
+                    disabled={savingPrompt}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-white bg-foreground rounded-lg hover:bg-stone-700 transition-colors disabled:opacity-50"
+                  >
+                    {savingPrompt ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                    Zapisz
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => navigator.clipboard.writeText(prompts[activePromptTab]?.content ?? "")}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-muted border border-border rounded-lg hover:border-[#CCC] transition-colors"
+                  >
+                    <Copy size={12} />
+                    Kopiuj
+                  </button>
+                )}
+                <button onClick={() => { setPromptModal(false); setEditingPrompt(false); }} className="px-3 py-1.5 text-[12px] font-medium text-white bg-foreground rounded-lg hover:bg-stone-700 transition-colors">
+                  Zamknij
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {buildResult !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col mx-4">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <h2 className={`text-base font-semibold flex items-center gap-2 ${buildResult.ok ? "text-green-700" : "text-red-600"}`}>
+                <Play size={16} />
+                Build DataFrame – {buildResult.ok ? "sukces" : "błąd"}
+              </h2>
+              <button onClick={() => { setBuildResult(null); setCopiedIdx(null); }} className="text-muted-foreground hover:text-foreground transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5 space-y-3">
+              {!buildResult.ok || !buildResult.newEvents?.length ? (
+                <pre className="text-xs text-foreground whitespace-pre-wrap font-mono leading-relaxed bg-stone-50 rounded-lg p-3 border border-border">
+                  {buildResult.ok ? "(brak nowych eventów z promptem)" : (buildResult.message || "(brak wyjścia)")}
+                </pre>
+              ) : (
+                <>
+                  <p className="text-[11px] text-muted-foreground">
+                    {buildResult.newEvents.length} nowych wydarzeń — kliknij aby skopiować prompt do schowka
+                  </p>
+                  {buildResult.newEvents.map((ev, i) => (
+                    <div key={i} className="flex items-start gap-3 rounded-lg border border-border p-3 hover:bg-stone-50 transition-colors">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] font-medium text-foreground truncate">{ev.event_id} — {ev.title}</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2 font-mono">{ev.image_prompt}</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(ev.image_prompt);
+                          setCopiedIdx(i);
+                          setTimeout(() => setCopiedIdx(null), 2000);
+                        }}
+                        className={cn(
+                          "shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors border",
+                          copiedIdx === i
+                            ? "bg-green-50 border-green-200 text-green-700"
+                            : "border-border text-muted-foreground hover:border-[#CCC] hover:text-foreground"
+                        )}
+                      >
+                        <Copy size={11} />
+                        {copiedIdx === i ? "Skopiowano" : "Kopiuj"}
+                      </button>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+            <div className="flex justify-between items-center px-5 py-4 border-t border-border">
+              {buildResult.ok && buildResult.newEvents && buildResult.newEvents.length > 1 && (
+                <button
+                  onClick={() => {
+                    const all = buildResult.newEvents!.map((ev) => ev.image_prompt).join("\n\n");
+                    navigator.clipboard.writeText(all);
+                    setCopiedIdx(-1);
+                    setTimeout(() => setCopiedIdx(null), 2000);
+                  }}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium rounded-lg border transition-colors",
+                    copiedIdx === -1
+                      ? "bg-green-50 border-green-200 text-green-700"
+                      : "border-border text-muted-foreground hover:border-[#CCC]"
+                  )}
+                >
+                  <Copy size={12} />
+                  {copiedIdx === -1 ? "Skopiowano wszystkie" : "Kopiuj wszystkie"}
+                </button>
+              )}
+              <button onClick={() => { setBuildResult(null); setCopiedIdx(null); }} className="ml-auto px-3 py-1.5 text-[12px] font-medium text-white bg-foreground rounded-lg hover:bg-stone-700 transition-colors">
+                Zamknij
+              </button>
             </div>
           </div>
         </div>
