@@ -1013,17 +1013,6 @@ export default function AdminPlacesPage() {
                         imageUrl={place.image_url}
                         imageCover={place.image_cover}
                         imageThumb={place.image_thumb}
-                        pendingPreview={pendingPreview}
-                        onFileSelect={handleFileSelect}
-                        onClearPending={clearPendingFile}
-                        table="places"
-                        itemId={place.id}
-                        typeLvl1Id={String(editForm.type_lvl_1 || place.type_lvl_1 || place.type_id || "") || null}
-                        typeLvl2Id={String(editForm.type_lvl_2 || place.type_lvl_2 || place.subtype_id || "") || null}
-                        categoryLvl1={String(editForm.category_lvl_1 || place.category_lvl_1 || place.main_category || "")}
-                        categoryLvl2={String(editForm.category_lvl_2 || place.category_lvl_2 || place.category || "")}
-                        categoryLvl3={String(editForm.category_lvl_3 || place.category_lvl_3 || place.subcategory || "")}
-                        onRandomPhoto={(cover, thumb, setId) => setPlaces((prev) => prev.map((p) => p.id === place.id ? { ...p, image_cover: cover, image_thumb: thumb, image_set: setId ?? p.image_set } : p))}
                       />
                     </div>
 

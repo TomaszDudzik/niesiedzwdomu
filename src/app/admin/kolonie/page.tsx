@@ -13,6 +13,7 @@ import {
   Plus,
   RefreshCw,
   Save,
+  Sparkles,
   Star,
   Trash2,
   Upload,
@@ -244,6 +245,9 @@ export default function AdminCampsPage() {
   const [pastePreview, setPastePreview] = useState<Record<string, string>[]>([]);
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState({ done: 0, total: 0 });
+
+  const [promptPreview, setPromptPreview] = useState<{ title: string; campId: string; prompt: string } | null>(null);
+  const [assigningImageId, setAssigningImageId] = useState<string | null>(null);
 
   // ── Data fetching ──────────────────────────────────────────────────────────
 
@@ -875,6 +879,44 @@ export default function AdminCampsPage() {
     setCamps((prev) => prev.map((c) => (c.id === camp.id ? { ...c, is_featured: next } : c)));
   };
 
+  const getCampExternalId = (camp: Camp) => {
+    const raw = (camp as unknown as Record<string, unknown>).camp_id;
+    return typeof raw === "string" && raw.trim().length > 0 ? raw.trim() : "";
+  };
+
+  const getCampImagePrompt = (camp: Camp) => {
+    const raw = (camp as unknown as Record<string, unknown>).image_prompt;
+    return typeof raw === "string" && raw.trim().length > 0 ? raw.trim() : "";
+  };
+
+  const assignImageForCamp = async (camp: Camp) => {
+    const campId = getCampExternalId(camp);
+    if (!campId) {
+      alert("Brak camp_id. Najpierw wygeneruj przez Upload data.");
+      return;
+    }
+    setAssigningImageId(camp.id);
+    try {
+      const res = await fetch("/api/admin/assign-image-by-event-id", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: camp.id, event_id: campId }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        alert(`Błąd: ${data.error || "Nie udało się przypisać obrazu"}`);
+        return;
+      }
+      setCamps((prev) => prev.map((c) =>
+        c.id === camp.id ? { ...c, image_url: data.image_url, image_cover: data.image_cover, image_thumb: data.image_thumb } : c,
+      ));
+    } catch (error) {
+      alert(`Błąd: ${error instanceof Error ? error.message : "Nie udało się przypisać obrazu"}`);
+    } finally {
+      setAssigningImageId(null);
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm("Na pewno chcesz usunąć?")) return;
     await fetch("/api/admin/camps", {
@@ -1029,6 +1071,9 @@ export default function AdminCampsPage() {
                                   <span>{formatPriceRange(camp.price_from, camp.price_to, camp.is_free)}</span>
                                   {(camp.street || camp.city) && <><span className="opacity-40">·</span><span className="truncate max-w-[160px]">{[camp.street, camp.postcode, camp.city].filter(Boolean).join(", ")}</span></>}
                                 </div>
+                                {getCampExternalId(camp) && (
+                                  <p className="text-[10px] text-muted-foreground font-mono mt-0.5 truncate">CAMP ID: {getCampExternalId(camp)}</p>
+                                )}
                               </div>
 
                               <button onClick={() => startEditing(camp)} className="p-1 rounded hover:bg-accent text-muted transition-colors" title="Edytuj"><Pencil size={13} /></button>
@@ -1047,6 +1092,14 @@ export default function AdminCampsPage() {
                                   {camp.status === "published" ? "Published" : camp.status === "cancelled" ? "Cancelled" : "Draft"}
                                 </button>
                               )}
+                              {getCampImagePrompt(camp) && (
+                                <button onClick={() => setPromptPreview({ campId: camp.id, title: camp.title, prompt: getCampImagePrompt(camp) })} className="p-1 rounded hover:bg-accent text-muted transition-colors" title="Pokaż image prompt">
+                                  <Sparkles size={13} />
+                                </button>
+                              )}
+                              <button onClick={() => assignImageForCamp(camp)} className="p-1 rounded hover:bg-accent text-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Przypisz obraz" disabled={assigningImageId === camp.id}>
+                                {assigningImageId === camp.id ? <Loader2 size={13} className="animate-spin" /> : <ImagePlus size={13} />}
+                              </button>
                               <button onClick={() => handleDelete(camp.id)} className="p-1 rounded text-muted-foreground hover:bg-red-50 hover:text-red-600 transition-colors" title="Usuń">
                                 <Trash2 size={13} />
                               </button>
@@ -1229,17 +1282,6 @@ export default function AdminCampsPage() {
                                     imageUrl={camp.image_url}
                                     imageCover={camp.image_cover}
                                     imageThumb={camp.image_thumb}
-                                    pendingPreview={pendingPreview}
-                                    onFileSelect={handleFileSelect}
-                                    onClearPending={clearPendingFile}
-                                    table="camps"
-                                    itemId={camp.id}
-                                    typeLvl1Id={String(editForm.type_lvl_1 || camp.type_lvl_1 || camp.type_id || "") || null}
-                                    typeLvl2Id={String(editForm.type_lvl_2 || camp.type_lvl_2 || camp.subtype_id || "") || null}
-                                    categoryLvl1={String(editForm.category_lvl_1 || camp.category_lvl_1 || camp.main_category || "")}
-                                    categoryLvl2={String(editForm.category_lvl_2 || camp.category_lvl_2 || camp.category || "")}
-                                    categoryLvl3={String(editForm.category_lvl_3 || camp.category_lvl_3 || camp.subcategory || "")}
-                                    onRandomPhoto={(cover, thumb, setId) => setCamps((prev) => prev.map((c) => c.id === camp.id ? { ...c, image_cover: cover, image_thumb: thumb, image_set: setId ?? c.image_set } : c))}
                                   />
                                 </div>
 
@@ -1344,6 +1386,31 @@ export default function AdminCampsPage() {
                   {importing ? "Importowanie..." : `Importuj ${pastePreview.length} kolonii`}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {promptPreview && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[80vh] flex flex-col">
+            <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+              <h2 className="font-semibold text-[13px] text-foreground">Image Prompt</h2>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => navigator.clipboard.writeText(promptPreview.prompt)}
+                  className="p-1.5 rounded hover:bg-accent text-muted transition-colors text-[12px] font-medium"
+                >
+                  Kopiuj prompt
+                </button>
+                <button onClick={() => setPromptPreview(null)} className="text-muted-foreground hover:text-foreground transition-colors ml-1">
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              <p className="text-[12px] text-muted-foreground">{promptPreview.campId} — {promptPreview.title}</p>
+              <p className="text-[12px] text-foreground mt-3 whitespace-pre-wrap">{promptPreview.prompt}</p>
             </div>
           </div>
         </div>

@@ -6,12 +6,14 @@ import {
   ChevronRight,
   ClipboardPaste,
   ExternalLink,
+  ImagePlus,
   Loader2,
   MapPin,
   Pencil,
   Plus,
   RefreshCw,
   Save,
+  Sparkles,
   Star,
   Trash2,
   Upload,
@@ -300,6 +302,9 @@ export default function AdminActivitiesPage() {
   const [uploadingImage, setUploadingImage] = useState<string | null>(null);
   const [geocoding, setGeocoding] = useState(false);
   const [organizers, setOrganizers] = useState<Organizer[]>([]);
+
+  const [promptPreview, setPromptPreview] = useState<{ title: string; activityId: string; prompt: string } | null>(null);
+  const [assigningImageId, setAssigningImageId] = useState<string | null>(null);
 
   const mapActivityRow = useCallback((row: Record<string, unknown>): Activity => ({
     ...row,
@@ -919,6 +924,44 @@ export default function AdminActivitiesPage() {
     )));
   };
 
+  const getActivityExternalId = (activity: Activity) => {
+    const raw = (activity as unknown as Record<string, unknown>).activity_id;
+    return typeof raw === "string" && raw.trim().length > 0 ? raw.trim() : "";
+  };
+
+  const getActivityImagePrompt = (activity: Activity) => {
+    const raw = (activity as unknown as Record<string, unknown>).image_prompt;
+    return typeof raw === "string" && raw.trim().length > 0 ? raw.trim() : "";
+  };
+
+  const assignImageForActivity = async (activity: Activity) => {
+    const activityId = getActivityExternalId(activity);
+    if (!activityId) {
+      alert("Brak activity_id. Najpierw wygeneruj przez Upload data.");
+      return;
+    }
+    setAssigningImageId(activity.id);
+    try {
+      const res = await fetch("/api/admin/assign-image-by-event-id", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: activity.id, event_id: activityId }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        alert(`Błąd: ${data.error || "Nie udało się przypisać obrazu"}`);
+        return;
+      }
+      setActivities((prev) => prev.map((a) =>
+        a.id === activity.id ? { ...a, image_url: data.image_url, image_cover: data.image_cover, image_thumb: data.image_thumb } : a,
+      ));
+    } catch (error) {
+      alert(`Błąd: ${error instanceof Error ? error.message : "Nie udało się przypisać obrazu"}`);
+    } finally {
+      setAssigningImageId(null);
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm("Na pewno chcesz usunac?")) return;
     await fetch("/api/admin/activities", {
@@ -1022,6 +1065,9 @@ export default function AdminActivitiesPage() {
                                   <span className="opacity-40">·</span>
                                   <span className="truncate max-w-[180px]">{activity.organizer}</span>
                                 </div>
+                                {getActivityExternalId(activity) && (
+                                  <p className="text-[10px] text-muted-foreground font-mono mt-0.5 truncate">ACTIVITY ID: {getActivityExternalId(activity)}</p>
+                                )}
                               </div>
 
                               <button onClick={() => startEditing(activity)} className="p-1 rounded hover:bg-accent text-muted transition-colors" title="Edytuj">
@@ -1036,6 +1082,16 @@ export default function AdminActivitiesPage() {
 
                               <button onClick={() => toggleStatus(activity)} className={cn("px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide transition-colors", activity.status === "published" ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" : "bg-rose-100 text-rose-700 hover:bg-rose-200")}>
                                 {activity.status === "published" ? "Published" : "Draft"}
+                              </button>
+
+                              {getActivityImagePrompt(activity) && (
+                                <button onClick={() => setPromptPreview({ activityId: activity.id, title: activity.title, prompt: getActivityImagePrompt(activity) })} className="p-1 rounded hover:bg-accent text-muted transition-colors" title="Pokaż image prompt">
+                                  <Sparkles size={13} />
+                                </button>
+                              )}
+
+                              <button onClick={() => assignImageForActivity(activity)} className="p-1 rounded hover:bg-accent text-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Przypisz obraz" disabled={assigningImageId === activity.id}>
+                                {assigningImageId === activity.id ? <Loader2 size={13} className="animate-spin" /> : <ImagePlus size={13} />}
                               </button>
 
                               <button onClick={() => handleDelete(activity.id)} className="p-1 rounded text-muted-foreground hover:bg-red-50 hover:text-red-600 transition-colors" title="Usun">
@@ -1227,17 +1283,6 @@ export default function AdminActivitiesPage() {
                                     imageUrl={activity.image_url}
                                     imageCover={activity.image_cover}
                                     imageThumb={activity.image_thumb}
-                                    pendingPreview={pendingPreview}
-                                    onFileSelect={handleFileSelect}
-                                    onClearPending={clearPendingFile}
-                                    table="activities"
-                                    itemId={activity.id}
-                                    typeLvl1Id={String(editForm.type_lvl_1 || activity.type_lvl_1 || activity.type_id || "") || null}
-                                    typeLvl2Id={String(editForm.type_lvl_2 || activity.type_lvl_2 || activity.subtype_id || "") || null}
-                                    categoryLvl1={String(editForm.category_lvl_1 || activity.category_lvl_1 || activity.main_category || "")}
-                                    categoryLvl2={String(editForm.category_lvl_2 || activity.category_lvl_2 || activity.category || "")}
-                                    categoryLvl3={String(editForm.category_lvl_3 || activity.category_lvl_3 || activity.subcategory || "")}
-                                    onRandomPhoto={(cover, thumb, setId) => setActivities((prev) => prev.map((a) => a.id === activity.id ? { ...a, image_cover: cover, image_thumb: thumb, image_set: setId ?? a.image_set } : a))}
                                   />
                                 </div>
 
@@ -1346,6 +1391,31 @@ export default function AdminActivitiesPage() {
                   {importing ? "Importowanie..." : `Importuj ${pastePreview.length} zajęć`}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {promptPreview && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[80vh] flex flex-col">
+            <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+              <h2 className="font-semibold text-[13px] text-foreground">Image Prompt</h2>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => navigator.clipboard.writeText(promptPreview.prompt)}
+                  className="p-1.5 rounded hover:bg-accent text-muted transition-colors text-[12px] font-medium"
+                >
+                  Kopiuj prompt
+                </button>
+                <button onClick={() => setPromptPreview(null)} className="text-muted-foreground hover:text-foreground transition-colors ml-1">
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              <p className="text-[12px] text-muted-foreground">{promptPreview.activityId} — {promptPreview.title}</p>
+              <p className="text-[12px] text-foreground mt-3 whitespace-pre-wrap">{promptPreview.prompt}</p>
             </div>
           </div>
         </div>
