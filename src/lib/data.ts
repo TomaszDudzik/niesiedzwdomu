@@ -363,7 +363,7 @@ export async function getPublishedCamps(limit = 80): Promise<Camp[]> {
   const today = new Date().toISOString().slice(0, 10);
   const { data } = await db
     .from("camps")
-    .select("*, organizer_data:organizer_id(*)")
+    .select("*")
     .eq("status", "published")
     .or(`date_start.gte.${today},date_end.gte.${today}`)
     .order("date_start", { ascending: true })
@@ -376,30 +376,28 @@ export async function getCampBySlug(slug: string): Promise<Camp | null> {
   const maps = await getCategoryMaps();
   const { data } = await db
     .from("camps")
-    .select("*, organizer_data:organizer_id(*)")
+    .select("*")
     .eq("slug", slug)
     .eq("status", "published")
     .single();
   return data ? toCamp(data, maps) : null;
 }
 
-export async function getCampSessionsByOrganizer(organizerId: string | null | undefined, organizer: string, excludeId: string): Promise<Camp[]> {
-  if (!organizerId) {
+export async function getCampSessionsByOrganizer(organizer: string, excludeId: string): Promise<Camp[]> {
+  const normalizedOrganizer = organizer.trim();
+  if (!normalizedOrganizer) {
     return [];
   }
 
   const db = getDb();
   const maps = await getCategoryMaps();
-  let query = db
+  const { data } = await db
     .from("camps")
-    .select("*, organizer_data:organizer_id(*)")
+    .select("*")
     .eq("status", "published")
     .neq("id", excludeId)
+    .eq("organizer", normalizedOrganizer)
     .order("date_start", { ascending: true });
-
-  query = query.eq("organizer_id", organizerId);
-
-  const { data } = await query;
   return (data || []).map((row) => toCamp(row, maps));
 }
 

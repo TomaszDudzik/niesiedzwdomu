@@ -20,15 +20,15 @@ function resolvePythonExecutable() {
 export async function POST(request: NextRequest) {
   const body = await request.json();
   const id = typeof body?.id === "string" ? body.id.trim() : "";
-  const eventId = typeof body?.event_id === "string" ? body.event_id.trim() : "";
+  const campId = typeof body?.camp_id === "string" ? body.camp_id.trim() : "";
 
-  if (!id || !eventId) {
-    return NextResponse.json({ ok: false, error: "id and event_id are required" }, { status: 400 });
+  if (!id || !campId) {
+    return NextResponse.json({ ok: false, error: "id and camp_id are required" }, { status: 400 });
   }
 
-  const scriptPath = path.join(process.cwd(), "scripts", "assign_event_image.py");
+  const scriptPath = path.join(process.cwd(), "scripts", "assign_camp_image.py");
   const pythonExecutable = resolvePythonExecutable();
-  const command = `${pythonExecutable} ${quoteArg(scriptPath)} --id ${quoteArg(id)} --event-id ${quoteArg(eventId)}`;
+  const command = `${pythonExecutable} ${quoteArg(scriptPath)} --id ${quoteArg(id)} --camp-id ${quoteArg(campId)}`;
 
   return new Promise<NextResponse>((resolve) => {
     exec(command, { cwd: process.cwd(), env: process.env }, (error, stdout, stderr) => {

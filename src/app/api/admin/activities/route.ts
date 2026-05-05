@@ -125,12 +125,7 @@ function normalizeActivityRecord(record: Record<string, unknown>) {
   const categoryLevel1 = record.category_lvl_1 ?? record.main_category ?? null;
   const categoryLevel2 = record.category_lvl_2 ?? record.category ?? null;
   const categoryLevel3 = record.category_lvl_3 ?? record.subcategory ?? null;
-  const organizerData = record.organizer_data as Record<string, unknown> | null | undefined;
-  const organizer = typeof organizerData?.organizer_name === "string" && organizerData.organizer_name.trim().length > 0
-    ? organizerData.organizer_name
-    : (typeof organizerData?.name === "string" && organizerData.name.trim().length > 0
-      ? organizerData.name
-      : (typeof record.organizer === "string" ? record.organizer : ""));
+  const organizer = typeof record.organizer === "string" ? record.organizer : "";
 
   return {
     ...record,
@@ -145,7 +140,6 @@ function normalizeActivityRecord(record: Record<string, unknown>) {
     category: categoryLevel2,
     subcategory: categoryLevel3,
     organizer,
-    organizer_data: organizerData ?? null,
   };
 }
 
@@ -262,7 +256,9 @@ function pickActivityFields(input: Record<string, unknown>) {
     lat: input.lat,
     lng: input.lng,
     note: input.note,
-    organizer_id: input.organizer_id ?? null,
+    organizer: input.organizer ?? null,
+    activity_id: input.activity_id ?? null,
+    image_prompt: input.image_prompt ?? null,
     source_url: input.source_url,
     facebook_url: input.facebook_url,
     status: input.status,
@@ -274,7 +270,7 @@ function pickActivityFields(input: Record<string, unknown>) {
 export async function GET() {
   const db = getDb();
   const categoryMaps = await loadAdminCategoryMaps(db);
-  const { data, error } = await db.from("activities").select("*, organizer_data:organizer_id(*)").order("title", { ascending: true });
+  const { data, error } = await db.from("activities").select("*").order("title", { ascending: true });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(Array.isArray(data) ? data.map((record) => normalizeActivityRecord(withCategoryNames(record as Record<string, unknown>, categoryMaps))) : []);
@@ -311,7 +307,8 @@ const ALLOWED_ACTIVITY_FIELDS = new Set([
   "days_of_week",
   "date_start", "date_end", "time_start", "time_end",
   "age_min", "age_max", "price_from", "price_to",
-  "district", "street", "postcode", "city", "lat", "lng", "note", "organizer_id",
+  "district", "street", "postcode", "city", "lat", "lng", "note",
+  "organizer", "activity_id", "image_prompt",
   "source_url", "facebook_url", "status", "likes", "dislikes",
 ]);
 

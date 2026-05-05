@@ -33,6 +33,21 @@ function toSlug(value: string) {
   );
 }
 
+function mapLegacyCampTypeToTypeLevel2(value: unknown) {
+  if (typeof value !== "string") return null;
+
+  switch (value) {
+    case "kolonie":
+      return "kolonie";
+    case "polkolonie":
+      return "polkolonie";
+    case "warsztaty_wakacyjne":
+      return "warsztaty-wakacyjne";
+    default:
+      return null;
+  }
+}
+
 function normalizeCampPayload(input: Record<string, unknown>, categoryMaps: Awaited<ReturnType<typeof loadAdminCategoryMaps>>) {
   const payload = withCategoryIds(input, categoryMaps);
 
@@ -108,17 +123,13 @@ function withLegacyCampTaxonomy(input: Record<string, unknown>) {
 }
 
 function normalizeCampRecord(record: Record<string, unknown>) {
-  const typeLevel1 = record.type_lvl_1 ?? record.type_id ?? null;
-  const typeLevel2 = record.type_lvl_2 ?? record.subtype_id ?? null;
-  const categoryLevel1 = record.category_lvl_1 ?? record.main_category ?? record.camp_type ?? null;
+  const legacyCampType = record.camp_type;
+  const typeLevel1 = record.type_lvl_1 ?? record.type_id ?? (legacyCampType ? "dzieci" : null);
+  const typeLevel2 = record.type_lvl_2 ?? record.subtype_id ?? mapLegacyCampTypeToTypeLevel2(legacyCampType);
+  const categoryLevel1 = record.category_lvl_1 ?? record.main_category ?? null;
   const categoryLevel2 = record.category_lvl_2 ?? record.category ?? null;
   const categoryLevel3 = record.category_lvl_3 ?? record.subcategory ?? null;
-  const organizerData = record.organizer_data as Record<string, unknown> | null | undefined;
-  const organizer = typeof organizerData?.organizer_name === "string" && organizerData.organizer_name.trim().length > 0
-    ? organizerData.organizer_name
-    : (typeof organizerData?.name === "string" && organizerData.name.trim().length > 0
-      ? organizerData.name
-      : (typeof record.organizer === "string" ? record.organizer : ""));
+  const organizer = typeof record.organizer === "string" ? record.organizer : "";
 
   return {
     ...record,
@@ -132,9 +143,8 @@ function normalizeCampRecord(record: Record<string, unknown>) {
     main_category: categoryLevel1,
     category: categoryLevel2,
     subcategory: categoryLevel3,
-    camp_type: categoryLevel1,
+    camp_type: legacyCampType,
     organizer,
-    organizer_data: organizerData ?? null,
   };
 }
 
@@ -250,7 +260,11 @@ function pickCampFields(input: Record<string, unknown>) {
     postcode: input.postcode,
     city: input.city,
     note: input.note,
-    organizer_id: input.organizer_id ?? null,
+    organizer: input.organizer ?? null,
+    camp_id: input.camp_id ?? null,
+    image_prompt: input.image_prompt ?? null,
+    lat: input.lat ?? null,
+    lng: input.lng ?? null,
     source_url: input.source_url,
     facebook_url: input.facebook_url,
     status: input.status,
@@ -264,7 +278,7 @@ export async function GET() {
   const categoryMaps = await loadAdminCategoryMaps(db);
   const { data, error } = await db
     .from("camps")
-    .select("*, organizer_data:organizer_id(*)")
+    .select("*")
     .order("date_start", { ascending: true });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -296,7 +310,9 @@ const ALLOWED_CAMP_FIELDS = new Set([
   "date_start", "date_end", "category_lvl_1", "category_lvl_2", "category_lvl_3", "main_category", "category", "subcategory", "season",
   "duration_days", "meals_included", "transport_included",
   "age_min", "age_max", "price_from", "price_to",
-  "district", "street", "postcode", "city", "note", "organizer_id",
+  "district", "street", "postcode", "city", "note",
+  "organizer", "camp_id", "image_prompt",
+  "lat", "lng",
   "source_url", "facebook_url", "status", "likes", "dislikes",
 ]);
 
