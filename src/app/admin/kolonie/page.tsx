@@ -5,14 +5,17 @@ import {
   ChevronDown,
   ChevronUp,
   ClipboardPaste,
+  Copy,
   ExternalLink,
   ImagePlus,
   Loader2,
   MapPin,
   Pencil,
+  Play,
   Plus,
   RefreshCw,
   Save,
+  Sparkles,
   Star,
   Trash2,
   Upload,
@@ -28,6 +31,7 @@ import { TaxonomyFields } from "@/components/admin/taxonomy-fields";
 import { ensureOrganizerId } from "@/lib/admin-organizers";
 import { resolveCategoryLevel1Name, resolveCategoryLevel2Name, resolveCategoryLevel3Name, resolveTypeLevel1Id, resolveTypeLevel2Id } from "@/lib/admin-taxonomy";
 import { useAdminTaxonomy } from "@/lib/use-admin-taxonomy";
+import { PROMPTS } from "@/lib/prompts";
 
 const MiniMapLazy = lazy(() => import("../miejsca/mini-map").then((m) => ({ default: m.MiniMap })));
 
@@ -52,10 +56,10 @@ const FIELD_ALIASES: Record<string, string[]> = {
   title:               ["title", "tytul", "tytuł", "nazwa", "nazwa turnusu", "nazwa_polkolonii"],
   description_short:   ["description_short", "krotki opis", "krótki opis", "tematyka", "temat", "program"],
   description_long:    ["description_long", "dlugi opis", "długi opis"],
-  type_lvl_1:       ["type_lvl_1", "type_id", "type level 1", "typ poziom 1"],
-  type_lvl_2:       ["type_lvl_2", "subtype_id", "type level 2", "typ poziom 2"],
+  type_lvl_1:       ["type_lvl_1", "type_id", "type level 1", "type lvl1", "type lvl 1", "typ poziom 1", "typ lvl1", "typ lvl 1"],
+  type_lvl_2:       ["type_lvl_2", "subtype_id", "type level 2", "type lvl2", "type lvl 2", "typ poziom 2", "typ lvl2", "typ lvl 2"],
   category_lvl_1:      ["category_lvl_1", "category_lvl_1_id", "main_category", "camp_type", "typ", "rodzaj", "typ_oferty", "type"],
-  category_lvl_2:      ["category_lvl_2", "category_lvl_2_id", "category", "kategoria", "kategoria_obozu", "camp_subtype", "podtyp"],
+  category_lvl_2:      ["category_lvl_2", "category_lvl_2_id", "category", "category level 2", "category lvl2", "category lvl 2", "kategoria", "kategoria_obozu", "camp_subtype", "podtyp"],
   category_lvl_3:      ["category_lvl_3", "category_lvl_3_id", "subcategory", "podkategoria", "sub_category", "dyscyplina"],
   main_category:       ["main_category", "camp_type", "typ", "rodzaj", "typ_oferty", "type"],
   category:            ["category", "kategoria", "kategoria_obozu", "camp_subtype", "podtyp"],
@@ -71,7 +75,7 @@ const FIELD_ALIASES: Record<string, string[]> = {
   is_free:             ["is_free", "bezplatne", "bezpłatne", "darmowe"],
   meals_included:      ["meals_included", "wyzywienie", "wyzywienie (tak/nie/brak danych)", "jedzenie"],
   transport_included:  ["transport_included", "transport", "dojazd", "dowoz", "dowóz"],
-  organizer:           ["organizer", "organizator"],
+  organizer:           ["organizer", "organizer_name", "organizator", "nazwa organizatora"],
   organizer_id:        ["organizer_id", "organizator_id"],
   source_url:          ["source_url", "url", "link", "link_zrodlowy"],
   facebook_url:        ["facebook_url", "facebook", "fb", "facebook page"],
@@ -244,6 +248,19 @@ export default function AdminCampsPage() {
   const [pastePreview, setPastePreview] = useState<Record<string, string>[]>([]);
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState({ done: 0, total: 0 });
+
+  const [promptPreview, setPromptPreview] = useState<{ title: string; campId: string; prompt: string } | null>(null);
+  const [assigningImageId, setAssigningImageId] = useState<string | null>(null);
+
+  const [promptModal, setPromptModal] = useState(false);
+  const [activePromptTab, setActivePromptTab] = useState(0);
+  const [prompts, setPrompts] = useState(PROMPTS);
+  const [editingPrompt, setEditingPrompt] = useState(false);
+  const [editingContent, setEditingContent] = useState("");
+  const [savingPrompt, setSavingPrompt] = useState(false);
+  const [buildingDataframe, setBuildingDataframe] = useState(false);
+  const [buildResult, setBuildResult] = useState<{ ok: boolean; message: string; failed?: number; newCamps?: { camp_id: string; title: string; image_prompt: string }[] } | null>(null);
+  const [imagePromptByCampId, setImagePromptByCampId] = useState<Record<string, string>>({});
 
   // ── Data fetching ──────────────────────────────────────────────────────────
 
@@ -438,7 +455,7 @@ export default function AdminCampsPage() {
 
     const lines = trimmed.split(/\r?\n/).filter((l) => l.trim());
     if (lines.length < 2) { setPasteHeaders([]); setPastePreview([]); return; }
-    const sep = lines[0].includes("\t") ? "\t" : lines[0].includes(";") ? ";" : ",";
+    const sep = lines[0].includes("\t") ? "\t" : lines[0].includes("~") ? "~" : lines[0].includes(";") ? ";" : ",";
     const headers = lines[0].split(sep).map((h) => h.trim().replace(/^"|"$/g, ""));
     const rows = lines.slice(1)
       .map((line) => {
@@ -666,12 +683,15 @@ export default function AdminCampsPage() {
     const street = typeof camp.street === "string" && camp.street.trim().length > 0 ? camp.street : legacyAddress.street;
     const city = typeof camp.city === "string" && camp.city.trim().length > 0 ? camp.city : legacyAddress.city;
     const row = camp as unknown as Record<string, unknown>;
+    const normalizedTypeLevel1Id = resolveTypeLevel1Id(typeLevel1Options, typeof camp.type_lvl_1 === "string" ? camp.type_lvl_1 : (typeof camp.type_id === "string" ? camp.type_id : null));
+    const normalizedTypeLevel2Id = resolveTypeLevel2Id(typeLevel2Options, typeof camp.type_lvl_2 === "string" ? camp.type_lvl_2 : (typeof camp.subtype_id === "string" ? camp.subtype_id : null), normalizedTypeLevel1Id);
     setEditForm({
+      camp_id:            getCampExternalId(camp),
       title:              camp.title,
       description_short:  camp.description_short,
       description_long:   camp.description_long,
-      type_lvl_1:      camp.type_lvl_1 ?? camp.type_id ?? null,
-      type_lvl_2:      camp.type_lvl_2 ?? camp.subtype_id ?? null,
+      type_lvl_1:      normalizedTypeLevel1Id,
+      type_lvl_2:      normalizedTypeLevel2Id,
       category_lvl_1:     camp.category_lvl_1 ?? camp.main_category,
       category_lvl_2:     camp.category_lvl_2 ?? camp.category ?? null,
       category_lvl_3:     camp.category_lvl_3 ?? camp.subcategory ?? null,
@@ -743,6 +763,7 @@ export default function AdminCampsPage() {
     });
 
     const updates: Record<string, unknown> = {
+      camp_id:            editForm.camp_id ? String(editForm.camp_id).trim() : null,
       title:              String(editForm.title || ""),
       description_short:  String(editForm.description_short || ""),
       description_long:   String(editForm.description_long || ""),
@@ -875,6 +896,104 @@ export default function AdminCampsPage() {
     setCamps((prev) => prev.map((c) => (c.id === camp.id ? { ...c, is_featured: next } : c)));
   };
 
+  const getCampExternalId = (camp: Camp) => {
+    const raw = (camp as unknown as Record<string, unknown>).camp_id;
+    return typeof raw === "string" && raw.trim().length > 0 ? raw.trim() : "";
+  };
+
+  const getCampImagePrompt = (camp: Camp) => {
+    const raw = (camp as unknown as Record<string, unknown>).image_prompt;
+    if (typeof raw === "string" && raw.trim().length > 0) return raw.trim();
+    const externalId = getCampExternalId(camp);
+    return externalId ? (imagePromptByCampId[externalId] ?? "") : "";
+  };
+
+  const openPromptModal = async () => {
+    setEditingPrompt(false);
+    setPromptModal(true);
+    try {
+      const res = await fetch("/api/admin/prompts");
+      const data = await res.json();
+      setPrompts(data);
+    } catch { /* use static fallback */ }
+  };
+
+  const savePrompt = async () => {
+    setSavingPrompt(true);
+    const updated = prompts.map((p, i) => i === activePromptTab ? { ...p, content: editingContent } : p);
+    try {
+      await fetch("/api/admin/prompts", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updated) });
+      setPrompts(updated);
+      setEditingPrompt(false);
+    } catch { /* ignore */ }
+    setSavingPrompt(false);
+  };
+
+  const buildCampsDataframe = async () => {
+    setBuildingDataframe(true);
+    setBuildResult(null);
+    try {
+      const res = await fetch("/api/admin/build-camps", { method: "POST" });
+      const data = await res.json();
+      setBuildResult({ ok: data.ok, message: data.ok ? data.output : data.error, failed: data.failed ?? 0, newCamps: data.newCamps ?? [] });
+      if (data.ok && Array.isArray(data.newCamps)) {
+        const promptMap: Record<string, string> = {};
+        for (const row of data.newCamps) {
+          if (row && typeof row.camp_id === "string" && typeof row.image_prompt === "string") {
+            promptMap[row.camp_id] = row.image_prompt;
+          }
+        }
+        if (Object.keys(promptMap).length > 0) {
+          setImagePromptByCampId((prev) => ({ ...prev, ...promptMap }));
+        }
+        await fetchCamps();
+      }
+    } catch (err) {
+      setBuildResult({ ok: false, message: String(err) });
+    } finally {
+      setBuildingDataframe(false);
+    }
+  };
+
+  const assignImageForCamp = async (camp: Camp) => {
+    const campId = getCampExternalId(camp);
+    if (!campId) {
+      alert("Ta kolonia nie ma camp_id. Najpierw wygeneruj przez Upload data.");
+      return;
+    }
+
+    setAssigningImageId(camp.id);
+    try {
+      const res = await fetch("/api/admin/assign-image-by-camp-id", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: camp.id, camp_id: campId }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        alert(`Błąd: ${data.error || "Nie udało się przypisać obrazu"}`);
+        return;
+      }
+      setCamps((prev) => prev.map((c) =>
+        c.id === camp.id
+          ? {
+              ...c,
+              image_url: data.image_cover ?? c.image_url,
+              image_cover: data.image_cover ?? c.image_cover,
+              image_thumb: data.image_thumb ?? c.image_thumb,
+              image_set: data.image_set ?? c.image_set,
+              status: "draft",
+            }
+          : c,
+      ));
+      alert(`Obraz przypisany dla ${campId}`);
+    } catch (error) {
+      alert(`Błąd: ${error instanceof Error ? error.message : "Nie udało się przypisać obrazu"}`);
+    } finally {
+      setAssigningImageId(null);
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm("Na pewno chcesz usunąć?")) return;
     await fetch("/api/admin/camps", {
@@ -932,6 +1051,21 @@ export default function AdminCampsPage() {
       <div className="flex items-center justify-between mb-2">
         <h1 className="text-2xl font-bold text-foreground">Kolonie</h1>
         <div className="flex items-center gap-2">
+          <button
+            onClick={openPromptModal}
+            className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-muted border border-border rounded-xl hover:border-[#CCC] transition-colors"
+          >
+            <Sparkles size={14} />
+            Prompt
+          </button>
+          <button
+            onClick={buildCampsDataframe}
+            disabled={buildingDataframe}
+            className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-muted border border-border rounded-xl hover:border-[#CCC] transition-colors disabled:opacity-50"
+          >
+            {buildingDataframe ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
+            Upload data
+          </button>
           <button onClick={() => setPasteModal(true)} className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-muted border border-border rounded-xl hover:border-[#CCC] transition-colors">
             <ClipboardPaste size={14} /> Wklej dane
           </button>
@@ -1029,14 +1163,39 @@ export default function AdminCampsPage() {
                                   <span>{formatPriceRange(camp.price_from, camp.price_to, camp.is_free)}</span>
                                   {(camp.street || camp.city) && <><span className="opacity-40">·</span><span className="truncate max-w-[160px]">{[camp.street, camp.postcode, camp.city].filter(Boolean).join(", ")}</span></>}
                                 </div>
+                                {getCampExternalId(camp) && (
+                                  <p className="text-[10px] text-muted-foreground font-mono mt-0.5 truncate">CAMP ID: {getCampExternalId(camp)}</p>
+                                )}
                               </div>
 
                               <button onClick={() => startEditing(camp)} className="p-1 rounded hover:bg-accent text-muted transition-colors" title="Edytuj"><Pencil size={13} /></button>
+
+                              <button
+                                onClick={() => {
+                                  const prompt = getCampImagePrompt(camp);
+                                  if (!prompt) { alert("Brak image promptu dla tej kolonii."); return; }
+                                  setPromptPreview({ campId: getCampExternalId(camp) || "(brak camp_id)", title: camp.title, prompt });
+                                }}
+                                className="p-1 rounded hover:bg-accent text-muted transition-colors"
+                                title="Pokaż image prompt"
+                              >
+                                <Sparkles size={13} />
+                              </button>
+
+                              <button onClick={() => assignImageForCamp(camp)} className="p-1 rounded hover:bg-accent text-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Przypisz obraz po Camp ID" disabled={assigningImageId === camp.id}>
+                                {assigningImageId === camp.id ? <Loader2 size={13} className="animate-spin" /> : <ImagePlus size={13} />}
+                              </button>
+
+                              <button onClick={() => toggleFeatured(camp)} className={cn("p-1 rounded transition-colors", camp.is_featured ? "text-amber-500 hover:bg-amber-50" : "text-muted hover:bg-accent")} title="Wyróżnij">
+                                <Star size={13} fill={camp.is_featured ? "currentColor" : "none"} />
+                              </button>
+
                               {externalUrl && (
                                 <a href={externalUrl} target="_blank" rel="noopener" className="p-1 rounded hover:bg-accent text-muted transition-colors" title="Źródło">
                                   <ExternalLink size={13} />
                                 </a>
                               )}
+
                               {effectiveStatus === "outdated" ? (
                                 <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700">Outdated</span>
                               ) : (
@@ -1047,6 +1206,7 @@ export default function AdminCampsPage() {
                                   {camp.status === "published" ? "Published" : camp.status === "cancelled" ? "Cancelled" : "Draft"}
                                 </button>
                               )}
+
                               <button onClick={() => handleDelete(camp.id)} className="p-1 rounded text-muted-foreground hover:bg-red-50 hover:text-red-600 transition-colors" title="Usuń">
                                 <Trash2 size={13} />
                               </button>
@@ -1057,15 +1217,24 @@ export default function AdminCampsPage() {
                                 <div className="rounded-lg border border-border/50 p-3 mb-4 space-y-3">
                                   <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Opis oferty</p>
                                   <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
-                                    <div className="md:col-span-3">
+                                    <div className="md:col-span-2">
                                       <label className={labelClass}>Tytuł</label>
                                       <input className={inputClass} value={(editForm.title as string) || ""} onChange={(e) => updateField("title", e.target.value)} />
                                     </div>
-                                    <div className="md:col-span-3">
+                                    <div className="md:col-span-2">
+                                      <label className={labelClass}>CAMP ID</label>
+                                      <input
+                                        className={`${inputClass} font-mono`}
+                                        value={(editForm.camp_id as string) || ""}
+                                        onChange={(e) => updateField("camp_id", e.target.value)}
+                                        placeholder="CAMP-000001"
+                                      />
+                                    </div>
+                                    <div className="md:col-span-2">
                                       <label className={labelClass}>Organizator</label>
                                       <OrganizerCombobox
                                         organizers={organizers}
-                                        value={(editForm.organizer_id as string) || null}
+                                        value={(editForm.organizer_id as string) || (editForm.organizer as string) || null}
                                         onChange={(organizerId) => {
                                           const organizer = organizers.find((item) => item.id === organizerId);
                                           updateField("organizer_id", organizerId);
@@ -1229,17 +1398,6 @@ export default function AdminCampsPage() {
                                     imageUrl={camp.image_url}
                                     imageCover={camp.image_cover}
                                     imageThumb={camp.image_thumb}
-                                    pendingPreview={pendingPreview}
-                                    onFileSelect={handleFileSelect}
-                                    onClearPending={clearPendingFile}
-                                    table="camps"
-                                    itemId={camp.id}
-                                    typeLvl1Id={String(editForm.type_lvl_1 || camp.type_lvl_1 || camp.type_id || "") || null}
-                                    typeLvl2Id={String(editForm.type_lvl_2 || camp.type_lvl_2 || camp.subtype_id || "") || null}
-                                    categoryLvl1={String(editForm.category_lvl_1 || camp.category_lvl_1 || camp.main_category || "")}
-                                    categoryLvl2={String(editForm.category_lvl_2 || camp.category_lvl_2 || camp.category || "")}
-                                    categoryLvl3={String(editForm.category_lvl_3 || camp.category_lvl_3 || camp.subcategory || "")}
-                                    onRandomPhoto={(cover, thumb, setId) => setCamps((prev) => prev.map((c) => c.id === camp.id ? { ...c, image_cover: cover, image_thumb: thumb, image_set: setId ?? c.image_set } : c))}
                                   />
                                 </div>
 
@@ -1344,6 +1502,165 @@ export default function AdminCampsPage() {
                   {importing ? "Importowanie..." : `Importuj ${pastePreview.length} kolonii`}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {promptPreview && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[80vh] flex flex-col">
+            <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+              <h2 className="font-semibold text-[13px] text-foreground flex items-center gap-2">
+                <Sparkles size={14} />
+                Image prompt
+              </h2>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => navigator.clipboard.writeText(promptPreview.prompt)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-muted border border-border rounded-lg hover:border-[#CCC] transition-colors"
+                >
+                  <Copy size={12} />
+                  Kopiuj prompt
+                </button>
+                <button onClick={() => setPromptPreview(null)} className="text-muted-foreground hover:text-foreground transition-colors ml-1">
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+            <div className="p-5 space-y-2 overflow-y-auto flex-1">
+              <p className="text-[12px] text-muted-foreground">CAMP ID: {promptPreview.campId} — {promptPreview.title}</p>
+              <pre className="text-xs text-foreground whitespace-pre-wrap font-mono leading-relaxed bg-stone-50 rounded-lg p-3 border border-border">
+                {promptPreview.prompt}
+              </pre>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {promptModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col mx-4">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+                <Sparkles size={16} />
+                Prompt
+              </h2>
+              <button onClick={() => { setPromptModal(false); setEditingPrompt(false); }} className="text-muted-foreground hover:text-foreground transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="flex gap-1 px-5 pt-3 border-b border-border">
+              {prompts.map((p, i) => (
+                <button
+                  key={i}
+                  onClick={() => { setActivePromptTab(i); setEditingPrompt(false); }}
+                  className={cn(
+                    "px-3 py-1.5 text-[12px] font-medium rounded-t-md transition-colors border-b-2 -mb-px",
+                    activePromptTab === i
+                      ? "border-foreground text-foreground"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex-1 overflow-y-auto p-5">
+              {editingPrompt ? (
+                <textarea
+                  className="w-full h-full min-h-[300px] text-sm font-mono text-foreground border border-border rounded-lg p-3 focus:outline-none focus:ring-1 focus:ring-primary/30 resize-none"
+                  value={editingContent}
+                  onChange={(e) => setEditingContent(e.target.value)}
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap font-mono leading-relaxed">
+                  {prompts[activePromptTab]?.content}
+                </p>
+              )}
+            </div>
+            <div className="flex justify-between gap-2 px-5 py-4 border-t border-border">
+              <button
+                onClick={() => {
+                  if (editingPrompt) {
+                    setEditingPrompt(false);
+                  } else {
+                    setEditingContent(prompts[activePromptTab]?.content ?? "");
+                    setEditingPrompt(true);
+                  }
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-muted border border-border rounded-lg hover:border-[#CCC] transition-colors"
+              >
+                <Pencil size={12} />
+                {editingPrompt ? "Anuluj" : "Edytuj"}
+              </button>
+              <div className="flex gap-2">
+                {editingPrompt ? (
+                  <button
+                    onClick={savePrompt}
+                    disabled={savingPrompt}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-white bg-foreground rounded-lg hover:bg-stone-700 transition-colors disabled:opacity-50"
+                  >
+                    {savingPrompt ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                    Zapisz
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => navigator.clipboard.writeText(prompts[activePromptTab]?.content ?? "")}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-muted border border-border rounded-lg hover:border-[#CCC] transition-colors"
+                  >
+                    <Copy size={12} />
+                    Kopiuj
+                  </button>
+                )}
+                <button onClick={() => { setPromptModal(false); setEditingPrompt(false); }} className="px-3 py-1.5 text-[12px] font-medium text-white bg-foreground rounded-lg hover:bg-stone-700 transition-colors">
+                  Zamknij
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {buildResult !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col mx-4">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <h2 className={`text-base font-semibold flex items-center gap-2 ${buildResult.ok ? "text-green-700" : "text-red-600"}`}>
+                <Play size={16} />
+                Upload data – {buildResult.ok ? "sukces" : "błąd"}
+              </h2>
+              <button onClick={() => setBuildResult(null)} className="text-muted-foreground hover:text-foreground transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5 space-y-3">
+              {!buildResult.ok ? (
+                <pre className="text-xs text-foreground whitespace-pre-wrap font-mono leading-relaxed bg-stone-50 rounded-lg p-3 border border-border">
+                  {buildResult.message || "(brak wyjścia)"}
+                </pre>
+              ) : (
+                <div className="rounded-lg border border-border bg-stone-50 p-4 space-y-2">
+                  <p className="text-sm font-medium text-foreground">
+                    {buildResult.newCamps?.length
+                      ? `Przetworzono ${buildResult.newCamps.length} kolonii.`
+                      : "Brak nowych kolonii do przetworzenia."}
+                  </p>
+                  {buildResult.failed ? (
+                    <p className="text-xs text-red-600">Błąd przy {buildResult.failed} rekordzie/ach (sprawdź logi serwera).</p>
+                  ) : null}
+                  {buildResult.message ? (
+                    <pre className="text-xs text-foreground whitespace-pre-wrap font-mono leading-relaxed">
+                      {buildResult.message}
+                    </pre>
+                  ) : null}
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end items-center px-5 py-4 border-t border-border">
+              <button onClick={() => setBuildResult(null)} className="px-3 py-1.5 text-[12px] font-medium text-white bg-foreground rounded-lg hover:bg-stone-700 transition-colors">
+                Zamknij
+              </button>
             </div>
           </div>
         </div>

@@ -717,7 +717,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                       "inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
                       selected
                         ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground"
+                        : "bg-background text-muted border-border hover:border-danger/30 hover:text-foreground"
                     )}
                   >
                     <span>{option.icon}</span>
@@ -742,7 +742,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                       "inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
                       selected
                         ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground"
+                        : "bg-background text-muted border-border hover:border-danger/30 hover:text-foreground"
                     )}
                   >
                     <span>{group.icon}</span>
@@ -767,7 +767,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                       "inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
                       selected
                         ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground"
+                        : "bg-background text-muted border-border hover:border-danger/30 hover:text-foreground"
                     )}
                   >
                     <span>{option.icon}</span>
@@ -792,7 +792,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                       "inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
                       selected
                         ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground"
+                        : "bg-background text-muted border-border hover:border-danger/30 hover:text-foreground"
                     )}
                   >
                     <span>{option.icon}</span>
@@ -819,7 +819,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                       "inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
                       selected
                         ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground"
+                        : "bg-background text-muted border-border hover:border-danger/30 hover:text-foreground"
                     )}
                   >
                     <span>{icon}</span>
@@ -1099,7 +1099,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                           selected
                             ? "text-primary-foreground/85"
                             : count > 0
-                              ? "text-primary/80"
+                              ? "text-danger/80"
                               : "text-muted-foreground/55"
                         )}
                       >
@@ -1154,7 +1154,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                 {hasActiveFilters && (
                   <button
                     onClick={clearFilters}
-                    className="text-[12px] font-medium text-primary hover:text-primary-hover transition-colors"
+                    className="text-[12px] font-medium text-danger hover:opacity-80 transition-opacity"
                   >
                     Wyczyść filtry
                   </button>
@@ -1205,7 +1205,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                                   <div className="min-w-0">
                                     <Link
                                       href={`/kolonie/${organizer.leadCamp.slug}`}
-                                      className="font-semibold text-[13px] text-foreground leading-snug group-hover:text-primary transition-colors duration-200 line-clamp-2"
+                                      className="font-semibold text-[13px] text-foreground leading-snug group-hover:text-danger transition-colors duration-200 line-clamp-2"
                                     >
                                       {organizer.organizerName}
                                     </Link>
@@ -1246,7 +1246,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                                             >
                                               <td className="py-1.5 pr-2 text-foreground align-top group-hover:bg-stone-100 transition-colors rounded-l">
                                                 <div className="min-w-0">
-                                                  <span className="block truncate whitespace-nowrap font-medium group-hover:text-primary transition-colors" title={camp.title}>
+                                                  <span className="block truncate whitespace-nowrap font-medium group-hover:text-danger transition-colors" title={camp.title}>
                                                     {camp.title}
                                                   </span>
                                                 </div>
@@ -1255,7 +1255,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                                                 {getDateChipLabel(camp)}
                                               </td>
                                               <td className="px-2 py-1.5 align-top whitespace-nowrap group-hover:bg-stone-100 transition-colors rounded-r">
-                                                <span className="font-medium text-primary">
+                                                <span className="font-medium text-danger">
                                                   <span className="hidden sm:inline">Zobacz</span>
                                                   <svg className="sm:hidden" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                                                 </span>
@@ -1272,7 +1272,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                                       <button
                                         type="button"
                                         onClick={() => toggleOrganizerSessions(organizer.organizerKey)}
-                                        className="text-[10px] font-medium text-primary hover:text-primary-hover transition-colors"
+                                        className="text-[10px] font-medium text-danger hover:opacity-80 transition-opacity"
                                       >
                                         {expanded ? "Pokaż mniej" : `Pokaż wszystkie (${organizer.camps.length})`}
                                       </button>

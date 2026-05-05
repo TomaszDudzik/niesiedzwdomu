@@ -47,7 +47,7 @@ function AdminCanonicalEventsPanel() {
   const [geocoding, setGeocoding] = useState(false);
   const [statusFilter, setStatusFilter] = useState<EventListFilter>("all");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
-  const [groupingMode, setGroupingMode] = useState<EventGroupingMode>("type");
+  const [groupingMode, setGroupingMode] = useState<EventGroupingMode>("organizer");
   const [promptModal, setPromptModal] = useState(false);
   const [activePromptTab, setActivePromptTab] = useState(0);
   const [prompts, setPrompts] = useState(PROMPTS);
@@ -396,64 +396,6 @@ function AdminCanonicalEventsPanel() {
     } else {
       alert(`Błąd: ${data.error || "Nie udało się utworzyć wydarzenia"}`);
     }
-  };
-
-  const duplicateEvent = async (event: Event) => {
-    const payload = {
-      content_type: "event",
-      title: event.title,
-      slug: slugify(`${event.title}-${event.date_start || Date.now()}-${Date.now()}`),
-      description_short: event.description_short || "Opis wydarzenia",
-      description_long: event.description_long || "",
-      image_url: event.image_url,
-      image_cover: event.image_cover,
-      image_thumb: event.image_thumb,
-      image_set: event.image_set,
-      type_lvl_1: event.type_lvl_1 ?? event.type_id ?? null,
-      type_lvl_2: event.type_lvl_2 ?? event.subtype_id ?? null,
-      category_lvl_1: event.category_lvl_1 ?? event.main_category ?? null,
-      category_lvl_2: event.category_lvl_2 ?? event.category ?? null,
-      category_lvl_3: event.category_lvl_3 ?? event.subcategory ?? null,
-      date_start: event.date_start,
-      date_end: event.date_end || null,
-      time_start: toHourMinute(event.time_start || "") || null,
-      time_end: toHourMinute(event.time_end || "") || null,
-      age_min: event.age_min,
-      age_max: event.age_max,
-      price_from: event.price_from,
-      price_to: event.price_to,
-      is_free: Boolean(event.is_free),
-      district: event.district,
-      street: event.street || "",
-      postcode: event.postcode || null,
-      city: event.city || "Kraków",
-      lat: event.lat,
-      lng: event.lng,
-      note: event.note || null,
-      organizer: event.organizer || null,
-      source_url: event.source_url || null,
-      facebook_url: event.facebook_url || null,
-      is_featured: false,
-      status: "draft",
-      likes: 0,
-      dislikes: 0,
-    };
-
-    const res = await fetch("/api/admin/events", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const data = await res.json();
-
-    if (!res.ok || !data?.id) {
-      alert(`Błąd duplikowania: ${data?.error || "Nie udało się utworzyć kopii"}`);
-      return;
-    }
-
-    const duplicatedEvent = { ...data, content_type: "event" } as Event;
-    setEvents((prev) => [duplicatedEvent, ...prev]);
-    startEditing(duplicatedEvent);
   };
 
   const handleDelete = async (id: string) => {
@@ -900,10 +842,6 @@ function AdminCanonicalEventsPanel() {
                               {assigningEventImageId === event.id ? <Loader2 size={13} className="animate-spin" /> : <ImagePlus size={13} />}
                             </button>
 
-                            <button onClick={() => duplicateEvent(event)} className="p-1 rounded hover:bg-accent text-muted transition-colors" title="Duplikuj">
-                              <Copy size={13} />
-                            </button>
-
                             <button onClick={() => toggleFeatured(event)} className={cn("p-1 rounded transition-colors", event.is_featured ? "text-amber-500 hover:bg-amber-50" : "text-muted hover:bg-accent")} title="Wyróżnij">
                               <Star size={13} fill={event.is_featured ? "currentColor" : "none"} />
                             </button>
@@ -1142,17 +1080,6 @@ function AdminCanonicalEventsPanel() {
                                   imageUrl={event.image_url}
                                   imageCover={event.image_cover}
                                   imageThumb={event.image_thumb}
-                                  pendingPreview={pendingPreview}
-                                  onFileSelect={handleFileSelect}
-                                  onClearPending={clearPendingFile}
-                                  table="events"
-                                  itemId={event.id}
-                                  typeLvl1Id={String(editForm.type_lvl_1 || event.type_lvl_1 || event.type_id || "") || null}
-                                  typeLvl2Id={String(editForm.type_lvl_2 || event.type_lvl_2 || event.subtype_id || "") || null}
-                                  categoryLvl1={String(editForm.category_lvl_1 || event.category_lvl_1 || event.main_category || "")}
-                                  categoryLvl2={String(editForm.category_lvl_2 || event.category_lvl_2 || event.category || "")}
-                                  categoryLvl3={String(editForm.category_lvl_3 || event.category_lvl_3 || event.subcategory || "")}
-                                  onRandomPhoto={(cover, thumb, setId) => setEvents((prev) => prev.map((e) => e.id === event.id ? { ...e, image_cover: cover, image_thumb: thumb, image_set: setId ?? e.image_set } : e))}
                                 />
                               </div>
 

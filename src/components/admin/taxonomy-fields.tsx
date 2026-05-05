@@ -76,6 +76,16 @@ export function TaxonomyFields({
   const selectedCategoryLevel3Entry = categoryLevel3ForCategoryLevel2.find(
     (entry) => entry.name === selectedCategoryLevel3 || entry.id === selectedCategoryLevel3,
   ) ?? null;
+  const hasSelectedTypeLevel1 = Boolean(selectedTypeLevel1Id)
+    && typeLevel1Options.some((entry) => entry.id === selectedTypeLevel1Id);
+  const hasSelectedTypeLevel2 = Boolean(selectedTypeLevel2Id)
+    && typeLevel2ForTypeLevel1.some((entry) => entry.id === selectedTypeLevel2Id);
+  const hasSelectedCategoryLevel1 = Boolean(selectedCategoryLevel1)
+    && categoryLevel1Options.some((entry) => entry.name === selectedCategoryLevel1 || entry.id === selectedCategoryLevel1);
+  const hasSelectedCategoryLevel2 = Boolean(selectedCategoryLevel2)
+    && categoryLevel2ForCategoryLevel1.some((entry) => entry.name === selectedCategoryLevel2 || entry.id === selectedCategoryLevel2);
+  const hasSelectedCategoryLevel3 = Boolean(selectedCategoryLevel3)
+    && categoryLevel3ForCategoryLevel2.some((entry) => entry.name === selectedCategoryLevel3 || entry.id === selectedCategoryLevel3);
   const selectClass = `${inputClass} w-full min-w-0`;
 
   return (
@@ -95,6 +105,9 @@ export function TaxonomyFields({
               disabled={loading}
             >
               <option value="">{loading ? "Ładowanie..." : "— brak —"}</option>
+              {selectedTypeLevel1Id && !hasSelectedTypeLevel1 ? (
+                <option value={selectedTypeLevel1Id}>{selectedTypeLevel1Id}</option>
+              ) : null}
               {typeLevel1Options.map((entry) => (
                 <option key={entry.id} value={entry.id}>{entry.name}</option>
               ))}
@@ -108,7 +121,10 @@ export function TaxonomyFields({
               onChange={(event) => onTypeLevel2Change(event.target.value || null)}
               disabled={loading || !selectedTypeLevel1Id}
             >
-                <option value="">{selectedTypeLevel1Id ? "— brak —" : "Najpierw wybierz grupę"}</option>
+              <option value="">{selectedTypeLevel1Id ? "— brak —" : "Najpierw wybierz grupę"}</option>
+              {selectedTypeLevel2Id && !hasSelectedTypeLevel2 ? (
+                <option value={selectedTypeLevel2Id}>{selectedTypeLevel2Id}</option>
+              ) : null}
               {typeLevel2ForTypeLevel1.map((entry) => (
                 <option key={entry.id} value={entry.id}>{entry.name}</option>
               ))}
@@ -122,7 +138,7 @@ export function TaxonomyFields({
           <label className={labelClass}>{categoryLevel1Label}</label>
           <select
             className={selectClass}
-            value={selectedCategoryLevel1Entry?.name ?? ""}
+            value={selectedCategoryLevel1Entry?.name ?? selectedCategoryLevel1 ?? ""}
             onChange={(event) => {
               const nextCategoryLevel1 = event.target.value || null;
               onCategoryLevel1Change(nextCategoryLevel1);
@@ -132,6 +148,9 @@ export function TaxonomyFields({
             disabled={loading}
           >
             <option value="">{loading ? "Ładowanie..." : "— brak —"}</option>
+            {selectedCategoryLevel1 && !hasSelectedCategoryLevel1 ? (
+              <option value={selectedCategoryLevel1}>{selectedCategoryLevel1}</option>
+            ) : null}
             {categoryLevel1Options.map((entry) => (
               <option key={entry.id} value={entry.name}>{entry.name}</option>
             ))}
@@ -141,7 +160,7 @@ export function TaxonomyFields({
           <label className={labelClass}>{categoryLevel2Label}</label>
           <select
             className={selectClass}
-            value={selectedCategoryLevel2Entry?.name ?? ""}
+            value={selectedCategoryLevel2Entry?.name ?? selectedCategoryLevel2 ?? ""}
             onChange={(event) => {
               const nextCategoryLevel2 = event.target.value || null;
               onCategoryLevel2Change(nextCategoryLevel2);
@@ -150,6 +169,9 @@ export function TaxonomyFields({
             disabled={loading || !selectedCategoryLevel1}
           >
             <option value="">{selectedCategoryLevel1 ? "— brak —" : "Najpierw wybierz typ"}</option>
+            {selectedCategoryLevel2 && !hasSelectedCategoryLevel2 ? (
+              <option value={selectedCategoryLevel2}>{selectedCategoryLevel2}</option>
+            ) : null}
             {categoryLevel2ForCategoryLevel1.map((entry) => (
               <option key={entry.id} value={entry.name}>{entry.name}</option>
             ))}
@@ -159,11 +181,14 @@ export function TaxonomyFields({
           <label className={labelClass}>{categoryLevel3Label}</label>
           <select
             className={selectClass}
-            value={selectedCategoryLevel3Entry?.name ?? ""}
+            value={selectedCategoryLevel3Entry?.name ?? selectedCategoryLevel3 ?? ""}
             onChange={(event) => onCategoryLevel3Change(event.target.value || null)}
             disabled={loading || !selectedCategoryLevel2}
           >
             <option value="">{selectedCategoryLevel2 ? "— brak —" : "Najpierw wybierz kategorię"}</option>
+            {selectedCategoryLevel3 && !hasSelectedCategoryLevel3 ? (
+              <option value={selectedCategoryLevel3}>{selectedCategoryLevel3}</option>
+            ) : null}
             {categoryLevel3ForCategoryLevel2.map((entry) => (
               <option key={entry.id} value={entry.name}>{entry.name}</option>
             ))}

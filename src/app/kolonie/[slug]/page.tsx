@@ -54,8 +54,8 @@ export default async function CampDetailPage({ params }: PageProps) {
   const camp = await getCampBySlug(slug);
   if (!camp) notFound();
 
-  const sessions = camp.organizer_id
-    ? await getCampSessionsByOrganizer(camp.organizer_id, camp.organizer, camp.id)
+  const sessions = camp.organizer
+    ? await getCampSessionsByOrganizer(camp.organizer, camp.id)
     : [];
   const campType = camp.category_lvl_1 ?? camp.main_category;
   const campTypeLabel = CAMP_MAIN_CATEGORY_LABELS[campType as keyof typeof CAMP_MAIN_CATEGORY_LABELS] ?? campType;

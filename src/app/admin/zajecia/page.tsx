@@ -5,13 +5,17 @@ import {
   ChevronDown,
   ChevronRight,
   ClipboardPaste,
+  Copy,
   ExternalLink,
+  ImagePlus,
   Loader2,
   MapPin,
   Pencil,
+  Play,
   Plus,
   RefreshCw,
   Save,
+  Sparkles,
   Star,
   Trash2,
   Upload,
@@ -29,6 +33,7 @@ import { TaxonomyFields } from "@/components/admin/taxonomy-fields";
 import { ensureOrganizerId } from "@/lib/admin-organizers";
 import { resolveCategoryLevel1Name, resolveCategoryLevel2Name, resolveCategoryLevel3Name, resolveTypeLevel1Id, resolveTypeLevel2Id } from "@/lib/admin-taxonomy";
 import { useAdminTaxonomy } from "@/lib/use-admin-taxonomy";
+import { PROMPTS } from "@/lib/prompts";
 
 type DerivedActivityStatus = Activity["status"] | "outdated";
 type ActivityListFilter = "all" | "published" | "draft" | "outdated";
@@ -300,6 +305,19 @@ export default function AdminActivitiesPage() {
   const [uploadingImage, setUploadingImage] = useState<string | null>(null);
   const [geocoding, setGeocoding] = useState(false);
   const [organizers, setOrganizers] = useState<Organizer[]>([]);
+
+  const [promptPreview, setPromptPreview] = useState<{ title: string; activityId: string; prompt: string } | null>(null);
+  const [assigningImageId, setAssigningImageId] = useState<string | null>(null);
+
+  const [promptModal, setPromptModal] = useState(false);
+  const [activePromptTab, setActivePromptTab] = useState(0);
+  const [prompts, setPrompts] = useState(PROMPTS);
+  const [editingPrompt, setEditingPrompt] = useState(false);
+  const [editingContent, setEditingContent] = useState("");
+  const [savingPrompt, setSavingPrompt] = useState(false);
+  const [buildingDataframe, setBuildingDataframe] = useState(false);
+  const [buildResult, setBuildResult] = useState<{ ok: boolean; message: string; failed?: number; newActivities?: { activity_id: string; title: string; image_prompt: string }[] } | null>(null);
+  const [imagePromptByActivityId, setImagePromptByActivityId] = useState<Record<string, string>>({});
 
   const mapActivityRow = useCallback((row: Record<string, unknown>): Activity => ({
     ...row,
@@ -717,6 +735,7 @@ export default function AdminActivitiesPage() {
   const startEditing = (activity: Activity) => {
     setEditing(activity.id);
     setEditForm({
+      activity_id: getActivityExternalId(activity),
       title: activity.title,
       description_short: activity.description_short,
       description_long: activity.description_long,
@@ -785,6 +804,7 @@ export default function AdminActivitiesPage() {
     });
 
     const updates = {
+      activity_id: editForm.activity_id ? String(editForm.activity_id).trim() : null,
       title: String(editForm.title || ""),
       description_short: String(editForm.description_short || ""),
       description_long: String(editForm.description_long || ""),
@@ -919,6 +939,93 @@ export default function AdminActivitiesPage() {
     )));
   };
 
+  const getActivityExternalId = (activity: Activity) => {
+    const raw = (activity as unknown as Record<string, unknown>).activity_id;
+    return typeof raw === "string" && raw.trim().length > 0 ? raw.trim() : "";
+  };
+
+  const getActivityImagePrompt = (activity: Activity) => {
+    const raw = (activity as unknown as Record<string, unknown>).image_prompt;
+    if (typeof raw === "string" && raw.trim().length > 0) return raw.trim();
+    const externalId = getActivityExternalId(activity);
+    return externalId ? (imagePromptByActivityId[externalId] ?? "") : "";
+  };
+
+  const openPromptModal = async () => {
+    setEditingPrompt(false);
+    setPromptModal(true);
+    try {
+      const res = await fetch("/api/admin/prompts");
+      const data = await res.json();
+      setPrompts(data);
+    } catch { /* use static fallback */ }
+  };
+
+  const savePrompt = async () => {
+    setSavingPrompt(true);
+    const updated = prompts.map((p, i) => i === activePromptTab ? { ...p, content: editingContent } : p);
+    try {
+      await fetch("/api/admin/prompts", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updated) });
+      setPrompts(updated);
+      setEditingPrompt(false);
+    } catch { /* ignore */ }
+    setSavingPrompt(false);
+  };
+
+  const buildActivitiesDataframe = async () => {
+    setBuildingDataframe(true);
+    setBuildResult(null);
+    try {
+      const res = await fetch("/api/admin/build-activities", { method: "POST" });
+      const data = await res.json();
+      setBuildResult({ ok: data.ok, message: data.ok ? data.output : data.error, failed: data.failed ?? 0, newActivities: data.newActivities ?? [] });
+      if (data.ok && Array.isArray(data.newActivities)) {
+        const promptMap: Record<string, string> = {};
+        for (const row of data.newActivities) {
+          if (row && typeof row.activity_id === "string" && typeof row.image_prompt === "string") {
+            promptMap[row.activity_id] = row.image_prompt;
+          }
+        }
+        if (Object.keys(promptMap).length > 0) {
+          setImagePromptByActivityId((prev) => ({ ...prev, ...promptMap }));
+        }
+        await fetchActivities();
+      }
+    } catch (err) {
+      setBuildResult({ ok: false, message: String(err) });
+    } finally {
+      setBuildingDataframe(false);
+    }
+  };
+
+  const assignImageForActivity = async (activity: Activity) => {
+    const activityId = getActivityExternalId(activity);
+    if (!activityId) {
+      alert("Brak activity_id. Najpierw wygeneruj przez Upload data.");
+      return;
+    }
+    setAssigningImageId(activity.id);
+    try {
+      const res = await fetch("/api/admin/assign-image-by-event-id", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: activity.id, event_id: activityId }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        alert(`Błąd: ${data.error || "Nie udało się przypisać obrazu"}`);
+        return;
+      }
+      setActivities((prev) => prev.map((a) =>
+        a.id === activity.id ? { ...a, image_url: data.image_url, image_cover: data.image_cover, image_thumb: data.image_thumb } : a,
+      ));
+    } catch (error) {
+      alert(`Błąd: ${error instanceof Error ? error.message : "Nie udało się przypisać obrazu"}`);
+    } finally {
+      setAssigningImageId(null);
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm("Na pewno chcesz usunac?")) return;
     await fetch("/api/admin/activities", {
@@ -934,6 +1041,21 @@ export default function AdminActivitiesPage() {
       <div className="flex items-center justify-between mb-2">
         <h1 className="text-2xl font-bold text-foreground">Zajęcia</h1>
         <div className="flex items-center gap-2">
+          <button
+            onClick={openPromptModal}
+            className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-muted border border-border rounded-xl hover:border-[#CCC] transition-colors"
+          >
+            <Sparkles size={14} />
+            Prompt
+          </button>
+          <button
+            onClick={buildActivitiesDataframe}
+            disabled={buildingDataframe}
+            className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-muted border border-border rounded-xl hover:border-[#CCC] transition-colors disabled:opacity-50"
+          >
+            {buildingDataframe ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
+            Upload data
+          </button>
           <button onClick={() => setPasteModal(true)} className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-muted border border-border rounded-xl hover:border-[#CCC] transition-colors">
             <ClipboardPaste size={14} />
             Wklej dane
@@ -1022,10 +1144,33 @@ export default function AdminActivitiesPage() {
                                   <span className="opacity-40">·</span>
                                   <span className="truncate max-w-[180px]">{activity.organizer}</span>
                                 </div>
+                                {getActivityExternalId(activity) && (
+                                  <p className="text-[10px] text-muted-foreground font-mono mt-0.5 truncate">ACTIVITY ID: {getActivityExternalId(activity)}</p>
+                                )}
                               </div>
 
                               <button onClick={() => startEditing(activity)} className="p-1 rounded hover:bg-accent text-muted transition-colors" title="Edytuj">
                                 <Pencil size={13} />
+                              </button>
+
+                              <button
+                                onClick={() => {
+                                  const prompt = getActivityImagePrompt(activity);
+                                  if (!prompt) { alert("Brak image promptu dla tych zajęć."); return; }
+                                  setPromptPreview({ activityId: getActivityExternalId(activity) || "(brak activity_id)", title: activity.title, prompt });
+                                }}
+                                className="p-1 rounded hover:bg-accent text-muted transition-colors"
+                                title="Pokaż image prompt"
+                              >
+                                <Sparkles size={13} />
+                              </button>
+
+                              <button onClick={() => assignImageForActivity(activity)} className="p-1 rounded hover:bg-accent text-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Przypisz obraz" disabled={assigningImageId === activity.id}>
+                                {assigningImageId === activity.id ? <Loader2 size={13} className="animate-spin" /> : <ImagePlus size={13} />}
+                              </button>
+
+                              <button onClick={() => toggleFeatured(activity)} className={cn("p-1 rounded transition-colors", activity.is_featured ? "text-amber-500 hover:bg-amber-50" : "text-muted hover:bg-accent")} title="Wyróżnij">
+                                <Star size={13} fill={activity.is_featured ? "currentColor" : "none"} />
                               </button>
 
                               {activity.source_url && (
@@ -1034,9 +1179,13 @@ export default function AdminActivitiesPage() {
                                 </a>
                               )}
 
-                              <button onClick={() => toggleStatus(activity)} className={cn("px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide transition-colors", activity.status === "published" ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" : "bg-rose-100 text-rose-700 hover:bg-rose-200")}>
-                                {activity.status === "published" ? "Published" : "Draft"}
-                              </button>
+                              {getEffectiveStatus(activity) === "outdated" ? (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700">Outdated</span>
+                              ) : (
+                                <button onClick={() => toggleStatus(activity)} className={cn("px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide transition-colors", activity.status === "published" ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" : "bg-rose-100 text-rose-700 hover:bg-rose-200")}>
+                                  {activity.status === "published" ? "Published" : "Draft"}
+                                </button>
+                              )}
 
                               <button onClick={() => handleDelete(activity.id)} className="p-1 rounded text-muted-foreground hover:bg-red-50 hover:text-red-600 transition-colors" title="Usun">
                                 <Trash2 size={13} />
@@ -1048,11 +1197,20 @@ export default function AdminActivitiesPage() {
                                 <div className="rounded-lg border border-border/50 p-3 mb-4 space-y-3">
                                   <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Opis zajęć</p>
                                   <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
-                                    <div className="md:col-span-3">
+                                    <div className="md:col-span-2">
                                       <label className={labelClass}>Tytuł</label>
                                       <input className={inputClass} value={(editForm.title as string) || ""} onChange={(event) => setEditForm((current) => ({ ...current, title: event.target.value }))} />
                                     </div>
-                                    <div className="md:col-span-3">
+                                    <div className="md:col-span-2">
+                                      <label className={labelClass}>ACTIVITY ID</label>
+                                      <input
+                                        className={`${inputClass} font-mono`}
+                                        value={(editForm.activity_id as string) || ""}
+                                        onChange={(e) => setEditForm((current) => ({ ...current, activity_id: e.target.value }))}
+                                        placeholder="ACTIVITY-000001"
+                                      />
+                                    </div>
+                                    <div className="md:col-span-2">
                                       <label className={labelClass}>Organizator</label>
                                       <OrganizerCombobox
                                         organizers={organizers}
@@ -1227,17 +1385,6 @@ export default function AdminActivitiesPage() {
                                     imageUrl={activity.image_url}
                                     imageCover={activity.image_cover}
                                     imageThumb={activity.image_thumb}
-                                    pendingPreview={pendingPreview}
-                                    onFileSelect={handleFileSelect}
-                                    onClearPending={clearPendingFile}
-                                    table="activities"
-                                    itemId={activity.id}
-                                    typeLvl1Id={String(editForm.type_lvl_1 || activity.type_lvl_1 || activity.type_id || "") || null}
-                                    typeLvl2Id={String(editForm.type_lvl_2 || activity.type_lvl_2 || activity.subtype_id || "") || null}
-                                    categoryLvl1={String(editForm.category_lvl_1 || activity.category_lvl_1 || activity.main_category || "")}
-                                    categoryLvl2={String(editForm.category_lvl_2 || activity.category_lvl_2 || activity.category || "")}
-                                    categoryLvl3={String(editForm.category_lvl_3 || activity.category_lvl_3 || activity.subcategory || "")}
-                                    onRandomPhoto={(cover, thumb, setId) => setActivities((prev) => prev.map((a) => a.id === activity.id ? { ...a, image_cover: cover, image_thumb: thumb, image_set: setId ?? a.image_set } : a))}
                                   />
                                 </div>
 
@@ -1346,6 +1493,165 @@ export default function AdminActivitiesPage() {
                   {importing ? "Importowanie..." : `Importuj ${pastePreview.length} zajęć`}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {promptPreview && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[80vh] flex flex-col">
+            <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+              <h2 className="font-semibold text-[13px] text-foreground flex items-center gap-2">
+                <Sparkles size={14} />
+                Image prompt
+              </h2>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => navigator.clipboard.writeText(promptPreview.prompt)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-muted border border-border rounded-lg hover:border-[#CCC] transition-colors"
+                >
+                  <Copy size={12} />
+                  Kopiuj prompt
+                </button>
+                <button onClick={() => setPromptPreview(null)} className="text-muted-foreground hover:text-foreground transition-colors ml-1">
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+            <div className="p-5 space-y-2 overflow-y-auto flex-1">
+              <p className="text-[12px] text-muted-foreground">ACTIVITY ID: {promptPreview.activityId} — {promptPreview.title}</p>
+              <pre className="text-xs text-foreground whitespace-pre-wrap font-mono leading-relaxed bg-stone-50 rounded-lg p-3 border border-border">
+                {promptPreview.prompt}
+              </pre>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {promptModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col mx-4">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+                <Sparkles size={16} />
+                Prompt
+              </h2>
+              <button onClick={() => { setPromptModal(false); setEditingPrompt(false); }} className="text-muted-foreground hover:text-foreground transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="flex gap-1 px-5 pt-3 border-b border-border">
+              {prompts.map((p, i) => (
+                <button
+                  key={i}
+                  onClick={() => { setActivePromptTab(i); setEditingPrompt(false); }}
+                  className={cn(
+                    "px-3 py-1.5 text-[12px] font-medium rounded-t-md transition-colors border-b-2 -mb-px",
+                    activePromptTab === i
+                      ? "border-foreground text-foreground"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex-1 overflow-y-auto p-5">
+              {editingPrompt ? (
+                <textarea
+                  className="w-full h-full min-h-[300px] text-sm font-mono text-foreground border border-border rounded-lg p-3 focus:outline-none focus:ring-1 focus:ring-primary/30 resize-none"
+                  value={editingContent}
+                  onChange={(e) => setEditingContent(e.target.value)}
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap font-mono leading-relaxed">
+                  {prompts[activePromptTab]?.content}
+                </p>
+              )}
+            </div>
+            <div className="flex justify-between gap-2 px-5 py-4 border-t border-border">
+              <button
+                onClick={() => {
+                  if (editingPrompt) {
+                    setEditingPrompt(false);
+                  } else {
+                    setEditingContent(prompts[activePromptTab]?.content ?? "");
+                    setEditingPrompt(true);
+                  }
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-muted border border-border rounded-lg hover:border-[#CCC] transition-colors"
+              >
+                <Pencil size={12} />
+                {editingPrompt ? "Anuluj" : "Edytuj"}
+              </button>
+              <div className="flex gap-2">
+                {editingPrompt ? (
+                  <button
+                    onClick={savePrompt}
+                    disabled={savingPrompt}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-white bg-foreground rounded-lg hover:bg-stone-700 transition-colors disabled:opacity-50"
+                  >
+                    {savingPrompt ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                    Zapisz
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => navigator.clipboard.writeText(prompts[activePromptTab]?.content ?? "")}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-muted border border-border rounded-lg hover:border-[#CCC] transition-colors"
+                  >
+                    <Copy size={12} />
+                    Kopiuj
+                  </button>
+                )}
+                <button onClick={() => { setPromptModal(false); setEditingPrompt(false); }} className="px-3 py-1.5 text-[12px] font-medium text-white bg-foreground rounded-lg hover:bg-stone-700 transition-colors">
+                  Zamknij
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {buildResult !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col mx-4">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <h2 className={`text-base font-semibold flex items-center gap-2 ${buildResult.ok ? "text-green-700" : "text-red-600"}`}>
+                <Play size={16} />
+                Upload data – {buildResult.ok ? "sukces" : "błąd"}
+              </h2>
+              <button onClick={() => setBuildResult(null)} className="text-muted-foreground hover:text-foreground transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5 space-y-3">
+              {!buildResult.ok ? (
+                <pre className="text-xs text-foreground whitespace-pre-wrap font-mono leading-relaxed bg-stone-50 rounded-lg p-3 border border-border">
+                  {buildResult.message || "(brak wyjścia)"}
+                </pre>
+              ) : (
+                <div className="rounded-lg border border-border bg-stone-50 p-4 space-y-2">
+                  <p className="text-sm font-medium text-foreground">
+                    {buildResult.newActivities?.length
+                      ? `Przetworzono ${buildResult.newActivities.length} zajęć.`
+                      : "Brak nowych zajęć do przetworzenia."}
+                  </p>
+                  {buildResult.failed ? (
+                    <p className="text-xs text-red-600">Błąd przy {buildResult.failed} rekordzie/ach (sprawdź logi serwera).</p>
+                  ) : null}
+                  {buildResult.message ? (
+                    <pre className="text-xs text-foreground whitespace-pre-wrap font-mono leading-relaxed">
+                      {buildResult.message}
+                    </pre>
+                  ) : null}
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end items-center px-5 py-4 border-t border-border">
+              <button onClick={() => setBuildResult(null)} className="px-3 py-1.5 text-[12px] font-medium text-white bg-foreground rounded-lg hover:bg-stone-700 transition-colors">
+                Zamknij
+              </button>
             </div>
           </div>
         </div>

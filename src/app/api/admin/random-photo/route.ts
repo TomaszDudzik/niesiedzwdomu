@@ -3,11 +3,11 @@ import { createClient } from "@supabase/supabase-js";
 
 const BUCKET = "event-library";
 const ALLOWED_TABLES = new Set(["camps", "events", "activities", "places"]);
-const TABLE_ROOT_BY_NAME = {
-  camps: "polkolonie",
-  events: "wydarzenia",
-  activities: "zajecia",
-  places: "miejsca",
+const TABLE_ROOTS_BY_NAME = {
+  camps: ["kolonie", "polkolonie"],
+  events: ["wydarzenia"],
+  activities: ["zajecia"],
+  places: ["miejsca"],
 } as const;
 
 type CoverCandidate = {
@@ -29,6 +29,7 @@ function normalizePathSegment(value: string | null | undefined) {
   const normalized = value
     .trim()
     .toLowerCase()
+    .replace(/[ł]/g, "l")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
@@ -41,8 +42,8 @@ function resolveTypeSegment(value: string | null | undefined) {
   return normalizePathSegment(value ?? null);
 }
 
-function buildFolderCandidates(table: keyof typeof TABLE_ROOT_BY_NAME, typeSegments: string[], categorySegments: string[]) {
-  const rootSegment = TABLE_ROOT_BY_NAME[table];
+function buildFolderCandidates(table: keyof typeof TABLE_ROOTS_BY_NAME, typeSegments: string[], categorySegments: string[]) {
+  const rootSegments = TABLE_ROOTS_BY_NAME[table];
   const candidates: string[] = [];
 
   const addCandidate = (segments: Array<string | null | undefined>) => {
@@ -52,34 +53,37 @@ function buildFolderCandidates(table: keyof typeof TABLE_ROOT_BY_NAME, typeSegme
     }
   };
 
-  for (let categoryLength = categorySegments.length; categoryLength >= 1; categoryLength -= 1) {
-    const categorySlice = categorySegments.slice(0, categoryLength);
+  for (const rootSegment of rootSegments) {
+    for (let categoryLength = categorySegments.length; categoryLength >= 1; categoryLength -= 1) {
+      const categorySlice = categorySegments.slice(0, categoryLength);
 
-    addCandidate([rootSegment, ...typeSegments, ...categorySlice]);
+      addCandidate([rootSegment, ...typeSegments, ...categorySlice]);
 
-    if (typeSegments.length > 1) {
-      addCandidate([rootSegment, typeSegments[0], ...categorySlice]);
+      if (typeSegments.length > 1) {
+        addCandidate([rootSegment, typeSegments[0], ...categorySlice]);
+      }
+
+      addCandidate([rootSegment, ...categorySlice]);
+      addCandidate([...typeSegments, ...categorySlice]);
+
+      if (typeSegments.length > 1) {
+        addCandidate([typeSegments[0], ...categorySlice]);
+      }
+
+      addCandidate([...categorySlice]);
     }
 
-    addCandidate([rootSegment, ...categorySlice]);
-    addCandidate([...typeSegments, ...categorySlice]);
-
+    addCandidate([rootSegment, ...typeSegments]);
     if (typeSegments.length > 1) {
-      addCandidate([typeSegments[0], ...categorySlice]);
+      addCandidate([rootSegment, typeSegments[0]]);
     }
-
-    addCandidate([...categorySlice]);
+    addCandidate([rootSegment]);
   }
 
-  addCandidate([rootSegment, ...typeSegments]);
-  if (typeSegments.length > 1) {
-    addCandidate([rootSegment, typeSegments[0]]);
-  }
   addCandidate([...typeSegments]);
   if (typeSegments.length > 1) {
     addCandidate([typeSegments[0]]);
   }
-  addCandidate([rootSegment]);
 
   return candidates;
 }
