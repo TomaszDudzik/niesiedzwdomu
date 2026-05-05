@@ -10,6 +10,12 @@ const TABLE_ROOT_BY_NAME = {
   places: "miejsca",
 } as const;
 
+type CoverCandidate = {
+  coverName: string;
+  thumbName: string;
+  imageSet: string;
+};
+
 function getDb() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -88,18 +94,57 @@ async function findRandomPhotoFolder(db: ReturnType<typeof getDb>, folderCandida
       continue;
     }
 
-    const coverFiles = files.filter((file) => file.name.endsWith("-cover.webp"));
-    if (coverFiles.length > 0) {
-      return { folderPath, coverFiles };
+    const coverCandidates = files
+      .map((file) => toCoverCandidate(file.name))
+      .filter((candidate): candidate is CoverCandidate => Boolean(candidate));
+
+    if (coverCandidates.length > 0) {
+      return { folderPath, coverCandidates };
     }
   }
 
   return null;
 }
 
+function toCoverCandidate(fileName: string): CoverCandidate | null {
+  const indexedMatch = fileName.match(/^(.*)-cover-(\d+)\.webp$/i);
+  if (indexedMatch) {
+    const base = indexedMatch[1];
+    const index = indexedMatch[2];
+    return {
+      coverName: fileName,
+      thumbName: `${base}-thumb-${index}.webp`,
+      imageSet: `${base}-${index}`,
+    };
+  }
+
+  const defaultMatch = fileName.match(/^(.*)-cover\.webp$/i);
+  if (defaultMatch) {
+    const base = defaultMatch[1];
+    return {
+      coverName: fileName,
+      thumbName: `${base}-thumb.webp`,
+      imageSet: base,
+    };
+  }
+
+  return null;
+}
+
+function hashString(value: string) {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = ((hash << 5) - hash) + value.charCodeAt(index);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
 export async function POST(request: NextRequest) {
   const {
     id,
+    photo_seed,
+    stable_by_id,
     type_lvl_1,
     type_lvl_2,
     type_id,
@@ -141,12 +186,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: `No images found for paths: ${folderCandidates.join(", ")}` }, { status: 404 });
   }
 
-  const { folderPath, coverFiles } = folderMatch;
-  const randomCover = coverFiles[Math.floor(Math.random() * coverFiles.length)];
-  const setId = randomCover.name.replace("-cover.webp", "");
+  const { folderPath, coverCandidates } = folderMatch;
+  const chooseBySeed = Boolean(stable_by_id);
+  const seedValue = typeof photo_seed === "string" && photo_seed.trim().length > 0
+    ? photo_seed.trim()
+    : String(id);
+  const chosenIndex = chooseBySeed
+    ? (hashString(seedValue) % coverCandidates.length)
+    : Math.floor(Math.random() * coverCandidates.length);
 
-  const coverPath = `${folderPath}/${setId}-cover.webp`;
-  const thumbPath = `${folderPath}/${setId}-thumb.webp`;
+  const selected = coverCandidates[chosenIndex];
+  const setId = selected.imageSet;
+
+  const coverPath = `${folderPath}/${selected.coverName}`;
+  const thumbPath = `${folderPath}/${selected.thumbName}`;
 
   const coverUrl = db.storage.from(BUCKET).getPublicUrl(coverPath).data.publicUrl;
   const thumbUrl = db.storage.from(BUCKET).getPublicUrl(thumbPath).data.publicUrl;

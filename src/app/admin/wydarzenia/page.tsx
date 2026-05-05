@@ -1,22 +1,20 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from "react";
 import {
   Plus, Pencil, Trash2, RefreshCw,
   ChevronDown, ChevronUp, X,
   Loader2, Save, ExternalLink,
-  Star, ClipboardPaste, Upload, MapPin, Copy,
-  Sparkles, Play,
+  Star, MapPin, Copy,
+  Sparkles, Play, ImagePlus,
 } from "lucide-react";
 import { CATEGORY_ICONS, CATEGORY_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
 import { PROMPTS } from "@/lib/prompts";
 import { normalizeDistrictName } from "@/lib/districts";
 import { cn, formatDateShort, formatHourMinuteRange, formatPriceRange, slugify, thumbUrl, toHourMinute, withCacheBust } from "@/lib/utils";
-import type { Event, Organizer } from "@/types/database";
+import type { Event } from "@/types/database";
 import { ImageSection } from "@/components/admin/image-section";
-import { OrganizerCombobox } from "@/components/admin/organizer-combobox";
 import { TaxonomyFields } from "@/components/admin/taxonomy-fields";
-import { ensureOrganizerId } from "@/lib/admin-organizers";
 import { resolveCategoryLevel1Name, resolveCategoryLevel2Name, resolveCategoryLevel3Name, resolveTypeLevel1Id, resolveTypeLevel2Id } from "@/lib/admin-taxonomy";
 import { useAdminTaxonomy } from "@/lib/use-admin-taxonomy";
 
@@ -27,10 +25,6 @@ const UNCATEGORIZED_GROUP = "__uncategorized__";
 const UNASSIGNED_ORGANIZER_GROUP = "__unassigned_organizer__";
 
 const MiniMapLazy = lazy(() => import("../miejsca/mini-map").then((module) => ({ default: module.MiniMap })));
-
-function isUUID(value: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
-}
 
 // ═══════════════════════════════════════════════════════════════════
 // Main page
@@ -54,13 +48,6 @@ function AdminCanonicalEventsPanel() {
   const [statusFilter, setStatusFilter] = useState<EventListFilter>("all");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [groupingMode, setGroupingMode] = useState<EventGroupingMode>("type");
-  const [pasteModal, setPasteModal] = useState(false);
-  const [pasteText, setPasteText] = useState("");
-  const [pasteHeaders, setPasteHeaders] = useState<string[]>([]);
-  const [pastePreview, setPastePreview] = useState<Record<string, string>[]>([]);
-  const [importing, setImporting] = useState(false);
-  const [importProgress, setImportProgress] = useState({ done: 0, total: 0 });
-  const [organizers, setOrganizers] = useState<Organizer[]>([]);
   const [promptModal, setPromptModal] = useState(false);
   const [activePromptTab, setActivePromptTab] = useState(0);
   const [prompts, setPrompts] = useState(PROMPTS);
@@ -68,429 +55,11 @@ function AdminCanonicalEventsPanel() {
   const [editingContent, setEditingContent] = useState("");
   const [savingPrompt, setSavingPrompt] = useState(false);
   const [buildingDataframe, setBuildingDataframe] = useState(false);
-  const [buildResult, setBuildResult] = useState<{ ok: boolean; message: string; newEvents?: { event_id: string; title: string; image_prompt: string }[] } | null>(null);
+    const [buildResult, setBuildResult] = useState<{ ok: boolean; message: string; failed?: number; newEvents?: { event_id: string; title: string; image_prompt: string }[] } | null>(null);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
-  const [assigningPhotos, setAssigningPhotos] = useState(false);
-
-  const FIELD_ALIASES: Record<string, string[]> = {
-    title: ["title", "tytul", "tytuł", "nazwa", "name"],
-    description_short: ["description_short", "krotki opis", "krótki opis", "opis", "short description"],
-    description_long: ["description_long", "dlugi opis", "długi opis", "pelny opis", "pełny opis", "long description"],
-    type_lvl_1: ["type_lvl_1", "type_id", "type level 1", "typ poziom 1"],
-    type_lvl_2: ["type_lvl_2", "subtype_id", "type level 2", "typ poziom 2"],
-    category_lvl_1: ["category_lvl_1", "category_lvl_1_id", "main_category", "kategoria glowna", "kategoria główna", "category level 1"],
-    category_lvl_2: ["category_lvl_2", "category_lvl_2_id", "category", "kategoria", "typ", "rodzaj", "activity_type", "activity type"],
-    category_lvl_3: ["category_lvl_3", "category_lvl_3_id", "subcategory", "podkategoria", "sub category", "category level 3"],
-    category: ["category", "kategoria", "typ", "rodzaj", "activity_type", "activity type"],
-    date_start: ["date_start", "data", "data od", "start date", "date"],
-    date_end: ["date_end", "data do", "end date"],
-    time_start: ["time_start", "godzina od", "godzina", "start time", "czas od"],
-    time_end: ["time_end", "godzina do", "end time", "czas do"],
-    age_min: ["age_min", "wiek od", "minimalny wiek"],
-    age_max: ["age_max", "wiek do", "maksymalny wiek"],
-    price_from: ["price_from", "cena od", "price from", "od", "koszt od", "price", "cena"],
-    price_to: ["price_to", "cena do", "price to", "do", "koszt do"],
-    is_free: ["is_free", "free", "darmowe", "bezplatne", "bezpłatne"],
-    district: ["district", "dzielnica"],
-    street: ["street", "ulica", "adres", "address", "venue_address"],
-    postcode: ["postcode", "kod", "kod pocztowy", "zip", "postal code"],
-    city: ["city", "miasto"],
-    lat: ["lat", "latitude"],
-    lng: ["lng", "lon", "longitude"],
-    note: ["note", "notatka", "uwagi", "dodatkowe informacje"],
-    organizer: ["organizer", "organizator"],
-    organizer_id: ["organizer_id", "organizator_id"],
-    source_url: ["source_url", "url", "link", "zrodlo", "źródło"],
-    facebook_url: ["facebook_url", "facebook", "fb", "facebook page"],
-    is_featured: ["is_featured", "featured", "wyroznione", "wyróżnione"],
-    status: ["status", "stan"],
-    likes: ["likes", "polubienia"],
-    dislikes: ["dislikes", "niepolubienia"],
-  };
-
-  const resolveField = (header: string): string | null => {
-    const normalized = header.toLowerCase().trim();
-    for (const [field, aliases] of Object.entries(FIELD_ALIASES)) {
-      if (aliases.some((alias) => alias.toLowerCase() === normalized)) return field;
-    }
-    return null;
-  };
-
-  const parsePastedData = (text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed) {
-      setPasteHeaders([]);
-      setPastePreview([]);
-      return;
-    }
-
-    // Remove literal newlines embedded inside quoted values before JSON parsing.
-    const fixLiteralNewlines = (value: string) => {
-      let result = "";
-      let inString = false;
-      let escaped = false;
-
-      for (const char of value) {
-        if (escaped) {
-          result += char;
-          escaped = false;
-          continue;
-        }
-
-        if (char === "\\" && inString) {
-          result += char;
-          escaped = true;
-          continue;
-        }
-
-        if (char === '"') {
-          inString = !inString;
-          result += char;
-          continue;
-        }
-
-        if (inString && (char === "\n" || char === "\r")) {
-          continue;
-        }
-
-        result += char;
-      }
-
-      return result;
-    };
-
-    const structMatch = trimmed.match(/[\[{][\s\S]*[\]}]/);
-    if (structMatch) {
-      const raw = fixLiteralNewlines(
-        structMatch[0]
-          .replace(/#[^\n]*/g, "")
-          .replace(/<NA>/g, "null")
-          .replace(/\bNaN\b/g, "null")
-          .replace(/,\s*([}\]])/g, "$1")
-      );
-
-      const pythonLikeToJson = (input: string) => {
-        let output = "";
-        let inSingle = false;
-        let escaped = false;
-
-        for (const char of input) {
-          if (inSingle) {
-            if (escaped) {
-              output += char;
-              escaped = false;
-              continue;
-            }
-
-            if (char === "\\") {
-              output += "\\\\";
-              escaped = true;
-              continue;
-            }
-
-            if (char === "'") {
-              inSingle = false;
-              output += '"';
-              continue;
-            }
-
-            if (char === '"') {
-              output += '\\"';
-              continue;
-            }
-
-            output += char;
-            continue;
-          }
-
-          if (char === "'") {
-            inSingle = true;
-            output += '"';
-            continue;
-          }
-
-          output += char;
-        }
-
-        return output;
-      };
-
-      const attempts = [
-        raw,
-        raw.replace(/(?<=[{,[\s])'/g, '"').replace(/'(?=\s*[:,\]}])/g, '"'),
-        pythonLikeToJson(raw),
-      ];
-
-      for (const attempt of attempts) {
-        try {
-          const obj = JSON.parse(
-            attempt.replace(/\bTrue\b/g, "true").replace(/\bFalse\b/g, "false").replace(/\bNone\b/g, "null")
-          );
-
-          if (Array.isArray(obj) && obj.length > 0 && typeof obj[0] === "object") {
-            const headers = [...new Set(obj.flatMap((row: Record<string, unknown>) => Object.keys(row)))];
-            const rows = obj.map((row: Record<string, unknown>) => {
-              const mapped: Record<string, string> = {};
-              headers.forEach((header) => {
-                mapped[header] = row[header] != null ? String(row[header]) : "";
-              });
-              return mapped;
-            });
-            setPasteHeaders(headers);
-            setPastePreview(rows);
-            return;
-          }
-
-          if (typeof obj === "object" && !Array.isArray(obj)) {
-            const keys = Object.keys(obj);
-            if (keys.length > 0 && Array.isArray(obj[keys[0]])) {
-              const rowCount = obj[keys[0]].length;
-              const rows: Record<string, string>[] = [];
-              for (let index = 0; index < rowCount; index++) {
-                const row: Record<string, string> = {};
-                keys.forEach((key) => {
-                  row[key] = String(obj[key]?.[index] ?? "");
-                });
-                rows.push(row);
-              }
-              setPasteHeaders(keys);
-              setPastePreview(rows);
-              return;
-            }
-          }
-        } catch {
-          // try next parser
-        }
-      }
-    }
-
-    const lines = trimmed.split(/\r?\n/).filter((line) => line.trim());
-    if (lines.length < 2) {
-      setPasteHeaders([]);
-      setPastePreview([]);
-      return;
-    }
-    const separator = lines[0].includes("\t") ? "\t" : lines[0].includes(";") ? ";" : ",";
-    const headers = lines[0].split(separator).map((header) => header.trim().replace(/^"|"$/g, ""));
-    const rows = lines.slice(1).map((line) => {
-      const values = line.split(separator).map((value) => value.trim().replace(/^"|"$/g, ""));
-      const row: Record<string, string> = {};
-      headers.forEach((header, index) => {
-        row[header] = values[index] || "";
-      });
-      return row;
-    }).filter((row) => Object.values(row).some(Boolean));
-
-    setPasteHeaders(headers);
-    setPastePreview(rows);
-  };
-
-  const asNumber = (value?: string): number | null => {
-    if (!value) return null;
-    const parsed = Number(String(value).replace(/,/g, ".").replace(/[^0-9.\-]/g, ""));
-    return Number.isFinite(parsed) ? parsed : null;
-  };
-
-  const asBoolean = (value?: string): boolean => {
-    if (!value) return false;
-    return ["1", "true", "tak", "yes", "y"].includes(value.trim().toLowerCase());
-  };
-
-  const normalizeCategory = (value?: string): Event["category"] => {
-    const normalized = (value || "").trim().toLowerCase();
-    const aliases: Record<string, Event["category"]> = {
-      warsztaty: "warsztaty",
-      spektakl: "spektakl",
-      spektakle: "spektakl",
-      kino: "kino",
-      koncert: "muzyka",
-      koncerty: "muzyka",
-      muzyka: "muzyka",
-      muzyczne: "muzyka",
-      edukacja: "edukacja",
-      edukacyjne: "edukacja",
-      sport: "sport",
-      sportowe: "sport",
-      natura: "natura",
-      przyroda: "natura",
-      festyn: "festyn",
-      festiwal: "festyn",
-      wystawa: "wystawa",
-      wystawy: "wystawa",
-      inne: "inne",
-    };
-
-    if (normalized in aliases) return aliases[normalized];
-
-    const match = Object.entries(CATEGORY_LABELS).find(([key, label]) => {
-      const keyMatch = key.toLowerCase() === normalized;
-      const labelMatch = label.toLowerCase() === normalized;
-      return keyMatch || labelMatch;
-    });
-    return (match?.[0] || "inne") as Event["category"];
-  };
-
-  const normalizeDistrict = (value?: string): Event["district"] => {
-    return normalizeDistrictName(value);
-  };
-
-  const normalizeStatus = (value?: string): Event["status"] => {
-    const normalized = (value || "").trim().toLowerCase();
-    if (normalized === "published" || normalized === "opublikowany") return "published";
-    if (normalized === "cancelled" || normalized === "anulowany") return "cancelled";
-    return "draft";
-  };
-
-  const closePasteModal = () => {
-    setPasteModal(false);
-    setPasteText("");
-    setPasteHeaders([]);
-    setPastePreview([]);
-    setImporting(false);
-    setImportProgress({ done: 0, total: 0 });
-  };
-
-  const runPasteImport = async () => {
-    if (pastePreview.length === 0) return;
-    setImporting(true);
-    setImportProgress({ done: 0, total: pastePreview.length });
-
-    const imported: Event[] = [];
-    const knownOrganizers = [...organizers];
-
-    for (let index = 0; index < pastePreview.length; index++) {
-      const row = pastePreview[index];
-      const mapped: Record<string, string> = {};
-      for (const header of pasteHeaders) {
-        const field = resolveField(header);
-        if (field) mapped[field] = row[header] || "";
-      }
-
-      if (!mapped.title) {
-        setImportProgress({ done: index + 1, total: pastePreview.length });
-        continue;
-      }
-
-      const priceFrom = asNumber(mapped.price_from) ?? asNumber(row.price_from) ?? asNumber(mapped.price);
-      const priceTo = asNumber(mapped.price_to) ?? asNumber(row.price_to);
-      const isFree = mapped.is_free ? asBoolean(mapped.is_free) : priceFrom === 0 || priceTo === 0;
-      const street = mapped.street?.trim() || "";
-      const postcode = mapped.postcode?.trim() || null;
-      const city = mapped.city?.trim() || "Kraków";
-      const organizerName = mapped.organizer?.trim() || (!isUUID(mapped.organizer_id || "") ? mapped.organizer_id?.trim() || "" : "");
-      const organizerId = await ensureOrganizerId({
-        organizers: knownOrganizers,
-        organizerId: isUUID(mapped.organizer_id || "") ? mapped.organizer_id : null,
-        organizerName,
-        city,
-        onOrganizerCreated: (organizer) => {
-          knownOrganizers.push(organizer);
-          setOrganizers((current) => current.some((entry) => entry.id === organizer.id) ? current : [...current, organizer]);
-        },
-      });
-      const typeLevel1Id = resolveTypeLevel1Id(typeLevel1Options, mapped.type_lvl_1?.trim() || null);
-      const typeLevel2Id = resolveTypeLevel2Id(typeLevel2Options, mapped.type_lvl_2?.trim() || null, typeLevel1Id);
-      const categoryLevel1 = resolveCategoryLevel1Name(categoryLevel1Options, mapped.category_lvl_1?.trim() || null);
-      const categoryLevel2 = resolveCategoryLevel2Name(
-        categoryLevel2Options,
-        mapped.category_lvl_2?.trim() || normalizeCategory(mapped.category),
-        categoryLevel1,
-        categoryLevel1Options,
-      );
-      const categoryLevel3 = resolveCategoryLevel3Name(
-        categoryLevel3Options,
-        mapped.category_lvl_3?.trim() || null,
-        categoryLevel2,
-        categoryLevel2Options,
-      );
-      const payload = {
-        title: mapped.title.trim(),
-        slug: slugify(mapped.title.trim()),
-        description_short: mapped.description_short || mapped.description_long || "Opis wydarzenia",
-        description_long: mapped.description_long || mapped.description_short || "",
-        type_lvl_1: typeLevel1Id,
-        type_lvl_2: typeLevel2Id,
-        category_lvl_1: categoryLevel1 || null,
-        category_lvl_2: categoryLevel2 || null,
-        category_lvl_3: categoryLevel3 || null,
-        date_start: mapped.date_start || new Date().toISOString().slice(0, 10),
-        date_end: mapped.date_end || null,
-        time_start: toHourMinute(mapped.time_start) || null,
-        time_end: toHourMinute(mapped.time_end) || null,
-        age_min: asNumber(mapped.age_min),
-        age_max: asNumber(mapped.age_max),
-        price_from: priceFrom,
-        price_to: priceTo,
-        is_free: isFree,
-        district: normalizeDistrict(mapped.district),
-        street,
-        postcode,
-        city,
-        lat: asNumber(mapped.lat),
-        lng: asNumber(mapped.lng),
-        note: mapped.note?.trim() || null,
-        organizer: organizerName || null,
-        organizer_id: organizerId,
-        source_url: mapped.source_url || null,
-        facebook_url: mapped.facebook_url || null,
-        is_featured: asBoolean(mapped.is_featured),
-        status: normalizeStatus(mapped.status),
-        likes: asNumber(mapped.likes) ?? 0,
-        dislikes: asNumber(mapped.dislikes) ?? 0,
-      };
-
-      try {
-        const res = await fetch("/api/admin/events", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        const data = await res.json();
-        if (data?.id) {
-          imported.push({ ...data, content_type: "event" } as Event);
-
-          // Geocode address to fill lat/lng/district
-          if (street && (payload.lat == null || payload.lng == null)) {
-            try {
-              if (index > 0) await new Promise((r) => setTimeout(r, 1100));
-              const geoRes = await fetch("/api/admin/geocode", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ address: street, city }),
-              });
-              const geo = await geoRes.json();
-              if (geo.lat && geo.lng) {
-                const patch: Record<string, unknown> = { id: data.id, lat: geo.lat, lng: geo.lng };
-                if (geo.district) patch.district = geo.district;
-                if (geo.postcode && !postcode) patch.postcode = geo.postcode;
-                await fetch("/api/admin/events", {
-                  method: "PATCH",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify(patch),
-                });
-                const idx = imported.findIndex((e) => e.id === data.id);
-                if (idx !== -1) imported[idx] = {
-                  ...imported[idx],
-                  lat: geo.lat,
-                  lng: geo.lng,
-                  ...(geo.district ? { district: geo.district } : {}),
-                  ...(geo.postcode && !postcode ? { postcode: geo.postcode } : {}),
-                } as Event;
-              }
-            } catch { /* geocoding is best-effort */ }
-          }
-        }
-      } catch {
-        // skip broken row
-      }
-
-      setImportProgress({ done: index + 1, total: pastePreview.length });
-    }
-
-    setEvents((prev) => [...imported, ...prev]);
-    closePasteModal();
-    alert(`Zaimportowano ${imported.length} z ${pastePreview.length} wydarzeń`);
-  };
+  const [assigningEventImageId, setAssigningEventImageId] = useState<string | null>(null);
+  const [promptPreview, setPromptPreview] = useState<{ title: string; eventId: string; prompt: string } | null>(null);
+  const [imagePromptByEventId, setImagePromptByEventId] = useState<Record<string, string>>({});
 
   const fetchEvents = useCallback(async () => {
     setLoading(true);
@@ -502,17 +71,24 @@ function AdminCanonicalEventsPanel() {
     setLoading(false);
   }, []);
 
+  const getEventExternalId = (event: Event) => {
+    const raw = (event as unknown as Record<string, unknown>).event_id;
+    return typeof raw === "string" && raw.trim().length > 0 ? raw.trim() : "";
+  };
+
+  const getEventImagePrompt = (event: Event) => {
+    const raw = (event as unknown as Record<string, unknown>).image_prompt;
+    if (typeof raw === "string" && raw.trim().length > 0) {
+      return raw.trim();
+    }
+
+    const externalId = getEventExternalId(event);
+    return externalId ? (imagePromptByEventId[externalId] ?? "") : "";
+  };
+
   useEffect(() => {
     fetchEvents();
   }, [fetchEvents]);
-
-  useEffect(() => {
-    fetch("/api/admin/organizers")
-      .then((response) => response.json())
-      .then((data) => {
-        if (Array.isArray(data)) setOrganizers(data);
-      });
-  }, []);
 
   const visibleEvents = useMemo(() => events.filter((event) => event.status !== "deleted"), [events]);
 
@@ -544,10 +120,6 @@ function AdminCanonicalEventsPanel() {
   }, []);
 
   const getOrganizerGroupKey = useCallback((event: Partial<Event> | Record<string, unknown>) => {
-    if (typeof event.organizer_id === "string" && event.organizer_id.trim().length > 0) {
-      return `id:${event.organizer_id.trim()}`;
-    }
-
     if (typeof event.organizer === "string" && event.organizer.trim().length > 0) {
       return `name:${event.organizer.trim().toLowerCase()}`;
     }
@@ -741,6 +313,7 @@ function AdminCanonicalEventsPanel() {
     setPendingPreview(null);
     setEditing(event.id);
     setEditForm({
+      event_id: getEventExternalId(event),
       title: event.title,
       slug: event.slug,
       description_short: event.description_short,
@@ -765,7 +338,6 @@ function AdminCanonicalEventsPanel() {
       lng: event.lng,
       note: event.note ?? "",
       organizer: event.organizer,
-      organizer_id: event.organizer_id ?? null,
       source_url: event.source_url,
       facebook_url: event.facebook_url ?? "",
       category_lvl_1: event.category_lvl_1 ?? event.main_category ?? null,
@@ -805,7 +377,6 @@ function AdminCanonicalEventsPanel() {
       lng: null,
       note: null,
       organizer: null,
-      organizer_id: null,
       source_url: null,
       facebook_url: null,
       is_featured: false,
@@ -860,7 +431,6 @@ function AdminCanonicalEventsPanel() {
       lng: event.lng,
       note: event.note || null,
       organizer: event.organizer || null,
-      organizer_id: event.organizer_id || null,
       source_url: event.source_url || null,
       facebook_url: event.facebook_url || null,
       is_featured: false,
@@ -983,20 +553,9 @@ function AdminCanonicalEventsPanel() {
     const priceFromValue = editForm.price_from === "" || editForm.price_from === null ? null : Number(editForm.price_from);
     const priceToValue = editForm.price_to === "" || editForm.price_to === null ? null : Number(editForm.price_to);
     const slugValue = String(editForm.slug || "").trim();
-    const organizerName = editForm.organizer_id && !isUUID(String(editForm.organizer_id))
-      ? String(editForm.organizer_id)
-      : (editForm.organizer ? String(editForm.organizer) : null);
-    const organizerId = await ensureOrganizerId({
-      organizers,
-      organizerId: editForm.organizer_id && isUUID(String(editForm.organizer_id)) ? String(editForm.organizer_id) : null,
-      organizerName,
-      city: editForm.city ? String(editForm.city) : "Kraków",
-      onOrganizerCreated: (organizer) => {
-        setOrganizers((current) => current.some((entry) => entry.id === organizer.id) ? current : [...current, organizer]);
-      },
-    });
 
     const updates: Record<string, unknown> = {
+      event_id: editForm.event_id ? String(editForm.event_id).trim() : null,
       title: String(editForm.title || ""),
       slug: slugValue || slugify(String(editForm.title || "")),
       description_short: String(editForm.description_short || ""),
@@ -1020,8 +579,7 @@ function AdminCanonicalEventsPanel() {
       lat: editForm.lat === "" || editForm.lat === null ? null : Number(editForm.lat),
       lng: editForm.lng === "" || editForm.lng === null ? null : Number(editForm.lng),
       note: editForm.note ? String(editForm.note) : null,
-      organizer: organizerName,
-      organizer_id: organizerId,
+      organizer: editForm.organizer ? String(editForm.organizer).trim() : null,
       source_url: editForm.source_url ? String(editForm.source_url) : null,
       facebook_url: editForm.facebook_url ? String(editForm.facebook_url) : null,
       category_lvl_1: editForm.category_lvl_1 ? String(editForm.category_lvl_1) : null,
@@ -1098,17 +656,59 @@ function AdminCanonicalEventsPanel() {
     setSavingPrompt(false);
   };
 
-  const assignPhotos = async () => {
-    setAssigningPhotos(true);
-    setBuildResult(null);
+  const showImagePrompt = (event: Event) => {
+    const prompt = getEventImagePrompt(event);
+    const eventId = getEventExternalId(event);
+
+    if (!prompt) {
+      alert("Brak image promptu dla tego wydarzenia.");
+      return;
+    }
+
+    setPromptPreview({
+      title: event.title,
+      eventId: eventId || "(brak event_id)",
+      prompt,
+    });
+  };
+
+  const assignImageForEvent = async (event: Event) => {
+    const eventId = getEventExternalId(event);
+    if (!eventId) {
+      alert("To wydarzenie nie ma event_id. Najpierw wygeneruj przez Upload data.");
+      return;
+    }
+
+    setAssigningEventImageId(event.id);
     try {
-      const res = await fetch("/api/admin/assign-photos", { method: "POST" });
+      const res = await fetch("/api/admin/assign-image-by-event-id", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: event.id, event_id: eventId }),
+      });
+
       const data = await res.json();
-      setBuildResult({ ok: data.ok, message: data.ok ? data.output : data.error });
-    } catch (err) {
-      setBuildResult({ ok: false, message: String(err) });
+      if (!res.ok || !data?.ok) {
+        alert(data?.error || "Nie udało się przypisać obrazu.");
+        return;
+      }
+
+      setEvents((prev) => prev.map((item) => (
+        item.id === event.id
+          ? {
+            ...item,
+            image_cover: withCacheBust(data.image_cover) ?? data.image_cover,
+            image_thumb: withCacheBust(data.image_thumb) ?? data.image_thumb,
+            image_set: data.image_set ?? item.image_set,
+            status: "draft",
+          }
+          : item
+      )));
+      alert(`Obraz przypisany dla ${eventId}`);
+    } catch {
+      alert("Błąd połączenia podczas przypisywania obrazu.");
     } finally {
-      setAssigningPhotos(false);
+      setAssigningEventImageId(null);
     }
   };
 
@@ -1118,7 +718,20 @@ function AdminCanonicalEventsPanel() {
     try {
       const res = await fetch("/api/admin/build-events", { method: "POST" });
       const data = await res.json();
-      setBuildResult({ ok: data.ok, message: data.ok ? data.output : data.error, newEvents: data.newEvents ?? [] });
+        setBuildResult({ ok: data.ok, message: data.ok ? data.output : data.error, failed: data.failed ?? 0, newEvents: data.newEvents ?? [] });
+
+      if (data.ok && Array.isArray(data.newEvents)) {
+        const promptMap: Record<string, string> = {};
+        for (const row of data.newEvents) {
+          if (row && typeof row.event_id === "string" && typeof row.image_prompt === "string") {
+            promptMap[row.event_id] = row.image_prompt;
+          }
+        }
+        if (Object.keys(promptMap).length > 0) {
+          setImagePromptByEventId((prev) => ({ ...prev, ...promptMap }));
+        }
+        await fetchEvents();
+      }
     } catch (err) {
       setBuildResult({ ok: false, message: String(err) });
     } finally {
@@ -1147,19 +760,7 @@ function AdminCanonicalEventsPanel() {
             className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-muted border border-border rounded-xl hover:border-[#CCC] transition-colors disabled:opacity-50"
           >
             {buildingDataframe ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
-            Build DataFrame
-          </button>
-          <button
-            onClick={assignPhotos}
-            disabled={assigningPhotos}
-            className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-muted border border-border rounded-xl hover:border-[#CCC] transition-colors disabled:opacity-50"
-          >
-            {assigningPhotos ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-            Przypisz zdjęcia
-          </button>
-          <button onClick={() => setPasteModal(true)} className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-muted border border-border rounded-xl hover:border-[#CCC] transition-colors">
-            <ClipboardPaste size={14} />
-            Wklej dane
+            Upload data
           </button>
           <button onClick={createEvent} className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-white bg-foreground rounded-xl hover:bg-stone-700 transition-colors">
             <Plus size={14} />
@@ -1258,6 +859,9 @@ function AdminCanonicalEventsPanel() {
 
                             <div className="flex-1 min-w-0">
                               <p className="text-[13px] font-medium text-foreground truncate">{event.title}</p>
+                              {getEventExternalId(event) ? (
+                                <p className="text-[10px] text-muted-foreground font-mono mt-0.5 truncate">EVENT ID: {getEventExternalId(event)}</p>
+                              ) : null}
                               <div className="flex items-center gap-1.5 text-[11px] text-muted mt-0.5 flex-wrap">
                                 <span>{CATEGORY_LABELS[event.category as keyof typeof CATEGORY_LABELS] ?? event.category}</span>
                                 <span className="opacity-40">·</span>
@@ -1277,6 +881,23 @@ function AdminCanonicalEventsPanel() {
 
                             <button onClick={() => startEditing(event)} className="p-1 rounded hover:bg-accent text-muted transition-colors" title="Edytuj">
                               <Pencil size={13} />
+                            </button>
+
+                            <button
+                              onClick={() => showImagePrompt(event)}
+                              className="p-1 rounded hover:bg-accent text-muted transition-colors"
+                              title="Pokaż image prompt"
+                            >
+                              <Sparkles size={13} />
+                            </button>
+
+                            <button
+                              onClick={() => assignImageForEvent(event)}
+                              className="p-1 rounded hover:bg-accent text-muted transition-colors"
+                              title="Przypisz obraz po Event ID"
+                              disabled={assigningEventImageId === event.id}
+                            >
+                              {assigningEventImageId === event.id ? <Loader2 size={13} className="animate-spin" /> : <ImagePlus size={13} />}
                             </button>
 
                             <button onClick={() => duplicateEvent(event)} className="p-1 rounded hover:bg-accent text-muted transition-colors" title="Duplikuj">
@@ -1320,21 +941,26 @@ function AdminCanonicalEventsPanel() {
                               <div className="rounded-lg border border-border/50 p-3 mb-4 space-y-3">
                                 <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Opis wydarzenia</p>
                                 <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
-                                  <div className="md:col-span-3">
+                                  <div className="md:col-span-2">
                                     <label className={labelClass}>Tytuł</label>
                                     <input className={inputClass} value={(editForm.title as string) || ""} onChange={(e) => updateField("title", e.target.value)} />
                                   </div>
-                                  <div className="md:col-span-3">
+                                  <div className="md:col-span-2">
+                                    <label className={labelClass}>EVENT ID</label>
+                                    <input
+                                      className={`${inputClass} font-mono`}
+                                      value={(editForm.event_id as string) || ""}
+                                      onChange={(e) => updateField("event_id", e.target.value)}
+                                      placeholder="EVENT-000001"
+                                    />
+                                  </div>
+                                  <div className="md:col-span-2">
                                     <label className={labelClass}>Organizator</label>
-                                    <OrganizerCombobox
-                                      organizers={organizers}
-                                      value={(editForm.organizer_id as string) || null}
-                                      onChange={(organizerId) => {
-                                        const organizer = organizers.find((item) => item.id === organizerId);
-                                        updateField("organizer_id", organizerId);
-                                        updateField("organizer", organizer ? organizer.organizer_name : (organizerId || null));
-                                      }}
-                                      inputClassName={inputClass}
+                                    <input
+                                      className={inputClass}
+                                      value={(editForm.organizer as string) || ""}
+                                      onChange={(e) => updateField("organizer", e.target.value)}
+                                      placeholder="np. Fundacja Performat"
                                     />
                                   </div>
                                   <div className="md:col-span-6">
@@ -1553,105 +1179,6 @@ function AdminCanonicalEventsPanel() {
         </div>
       )}
 
-      {pasteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col mx-4">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-              <div>
-                <h2 className="text-[15px] font-bold text-foreground">Wklej dane</h2>
-                <p className="text-[11px] text-muted mt-0.5">Wklej tabelę z Excela, Google Sheets lub dane JSON/DataFrame</p>
-              </div>
-              <button onClick={closePasteModal} className="p-1.5 rounded hover:bg-accent text-muted transition-colors">
-                <X size={16} />
-              </button>
-            </div>
-
-            <div className="px-5 py-4 overflow-y-auto flex-1 space-y-4">
-              <div>
-                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                  Pierwszy wiersz = nagłówki, np. title, data, godzina, miejsce, cena
-                </p>
-                <textarea
-                  className="w-full h-40 px-3 py-2 rounded-lg border border-border text-[12px] font-mono bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30 resize-none"
-                  value={pasteText}
-                  onChange={(e) => {
-                    setPasteText(e.target.value);
-                    parsePastedData(e.target.value);
-                  }}
-                />
-              </div>
-
-              {pasteHeaders.length > 0 && (
-                <div>
-                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Rozpoznane kolumny</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {pasteHeaders.map((header) => {
-                      const field = resolveField(header);
-                      return (
-                        <span key={header} className={cn(
-                          "px-2 py-0.5 rounded-full text-[10px] font-medium",
-                          field ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
-                        )}>
-                          {header} {field ? `-> ${field}` : "(pominięta)"}
-                        </span>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {pastePreview.length > 0 && (
-                <div>
-                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Podgląd ({pastePreview.length} wierszy)</p>
-                  <div className="overflow-x-auto rounded-lg border border-border">
-                    <table className="w-full text-[11px]">
-                      <thead>
-                        <tr className="bg-accent/30">
-                          {pasteHeaders.filter((header) => resolveField(header)).map((header) => (
-                            <th key={header} className="px-2.5 py-1.5 text-left font-medium text-muted-foreground whitespace-nowrap">
-                              {resolveField(header)}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {pastePreview.slice(0, 5).map((row, rowIndex) => (
-                          <tr key={rowIndex} className="border-t border-border/50">
-                            {pasteHeaders.filter((header) => resolveField(header)).map((header) => (
-                              <td key={header} className="px-2.5 py-1.5 text-foreground max-w-[220px] truncate">
-                                {row[header] || <span className="text-muted/40">—</span>}
-                              </td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="px-5 py-4 border-t border-border flex items-center justify-between">
-              <p className="text-[11px] text-muted">Wydarzenia zostaną dodane do listy. Bez podanego statusu trafią jako Draft.</p>
-              <div className="flex items-center gap-2">
-                {importing && <span className="text-[11px] text-muted">{importProgress.done}/{importProgress.total}</span>}
-                <button onClick={closePasteModal} className="px-3 py-1.5 text-[12px] font-medium text-muted border border-border rounded-lg hover:text-foreground transition-colors">
-                  Anuluj
-                </button>
-                <button
-                  onClick={runPasteImport}
-                  disabled={importing || pastePreview.length === 0 || !pasteHeaders.some((header) => resolveField(header) === "title")}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
-                >
-                  {importing ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
-                  {importing ? "Importowanie..." : `Importuj ${pastePreview.length} wydarzeń`}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {promptModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col mx-4">
@@ -1742,72 +1269,70 @@ function AdminCanonicalEventsPanel() {
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <h2 className={`text-base font-semibold flex items-center gap-2 ${buildResult.ok ? "text-green-700" : "text-red-600"}`}>
                 <Play size={16} />
-                Build DataFrame – {buildResult.ok ? "sukces" : "błąd"}
+                Upload data – {buildResult.ok ? "sukces" : "błąd"}
               </h2>
               <button onClick={() => { setBuildResult(null); setCopiedIdx(null); }} className="text-muted-foreground hover:text-foreground transition-colors">
                 <X size={18} />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-5 space-y-3">
-              {!buildResult.ok || !buildResult.newEvents?.length ? (
+              {!buildResult.ok ? (
                 <pre className="text-xs text-foreground whitespace-pre-wrap font-mono leading-relaxed bg-stone-50 rounded-lg p-3 border border-border">
-                  {buildResult.ok ? "(brak nowych eventów z promptem)" : (buildResult.message || "(brak wyjścia)")}
+                  {buildResult.message || "(brak wyjścia)"}
                 </pre>
               ) : (
-                <>
-                  <p className="text-[11px] text-muted-foreground">
-                    {buildResult.newEvents.length} nowych wydarzeń — kliknij aby skopiować prompt do schowka
+                <div className="rounded-lg border border-border bg-stone-50 p-4 space-y-2">
+                  <p className="text-sm font-medium text-foreground">
+                    {buildResult.newEvents?.length
+                      ? `Przetworzono ${buildResult.newEvents.length} wydarzeń.`
+                      : "Brak nowych wydarzeń do przetworzenia."}
                   </p>
-                  {buildResult.newEvents.map((ev, i) => (
-                    <div key={i} className="flex items-start gap-3 rounded-lg border border-border p-3 hover:bg-stone-50 transition-colors">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[11px] font-medium text-foreground truncate">{ev.event_id} — {ev.title}</p>
-                        <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2 font-mono">{ev.image_prompt}</p>
-                      </div>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(ev.image_prompt);
-                          setCopiedIdx(i);
-                          setTimeout(() => setCopiedIdx(null), 2000);
-                        }}
-                        className={cn(
-                          "shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors border",
-                          copiedIdx === i
-                            ? "bg-green-50 border-green-200 text-green-700"
-                            : "border-border text-muted-foreground hover:border-[#CCC] hover:text-foreground"
-                        )}
-                      >
-                        <Copy size={11} />
-                        {copiedIdx === i ? "Skopiowano" : "Kopiuj"}
-                      </button>
-                    </div>
-                  ))}
-                </>
+                    {buildResult.failed ? (
+                      <p className="text-xs text-red-600">Błąd przy {buildResult.failed} wydarzeniu/ach (sprawdź logi serwera).</p>
+                    ) : null}
+                  {buildResult.message ? (
+                    <pre className="text-xs text-foreground whitespace-pre-wrap font-mono leading-relaxed">
+                      {buildResult.message}
+                    </pre>
+                  ) : null}
+                </div>
               )}
             </div>
-            <div className="flex justify-between items-center px-5 py-4 border-t border-border">
-              {buildResult.ok && buildResult.newEvents && buildResult.newEvents.length > 1 && (
-                <button
-                  onClick={() => {
-                    const all = buildResult.newEvents!.map((ev) => ev.image_prompt).join("\n\n");
-                    navigator.clipboard.writeText(all);
-                    setCopiedIdx(-1);
-                    setTimeout(() => setCopiedIdx(null), 2000);
-                  }}
-                  className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium rounded-lg border transition-colors",
-                    copiedIdx === -1
-                      ? "bg-green-50 border-green-200 text-green-700"
-                      : "border-border text-muted-foreground hover:border-[#CCC]"
-                  )}
-                >
-                  <Copy size={12} />
-                  {copiedIdx === -1 ? "Skopiowano wszystkie" : "Kopiuj wszystkie"}
-                </button>
-              )}
+            <div className="flex justify-end items-center px-5 py-4 border-t border-border">
               <button onClick={() => { setBuildResult(null); setCopiedIdx(null); }} className="ml-auto px-3 py-1.5 text-[12px] font-medium text-white bg-foreground rounded-lg hover:bg-stone-700 transition-colors">
                 Zamknij
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {promptPreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col mx-4">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <h2 className="text-base font-semibold flex items-center gap-2 text-foreground">
+                <Sparkles size={16} />
+                Image prompt
+              </h2>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => navigator.clipboard.writeText(promptPreview.prompt)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-muted border border-border rounded-lg hover:border-[#CCC] transition-colors"
+                >
+                  <Copy size={12} />
+                  Kopiuj prompt
+                </button>
+                <button onClick={() => setPromptPreview(null)} className="text-muted-foreground hover:text-foreground transition-colors ml-1">
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+            <div className="p-5 space-y-2 overflow-y-auto flex-1">
+              <p className="text-[12px] text-muted-foreground">{promptPreview.eventId} — {promptPreview.title}</p>
+              <pre className="text-xs text-foreground whitespace-pre-wrap font-mono leading-relaxed bg-stone-50 rounded-lg p-3 border border-border">
+                {promptPreview.prompt}
+              </pre>
             </div>
           </div>
         </div>

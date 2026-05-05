@@ -21,7 +21,7 @@ Usage:
     python scripts/build_events_dataframe.py [--output events_merged.csv]
 
 Supabase (public.events) is the primary data source; CSVs are appended to it.
-Deduplication runs on: title, date_start, time_start, organizer_id.
+Deduplication runs on: title, date_start, time_start, organizer.
 
 Photo selection:
     Path is resolved from the four type/category columns as
@@ -45,8 +45,35 @@ PROJECT_ROOT = NEXTJS_ROOT.parent
 
 EVENTS_DIR = Path(r"C:\Users\dudzi\OneDrive\NieSiedzWDomu\data\dzieci\wydarzenia")
 
-DEDUP_KEYS = ["title", "date_start", "time_start", "organizer_id"]
+DEDUP_KEYS = ["title", "date_start", "time_start", "organizer"]
 CSV_SEP = "~"
+PREFER_CSV_COLUMNS = {
+    "title",
+    "description_short",
+    "description_long",
+    "date_start",
+    "date_end",
+    "time_start",
+    "time_end",
+    "age_min",
+    "age_max",
+    "district",
+    "street",
+    "city",
+    "postcode",
+    "source_url",
+    "facebook_url",
+    "organizer",
+    "price_from",
+    "price_to",
+    "is_free",
+    "type_lvl_1",
+    "type_lvl_2",
+    "category_lvl_1",
+    "category_lvl_2",
+    "category_lvl_3",
+    "image_prompt",
+}
 EVENT_COLUMNS = [
     "event_id",
     "title",
@@ -64,7 +91,7 @@ EVENT_COLUMNS = [
     "postcode",
     "source_url",
     "facebook_url",
-    "organizer_id",
+    "organizer",
     "price_from",
     "price_to",
     "is_free",
@@ -73,6 +100,66 @@ EVENT_COLUMNS = [
     "category_lvl_1",
     "category_lvl_2",
 ]
+
+
+def _has_value(value: object) -> bool:
+    if value is None:
+        return False
+    if pd.isna(value):
+        return False
+    if isinstance(value, str):
+        normalized = value.strip()
+        return normalized not in {"", "None", "nan", "NaN"}
+    return True
+
+
+def _build_dedup_key(row: pd.Series, columns: list[str]) -> str:
+    parts: list[str] = []
+    for column in columns:
+        value = row.get(column)
+        if not _has_value(value):
+            parts.append("")
+        else:
+            parts.append(str(value).strip().lower())
+    return "||".join(parts)
+
+
+def _merge_duplicates(df: pd.DataFrame, dedup_cols: list[str]) -> pd.DataFrame:
+    if df.empty or not dedup_cols:
+        return df.reset_index(drop=True)
+
+    working = df.copy()
+    working["_dedup_key"] = working.apply(lambda row: _build_dedup_key(row, dedup_cols), axis=1)
+
+    merged_rows: list[dict[str, object]] = []
+    for _, group in working.groupby("_dedup_key", sort=False, dropna=False):
+        exist_rows = group[group["status"] == "exist"]
+        csv_rows = group[group["status"] == "new"]
+
+        if not exist_rows.empty:
+            base = exist_rows.iloc[0].copy()
+        else:
+            base = group.iloc[0].copy()
+
+        if not csv_rows.empty:
+            csv_source = csv_rows.iloc[0]
+            for column in working.columns:
+                if column == "_dedup_key":
+                    continue
+
+                csv_value = csv_source.get(column)
+                base_value = base.get(column)
+                if not _has_value(csv_value):
+                    continue
+
+                if column in PREFER_CSV_COLUMNS or not _has_value(base_value):
+                    base[column] = csv_value
+
+            base["status"] = "sync" if not exist_rows.empty else "new"
+
+        merged_rows.append(base.drop(labels=["_dedup_key"], errors="ignore").to_dict())
+
+    return pd.DataFrame(merged_rows).reset_index(drop=True)
 
 
 def _load_env() -> None:
@@ -144,17 +231,15 @@ def main() -> None:
     print(f"Combined: {len(df)} rows")
 
     dedup_cols = [c for c in DEDUP_KEYS if c in df.columns]
-    # Sort so 'exist' rows come first, ensuring they win over 'new' during dedup
-    df = df.sort_values("status", key=lambda s: s.map({"exist": 0, "new": 1}))
-    df = df.drop_duplicates(subset=dedup_cols, keep="first")
-    df = df.reset_index(drop=True)
+    df = _merge_duplicates(df, dedup_cols)
 
     existing_ids = df["event_id"].dropna().str.extract(r"EVENT-(\d+)")[0].dropna().astype(int)
     next_id = existing_ids.max() + 1 if not existing_ids.empty else 1
     missing_mask = df["event_id"].isna() | (df["event_id"] == "")
     new_ids = [f"EVENT-{next_id + i:06d}" for i in range(missing_mask.sum())]
     df.loc[missing_mask, "event_id"] = new_ids
-    print(f"After dedup on {dedup_cols}: {len(df)} rows, {missing_mask.sum()} new event_ids assigned (starting EVENT-{next_id:06d})")
+    sync_count = int((df["status"] == "sync").sum()) if "status" in df.columns else 0
+    print(f"After dedup on {dedup_cols}: {len(df)} rows, {missing_mask.sum()} new event_ids assigned (starting EVENT-{next_id:06d}), {sync_count} rows marked for sync")
 
     if "image_prompt" in df.columns:
         df["image_prompt"] = (
@@ -168,8 +253,9 @@ def main() -> None:
     df.to_csv(out_path, index=False, sep=CSV_SEP)
     print(f"Saved -> {out_path}  ({len(df)} rows)")
 
-    new_df = df[df["status"] == "new"][["event_id", "title", "image_prompt"]].copy() if "image_prompt" in df.columns else df[df["status"] == "new"][["event_id", "title"]].copy()
-    new_df = new_df.fillna("")
+    new_df = df[df["status"].isin(["new", "sync"])].copy()
+    new_df["status"] = "draft"
+    new_df = new_df.where(pd.notna(new_df), None)
     json_path = out_path.with_name("events_new.json")
     new_df.to_json(json_path, orient="records", force_ascii=False)
     print(f"New events -> {json_path}  ({len(new_df)} rows)")

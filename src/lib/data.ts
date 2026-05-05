@@ -144,10 +144,7 @@ function toEvent(row: Record<string, unknown>, maps: AdminCategoryMaps): Event {
     pickString(normalized.category) ??
     "Bez kategorii";
   const location = normalizeEventLocationFields(normalized);
-  const organizerData = row.organizer_data as Record<string, unknown> | null | undefined;
-  const organizer = typeof organizerData?.name === "string" && organizerData.name.trim().length > 0
-    ? organizerData.name
-    : pickString(row.organizer);
+  const organizer = pickString(row.organizer);
   const priceFrom = typeof row.price_from === "number" ? row.price_from : null;
   const priceTo = typeof row.price_to === "number" ? row.price_to : null;
   const isFree = Boolean(row.is_free) || priceFrom === 0 || priceTo === 0;
@@ -162,7 +159,6 @@ function toEvent(row: Record<string, unknown>, maps: AdminCategoryMaps): Event {
     price_to: priceTo,
     is_free: isFree,
     organizer,
-    organizer_data: organizerData ?? null,
   } as unknown as Event;
 }
 
@@ -258,7 +254,7 @@ export async function getPublishedEvents(limit = 50): Promise<Event[]> {
   const today = new Date().toISOString().slice(0, 10);
   const { data } = await db
     .from("events")
-    .select("*, organizer_data:organizer_id(*)")
+    .select("*")
     .eq("status", "published")
     .or(`date_start.gte.${today},date_end.gte.${today}`)
     .order("date_start", { ascending: true })
@@ -272,7 +268,7 @@ export async function getFeaturedEvent(): Promise<Event | null> {
   const today = new Date().toISOString().slice(0, 10);
   const { data } = await db
     .from("events")
-    .select("*, organizer_data:organizer_id(*)")
+    .select("*")
     .eq("status", "published")
     .eq("is_featured", true)
     .or(`date_start.gte.${today},date_end.gte.${today}`)
@@ -288,7 +284,7 @@ export async function getFreeEvents(limit = 3): Promise<Event[]> {
   const today = new Date().toISOString().slice(0, 10);
   const { data } = await db
     .from("events")
-    .select("*, organizer_data:organizer_id(*)")
+    .select("*")
     .eq("status", "published")
     .eq("is_free", true)
     .or(`date_start.gte.${today},date_end.gte.${today}`)
@@ -302,7 +298,7 @@ export async function getEventBySlug(slug: string): Promise<Event | null> {
   const maps = await getCategoryMaps();
   const { data } = await db
     .from("events")
-    .select("*, organizer_data:organizer_id(*)")
+    .select("*")
     .eq("slug", slug)
     .eq("status", "published")
     .single();
@@ -323,7 +319,7 @@ export async function getRelatedEvents(event: Event, limit = 3): Promise<Event[]
 
   const { data } = await db
     .from("events")
-    .select("*, organizer_data:organizer_id(*)")
+    .select("*")
     .eq("status", "published")
     .neq("id", event.id)
     .or(`date_start.gte.${today},date_end.gte.${today}`)

@@ -139,10 +139,8 @@ export default async function EventDetailPage({ params }: PageProps) {
             <ArrowLeft size={11} /> Wydarzenia
           </Link>
           <span className="text-muted-foreground/30">·</span>
-          <span className="text-primary">Wydarzenie</span>
-          <span className="text-muted-foreground/30">·</span>
           <span className="text-muted-foreground">{eventCategoryLabel}</span>
-          <span className="text-muted-foreground/30">·</span>
+          <span className="text-muted-foreground/40">|</span>
           <span className="text-muted-foreground">{event.district}</span>
         </div>
         <h1 className="text-xl lg:text-2xl font-bold text-foreground leading-tight tracking-[-0.02em] mb-2">

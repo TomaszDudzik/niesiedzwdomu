@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, Banknote, Calendar, ExternalLink, Globe, MapPin, Users } from "lucide-react";
-import { CAMP_CATEGORY_LABELS, CAMP_SEASON_LABELS, CAMP_MAIN_CATEGORY_ICONS, CAMP_MAIN_CATEGORY_LABELS } from "@/lib/mock-data";
+import { CAMP_CATEGORY_LABELS, CAMP_SEASON_LABELS, CAMP_MAIN_CATEGORY_LABELS } from "@/lib/mock-data";
 import { formatAgeRange, formatDate, formatPriceRange } from "@/lib/utils";
 import { AiLearnMoreLink } from "@/components/ui/ai-learn-more-link";
 import { getCampBySlug, getCampSessionsByOrganizer } from "@/lib/data";
@@ -136,11 +136,10 @@ export default async function CampDetailPage({ params }: PageProps) {
             <ArrowLeft size={11} /> Kolonie
           </Link>
           <span className="text-muted-foreground/30">·</span>
-          <span className="text-lg mr-0.5">{CAMP_MAIN_CATEGORY_ICONS[campType] || "🏕️"}</span>
-          <span className="text-primary">{campTypeLabel}</span>
-          <span className="text-muted-foreground/30">·</span>
+          <span className="text-muted-foreground">{campTypeLabel}</span>
+          <span className="text-muted-foreground/40">|</span>
           <span className="text-muted-foreground">{CAMP_SEASON_LABELS[camp.season]}</span>
-          <span className="text-muted-foreground/30">·</span>
+          <span className="text-muted-foreground/40">|</span>
           <span className="text-muted-foreground">{camp.district}</span>
         </div>
         <h1 className="text-xl lg:text-2xl font-bold text-foreground leading-tight tracking-[-0.02em] mb-2">

@@ -9,6 +9,7 @@ import type {
   AdminTypeLevel1,
   AdminTypeLevel2,
 } from "@/lib/admin-taxonomy";
+import { withPublicSubmissionTaxonomyFallback } from "@/lib/admin-taxonomy";
 
 const EMPTY_TAXONOMY: AdminTaxonomyResponse = {
   type_lvl_1: [],
@@ -52,20 +53,28 @@ export function useAdminTaxonomy(initialTaxonomy: AdminTaxonomyResponse = EMPTY_
       })
       .then((data) => {
         if (!active) return;
-        setTypeLevel1Options(Array.isArray(data.type_lvl_1) ? data.type_lvl_1 : EMPTY_TAXONOMY.type_lvl_1);
-        setTypeLevel2Options(Array.isArray(data.type_lvl_2) ? data.type_lvl_2 : EMPTY_TAXONOMY.type_lvl_2);
-        setCategoryLevel1Options(Array.isArray(data.category_lvl_1) ? data.category_lvl_1 : EMPTY_TAXONOMY.category_lvl_1);
-        setCategoryLevel2Options(Array.isArray(data.category_lvl_2) ? data.category_lvl_2 : EMPTY_TAXONOMY.category_lvl_2);
-        setCategoryLevel3Options(Array.isArray(data.category_lvl_3) ? data.category_lvl_3 : EMPTY_TAXONOMY.category_lvl_3);
+        const taxonomy = withPublicSubmissionTaxonomyFallback({
+          type_lvl_1: Array.isArray(data.type_lvl_1) ? data.type_lvl_1 : EMPTY_TAXONOMY.type_lvl_1,
+          type_lvl_2: Array.isArray(data.type_lvl_2) ? data.type_lvl_2 : EMPTY_TAXONOMY.type_lvl_2,
+          category_lvl_1: Array.isArray(data.category_lvl_1) ? data.category_lvl_1 : EMPTY_TAXONOMY.category_lvl_1,
+          category_lvl_2: Array.isArray(data.category_lvl_2) ? data.category_lvl_2 : EMPTY_TAXONOMY.category_lvl_2,
+          category_lvl_3: Array.isArray(data.category_lvl_3) ? data.category_lvl_3 : EMPTY_TAXONOMY.category_lvl_3,
+        });
+        setTypeLevel1Options(taxonomy.type_lvl_1);
+        setTypeLevel2Options(taxonomy.type_lvl_2);
+        setCategoryLevel1Options(taxonomy.category_lvl_1);
+        setCategoryLevel2Options(taxonomy.category_lvl_2);
+        setCategoryLevel3Options(taxonomy.category_lvl_3);
       })
       .catch(() => {
         if (!active) return;
         if (!hasInitialTaxonomy) {
-          setTypeLevel1Options(EMPTY_TAXONOMY.type_lvl_1);
-          setTypeLevel2Options(EMPTY_TAXONOMY.type_lvl_2);
-          setCategoryLevel1Options(EMPTY_TAXONOMY.category_lvl_1);
-          setCategoryLevel2Options(EMPTY_TAXONOMY.category_lvl_2);
-          setCategoryLevel3Options(EMPTY_TAXONOMY.category_lvl_3);
+          const taxonomy = withPublicSubmissionTaxonomyFallback(EMPTY_TAXONOMY);
+          setTypeLevel1Options(taxonomy.type_lvl_1);
+          setTypeLevel2Options(taxonomy.type_lvl_2);
+          setCategoryLevel1Options(taxonomy.category_lvl_1);
+          setCategoryLevel2Options(taxonomy.category_lvl_2);
+          setCategoryLevel3Options(taxonomy.category_lvl_3);
         }
       })
       .finally(() => {

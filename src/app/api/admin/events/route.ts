@@ -161,10 +161,7 @@ function normalizeEventRecord(record: Record<string, unknown>) {
   const legacyLocation = splitLegacyEventAddress(record.venue_address);
   const street = typeof record.street === "string" && record.street.trim().length > 0 ? record.street : legacyLocation.street ?? "";
   const city = typeof record.city === "string" && record.city.trim().length > 0 ? record.city : legacyLocation.city ?? "Kraków";
-  const organizerData = record.organizer_data as Record<string, unknown> | null | undefined;
-  const organizer = typeof organizerData?.organizer_name === "string" && organizerData.organizer_name.trim().length > 0
-    ? organizerData.organizer_name
-    : (typeof record.organizer === "string" ? record.organizer : null);
+  const organizer = typeof record.organizer === "string" ? record.organizer : null;
 
   return {
     ...record,
@@ -181,7 +178,6 @@ function normalizeEventRecord(record: Record<string, unknown>) {
     street,
     city,
     organizer,
-    organizer_data: organizerData ?? null,
   };
 }
 
@@ -324,7 +320,7 @@ export async function GET() {
   const categoryMaps = await loadAdminCategoryMaps(db);
   const { data, error } = await db
     .from("events")
-    .select("*, organizer_data:organizer_id(*)")
+    .select("*")
     .order("date_start", { ascending: false })
     .limit(200);
 

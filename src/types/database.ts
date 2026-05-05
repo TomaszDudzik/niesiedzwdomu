@@ -102,8 +102,6 @@ export interface Event {
   lng: number | null;
   note?: string | null;
   organizer: string | null;
-  organizer_id?: string | null;
-  organizer_data?: Organizer | null;
   source_url: string | null;
   facebook_url: string | null;
   is_featured: boolean;
