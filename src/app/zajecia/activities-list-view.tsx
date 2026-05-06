@@ -1,17 +1,17 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Search, LayoutGrid, MapIcon, SlidersHorizontal, X, MapPin, Check, ChevronDown } from "lucide-react";
 import { MobileActionBar } from "@/components/ui/mobile-action-bar";
 import { PageHero } from "@/components/layout/page-hero";
-import { ListGroupHeader } from "@/components/layout/list-group-header";
 import { ListPageMainContent } from "@/components/layout/list-page-main-content";
 import { DISTRICT_LIST } from "@/lib/mock-data";
-import { ContentCard } from "@/components/ui/content-card";
 import { FilterSection } from "@/components/ui/filter-section";
 import { cn } from "@/lib/utils";
 import { getAgeGroupOptions, getTaxonomyOptions, matchesTaxonomyFilter, mergeSelectedTaxonomyOptions } from "@/lib/taxonomy-filters";
 import type { Activity, District } from "@/types/database";
+import { ImageWithFallback } from "@/components/ui/image-with-fallback";
 
 const AGE_GROUPS = [
   { key: "0-4", label: "0–4 lata", icon: "👶", min: 0, max: 4 },
@@ -61,6 +61,19 @@ interface MarkerGroup {
   markerIcon?: string;
 }
 
+interface ActivityFormGroup {
+  formLabel: string;
+  activities: Activity[];
+}
+
+interface ActivityOrganizerTile {
+  organizerKey: string;
+  organizerName: string;
+  leadActivity: Activity;
+  formGroups: ActivityFormGroup[];
+  activities: Activity[];
+}
+
 interface ActivitiesListViewProps {
   activities: Activity[];
 }
@@ -77,6 +90,20 @@ function getActivitySubcategoryValue(activity: Activity): string | null {
   return activity.category_lvl_3 ?? activity.subcategory ?? null;
 }
 
+function getActivityOrganizerName(activity: Activity): string {
+  return activity.organizer_data?.organizer_name?.trim() || activity.organizer?.trim() || "Bez organizatora";
+}
+
+function getActivityFormLabel(activity: Activity): string {
+  return activity.category_lvl_2 ?? activity.category ?? activity.activity_type ?? "Inna forma";
+}
+
+function getActivityCountLabel(count: number): string {
+  if (count === 1) return "1 zajęcia";
+  if (count < 5) return `${count} zajęcia`;
+  return `${count} zajęć`;
+}
+
 export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
   const [search, setSearch] = useState("");
   const [activeTypes, setActiveTypes] = useState<string[]>([]);
@@ -87,6 +114,7 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
   const [view, setView] = useState<ViewMode>("list");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filtersOpenDesktop, setFiltersOpenDesktop] = useState(false);
+  const [expandedOrganizers, setExpandedOrganizers] = useState<Record<string, boolean>>({});
   const [MapComponent, setMapComponent] = useState<React.ComponentType<{ groups: MarkerGroup[]; basePath?: string }> | null>(null);
 
   const ageGroups = useMemo(
@@ -222,29 +250,56 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
     [activities, search, activeTypes, activeCategories, activeSubcategories, activeDistricts]
   );
 
-  const grouped = useMemo(() => {
-    const groups: { type: string; label: string; icon: string; activities: Activity[] }[] = [];
-    const seen = new Set<string>();
+  const organizers = useMemo(() => {
+    const organizerMap = new Map<string, ActivityOrganizerTile>();
 
-    for (const activity of filteredActivities) {
-      const type = getActivityTypeValue(activity);
-      const typeOption = typeOptionsByValue.get(type);
+    [...filteredActivities]
+      .sort((a, b) => a.title.localeCompare(b.title, "pl"))
+      .forEach((activity) => {
+        const organizerKey = activity.organizer_id
+          ? `id:${activity.organizer_id}`
+          : `name:${getActivityOrganizerName(activity).toLowerCase()}`;
 
-      if (!seen.has(type)) {
-        seen.add(type);
-        groups.push({
-          type,
-          label: typeOption?.label || type,
-          icon: typeOption?.icon || "✨",
-          activities: [],
-        });
-      }
+        const existing = organizerMap.get(organizerKey);
+        if (!existing) {
+          organizerMap.set(organizerKey, {
+            organizerKey,
+            organizerName: getActivityOrganizerName(activity),
+            leadActivity: activity,
+            formGroups: [],
+            activities: [activity],
+          });
+        } else {
+          existing.activities.push(activity);
+          if (activity.title.localeCompare(existing.leadActivity.title, "pl") < 0) {
+            existing.leadActivity = activity;
+          }
+        }
+      });
 
-      groups.find((group) => group.type === type)!.activities.push(activity);
-    }
+    return Array.from(organizerMap.values())
+      .map((organizer) => {
+        const formMap = new Map<string, Activity[]>();
+        organizer.activities
+          .sort((a, b) => a.title.localeCompare(b.title, "pl"))
+          .forEach((activity) => {
+            const formLabel = getActivityFormLabel(activity);
+            const list = formMap.get(formLabel) || [];
+            list.push(activity);
+            formMap.set(formLabel, list);
+          });
 
-    return groups;
-  }, [filteredActivities, typeOptionsByValue]);
+        const formGroups: ActivityFormGroup[] = Array.from(formMap.entries())
+          .map(([formLabel, acts]) => ({
+            formLabel,
+            activities: acts,
+          }))
+          .sort((a, b) => a.formLabel.localeCompare(b.formLabel, "pl"));
+
+        return { ...organizer, formGroups };
+      })
+      .sort((a, b) => a.organizerName.localeCompare(b.organizerName, "pl"));
+  }, [filteredActivities]);
 
   const mapGroups = useMemo((): MarkerGroup[] => {
     const groups: Record<string, MarkerGroup> = {};
@@ -374,6 +429,10 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
     setActiveDistricts((prev) =>
       prev.includes(district) ? prev.filter((item) => item !== district) : [...prev, district]
     );
+  }
+
+  function toggleOrganizerActivities(organizerKey: string) {
+    setExpandedOrganizers((prev) => ({ ...prev, [organizerKey]: !prev[organizerKey] }));
   }
 
   return (
@@ -689,17 +748,117 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
               )}
             </div>
           ) : (
-            <div className="space-y-12">
-              {grouped.map((group) => (
-                <section key={group.type}>
-                  <ListGroupHeader icon={group.icon} title={group.label} count={group.activities.length} />
-                  <div className="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {group.activities.map((activity) => (
-                      <ContentCard key={activity.id} item={activity} variant="vertical" />
-                    ))}
-                  </div>
-                </section>
-              ))}
+            <div className="space-y-4">
+              {organizers.map((organizer) => {
+                      const expanded = !!expandedOrganizers[organizer.organizerKey];
+                      const visibleActivities = expanded ? organizer.activities : organizer.activities.slice(0, 3);
+                      const hiddenCount = Math.max(organizer.activities.length - visibleActivities.length, 0);
+
+                      return (
+                        <article
+                          key={organizer.organizerKey}
+                          className="rounded-xl border border-border bg-card shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5 transition-all duration-200 overflow-hidden"
+                        >
+                          <div className="group flex flex-col overflow-hidden sm:min-h-[180px] sm:flex-row">
+                            <Link
+                              href={`/zajecia/${organizer.leadActivity.slug}`}
+                              className="relative aspect-video w-full shrink-0 bg-accent sm:aspect-auto sm:h-auto sm:w-[210px] sm:self-stretch"
+                            >
+                              {(() => {
+                                const imgSrc = organizer.leadActivity.image_url;
+                                return imgSrc ? (
+                                  <ImageWithFallback
+                                    src={imgSrc}
+                                    alt={organizer.organizerName}
+                                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                                    loading="lazy"
+                                  />
+                                ) : (
+                                  <div className="flex h-full w-full items-center justify-center text-3xl text-muted-foreground/30">
+                                    🎯
+                                  </div>
+                                );
+                              })()}
+                            </Link>
+
+                            <div className="flex-1 min-w-0 p-3">
+                              <div className="flex h-full min-w-0 flex-col gap-2.5">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="min-w-0">
+                                    <Link
+                                      href={`/zajecia/${organizer.leadActivity.slug}`}
+                                      className="font-bold text-[13px] text-foreground group-hover:text-[#e60100] leading-snug transition-colors duration-200 line-clamp-2"
+                                    >
+                                      {organizer.organizerName}
+                                    </Link>
+                                    {(() => {
+                                      const desc = organizer.leadActivity.description_short;
+                                      return desc ? (
+                                        <p className="mt-1 text-[12px] text-muted leading-relaxed line-clamp-2">{desc}</p>
+                                      ) : null;
+                                    })()}
+                                  </div>
+                                  <span className="shrink-0 rounded-full border border-border bg-background px-2 py-0.5 text-[9px] font-semibold text-muted">
+                                    {getActivityCountLabel(organizer.activities.length)}
+                                  </span>
+                                </div>
+
+                                <div className="min-w-0 rounded-lg border border-border/70 bg-background/40 px-3 py-2.5">
+                                  <div className="min-w-0">
+                                    <table className="w-full table-fixed text-[10px]">
+                                      <colgroup>
+                                        <col className="w-[86%]" />
+                                        <col className="w-[14%]" />
+                                      </colgroup>
+                                      <thead className="hidden sm:table-header-group">
+                                        <tr className="border-b border-border/70 text-muted">
+                                          <th className="py-1 pr-2 text-left font-semibold uppercase tracking-wider">Tytuł</th>
+                                          <th className="px-2 py-1 text-left font-semibold uppercase tracking-wider">Szczegóły</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {visibleActivities.map((activity) => (
+                                            <tr
+                                              key={activity.id}
+                                              className="group border-b border-border/40 last:border-0 cursor-pointer"
+                                              onClick={() => window.location.href = `/zajecia/${activity.slug}`}
+                                            >
+                                              <td className="py-1.5 pr-2 text-foreground align-top rounded-l">
+                                                <span className="block font-medium" title={activity.title}>
+                                                  {activity.title}
+                                                </span>
+                                              </td>
+                                              <td className="px-2 py-1.5 align-top whitespace-nowrap rounded-r">
+                                                <span className="font-medium text-danger">
+                                                  <span className="hidden sm:inline">Zobacz</span>
+                                                  <svg className="sm:hidden ml-4" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                                                </span>
+
+                                              </td>
+                                            </tr>
+                                          ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+
+                                  {organizer.activities.length > 3 && (
+                                    <div className="mt-2 flex justify-end">
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleOrganizerActivities(organizer.organizerKey)}
+                                        className="text-[10px] font-medium text-danger hover:opacity-80 transition-opacity"
+                                      >
+                                        {expanded ? "Pokaż mniej" : `Pokaż wszystkie (${hiddenCount + visibleActivities.length})`}
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </article>
+                      );
+              })}
             </div>
           )}
         </ListPageMainContent>

@@ -311,12 +311,14 @@ UNION ALL
 ALTER TABLE events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE camps ENABLE ROW LEVEL SECURITY;
 ALTER TABLE places ENABLE ROW LEVEL SECURITY;
+ALTER TABLE activities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE venues ENABLE ROW LEVEL SECURITY;
 ALTER TABLE feedback ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Public can read published events" ON events FOR SELECT USING (status = 'published');
 CREATE POLICY "Public can read published camps" ON camps FOR SELECT USING (status = 'published');
 CREATE POLICY "Public can read published places" ON places FOR SELECT USING (status = 'published');
+CREATE POLICY "Public can read published activities" ON activities FOR SELECT USING (status = 'published');
 CREATE POLICY "Public can read venues" ON venues FOR SELECT USING (true);
 CREATE POLICY "Public can insert feedback" ON feedback FOR INSERT WITH CHECK (true);
 CREATE POLICY "Public can read feedback" ON feedback FOR SELECT USING (true);

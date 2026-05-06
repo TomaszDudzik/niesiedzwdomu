@@ -31,13 +31,14 @@ export default function ContactPage() {
             Email kontaktowy: {" "}
             <a
               href={`mailto:${CONTACT_EMAIL}`}
-              className="font-medium text-primary hover:text-primary-hover transition-colors"
+              className="font-medium text-[#e60100] hover:text-[#c40000] transition-colors"
             >
               {CONTACT_EMAIL}
             </a>
           </p>
         </div>
 
+        {false && (
         <div className="rounded-xl border border-border bg-card p-5 md:p-6 space-y-4">
           <h2 className="text-[18px] font-semibold text-foreground">Co mozemy dodac do serwisu</h2>
           <p className="text-[14px] text-muted leading-relaxed">
@@ -57,6 +58,7 @@ export default function ContactPage() {
             <li>Zajecia dodatkowe dla dzieci</li>
           </ul>
         </div>
+        )}
       </div>
     </section>
   );

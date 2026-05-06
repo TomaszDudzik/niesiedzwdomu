@@ -554,6 +554,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
             </div>
 
             {/* Add CTA — desktop right of heading */}
+            {false && (
             <a
               href="/dodaj"
               className="group relative hidden xl:flex shrink-0 self-center overflow-hidden rounded-2xl border border-sky-300/70 bg-[linear-gradient(180deg,rgba(214,238,252,0.98),rgba(200,230,250,0.98))] px-4 py-3 shadow-[0_14px_34px_-30px_rgba(14,116,144,0.35)] transition-colors duration-200 hover:border-sky-400/70 items-center gap-3 w-[583px] mr-8"
@@ -568,6 +569,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
                 <ArrowRight size={13} className="transition-transform duration-200 group-hover:translate-x-0.5" />
               </span>
             </a>
+            )}
           </div>
         </div>
       </section>

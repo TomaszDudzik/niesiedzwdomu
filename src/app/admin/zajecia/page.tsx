@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState, lazy, Suspense } from "react
 import {
   ChevronDown,
   ChevronRight,
-  ClipboardPaste,
   Copy,
   ExternalLink,
   ImagePlus,
@@ -18,13 +17,11 @@ import {
   Sparkles,
   Star,
   Trash2,
-  Upload,
   X,
 } from "lucide-react";
 
 const MiniMapLazy = lazy(() => import("../miejsca/mini-map").then((module) => ({ default: module.MiniMap })));
 import { ACTIVITY_TYPE_ICONS, ACTIVITY_TYPE_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
-import { detectDistrictFromText } from "@/lib/districts";
 import { cn, formatDateShort, thumbUrl, toHourMinute, withCacheBust } from "@/lib/utils";
 import type { Activity, Organizer } from "@/types/database";
 import { ImageSection } from "@/components/admin/image-section";
@@ -37,7 +34,9 @@ import { PROMPTS } from "@/lib/prompts";
 
 type DerivedActivityStatus = Activity["status"] | "outdated";
 type ActivityListFilter = "all" | "published" | "draft" | "outdated";
+type ActivityGroupingMode = "type" | "organizer";
 const UNCATEGORIZED_GROUP = "__uncategorized__";
+const UNASSIGNED_ORGANIZER_GROUP = "__unassigned_organizer__";
 
 const ACTIVITY_ORDER: Activity["activity_type"][] = [
   "sportowe",
@@ -50,6 +49,81 @@ const ACTIVITY_ORDER: Activity["activity_type"][] = [
   "inne",
 ];
 
+const PROMPT_URL_TODO_LIST = [
+  "https://warsztatydladziecikrakow.com/",
+  "https://nck.krakow.pl/zajecia/zajecia-edukacja/",
+  "https://nck.krakow.pl/zajecia/plastyka/",
+  "https://nck.krakow.pl/zajecia/zajecia-teatr/",
+  "https://nck.krakow.pl/zajecia/zajecia-muzyka/",
+  "https://nck.krakow.pl/ceramika-dla-dzieci-i-mlodziezy/",
+  "https://nck.krakow.pl/akrobatyka/",
+  "https://bloniasport.pl/kids/zajecia-dla-dzieci/",
+  "https://go4robot.pl/krakow/",
+  "https://robocode.pl/",
+  "https://www.roboprzygoda.pl/",
+  "https://www.krainatworczosci.pl/domowa",
+  "https://mck.krakow.pl/for-children",
+  "https://www.cmjordan.krakow.pl/",
+  "https://cmjordan.krakow.pl/zajecia-stale/zajecia-artystyczne",
+  "https://cmjordan.krakow.pl/zajecia-stale/zajecia-artystyczne/ceramika",
+  "https://centrum.ksos.pl/",
+  "https://www.ckpodgorza.pl/oferta/zajecie/zajecia-plastyczne-dla-dzieci",
+  "https://www.ckpodgorza.pl/oferta/zajecie/zajecia-teatralne-dla-dzieci-i-mlodziezy",
+  "https://www.ckpodgorza.pl/oferta/zajecie/klub-mlodego-naukowca-1-kopia",
+  "https://www.ckpodgorza.pl/oferta/zajecie/warsztaty-sensoryczno-rozwojowe-1",
+  "https://www.agamasport.pl/",
+  "https://www.agamasport.pl/nauka-plywania-dla-dzieci/",
+  "https://malarmo.pl/warsztaty/warsztaty-dla-dzieci/kreatywne",
+  "https://malarmo.pl/warsztaty/warsztaty-dla-szkol-i-przedszkoli",
+  "https://aak.edu.pl/",
+  "https://egurrola.com/szkola-tanca-krakow-zajecia-dla-dzieci/",
+  "https://doremisie.com/",
+  "https://centrumtancami.pl/",
+  "https://domin-krakow.pl/zajecia-plastyczne-6-11-lat/",
+  "https://makememusic.pl/",
+  "https://pasja.krakow.pl/zajecia-taneczne-w-przedszkolach-i-szkolach/",
+  "https://dworek.eu/zajecia-stale/pracownie-plastyczne-dla-dzieci-i-mlodziezy/",
+  "https://lokietek.dworek.eu/zajecia-stale/teatr/",
+  "https://krakowskieforum.pl/wydarzenie-2737-zajecia_teatralne_dla_dzieci_10_14_lat.html",
+  "https://uignasia.com/",
+  "https://strefa51krakow.pl/",
+  "https://filharmoniakrakow.pl/public/edukacja/muzyczne-bobasy",
+  "https://gymnastic.com.pl/",
+  "https://gymnastic.com.pl/zajecia/gimnastyka-i-akrobatyka/",
+  "https://gymspace.pl/",
+  "https://flexbody.pl/",
+  "https://www.hifivegym.pl/",
+  "https://harcownia.com/akrobatyka",
+  "https://football-kids.com/treningi/krakow",
+  "https://akademia-diament.pl/",
+  "https://poloniakrakow.pl/",
+  "https://akademiazglowa.pl/",
+  "https://sawgrzegorzki.krakow.pl/akademia-pilkarska-grzegorzki/",
+  "https://kskolejarzprokocim.pl/akademia-kolejarz-prokocim-krakow/",
+  "https://grapplingkrakow.pl/oferta/",
+  "https://karatekrakow.pl/",
+  "https://karatedo.krakow.pl/dojo-forty-kleparz-2/",
+  "https://www.mania-plywania.pl/",
+  "https://szkolarekin.pl/nauka-plywania-dla-dzieci-krakow",
+  "https://www.parkwodny.pl/oferta/nauka/",
+  "https://teamsport.krakow.pl/",
+  "https://www.kraul.pl/",
+  "https://nikateam.org/zajecia-dla-przedszkoli",
+  "https://helendoron.pl/nauka-angielskiego-krakow/",
+  "https://sayhischool.pl/",
+  "https://earlystage.pl/pl/szkola/krakow",
+  "https://leaderschool.pl/krakow/metody/leo-english/",
+  "https://callan.krakow.pl/angielski-dla-dzieci/",
+  "https://infinity.edu.pl/angielski-dla-dzieci/",
+  "https://bookmeacookie.pl/",
+  "https://malitworcy.pl/ceramika-dla-dzieci/",
+  "https://www.jumaart.pl/",
+  "https://lykoceramika.pl/",
+  "https://bialykrolikceramika.pl/warsztaty/",
+  "https://fikolki.pl/kazimierz-maluch/",
+  "https://sensorki.pl/",
+] as const;
+
 const inputClass = "w-full px-2 py-1.5 rounded-md border border-border text-[12px] bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30";
 const labelClass = "block text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1";
 
@@ -57,75 +131,6 @@ function isUUID(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 }
 
-const FIELD_ALIASES: Record<string, string[]> = {
-  title: ["title", "tytul", "tytuł", "nazwa", "zajecia", "zajęcia"],
-  description_short: ["description_short", "krotki opis", "krótki opis", "opis", "temat"],
-  description_long: ["description_long", "dlugi opis", "długi opis", "program"],
-  type_lvl_1: ["type_lvl_1", "type_id", "type level 1", "typ poziom 1"],
-  type_lvl_2: ["type_lvl_2", "subtype_id", "type level 2", "typ poziom 2"],
-  category_lvl_1: ["category_lvl_1", "category_lvl_1_id", "main_category", "kategoria glowna", "kategoria główna", "category level 1"],
-  category_lvl_2: ["category_lvl_2", "category_lvl_2_id", "category", "kategoria", "typ", "rodzaj", "activity_type", "type"],
-  category_lvl_3: ["category_lvl_3", "category_lvl_3_id", "subcategory", "podkategoria", "sub category", "category level 3"],
-  activity_type: ["activity_type", "typ", "rodzaj", "kategoria", "type"],
-  schedule_summary: ["schedule_summary", "harmonogram", "grafik", "plan", "schedule"],
-  days_of_week: ["days_of_week", "dni", "dni_tygodnia", "dni tygodnia"],
-  date_start: ["date_start", "data od", "start", "od"],
-  date_end: ["date_end", "data do", "koniec", "do"],
-  time_start: ["time_start", "godzina od", "start_time", "od godziny"],
-  time_end: ["time_end", "godzina do", "end_time", "do godziny"],
-  age_min: ["age_min", "wiek od", "min age"],
-  age_max: ["age_max", "wiek do", "max age"],
-  price_from: ["price_from", "cena od", "price", "cena"],
-  price_to: ["price_to", "cena do"],
-  is_free: ["is_free", "free", "darmowe", "bezplatne", "bezpłatne"],
-  organizer: ["organizer", "organizator"],
-  organizer_id: ["organizer_id", "organizator_id"],
-  venue_name: ["venue_name", "miejsce", "lokalizacja", "nazwa miejsca"],
-  venue_address: ["venue_address", "adres", "address"],
-  street: ["street", "ulica", "adres", "address"],
-  postcode: ["postcode", "kod", "kod pocztowy", "zip", "postal code"],
-  city: ["city", "miasto"],
-  lat: ["lat", "latitude"],
-  lng: ["lng", "lon", "longitude"],
-  district: ["district", "dzielnica"],
-  note: ["note", "notatka", "uwagi", "dodatkowe informacje"],
-  source_url: ["source_url", "url", "link", "link_zrodlowy"],
-  facebook_url: ["facebook_url", "facebook", "fb", "facebook page"],
-  status: ["status", "stan"],
-  likes: ["likes", "polubienia"],
-  dislikes: ["dislikes", "niepolubienia"],
-};
-
-function resolveField(header: string): string | null {
-  const key = header.toLowerCase().trim();
-  for (const [field, aliases] of Object.entries(FIELD_ALIASES)) {
-    if (aliases.some((alias) => alias.toLowerCase() === key)) return field;
-  }
-  return null;
-}
-
-function asNumber(value?: string): number | null {
-  if (!value) return null;
-  const parsed = Number(String(value).replace(/,/g, ".").replace(/[^0-9.\-]/g, ""));
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function normalizeTime(value?: string): string | null {
-  if (!value) return null;
-  return toHourMinute(value) || null;
-}
-
-function detectDistrict(location: string): Activity["district"] {
-  return detectDistrictFromText(location);
-}
-
-function normalizeActivityStatus(value?: string): Activity["status"] {
-  const normalized = (value || "").trim().toLowerCase();
-  if (normalized === "published" || normalized === "opublikowany") return "published";
-  if (normalized === "cancelled" || normalized === "anulowany") return "cancelled";
-  if (normalized === "deleted" || normalized === "usuniety" || normalized === "usunięty") return "deleted";
-  return "draft";
-}
 
 function inferActivityType(mappedType: string | undefined, title: string): Activity["activity_type"] {
   const text = `${mappedType || ""} ${title}`.toLowerCase();
@@ -175,115 +180,6 @@ function sortActivityGroupKeys(keys: string[]) {
   });
 }
 
-function parseStructuredText(text: string) {
-  const trimmed = text.trim();
-  if (!trimmed) return { headers: [] as string[], rows: [] as Record<string, string>[] };
-
-  const structMatch = trimmed.match(/[\[{][\s\S]*[\]}]/);
-  if (!structMatch) return { headers: [] as string[], rows: [] as Record<string, string>[] };
-
-  const raw = structMatch[0]
-    .replace(/#[^\n]*/g, "")
-    .replace(/<NA>/g, "null")
-    .replace(/\bNaN\b/g, "null");
-
-  const pythonLikeToJson = (input: string) => {
-    let output = "";
-    let inSingle = false;
-    let escaped = false;
-
-    for (let index = 0; index < input.length; index++) {
-      const char = input[index];
-      if (inSingle) {
-        if (escaped) {
-          output += char;
-          escaped = false;
-          continue;
-        }
-        if (char === "\\") {
-          output += "\\\\";
-          escaped = true;
-          continue;
-        }
-        if (char === "'") {
-          inSingle = false;
-          output += '"';
-          continue;
-        }
-        if (char === '"') {
-          output += '\\"';
-          continue;
-        }
-        output += char;
-        continue;
-      }
-      if (char === "'") {
-        inSingle = true;
-        output += '"';
-        continue;
-      }
-      output += char;
-    }
-
-    return output;
-  };
-
-  const attempts = [
-    raw,
-    raw.replace(/(?<=[{,[\s])'/g, '"').replace(/'(?=\s*[:,\]}])/g, '"'),
-    pythonLikeToJson(raw),
-  ];
-
-  for (const attempt of attempts) {
-    try {
-      const parsed = JSON.parse(
-        attempt.replace(/\bTrue\b/g, "true").replace(/\bFalse\b/g, "false").replace(/\bNone\b/g, "null")
-      );
-      if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === "object") {
-        const headers = [...new Set(parsed.flatMap((row: Record<string, unknown>) => Object.keys(row)))];
-        const rows = parsed.map((row: Record<string, unknown>) => {
-          const values: Record<string, string> = {};
-          headers.forEach((header) => {
-            values[header] = row[header] != null ? String(row[header]) : "";
-          });
-          return values;
-        });
-        return { headers, rows };
-      }
-    } catch {
-      // try next parser strategy
-    }
-  }
-
-  return { headers: [] as string[], rows: [] as Record<string, string>[] };
-}
-
-function parseDelimitedText(text: string) {
-  const trimmed = text.trim();
-  if (!trimmed) return { headers: [] as string[], rows: [] as Record<string, string>[] };
-
-  const lines = trimmed
-    .split(/\r?\n/)
-    .map((line) => line.trimEnd())
-    .filter(Boolean);
-
-  if (lines.length < 2) return { headers: [] as string[], rows: [] as Record<string, string>[] };
-
-  const separator = lines[0].includes("\t") ? "\t" : lines[0].includes(";") ? ";" : ",";
-  const headers = lines[0].split(separator).map((cell) => cell.trim());
-  if (headers.length < 2) return { headers: [] as string[], rows: [] as Record<string, string>[] };
-
-  const rows = lines.slice(1).map((line) => {
-    const values = line.split(separator);
-    const row: Record<string, string> = {};
-    headers.forEach((header, index) => {
-      row[header] = (values[index] || "").trim();
-    });
-    return row;
-  });
-
-  return { headers, rows };
-}
 
 export default function AdminActivitiesPage() {
   const { typeLevel1Options, typeLevel2Options, categoryLevel1Options, categoryLevel2Options, categoryLevel3Options, loading: taxonomyLoading } = useAdminTaxonomy();
@@ -292,14 +188,9 @@ export default function AdminActivitiesPage() {
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
   const [statusFilter, setStatusFilter] = useState<ActivityListFilter>("all");
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const [groupingMode, setGroupingMode] = useState<ActivityGroupingMode>("organizer");
   const [editing, setEditing] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Record<string, unknown>>({});
-  const [pasteModal, setPasteModal] = useState(false);
-  const [pasteText, setPasteText] = useState("");
-  const [pasteHeaders, setPasteHeaders] = useState<string[]>([]);
-  const [pastePreview, setPastePreview] = useState<Record<string, string>[]>([]);
-  const [importing, setImporting] = useState(false);
-  const [importProgress, setImportProgress] = useState({ done: 0, total: 0 });
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingPreview, setPendingPreview] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState<string | null>(null);
@@ -317,7 +208,7 @@ export default function AdminActivitiesPage() {
   const [editingContent, setEditingContent] = useState("");
   const [savingPrompt, setSavingPrompt] = useState(false);
   const [promptUrlRows, setPromptUrlRows] = useState<string[]>([]);
-  const [selectedPromptUrls, setSelectedPromptUrls] = useState<Record<number, boolean>>({});
+  const [promptUrlStatuses, setPromptUrlStatuses] = useState<Record<number, "in-progress" | "completed">>({});
   const [buildingDataframe, setBuildingDataframe] = useState(false);
   const [buildResult, setBuildResult] = useState<{ ok: boolean; message: string; failed?: number; newActivities?: { activity_id: string; title: string; image_prompt: string }[] } | null>(null);
   const [imagePromptByActivityId, setImagePromptByActivityId] = useState<Record<string, string>>({});
@@ -386,8 +277,66 @@ export default function AdminActivitiesPage() {
     deleted: 4,
   };
 
+  const getOrganizerGroupKey = useCallback((activity: Partial<Activity> | Record<string, unknown>) => {
+    if (typeof activity.organizer === "string" && activity.organizer.trim().length > 0) {
+      return `name:${activity.organizer.trim().toLowerCase()}`;
+    }
+    return UNASSIGNED_ORGANIZER_GROUP;
+  }, []);
+
+  const organizerGroupMeta = useMemo(() => {
+    const meta = new Map<string, { label: string; icon: string }>();
+    for (const activity of activities) {
+      const organizerName = typeof activity.organizer === "string" && activity.organizer.trim().length > 0
+        ? activity.organizer.trim()
+        : "Bez organizatora";
+      const key = getOrganizerGroupKey(activity);
+      if (!meta.has(key)) {
+        meta.set(key, {
+          label: organizerName,
+          icon: key === UNASSIGNED_ORGANIZER_GROUP ? "🫥" : "🏢",
+        });
+      }
+    }
+
+    if (!meta.has(UNASSIGNED_ORGANIZER_GROUP)) {
+      meta.set(UNASSIGNED_ORGANIZER_GROUP, { label: "Bez organizatora", icon: "🫥" });
+    }
+
+    return meta;
+  }, [activities, getOrganizerGroupKey]);
+
+  const getActiveGroupKey = useCallback((activity: Partial<Activity> | Record<string, unknown>) => {
+    return groupingMode === "organizer" ? getOrganizerGroupKey(activity) : getActivityGroupKey(activity);
+  }, [groupingMode, getOrganizerGroupKey]);
+
+  const getActiveGroupLabel = useCallback((group: string) => {
+    if (groupingMode === "organizer") {
+      return organizerGroupMeta.get(group)?.label ?? "Bez organizatora";
+    }
+    return getActivityGroupLabel(group);
+  }, [groupingMode, organizerGroupMeta]);
+
+  const getActiveGroupIcon = useCallback((group: string) => {
+    if (groupingMode === "organizer") {
+      return organizerGroupMeta.get(group)?.icon ?? "🏢";
+    }
+    return getActivityGroupIcon(group);
+  }, [groupingMode, organizerGroupMeta]);
+
+  const sortActiveGroupKeys = useCallback((keys: string[]) => {
+    if (groupingMode === "organizer") {
+      return [...keys].sort((left, right) => {
+        if (left === UNASSIGNED_ORGANIZER_GROUP) return 1;
+        if (right === UNASSIGNED_ORGANIZER_GROUP) return -1;
+        return getActiveGroupLabel(left).localeCompare(getActiveGroupLabel(right), "pl");
+      });
+    }
+    return sortActivityGroupKeys(keys);
+  }, [groupingMode, getActiveGroupLabel]);
+
   const filteredActivities = useMemo(() => {
-    const scopedActivities = typeFilter ? activities.filter((activity) => getActivityGroupKey(activity) === typeFilter) : activities;
+    const scopedActivities = typeFilter ? activities.filter((activity) => getActiveGroupKey(activity) === typeFilter) : activities;
     if (statusFilter === "all") return scopedActivities;
     if (statusFilter === "draft") {
       return scopedActivities.filter((activity) => {
@@ -396,19 +345,20 @@ export default function AdminActivitiesPage() {
       });
     }
     return scopedActivities.filter((activity) => getEffectiveStatus(activity) === statusFilter);
-  }, [activities, getEffectiveStatus, statusFilter, typeFilter]);
+  }, [activities, getActiveGroupKey, getEffectiveStatus, statusFilter, typeFilter]);
 
   const allGroupKeys = useMemo(() => {
     const groups = new Set<string>();
-    activities.forEach((activity) => groups.add(getActivityGroupKey(activity)));
-    return sortActivityGroupKeys(Array.from(groups));
-  }, [activities]);
+    activities.forEach((activity) => groups.add(getActiveGroupKey(activity)));
+    return sortActiveGroupKeys(Array.from(groups));
+  }, [activities, getActiveGroupKey, sortActiveGroupKeys]);
 
   const groupedActivities = useMemo(
-    () => allGroupKeys.map((type) => ({
-      type,
+    () => allGroupKeys.map((category) => ({
+      category,
+      label: getActiveGroupLabel(category),
       items: filteredActivities
-        .filter((activity) => getActivityGroupKey(activity) === type)
+        .filter((activity) => getActiveGroupKey(activity) === category)
         .sort((left, right) => {
           const statusDiff = statusOrder[getEffectiveStatus(left)] - statusOrder[getEffectiveStatus(right)];
           if (statusDiff !== 0) return statusDiff;
@@ -417,7 +367,7 @@ export default function AdminActivitiesPage() {
           return left.title.localeCompare(right.title, "pl");
         }),
     })),
-    [allGroupKeys, filteredActivities, getEffectiveStatus]
+    [allGroupKeys, filteredActivities, getActiveGroupKey, getActiveGroupLabel, getEffectiveStatus]
   );
 
   const publishedCount = useMemo(
@@ -439,7 +389,7 @@ export default function AdminActivitiesPage() {
   const sectionStats = useMemo(
     () => Object.fromEntries(
       allGroupKeys.map((type) => {
-        const typeActivities = activities.filter((activity) => getActivityGroupKey(activity) === type);
+        const typeActivities = activities.filter((activity) => getActiveGroupKey(activity) === type);
         const published = typeActivities.filter((activity) => getEffectiveStatus(activity) === "published").length;
         const draft = typeActivities.filter((activity) => {
           const effectiveStatus = getEffectiveStatus(activity);
@@ -449,12 +399,12 @@ export default function AdminActivitiesPage() {
         return [type, { all: typeActivities.length, published, draft, outdated }];
       })
     ),
-    [activities, allGroupKeys, getEffectiveStatus]
+    [activities, allGroupKeys, getActiveGroupKey, getEffectiveStatus]
   );
 
   const visibleTypeKeys = useMemo(
-    () => sortActivityGroupKeys(Array.from(new Set(filteredActivities.map((activity) => getActivityGroupKey(activity))))),
-    [filteredActivities]
+    () => sortActiveGroupKeys(Array.from(new Set(filteredActivities.map((activity) => getActiveGroupKey(activity))))),
+    [filteredActivities, getActiveGroupKey, sortActiveGroupKeys]
   );
 
   const hasExpandedCategories = useMemo(
@@ -463,7 +413,7 @@ export default function AdminActivitiesPage() {
   );
 
   const promptSeedUrls = useMemo(() => {
-    const urls = new Set<string>();
+    const urls = new Set<string>(PROMPT_URL_TODO_LIST);
     for (const activity of activities) {
       if (activity.source_url && activity.source_url.trim().length > 0) urls.add(activity.source_url.trim());
       const maybeFacebook = (activity as unknown as Record<string, unknown>).facebook_url;
@@ -472,9 +422,9 @@ export default function AdminActivitiesPage() {
     return Array.from(urls).sort((a, b) => a.localeCompare(b, "pl"));
   }, [activities]);
 
-  const selectedPromptUrlCount = useMemo(
-    () => promptUrlRows.filter((_, index) => selectedPromptUrls[index]).length,
-    [promptUrlRows, selectedPromptUrls]
+  const completedPromptUrlCount = useMemo(
+    () => promptUrlRows.filter((_, index) => promptUrlStatuses[index] === "completed").length,
+    [promptUrlRows, promptUrlStatuses]
   );
 
   const toggleCategory = (type: string) => {
@@ -488,7 +438,7 @@ export default function AdminActivitiesPage() {
     const nextCollapsed = Object.fromEntries(
       allGroupKeys.map((type) => {
         const matchingItems = activities.filter((activity) => {
-          if (getActivityGroupKey(activity) !== type) return false;
+          if (getActiveGroupKey(activity) !== type) return false;
           if (nextFilter === "all") return true;
           if (nextFilter === "draft") {
             const effectiveStatus = getEffectiveStatus(activity);
@@ -501,6 +451,11 @@ export default function AdminActivitiesPage() {
     );
     setCollapsedCategories(nextCollapsed);
   };
+
+  useEffect(() => {
+    setTypeFilter(null);
+    setCollapsedCategories({});
+  }, [groupingMode]);
 
   const toggleTypeStatusFilter = (type: string, filter: ActivityListFilter) => {
     if (typeFilter === type && statusFilter === filter) {
@@ -516,200 +471,6 @@ export default function AdminActivitiesPage() {
   const toggleAllCategories = () => {
     if (visibleTypeKeys.length === 0) return;
     setCollapsedCategories(Object.fromEntries(visibleTypeKeys.map((type) => [type, hasExpandedCategories])));
-  };
-
-  const parsePastedData = (text: string) => {
-    const structured = parseStructuredText(text);
-    if (structured.headers.length > 0) {
-      setPasteHeaders(structured.headers);
-      setPastePreview(structured.rows);
-      return;
-    }
-
-    const delimited = parseDelimitedText(text);
-    setPasteHeaders(delimited.headers);
-    setPastePreview(delimited.rows);
-  };
-
-  const runPasteImport = async () => {
-    if (pastePreview.length === 0) return;
-    setImporting(true);
-    setImportProgress({ done: 0, total: pastePreview.length });
-
-    const imported: Activity[] = [];
-    const knownOrganizers = [...organizers];
-
-    for (let index = 0; index < pastePreview.length; index++) {
-      const row = pastePreview[index];
-      const mapped: Record<string, string> = {};
-
-      for (const header of pasteHeaders) {
-        const field = resolveField(header);
-        if (field) mapped[field] = row[header] || "";
-      }
-
-      if (!mapped.title) {
-        setImportProgress({ done: index + 1, total: pastePreview.length });
-        continue;
-      }
-
-      const dateStart = mapped.date_start || new Date().toISOString().slice(0, 10);
-      const dateEnd = mapped.date_end || null;
-      const priceFrom = asNumber(mapped.price_from);
-      const priceTo = asNumber(mapped.price_to);
-      const street = mapped.street?.trim() || mapped.venue_address?.trim() || "";
-      const postcode = mapped.postcode?.trim() || null;
-      const city = mapped.city?.trim() || "Kraków";
-      const district = mapped.district?.trim() ? detectDistrict(mapped.district) : detectDistrict([street, postcode, city].filter(Boolean).join(", "));
-      const lat = asNumber(mapped.lat);
-      const lng = asNumber(mapped.lng);
-      const organizerName = mapped.organizer?.trim() || (!isUUID(mapped.organizer_id || "") ? mapped.organizer_id?.trim() || "" : "") || mapped.venue_name?.trim() || "Organizator";
-      const organizerId = await ensureOrganizerId({
-        organizers: knownOrganizers,
-        organizerId: isUUID(mapped.organizer_id || "") ? mapped.organizer_id : null,
-        organizerName,
-        city,
-        onOrganizerCreated: (organizer) => {
-          knownOrganizers.push(organizer);
-          setOrganizers((current) => current.some((entry) => entry.id === organizer.id) ? current : [...current, organizer]);
-        },
-      });
-      const typeLevel1Id = resolveTypeLevel1Id(typeLevel1Options, mapped.type_lvl_1?.trim() || null);
-      const typeLevel2Id = resolveTypeLevel2Id(typeLevel2Options, mapped.type_lvl_2?.trim() || null, typeLevel1Id);
-      const categoryLevel1 = resolveCategoryLevel1Name(
-        categoryLevel1Options,
-        mapped.category_lvl_1?.trim() || inferActivityType(mapped.activity_type, mapped.title),
-      );
-      const categoryLevel2 = resolveCategoryLevel2Name(
-        categoryLevel2Options,
-        mapped.category_lvl_2?.trim() || null,
-        categoryLevel1,
-        categoryLevel1Options,
-      );
-      const categoryLevel3 = resolveCategoryLevel3Name(
-        categoryLevel3Options,
-        mapped.category_lvl_3?.trim() || null,
-        categoryLevel2,
-        categoryLevel2Options,
-      );
-      const status = normalizeActivityStatus(mapped.status);
-
-      const payload = {
-        title: mapped.title.trim(),
-        description_short: mapped.description_short || "Opis zajęć",
-        description_long: mapped.description_long || mapped.description_short || "",
-        type_lvl_1: typeLevel1Id,
-        type_lvl_2: typeLevel2Id,
-        category_lvl_1: categoryLevel1,
-        category_lvl_2: categoryLevel2,
-        category_lvl_3: categoryLevel3,
-        days_of_week: mapped.days_of_week ? mapped.days_of_week.split(/[,;/]/).map((part) => part.trim()).filter(Boolean) : [],
-        date_start: dateStart,
-        date_end: dateEnd,
-        time_start: normalizeTime(mapped.time_start),
-        time_end: normalizeTime(mapped.time_end),
-        age_min: asNumber(mapped.age_min),
-        age_max: asNumber(mapped.age_max),
-        price_from: priceFrom,
-        price_to: priceTo,
-        district,
-        street,
-        postcode,
-        city,
-        lat,
-        lng,
-        note: mapped.note?.trim() || null,
-        organizer_id: organizerId,
-        source_url: mapped.source_url || null,
-        facebook_url: mapped.facebook_url || null,
-        status,
-        likes: asNumber(mapped.likes) ?? 0,
-        dislikes: asNumber(mapped.dislikes) ?? 0,
-      };
-
-      try {
-        const response = await fetch("/api/admin/activities", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(typeof data?.error === "string" ? data.error : "Nie udało się zaimportować wiersza");
-        }
-        if (data?.id) {
-          imported.push(mapActivityRow(data));
-
-          // Geocode address to get accurate district
-          if (status !== "draft") {
-            await fetch("/api/admin/activities", {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ id: data.id, status }),
-            });
-            const idx = imported.findIndex((a) => a.id === data.id);
-            if (idx !== -1) imported[idx] = { ...imported[idx], status };
-          }
-
-          if (street && (lat == null || lng == null)) {
-            try {
-              if (index > 0) await new Promise((r) => setTimeout(r, 1100));
-              const geoRes = await fetch("/api/admin/geocode", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ address: street, city }),
-              });
-              const geo = await geoRes.json();
-              const nextPatch: Record<string, unknown> = { id: data.id };
-              if (geo.lat && geo.lng) {
-                nextPatch.lat = geo.lat;
-                nextPatch.lng = geo.lng;
-              }
-              if (geo.district) {
-                nextPatch.district = geo.district;
-              }
-              if (geo.postcode && !postcode) {
-                nextPatch.postcode = geo.postcode;
-              }
-              if (geo.city) {
-                nextPatch.city = geo.city;
-              }
-              if (Object.keys(nextPatch).length > 1) {
-                await fetch("/api/admin/activities", {
-                  method: "PATCH",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify(nextPatch),
-                });
-                const idx = imported.findIndex((a) => a.id === data.id);
-                if (idx !== -1) imported[idx] = {
-                  ...imported[idx],
-                  ...(geo.lat && geo.lng ? { lat: geo.lat, lng: geo.lng } : {}),
-                  ...(geo.district ? { district: geo.district as Activity["district"] } : {}),
-                  ...(geo.postcode && !postcode ? { postcode: geo.postcode } : {}),
-                  ...(geo.city ? { city: geo.city } : {}),
-                };
-              }
-            } catch { /* geocoding is best-effort */ }
-          }
-        }
-      } catch {
-        // skip invalid row
-      }
-
-      setImportProgress({ done: index + 1, total: pastePreview.length });
-    }
-
-    setActivities((current) => [...imported, ...current]);
-    setImporting(false);
-    setPasteModal(false);
-    setPasteText("");
-    setPasteHeaders([]);
-    setPastePreview([]);
-    if (imported.length === 0) {
-      alert("Nie udało się zaimportować żadnych zajęć. Sprawdź kolumny i czy tabela activities istnieje w bazie.");
-      return;
-    }
-    alert(`Zaimportowano ${imported.length} z ${pastePreview.length} zajęć`);
   };
 
   const handleFileSelect = (file: File) => {
@@ -972,8 +733,34 @@ export default function AdminActivitiesPage() {
   const openPromptModal = async () => {
     setActivePromptModalView("prompts");
     setEditingPrompt(false);
-    setSelectedPromptUrls({});
-    setPromptUrlRows(promptSeedUrls);
+    try {
+      const saved = localStorage.getItem("admin_prompt_urls_zajecia");
+      if (saved) {
+        const parsed = JSON.parse(saved) as string[] | { rows?: string[]; statuses?: Record<number, "in-progress" | "completed"> };
+        if (Array.isArray(parsed)) {
+          const mergedRows = [...parsed];
+          for (const url of promptSeedUrls) {
+            if (!mergedRows.includes(url)) mergedRows.push(url);
+          }
+          setPromptUrlRows(mergedRows);
+          setPromptUrlStatuses({});
+        } else {
+          const savedRows = Array.isArray(parsed.rows) ? parsed.rows : [];
+          const mergedRows = [...savedRows];
+          for (const url of promptSeedUrls) {
+            if (!mergedRows.includes(url)) mergedRows.push(url);
+          }
+          setPromptUrlRows(mergedRows.length > 0 ? mergedRows : promptSeedUrls);
+          setPromptUrlStatuses(parsed.statuses && typeof parsed.statuses === "object" ? parsed.statuses : {});
+        }
+      } else {
+        setPromptUrlRows(promptSeedUrls);
+        setPromptUrlStatuses({});
+      }
+    } catch {
+      setPromptUrlRows(promptSeedUrls);
+      setPromptUrlStatuses({});
+    }
     setPromptModal(true);
     try {
       const res = await fetch("/api/admin/prompts");
@@ -1077,10 +864,6 @@ export default function AdminActivitiesPage() {
             {buildingDataframe ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
             Upload data
           </button>
-          <button onClick={() => setPasteModal(true)} className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-muted border border-border rounded-xl hover:border-[#CCC] transition-colors">
-            <ClipboardPaste size={14} />
-            Wklej dane
-          </button>
           <button onClick={createActivity} className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-white bg-foreground rounded-xl hover:bg-stone-700 transition-colors">
             <Plus size={14} />
             Dodaj
@@ -1092,6 +875,33 @@ export default function AdminActivitiesPage() {
       </div>
 
       <div className="flex items-center gap-3 mb-6">
+        <div className="inline-flex items-center rounded-lg border border-border bg-white p-0.5">
+          <button
+            type="button"
+            onClick={() => setGroupingMode("type")}
+            className={cn(
+              "rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
+              groupingMode === "type"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Po typie
+          </button>
+          <button
+            type="button"
+            onClick={() => setGroupingMode("organizer")}
+            className={cn(
+              "rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
+              groupingMode === "organizer"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Po organizatorze
+          </button>
+        </div>
+
         <button onClick={() => toggleStatusFilter("all")} className={cn("text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors", statusFilter === "all" ? "bg-sky-200 text-sky-800" : "bg-sky-100 text-sky-700 hover:bg-sky-200")}>
           {activities.length} zajęć
         </button>
@@ -1115,22 +925,22 @@ export default function AdminActivitiesPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          {groupedActivities.filter(({ type }) => !typeFilter || type === typeFilter).map(({ type, items }) => {
-            const expanded = !collapsedCategories[type];
-            const stats = sectionStats[type] ?? { all: 0, published: 0, draft: 0, outdated: 0 };
+          {groupedActivities.filter(({ category }) => !typeFilter || category === typeFilter).map(({ category, label, items }) => {
+            const expanded = !collapsedCategories[category];
+            const stats = sectionStats[category] ?? { all: 0, published: 0, draft: 0, outdated: 0 };
             return (
-              <div key={type}>
+              <div key={category}>
                 <div className="w-full flex items-center gap-2 mb-2 rounded-md px-1.5 py-1 hover:bg-accent/50 transition-colors">
-                  <button type="button" onClick={() => toggleCategory(type)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
+                  <button type="button" onClick={() => toggleCategory(category)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
                     {expanded ? <ChevronDown size={14} className="text-muted-foreground" /> : <ChevronRight size={14} className="text-muted-foreground" />}
-                    <span className="text-lg">{getActivityGroupIcon(type)}</span>
-                    <h2 className="text-[13px] font-semibold text-foreground">{getActivityGroupLabel(type)}</h2>
+                    <span className="text-lg">{getActiveGroupIcon(category)}</span>
+                    <h2 className="text-[13px] font-semibold text-foreground">{label}</h2>
                   </button>
                   <div className="flex flex-wrap items-center gap-1 text-[10px]">
-                    <button type="button" onClick={() => toggleTypeStatusFilter(type, "all")} className={cn("px-1.5 py-0.5 rounded-full font-medium transition-colors", typeFilter === type && statusFilter === "all" ? "bg-sky-200 text-sky-800" : "bg-sky-100 text-sky-700 hover:bg-sky-200")}>{stats.all} all</button>
-                    <button type="button" onClick={() => toggleTypeStatusFilter(type, "published")} className={cn("px-1.5 py-0.5 rounded-full font-medium transition-colors", typeFilter === type && statusFilter === "published" ? "bg-emerald-200 text-emerald-800" : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200")}>{stats.published} published</button>
-                    <button type="button" onClick={() => toggleTypeStatusFilter(type, "draft")} className={cn("px-1.5 py-0.5 rounded-full font-medium transition-colors", stats.draft > 0 ? (typeFilter === type && statusFilter === "draft" ? "bg-rose-200 text-rose-800" : "bg-rose-100 text-rose-700 hover:bg-rose-200") : (typeFilter === type && statusFilter === "draft" ? "bg-stone-300 text-stone-700" : "bg-stone-200 text-stone-500 hover:bg-stone-300"))}>{stats.draft} draft</button>
-                    <button type="button" onClick={() => toggleTypeStatusFilter(type, "outdated")} className={cn("px-1.5 py-0.5 rounded-full font-medium transition-colors", typeFilter === type && statusFilter === "outdated" ? "bg-amber-200 text-amber-800" : "bg-amber-100 text-amber-700 hover:bg-amber-200")}>{stats.outdated} outdated</button>
+                    <button type="button" onClick={() => toggleTypeStatusFilter(category, "all")} className={cn("px-1.5 py-0.5 rounded-full font-medium transition-colors", typeFilter === category && statusFilter === "all" ? "bg-sky-200 text-sky-800" : "bg-sky-100 text-sky-700 hover:bg-sky-200")}>{stats.all} all</button>
+                    <button type="button" onClick={() => toggleTypeStatusFilter(category, "published")} className={cn("px-1.5 py-0.5 rounded-full font-medium transition-colors", typeFilter === category && statusFilter === "published" ? "bg-emerald-200 text-emerald-800" : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200")}>{stats.published} published</button>
+                    <button type="button" onClick={() => toggleTypeStatusFilter(category, "draft")} className={cn("px-1.5 py-0.5 rounded-full font-medium transition-colors", stats.draft > 0 ? (typeFilter === category && statusFilter === "draft" ? "bg-rose-200 text-rose-800" : "bg-rose-100 text-rose-700 hover:bg-rose-200") : (typeFilter === category && statusFilter === "draft" ? "bg-stone-300 text-stone-700" : "bg-stone-200 text-stone-500 hover:bg-stone-300"))}>{stats.draft} draft</button>
+                    <button type="button" onClick={() => toggleTypeStatusFilter(category, "outdated")} className={cn("px-1.5 py-0.5 rounded-full font-medium transition-colors", typeFilter === category && statusFilter === "outdated" ? "bg-amber-200 text-amber-800" : "bg-amber-100 text-amber-700 hover:bg-amber-200")}>{stats.outdated} outdated</button>
                   </div>
                 </div>
 
@@ -1432,93 +1242,6 @@ export default function AdminActivitiesPage() {
         </div>
       )}
 
-      {pasteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col mx-4">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-              <div>
-                <h2 className="text-[15px] font-bold text-foreground">Wklej dane</h2>
-                <p className="text-[11px] text-muted mt-0.5">Wklej tabele z Excela, Google Sheets lub DataFrame</p>
-              </div>
-              <button onClick={() => { setPasteModal(false); setPasteText(""); setPastePreview([]); setPasteHeaders([]); }} className="p-1.5 rounded hover:bg-accent text-muted transition-colors">
-                <X size={16} />
-              </button>
-            </div>
-
-            <div className="px-5 py-4 overflow-y-auto flex-1 space-y-4">
-              <textarea
-                className="w-full h-40 px-3 py-2 rounded-lg border border-border text-[12px] font-mono bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30 resize-none"
-                value={pasteText}
-                onChange={(event) => {
-                  setPasteText(event.target.value);
-                  parsePastedData(event.target.value);
-                }}
-              />
-
-              {pasteHeaders.length > 0 && (
-                <div>
-                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Rozpoznane kolumny</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {pasteHeaders.map((header) => {
-                      const field = resolveField(header);
-                      return (
-                        <span key={header} className={cn("px-2 py-0.5 rounded-full text-[10px] font-medium", field ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700")}>
-                          {header} {field ? `-> ${field}` : "(pominieta)"}
-                        </span>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {pastePreview.length > 0 && (
-                <div>
-                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Podglad ({pastePreview.length} wierszy)</p>
-                  <div className="overflow-x-auto rounded-lg border border-border">
-                    <table className="w-full text-[11px]">
-                      <thead>
-                        <tr className="bg-accent/30">
-                          {pasteHeaders.filter((header) => resolveField(header)).map((header) => (
-                            <th key={header} className="px-2.5 py-1.5 text-left font-medium text-muted-foreground whitespace-nowrap">{resolveField(header)}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {pastePreview.slice(0, 5).map((row, index) => (
-                          <tr key={index} className="border-t border-border/50">
-                            {pasteHeaders.filter((header) => resolveField(header)).map((header) => (
-                              <td key={header} className="px-2.5 py-1.5 text-foreground max-w-[200px] truncate">{row[header] || <span className="text-muted/40">-</span>}</td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="px-5 py-4 border-t border-border flex items-center justify-between">
-              <p className="text-[11px] text-muted">Zajęcia zostana dodane jako Draft</p>
-              <div className="flex items-center gap-2">
-                {importing && <span className="text-[11px] text-muted">{importProgress.done}/{importProgress.total}</span>}
-                <button onClick={() => { setPasteModal(false); setPasteText(""); setPastePreview([]); setPasteHeaders([]); }} className="px-3 py-1.5 text-[12px] font-medium text-muted border border-border rounded-lg hover:text-foreground transition-colors">
-                  Anuluj
-                </button>
-                <button
-                  onClick={runPasteImport}
-                  disabled={importing || pastePreview.length === 0 || !pasteHeaders.some((header) => resolveField(header) === "title")}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
-                >
-                  {importing ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
-                  {importing ? "Importowanie..." : `Importuj ${pastePreview.length} zajęć`}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {promptPreview && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[80vh] flex flex-col">
@@ -1662,63 +1385,142 @@ export default function AdminActivitiesPage() {
               <>
                 <div className="flex-1 overflow-y-auto p-5 space-y-3">
                   <div className="flex items-center justify-between">
-                    <p className="text-[12px] text-muted-foreground">Lista URL. Zaznaczone: {selectedPromptUrlCount}</p>
+                    <p className="text-[12px] text-muted-foreground">
+                      URL-e. W trakcie: {promptUrlRows.length - completedPromptUrlCount}, Zrobione: {completedPromptUrlCount}
+                    </p>
                     <div className="flex gap-2">
                       <button
-                        onClick={() => setSelectedPromptUrls(Object.fromEntries(promptUrlRows.map((_, index) => [index, true])))}
+                        onClick={() => setPromptUrlRows((prev) => [...prev, ""])}
                         className="px-2.5 py-1 text-[11px] font-medium text-muted border border-border rounded hover:text-foreground transition-colors"
                       >
-                        Zaznacz wszystkie
-                      </button>
-                      <button
-                        onClick={() => setSelectedPromptUrls({})}
-                        className="px-2.5 py-1 text-[11px] font-medium text-muted border border-border rounded hover:text-foreground transition-colors"
-                      >
-                        Wyczyść
+                        + Dodaj
                       </button>
                     </div>
                   </div>
-                  <div className="rounded-lg border border-border divide-y divide-border/60">
-                    {promptUrlRows.length === 0 ? (
+                  {promptUrlRows.length === 0 ? (
+                    <div className="rounded-lg border border-border divide-y divide-border/60">
                       <p className="px-3 py-3 text-[12px] text-muted">Brak URL-i do pokazania.</p>
-                    ) : (
-                      promptUrlRows.map((url, index) => (
-                        <label key={`${index}-${url}`} className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-accent/30 transition-colors">
-                          <input
-                            type="checkbox"
-                            className="rounded border-border"
-                            checked={Boolean(selectedPromptUrls[index])}
-                            onChange={(e) => setSelectedPromptUrls((prev) => ({ ...prev, [index]: e.target.checked }))}
-                          />
-                          <input
-                            type="text"
-                            className="min-w-0 flex-1 px-2 py-1 text-[11px] text-foreground rounded border border-border bg-white focus:outline-none focus:ring-1 focus:ring-primary/30"
-                            value={url}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              setPromptUrlRows((prev) => prev.map((entry, i) => (i === index ? value : entry)));
-                            }}
-                          />
-                        </label>
-                      ))
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="rounded-lg border border-border">
+                        <div className="px-3 py-2 border-b border-border bg-accent/20 text-[11px] font-semibold text-muted-foreground">W trakcie</div>
+                        <div className="divide-y divide-border/60">
+                          {promptUrlRows.map((url, index) => ({ url, index })).filter(({ index }) => promptUrlStatuses[index] !== "completed").map(({ url, index }) => (
+                            <div key={`in-progress-${index}-${url}`} className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-accent/30 transition-colors">
+                              <input
+                                type="text"
+                                className="min-w-0 flex-1 px-2 py-1 text-[11px] text-foreground rounded border border-border bg-white focus:outline-none focus:ring-1 focus:ring-primary/30"
+                                value={url}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  setPromptUrlRows((prev) => prev.map((entry, i) => (i === index ? value : entry)));
+                                }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setPromptUrlStatuses((prev) => ({ ...prev, [index]: "completed" }))}
+                                className="shrink-0 px-2 py-1 text-[10px] font-medium rounded border border-border text-muted hover:text-foreground transition-colors"
+                              >
+                                Oznacz jako zrobione
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPromptUrlRows((prev) => prev.filter((_, i) => i !== index));
+                                  setPromptUrlStatuses((prev) => {
+                                    const next: Record<number, "in-progress" | "completed"> = {};
+                                    Object.entries(prev).forEach(([k, v]) => {
+                                      const ki = Number(k);
+                                      if (ki !== index) next[ki > index ? ki - 1 : ki] = v;
+                                    });
+                                    return next;
+                                  });
+                                }}
+                                className="shrink-0 text-muted-foreground hover:text-red-500 transition-colors"
+                              >
+                                <X size={13} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="rounded-lg border border-border">
+                        <div className="px-3 py-2 border-b border-border bg-accent/20 text-[11px] font-semibold text-muted-foreground">Zrobione</div>
+                        <div className="divide-y divide-border/60">
+                          {promptUrlRows.map((url, index) => ({ url, index })).filter(({ index }) => promptUrlStatuses[index] === "completed").length === 0 ? (
+                            <p className="px-3 py-3 text-[12px] text-muted">Brak gotowych URL-i.</p>
+                          ) : (
+                            promptUrlRows.map((url, index) => ({ url, index })).filter(({ index }) => promptUrlStatuses[index] === "completed").map(({ url, index }) => (
+                              <div key={`completed-${index}-${url}`} className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-accent/30 transition-colors">
+                                <input
+                                  type="text"
+                                  className="min-w-0 flex-1 px-2 py-1 text-[11px] text-foreground rounded border border-border bg-white focus:outline-none focus:ring-1 focus:ring-primary/30"
+                                  value={url}
+                                  onChange={(e) => {
+                                    const value = e.target.value;
+                                    setPromptUrlRows((prev) => prev.map((entry, i) => (i === index ? value : entry)));
+                                  }}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setPromptUrlStatuses((prev) => ({ ...prev, [index]: "in-progress" }))}
+                                  className="shrink-0 px-2 py-1 text-[10px] font-medium rounded border border-border text-muted hover:text-foreground transition-colors"
+                                >
+                                  Cofnij do w trakcie
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPromptUrlRows((prev) => prev.filter((_, i) => i !== index));
+                                    setPromptUrlStatuses((prev) => {
+                                      const next: Record<number, "in-progress" | "completed"> = {};
+                                      Object.entries(prev).forEach(([k, v]) => {
+                                        const ki = Number(k);
+                                        if (ki !== index) next[ki > index ? ki - 1 : ki] = v;
+                                      });
+                                      return next;
+                                    });
+                                  }}
+                                  className="shrink-0 text-muted-foreground hover:text-red-500 transition-colors"
+                                >
+                                  <X size={13} />
+                                </button>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
                 <div className="flex justify-between gap-2 px-5 py-4 border-t border-border">
                   <button
                     onClick={() => {
-                      const selected = promptUrlRows.filter((url, index) => selectedPromptUrls[index] && url.trim().length > 0).join("\n");
+                      const selected = promptUrlRows.filter((url, index) => promptUrlStatuses[index] === "completed" && url.trim().length > 0).join("\n");
                       navigator.clipboard.writeText(selected);
                     }}
-                    disabled={selectedPromptUrlCount === 0}
+                    disabled={completedPromptUrlCount === 0}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-muted border border-border rounded-lg hover:border-[#CCC] transition-colors disabled:opacity-50"
                   >
                     <Copy size={12} />
-                    Kopiuj zaznaczone
+                    Kopiuj zrobione
                   </button>
-                  <button onClick={() => { setPromptModal(false); setEditingPrompt(false); setActivePromptModalView("prompts"); }} className="px-3 py-1.5 text-[12px] font-medium text-white bg-foreground rounded-lg hover:bg-stone-700 transition-colors">
-                    Zamknij
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        try { localStorage.setItem("admin_prompt_urls_zajecia", JSON.stringify({ rows: promptUrlRows, statuses: promptUrlStatuses })); } catch {}
+                        alert("Zapisano " + promptUrlRows.length + " URL-i.");
+                      }}
+                      className="px-3 py-1.5 text-[12px] font-medium text-white bg-green-700 rounded-lg hover:bg-green-800 transition-colors"
+                    >
+                      Zapisz
+                    </button>
+                    <button onClick={() => { setPromptModal(false); setEditingPrompt(false); setActivePromptModalView("prompts"); }} className="px-3 py-1.5 text-[12px] font-medium text-white bg-foreground rounded-lg hover:bg-stone-700 transition-colors">
+                      Zamknij
+                    </button>
+                  </div>
                 </div>
               </>
             )}

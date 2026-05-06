@@ -404,16 +404,17 @@ export async function getCampSessionsByOrganizer(organizer: string, excludeId: s
 // ── Activities ──
 
 export async function getPublishedActivities(limit = 120): Promise<Activity[]> {
-  const db = getDb();
+  const db = getTaxonomyDb();
   const maps = await getCategoryMaps();
-  const today = new Date().toISOString().slice(0, 10);
-  const { data } = await db
+  const { data, error } = await db
     .from("activities")
-    .select("*, organizer_data:organizer_id(*)")
+    .select("*")
     .eq("status", "published")
-    .or(`date_end.is.null,date_end.gte.${today}`)
-    .order("is_featured", { ascending: false })
-    .order("date_start", { ascending: true })
+    .order("created_at", { ascending: false })
     .limit(limit);
+  if (error) {
+    console.error("[getPublishedActivities] query error:", error.message);
+    return [];
+  }
   return shuffleArray((data || []).map((row) => toActivity(row, maps)));
 }

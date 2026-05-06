@@ -60,7 +60,7 @@ export default function AboutPage() {
           </p>
           <Link
             href="/kontakt"
-            className="inline-flex items-center rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-[13px] font-medium text-primary hover:bg-primary/10 transition-colors"
+            className="inline-flex items-center rounded-lg border border-[#e60100]/30 bg-[#e60100]/5 px-3 py-2 text-[13px] font-medium text-[#e60100] hover:bg-[#e60100]/10 transition-colors"
           >
             Przejdz do kontaktu
           </Link>

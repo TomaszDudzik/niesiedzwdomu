@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { SlidersHorizontal, LayoutGrid, MapIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -12,6 +13,8 @@ interface MobileActionBarProps {
   /** When provided, shows the Lista/Mapa segmented toggle */
   view?: "list" | "map";
   onSetView?: (view: "list" | "map") => void;
+  /** When provided, renders below the action buttons row (same placement as view toggle) */
+  bottomContent?: React.ReactNode;
 }
 
 export function MobileActionBar({
@@ -22,6 +25,7 @@ export function MobileActionBar({
   addLabel,
   view,
   onSetView,
+  bottomContent,
 }: MobileActionBarProps) {
   const hasViewToggle = view !== undefined && onSetView !== undefined;
 
@@ -42,13 +46,19 @@ export function MobileActionBar({
           {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-primary-foreground" />}
         </button>
 
+        {false && (
         <a
           href={addHref}
           className="flex-1 h-10 inline-flex items-center justify-center rounded-xl border border-[#e60100] bg-[#e60100] px-4 text-[12px] font-bold text-white whitespace-nowrap transition-colors hover:bg-[#c40000] hover:border-[#c40000]"
         >
           {addLabel}
         </a>
+        )}
       </div>
+
+      {bottomContent && (
+        <div className="mt-2">{bottomContent}</div>
+      )}
 
       {hasViewToggle && (
           <div className="mt-2 h-9 w-full inline-flex items-center gap-1 rounded-lg border border-border bg-accent/50 p-0.5">

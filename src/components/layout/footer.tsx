@@ -45,12 +45,14 @@ export function Footer() {
             <p className="mt-4 text-[13px] leading-relaxed max-w-[220px] text-white/70">
               Platforma dla rodziców w Krakowie. Wydarzenia, kolonie i miejsca — wszystko w jednym miejscu.
             </p>
+            {false && (
             <Link
               href="/dodaj"
               className="mt-5 inline-flex items-center gap-2 rounded-xl border border-[oklch(30%_0.020_29)] bg-[oklch(62%_0.245_29)] px-4 py-2.5 text-[13px] font-bold text-white transition-colors hover:bg-[oklch(56%_0.245_29)]"
             >
               Dodaj swój event
             </Link>
+            )}
           </div>
 
           {FOOTER_SECTIONS.map((section) => (
