@@ -528,8 +528,6 @@ export function EventsListView({ events }: EventsListViewProps) {
     <PageHero
       title="Wyjątkowe Wydarzenia"
       subtitle="Warsztaty, spektakle, festyny i rodzinne atrakcje — aktualne wydarzenia na każdy dzień"
-      search={search}
-      onSearch={setSearch}
       addHref="/dodaj?type=event"
       addTitle="Organizujesz wydarzenie dla dzieci?"
       addDescription="Dodaj je do kalendarza i pomóż rodzinom znaleźć pomysł na dziś albo weekend."
@@ -550,6 +548,19 @@ export function EventsListView({ events }: EventsListViewProps) {
       {/* Mobile filters dropdown */}
       {filtersOpen && (
         <div className="lg:hidden rounded-xl p-3 mb-4 space-y-2.5">
+          <div className="space-y-1">
+            <p className="text-[11px] font-medium text-muted-foreground">Szukaj</p>
+            <div className="relative">
+              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Szukaj wydarzeń..."
+                className="w-full rounded-lg border border-border bg-background py-1.5 pl-7 pr-2 text-[11px] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+          </div>
+
           <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Data</p>} defaultCollapsed={false}>
             <p className="text-[10px] text-muted-foreground mb-1">Konkretna data</p>
             <input
@@ -695,6 +706,19 @@ export function EventsListView({ events }: EventsListViewProps) {
         {/* Sidebar — desktop only */}
         <aside className="hidden lg:block w-[240px] xl:w-[260px] shrink-0 rounded-2xl overflow-hidden -mt-3">
           <div className="p-2.5 space-y-2.5">
+            <div className="space-y-1">
+              <p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Szukaj</p>
+              <div className="relative">
+                <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Szukaj..."
+                  className="w-full rounded-lg border border-border bg-background py-1 pl-6 pr-2 text-[10px] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+            </div>
+
             <div className="flex items-center gap-1 rounded-lg border border-border p-0.5 bg-accent/50">
               <button onClick={() => setView("list")} className={cn("flex-1 inline-flex items-center justify-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all duration-200", view === "list" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
                 <LayoutGrid size={11} /> Lista

@@ -5,7 +5,7 @@ import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { PageWrapper } from "@/components/layout/page-wrapper";
 import { Analytics } from "@vercel/analytics/react";
-import { getPublishedEvents, getPublishedPlaces, getPublishedCamps, getPublishedActivities } from "@/lib/data";
+import { getPublishedEvents, getPublishedPlaces, getPublishedCamps, getPublishedActivitiesCount } from "@/lib/data";
 
 const nunito = Nunito({
   subsets: ["latin", "latin-ext"],
@@ -63,13 +63,13 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [events, places, camps, activities] = await Promise.all([
+  const [events, places, camps, activitiesCount] = await Promise.all([
     getPublishedEvents(200),
     getPublishedPlaces(200),
     getPublishedCamps(40),
-    getPublishedActivities(8),
+    getPublishedActivitiesCount(),
   ]);
-  const counts = { events: events.length, places: places.length, camps: camps.length, activities: activities.length };
+  const counts = { events: events.length, places: places.length, camps: camps.length, activities: activitiesCount };
 
   return (
     <html lang="pl" className={`${nunito.variable} ${nunitoSans.variable} ${pacifico.variable}`}>

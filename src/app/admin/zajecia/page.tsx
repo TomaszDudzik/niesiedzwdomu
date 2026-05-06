@@ -422,6 +422,22 @@ export default function AdminActivitiesPage() {
     [promptUrlRows, promptUrlStatuses]
   );
 
+  const inProgressPromptUrlEntries = useMemo(
+    () => promptUrlRows
+      .map((url, index) => ({ url, index }))
+      .filter(({ index }) => promptUrlStatuses[index] !== "completed")
+      .sort((a, b) => a.url.localeCompare(b.url, "pl", { sensitivity: "base" })),
+    [promptUrlRows, promptUrlStatuses]
+  );
+
+  const completedPromptUrlEntries = useMemo(
+    () => promptUrlRows
+      .map((url, index) => ({ url, index }))
+      .filter(({ index }) => promptUrlStatuses[index] === "completed")
+      .sort((a, b) => a.url.localeCompare(b.url, "pl", { sensitivity: "base" })),
+    [promptUrlRows, promptUrlStatuses]
+  );
+
   const toggleCategory = (type: string) => {
     setCollapsedCategories((current) => ({ ...current, [type]: !current[type] }));
   };
@@ -720,19 +736,11 @@ export default function AdminActivitiesPage() {
       if (saved) {
         const parsed = JSON.parse(saved) as string[] | { rows?: string[]; statuses?: Record<number, "in-progress" | "completed"> };
         if (Array.isArray(parsed)) {
-          const mergedRows = [...parsed];
-          for (const url of promptSeedUrls) {
-            if (!mergedRows.includes(url)) mergedRows.push(url);
-          }
-          setPromptUrlRows(mergedRows);
+          setPromptUrlRows(parsed);
           setPromptUrlStatuses({});
         } else {
           const savedRows = Array.isArray(parsed.rows) ? parsed.rows : [];
-          const mergedRows = [...savedRows];
-          for (const url of promptSeedUrls) {
-            if (!mergedRows.includes(url)) mergedRows.push(url);
-          }
-          setPromptUrlRows(mergedRows.length > 0 ? mergedRows : promptSeedUrls);
+          setPromptUrlRows(savedRows.length > 0 ? savedRows : promptSeedUrls);
           setPromptUrlStatuses(parsed.statuses && typeof parsed.statuses === "object" ? parsed.statuses : {});
         }
       } else {
@@ -1324,7 +1332,7 @@ export default function AdminActivitiesPage() {
                         <textarea
                           readOnly
                           spellCheck={false}
-                          value={promptUrlRows.filter((url, index) => promptUrlStatuses[index] !== "completed" && url.trim().length > 0).join("\n")}
+                          value={inProgressPromptUrlEntries.map(({ url }) => url).filter((url) => url.trim().length > 0).join("\n")}
                           className="w-full min-h-[180px] max-h-[280px] resize-y rounded border border-border bg-white px-2 py-1.5 text-[11px] font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30"
                         />
                       </div>
@@ -1333,7 +1341,7 @@ export default function AdminActivitiesPage() {
                         <textarea
                           readOnly
                           spellCheck={false}
-                          value={promptUrlRows.filter((url, index) => promptUrlStatuses[index] === "completed" && url.trim().length > 0).join("\n")}
+                          value={completedPromptUrlEntries.map(({ url }) => url).filter((url) => url.trim().length > 0).join("\n")}
                           className="w-full min-h-[180px] max-h-[280px] resize-y rounded border border-border bg-white px-2 py-1.5 text-[11px] font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30"
                         />
                       </div>
@@ -1348,7 +1356,7 @@ export default function AdminActivitiesPage() {
                       <div className="rounded-lg border border-border">
                         <div className="px-3 py-2 border-b border-border bg-accent/20 text-[11px] font-semibold text-muted-foreground">W trakcie</div>
                         <div className="divide-y divide-border/60">
-                          {promptUrlRows.map((url, index) => ({ url, index })).filter(({ index }) => promptUrlStatuses[index] !== "completed").map(({ url, index }) => (
+                          {inProgressPromptUrlEntries.map(({ url, index }) => (
                             <div key={`in-progress-${index}-${url}`} className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-accent/30 transition-colors">
                               <input
                                 type="text"
@@ -1391,10 +1399,10 @@ export default function AdminActivitiesPage() {
                       <div className="rounded-lg border border-border">
                         <div className="px-3 py-2 border-b border-border bg-accent/20 text-[11px] font-semibold text-muted-foreground">Zrobione</div>
                         <div className="divide-y divide-border/60">
-                          {promptUrlRows.map((url, index) => ({ url, index })).filter(({ index }) => promptUrlStatuses[index] === "completed").length === 0 ? (
+                          {completedPromptUrlEntries.length === 0 ? (
                             <p className="px-3 py-3 text-[12px] text-muted">Brak gotowych URL-i.</p>
                           ) : (
-                            promptUrlRows.map((url, index) => ({ url, index })).filter(({ index }) => promptUrlStatuses[index] === "completed").map(({ url, index }) => (
+                            completedPromptUrlEntries.map(({ url, index }) => (
                               <div key={`completed-${index}-${url}`} className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-accent/30 transition-colors">
                                 <input
                                   type="text"
