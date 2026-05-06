@@ -4,7 +4,6 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react
 import {
   ChevronDown,
   ChevronUp,
-  ClipboardPaste,
   Copy,
   ExternalLink,
   ImagePlus,
@@ -18,11 +17,9 @@ import {
   Sparkles,
   Star,
   Trash2,
-  Upload,
   X,
 } from "lucide-react";
 import { CAMP_CATEGORY_LABELS, CAMP_MAIN_CATEGORY_ICONS, CAMP_MAIN_CATEGORY_LABELS, DISTRICT_LIST } from "@/lib/mock-data";
-import { detectDistrictFromText } from "@/lib/districts";
 import { cn, formatDateShort, formatPriceRange, thumbUrl, withCacheBust } from "@/lib/utils";
 import type { Camp, Organizer } from "@/types/database";
 import { ImageSection } from "@/components/admin/image-section";
@@ -51,65 +48,33 @@ function isUUID(value: string): boolean {
 
 const inputClass = "w-full px-2 py-1.5 rounded-md border border-border text-[12px] bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30";
 const labelClass = "block text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1";
-
-const FIELD_ALIASES: Record<string, string[]> = {
-  title:               ["title", "tytul", "tytuł", "nazwa", "nazwa turnusu", "nazwa_polkolonii"],
-  description_short:   ["description_short", "krotki opis", "krótki opis", "tematyka", "temat", "program"],
-  description_long:    ["description_long", "dlugi opis", "długi opis"],
-  type_lvl_1:       ["type_lvl_1", "type_id", "type level 1", "type lvl1", "type lvl 1", "typ poziom 1", "typ lvl1", "typ lvl 1"],
-  type_lvl_2:       ["type_lvl_2", "subtype_id", "type level 2", "type lvl2", "type lvl 2", "typ poziom 2", "typ lvl2", "typ lvl 2"],
-  category_lvl_1:      ["category_lvl_1", "category_lvl_1_id", "main_category", "camp_type", "typ", "rodzaj", "typ_oferty", "type"],
-  category_lvl_2:      ["category_lvl_2", "category_lvl_2_id", "category", "category level 2", "category lvl2", "category lvl 2", "kategoria", "kategoria_obozu", "camp_subtype", "podtyp"],
-  category_lvl_3:      ["category_lvl_3", "category_lvl_3_id", "subcategory", "podkategoria", "sub_category", "dyscyplina"],
-  main_category:       ["main_category", "camp_type", "typ", "rodzaj", "typ_oferty", "type"],
-  category:            ["category", "kategoria", "kategoria_obozu", "camp_subtype", "podtyp"],
-  subcategory:         ["subcategory", "podkategoria", "sub_category", "dyscyplina"],
-  date_start:          ["date_start", "termin_od", "data od", "od"],
-  date_end:            ["date_end", "termin_do", "data do", "do"],
-  duration_days:       ["duration_days", "dni", "liczba dni", "czas trwania"],
-  age_min:             ["age_min", "wiek_od", "wiek od"],
-  age_max:             ["age_max", "wiek_do", "wiek do"],
-  price:               ["price", "cena", "cena_za_tydzien", "cena_za_tydzien (pln, jesli dostepna)", "cena_za_tydzien (PLN, jeśli dostępna)"],
-  price_from:          ["price_from", "cena_od", "cena od"],
-  price_to:            ["price_to", "cena_do", "cena do"],
-  is_free:             ["is_free", "bezplatne", "bezpłatne", "darmowe"],
-  meals_included:      ["meals_included", "wyzywienie", "wyzywienie (tak/nie/brak danych)", "jedzenie"],
-  transport_included:  ["transport_included", "transport", "dojazd", "dowoz", "dowóz"],
-  organizer:           ["organizer", "organizer_name", "organizator", "nazwa organizatora"],
-  organizer_id:        ["organizer_id", "organizator_id"],
-  source_url:          ["source_url", "url", "link", "link_zrodlowy"],
-  facebook_url:        ["facebook_url", "facebook", "fb", "facebook page"],
-  venue_name:          ["venue_name", "miejsce", "nazwa miejsca"],
-  venue_address:       ["venue_address", "adres", "address", "lokalizacja"],
-  street:              ["street", "ulica"],
-  postcode:            ["postcode", "kod", "kod pocztowy", "zip", "postal code"],
-  city:                ["city", "miasto", "places"],
-  district:            ["district", "dzielnica"],
-  lat:                 ["lat", "latitude"],
-  lng:                 ["lng", "lon", "longitude"],
-  note:                ["note", "notatka", "uwagi", "dodatkowe informacje"],
-  status:              ["status", "stan"],
-  care_hours:          ["care_hours", "godziny_opieki", "godziny", "hours"],
-  seats:               ["seats", "liczba_miejsc", "liczba_miejsc (jesli dostepna)", "liczba_miejsc (jeśli dostępna)", "miejsca"],
-};
-
-const CATEGORY_ALIASES: Record<string, Camp["category"]> = {
-  sport: "sportowe", sportowa: "sportowe", sportowy: "sportowe", sportowe: "sportowe",
-  edukacja: "edukacyjne", edukacyjna: "edukacyjne", edukacyjny: "edukacyjne", edukacyjne: "edukacyjne",
-  integracja: "integracyjne", integracyjna: "integracyjne", integracyjny: "integracyjne", integracyjne: "integracyjne",
-  przygoda: "przygodowe", przygodowa: "przygodowe", przygodowy: "przygodowe", przygodowe: "przygodowe",
-  artystyczna: "artystyczne", artystyczny: "artystyczne", art: "artystyczne", sztuka: "artystyczne", artystyczne: "artystyczne",
-  kulinarne: "kulinarne", kulinarna: "kulinarne", kulinaria: "kulinarne", kuchnia: "kulinarne", gotowanie: "kulinarne",
-  przyrodnicze: "przyrodnicze", przyrodnicza: "przyrodnicze", przyrodniczy: "przyrodnicze", przyroda: "przyrodnicze", natura: "przyrodnicze",
-};
-
-function resolveField(header: string): string | null {
-  const key = header.toLowerCase().trim();
-  for (const [field, aliases] of Object.entries(FIELD_ALIASES)) {
-    if (aliases.some((a) => a.toLowerCase() === key)) return field;
-  }
-  return null;
-}
+const PROMPT_URL_LIST = [
+  "https://disport.fun/index.php/polkolonie-krakow/",
+  "https://cmjordan.krakow.pl/2026/04/P%C3%93%C5%81KOLONIE-LETNIE-2026",
+  "https://www.osrodekwkorzkwi.pl/oferta/wakacje",
+  "https://jump4fun.pl/",
+  "https://www.hornkrakow.pl/dzieci-i-mlodziez/polkolonie-z-hornem/",
+  "https://www.kraul.pl/wyjazdy-i-obozy/lato/aktywna-polkolonia-krakow/",
+  "https://teamsport.krakow.pl/kolonie-i-polkolonie-lato-krakow/",
+  "https://www.agamasport.pl/polkolonie-krakow/",
+  "https://mnk.pl/artykul/wakacje-ze-sztuka-polkolonie-w-mnk-2026",
+  "https://cogiteon.pl/edukacja/polkolonie",
+  "https://medincusactive.pl/strefy/polkolonie-2026/",
+  "https://www.kct.pl/sportowa-polkolonia-oboz-dochodzeniowy/",
+  "https://polkoloniakrakow.pl/",
+  "https://www.prosportkrakow.pl/oferta/polkolonie/",
+  "https://centrum.ksos.pl/polkolonie-sportowe/",
+  "https://www.anikino.pl/polkolonie-krakow-2026/zapisy-polkolonia/turnusy",
+  "https://polkolonia-pilkarska.pl/",
+  "https://malitworcy.pl/polkolonie-z-ceramika/",
+  "https://frajdasport.pl/polkolonie",
+  "https://www.ckpodgorza.pl/oferta/zajecie/polkolonia-ferie-2026",
+  "https://malygeniusz.org/krakow/",
+  "https://harcownia.com/polkolonie-krakow",
+  "https://moswschod.pl/polkolonie-sportowe/",
+  "https://mdk.krakow.pl/",
+  "https://polkolonie.earlystage.pl/polkolonie/krakow-biezanow-prokocim-lato/",
+] as const;
 
 function mapCampRow(row: Record<string, unknown>): Camp {
   const priceFrom = typeof row.price_from === "number" ? row.price_from : null;
@@ -140,26 +105,6 @@ function mapCampRow(row: Record<string, unknown>): Camp {
     price: priceFrom ?? priceSingle ?? null,
     is_free: Boolean(row.is_free) || priceFrom === 0 || priceTo === 0 || priceSingle === 0,
   } as Camp;
-}
-
-function asNumber(v?: string): number | null {
-  if (!v) return null;
-  const n = Number(String(v).replace(/,/g, ".").replace(/[^0-9.\-]/g, ""));
-  return Number.isFinite(n) ? n : null;
-}
-
-function inferCategory(raw: string | undefined): Camp["category"] {
-  if (!raw) return null;
-  return CATEGORY_ALIASES[raw.toLowerCase().trim()] ?? null;
-}
-
-function inferMainCategory(mappedType: string | undefined, title: string): Camp["main_category"] {
-  const t = (mappedType || "").toLowerCase();
-  const n = title.toLowerCase();
-  if (t.includes("warsztat") || n.includes("warsztat")) return "warsztaty_wakacyjne";
-  if (t.includes("polkoloni") || n.includes("polkoloni")) return "polkolonie";
-  if (t.includes("koloni") || t.includes("oboz") || n.includes("koloni") || n.includes("oboz")) return "kolonie";
-  return "polkolonie";
 }
 
 function getCampGroupKey(camp: Partial<Camp> | Record<string, unknown>) {
@@ -202,18 +147,6 @@ function calcDurationDays(from?: string, to?: string): number {
   return Number.isFinite(diff) && diff > 0 ? diff : 5;
 }
 
-function normalizeImportStatus(value?: string): Camp["status"] {
-  const normalized = (value || "").trim().toLowerCase();
-  if (normalized === "published" || normalized === "opublikowany") return "published";
-  if (normalized === "cancelled" || normalized === "anulowany") return "cancelled";
-  if (normalized === "deleted" || normalized === "usuniety" || normalized === "usunięty") return "deleted";
-  return "draft";
-}
-
-function detectDistrict(location: string): Camp["district"] {
-  return detectDistrictFromText(location);
-}
-
 function splitAddress(venueAddress: string) {
   const parts = venueAddress.split(",").map((p) => p.trim()).filter(Boolean);
   return {
@@ -242,22 +175,18 @@ export default function AdminCampsPage() {
 
   const [organizers, setOrganizers] = useState<Organizer[]>([]);
 
-  const [pasteModal, setPasteModal] = useState(false);
-  const [pasteText, setPasteText] = useState("");
-  const [pasteHeaders, setPasteHeaders] = useState<string[]>([]);
-  const [pastePreview, setPastePreview] = useState<Record<string, string>[]>([]);
-  const [importing, setImporting] = useState(false);
-  const [importProgress, setImportProgress] = useState({ done: 0, total: 0 });
-
   const [promptPreview, setPromptPreview] = useState<{ title: string; campId: string; prompt: string } | null>(null);
   const [assigningImageId, setAssigningImageId] = useState<string | null>(null);
 
   const [promptModal, setPromptModal] = useState(false);
+  const [activePromptModalView, setActivePromptModalView] = useState<"prompts" | "urls">("prompts");
   const [activePromptTab, setActivePromptTab] = useState(0);
   const [prompts, setPrompts] = useState(PROMPTS);
   const [editingPrompt, setEditingPrompt] = useState(false);
   const [editingContent, setEditingContent] = useState("");
   const [savingPrompt, setSavingPrompt] = useState(false);
+  const [promptUrlRows, setPromptUrlRows] = useState<string[]>(() => [...PROMPT_URL_LIST].sort((a, b) => a.localeCompare(b, "pl")));
+  const [selectedPromptUrls, setSelectedPromptUrls] = useState<Record<number, boolean>>({});
   const [buildingDataframe, setBuildingDataframe] = useState(false);
   const [buildResult, setBuildResult] = useState<{ ok: boolean; message: string; failed?: number; newCamps?: { camp_id: string; title: string; image_prompt: string }[] } | null>(null);
   const [imagePromptByCampId, setImagePromptByCampId] = useState<Record<string, string>>({});
@@ -358,6 +287,11 @@ export default function AdminCampsPage() {
     [displayedTypeKeys, collapsedCategories]
   );
 
+  const selectedPromptUrlCount = useMemo(
+    () => promptUrlRows.filter((_, index) => selectedPromptUrls[index]).length,
+    [promptUrlRows, selectedPromptUrls]
+  );
+
   // ── Filter / collapse helpers ──────────────────────────────────────────────
 
   const toggleCategory = (type: string) =>
@@ -390,286 +324,6 @@ export default function AdminCampsPage() {
     setTypeFilter(type);
     setStatusFilter(filter);
     setCollapsedCategories((prev) => ({ ...prev, [type]: false }));
-  };
-
-  // ── Paste import ───────────────────────────────────────────────────────────
-
-  const parsePastedData = (text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed) { setPasteHeaders([]); setPastePreview([]); return; }
-
-    // Remove literal newlines inside JSON/Python string values (e.g. URLs with trailing \n before closing quote)
-    const fixLiteralNewlines = (s: string) => {
-      let r = "", inStr = false, esc = false;
-      for (const c of s) {
-        if (esc) { r += c; esc = false; }
-        else if (c === "\\" && inStr) { r += c; esc = true; }
-        else if (c === '"') { inStr = !inStr; r += c; }
-        else if (inStr && (c === "\n" || c === "\r")) { /* drop literal newlines inside strings */ }
-        else r += c;
-      }
-      return r;
-    };
-
-    const structMatch = trimmed.match(/[\[{][\s\S]*[\]}]/);
-    if (structMatch) {
-      const raw = fixLiteralNewlines(structMatch[0]
-        .replace(/#[^\n]*/g, "")
-        .replace(/<NA>/g, "null")
-        .replace(/\bNaN\b/g, "null"));
-
-      const pythonToJson = (input: string) => {
-        let out = ""; let inSingle = false; let escaped = false;
-        for (const ch of input) {
-          if (inSingle) {
-            if (escaped) { out += ch; escaped = false; continue; }
-            if (ch === "\\") { out += "\\\\"; escaped = true; continue; }
-            if (ch === "'") { inSingle = false; out += '"'; continue; }
-            if (ch === '"') { out += '\\"'; continue; }
-            out += ch; continue;
-          }
-          if (ch === "'") { inSingle = true; out += '"'; continue; }
-          out += ch;
-        }
-        return out;
-      };
-
-      for (const attempt of [raw, pythonToJson(raw)]) {
-        try {
-          const obj = JSON.parse(
-            attempt.replace(/\bTrue\b/g, "true").replace(/\bFalse\b/g, "false").replace(/\bNone\b/g, "null")
-          );
-          if (Array.isArray(obj) && obj.length > 0 && typeof obj[0] === "object") {
-            const headers = [...new Set(obj.flatMap((o: Record<string, unknown>) => Object.keys(o)))];
-            setPasteHeaders(headers);
-            setPastePreview(obj.map((o: Record<string, unknown>) => {
-              const row: Record<string, string> = {};
-              headers.forEach((h) => { row[h] = o[h] != null ? String(o[h]) : ""; });
-              return row;
-            }));
-            return;
-          }
-        } catch { /* try next */ }
-      }
-    }
-
-    const lines = trimmed.split(/\r?\n/).filter((l) => l.trim());
-    if (lines.length < 2) { setPasteHeaders([]); setPastePreview([]); return; }
-    const sep = lines[0].includes("\t") ? "\t" : lines[0].includes("~") ? "~" : lines[0].includes(";") ? ";" : ",";
-    const headers = lines[0].split(sep).map((h) => h.trim().replace(/^"|"$/g, ""));
-    const rows = lines.slice(1)
-      .map((line) => {
-        const vals = line.split(sep).map((v) => v.trim().replace(/^"|"$/g, ""));
-        const row: Record<string, string> = {};
-        headers.forEach((h, i) => { row[h] = vals[i] || ""; });
-        return row;
-      })
-      .filter((r) => Object.values(r).some(Boolean));
-    setPasteHeaders(headers);
-    setPastePreview(rows);
-  };
-
-  const runPasteImport = async () => {
-    if (pastePreview.length === 0) return;
-    setImporting(true);
-    setImportProgress({ done: 0, total: pastePreview.length });
-    const imported: Camp[] = [];
-    const knownOrganizers = [...organizers];
-
-    for (let i = 0; i < pastePreview.length; i++) {
-      const row = pastePreview[i];
-      const mapped: Record<string, string> = {};
-      for (const header of pasteHeaders) {
-        const field = resolveField(header);
-        if (field) mapped[field] = row[header] || "";
-      }
-
-      if (!mapped.title) { setImportProgress({ done: i + 1, total: pastePreview.length }); continue; }
-
-      const dateStart  = mapped.date_start || new Date().toISOString().slice(0, 10);
-      const dateEnd    = mapped.date_end || dateStart;
-      const priceFrom  = asNumber(mapped.price_from) ?? asNumber(mapped.price);
-      const priceTo    = asNumber(mapped.price_to);
-      const shortDesc  = mapped.description_short || "Opis oferty";
-      const careHours  = mapped.care_hours ? `Godziny opieki: ${mapped.care_hours}.` : "";
-      const seats      = mapped.seats ? `Liczba miejsc: ${mapped.seats}.` : "";
-      const longDesc   = mapped.description_long || `${shortDesc}${careHours ? ` ${careHours}` : ""}${seats ? ` ${seats}` : ""}`.trim();
-      const venueAddress = mapped.venue_address?.trim() || "";
-      const splitLegacyAddress = venueAddress ? splitAddress(venueAddress) : { street: "", city: "Kraków" };
-      const street = mapped.street?.trim() || splitLegacyAddress.street;
-      const postcode = mapped.postcode?.trim() || null;
-      const cityHint   = mapped.city?.trim() || splitLegacyAddress.city || "";
-      const city = cityHint || "Kraków";
-      const organizerName = mapped.organizer || (!isUUID(mapped.organizer_id || "") ? mapped.organizer_id || "" : "") || mapped.venue_name || "Organizator";
-      const organizerId = await ensureOrganizerId({
-        organizers: knownOrganizers,
-        organizerId: isUUID(mapped.organizer_id || "") ? mapped.organizer_id : null,
-        organizerName,
-        city,
-        onOrganizerCreated: (organizer) => {
-          knownOrganizers.push(organizer);
-          setOrganizers((current) => current.some((entry) => entry.id === organizer.id) ? current : [...current, organizer]);
-        },
-      });
-      const typeLevel1Id = resolveTypeLevel1Id(typeLevel1Options, mapped.type_lvl_1?.trim() || null);
-      const typeLevel2Id = resolveTypeLevel2Id(typeLevel2Options, mapped.type_lvl_2?.trim() || null, typeLevel1Id);
-      const categoryLevel1 = resolveCategoryLevel1Name(
-        categoryLevel1Options,
-        mapped.category_lvl_1?.trim() || inferMainCategory(mapped.main_category, mapped.title),
-      );
-      const categoryLevel2 = resolveCategoryLevel2Name(
-        categoryLevel2Options,
-        mapped.category_lvl_2?.trim() || inferCategory(mapped.category),
-        categoryLevel1,
-        categoryLevel1Options,
-      );
-      const categoryLevel3 = resolveCategoryLevel3Name(
-        categoryLevel3Options,
-        mapped.category_lvl_3?.trim() || mapped.subcategory?.trim() || null,
-        categoryLevel2,
-        categoryLevel2Options,
-      );
-      const district = mapped.district?.trim() ? detectDistrict(mapped.district) : detectDistrict([street, postcode, city].filter(Boolean).join(", "));
-      const lat = asNumber(mapped.lat);
-      const lng = asNumber(mapped.lng);
-      const status = normalizeImportStatus(mapped.status);
-
-      try {
-        // Step 1 — create camp with core data
-        const res = await fetch("/api/admin/camps", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title:            mapped.title.trim(),
-            description_short: shortDesc,
-            description_long:  longDesc,
-            type_lvl_1:     typeLevel1Id,
-            type_lvl_2:     typeLevel2Id,
-            date_start:        dateStart,
-            date_end:          dateEnd,
-            category_lvl_1:    categoryLevel1,
-            category_lvl_2:    categoryLevel2,
-            category_lvl_3:    categoryLevel3,
-            season:            inferSeason(dateStart),
-            duration_days:     asNumber(mapped.duration_days) || calcDurationDays(dateStart, dateEnd),
-            meals_included:    ["tak", "true", "1"].includes((mapped.meals_included || "").toLowerCase()),
-            transport_included: ["tak", "true", "1"].includes((mapped.transport_included || "").toLowerCase()),
-            age_min:           asNumber(mapped.age_min),
-            age_max:           asNumber(mapped.age_max),
-            price_from:        priceFrom,
-            price_to:          priceTo,
-            is_free:           ["tak", "true", "1"].includes((mapped.is_free || "").toLowerCase()) || (priceFrom ?? priceTo ?? null) === 0,
-            organizer_id:      organizerId,
-            source_url:        mapped.source_url?.trim() || null,
-            facebook_url:      mapped.facebook_url?.trim() || null,
-            street,
-            postcode,
-            city,
-            district,
-            note:              mapped.note?.trim() || null,
-          }),
-        });
-        const data = await res.json();
-        if (!data?.id) { setImportProgress({ done: i + 1, total: pastePreview.length }); continue; }
-        imported.push(mapCampRow(data));
-
-        if (status !== "draft") {
-          await fetch("/api/admin/camps", {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id: data.id, status }),
-          });
-          const idx = imported.findIndex((c) => c.id === data.id);
-          if (idx !== -1) imported[idx] = { ...imported[idx], status };
-        }
-
-        // Step 2 — geocode and apply district + lat/lng
-        if (lat !== null && lng !== null) {
-          await fetch("/api/admin/camps", {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id: data.id, lat, lng, district }),
-          });
-          const idx = imported.findIndex((c) => c.id === data.id);
-          if (idx !== -1) imported[idx] = { ...imported[idx], lat, lng, district };
-        } else if (street) {
-          try {
-            if (i > 0) await new Promise((r) => setTimeout(r, 1100));
-            const geoRes = await fetch("/api/admin/geocode", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ address: street, city }),
-            });
-            const geo = await geoRes.json();
-            const geocodedDistrict = (geo.district || district) as Camp["district"];
-            if (geo.lat && geo.lng) {
-              await fetch("/api/admin/camps", {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id: data.id, lat: geo.lat, lng: geo.lng, district: geocodedDistrict }),
-              });
-              if (geo.postcode || geo.city) {
-                await fetch("/api/admin/camps", {
-                  method: "PATCH",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ id: data.id, ...(geo.postcode && !postcode ? { postcode: geo.postcode } : {}), ...(geo.city ? { city: geo.city } : {}) }),
-                });
-              }
-              const idx = imported.findIndex((c) => c.id === data.id);
-              if (idx !== -1) imported[idx] = {
-                ...imported[idx],
-                lat: geo.lat,
-                lng: geo.lng,
-                district: geocodedDistrict,
-                ...(geo.postcode && !postcode ? { postcode: geo.postcode } : {}),
-                ...(geo.city ? { city: geo.city } : {}),
-              };
-            } else if (geocodedDistrict && geocodedDistrict !== "Inne") {
-              await fetch("/api/admin/camps", {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id: data.id, district: geocodedDistrict }),
-              });
-              const idx = imported.findIndex((c) => c.id === data.id);
-              if (idx !== -1) imported[idx] = { ...imported[idx], district: geocodedDistrict };
-            }
-          } catch { /* geocoding is best-effort */ }
-        }
-
-        // Step 3 — pick a random photo from the category folder in Supabase storage
-        const campMainCat = categoryLevel1;
-        const campCategory = categoryLevel2;
-        if (campMainCat) {
-          try {
-            const photoRes = await fetch("/api/admin/random-photo", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                id: data.id,
-                main_category: campMainCat,
-                category: campCategory,
-                subcategory: categoryLevel3,
-              }),
-            });
-            const photo = await photoRes.json();
-            if (photo.image_url) {
-              const idx = imported.findIndex((c) => c.id === data.id);
-              if (idx !== -1) imported[idx] = { ...imported[idx], image_url: photo.image_url };
-            }
-          } catch { /* photo assignment is best-effort */ }
-        }
-      } catch { /* skip row */ }
-
-      setImportProgress({ done: i + 1, total: pastePreview.length });
-    }
-
-    setCamps((prev) => [...imported, ...prev]);
-    setImporting(false);
-    setPasteModal(false);
-    setPasteText("");
-    setPasteHeaders([]);
-    setPastePreview([]);
-    alert(`Zaimportowano ${imported.length} z ${pastePreview.length} kolonii`);
   };
 
   // ── CRUD ───────────────────────────────────────────────────────────────────
@@ -909,6 +563,7 @@ export default function AdminCampsPage() {
   };
 
   const openPromptModal = async () => {
+    setActivePromptModalView("prompts");
     setEditingPrompt(false);
     setPromptModal(true);
     try {
@@ -1065,9 +720,6 @@ export default function AdminCampsPage() {
           >
             {buildingDataframe ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
             Upload data
-          </button>
-          <button onClick={() => setPasteModal(true)} className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-muted border border-border rounded-xl hover:border-[#CCC] transition-colors">
-            <ClipboardPaste size={14} /> Wklej dane
           </button>
           <button onClick={createCamp} className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-white bg-foreground rounded-xl hover:bg-stone-700 transition-colors">
             <Plus size={14} /> Dodaj
@@ -1429,84 +1081,6 @@ export default function AdminCampsPage() {
         </div>
       )}
 
-      {pasteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col mx-4">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-              <div>
-                <h2 className="text-[15px] font-bold text-foreground">Wklej dane</h2>
-                <p className="text-[11px] text-muted mt-0.5">Wklej tabelę z Excela, Google Sheets lub dane JSON/DataFrame</p>
-              </div>
-              <button onClick={() => { setPasteModal(false); setPasteText(""); setPasteHeaders([]); setPastePreview([]); }} className="p-1.5 rounded hover:bg-accent text-muted transition-colors">
-                <X size={16} />
-              </button>
-            </div>
-            <div className="px-5 py-4 overflow-y-auto flex-1 space-y-4">
-              <textarea
-                className="w-full h-40 px-3 py-2 rounded-lg border border-border text-[12px] font-mono bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30 resize-none"
-                value={pasteText}
-                onChange={(e) => { setPasteText(e.target.value); parsePastedData(e.target.value); }}
-              />
-              {pasteHeaders.length > 0 && (
-                <div>
-                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Rozpoznane kolumny</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {pasteHeaders.map((h) => {
-                      const field = resolveField(h);
-                      return (
-                        <span key={h} className={cn("px-2 py-0.5 rounded-full text-[10px] font-medium", field ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700")}>
-                          {h}{field ? ` -> ${field}` : " (pominięta)"}
-                        </span>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-              {pastePreview.length > 0 && (
-                <div>
-                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Podgląd ({pastePreview.length} wierszy)</p>
-                  <div className="overflow-x-auto rounded-lg border border-border">
-                    <table className="w-full text-[11px]">
-                      <thead>
-                        <tr className="bg-accent/30">
-                          {pasteHeaders.filter((h) => resolveField(h)).map((h) => (
-                            <th key={h} className="px-2.5 py-1.5 text-left font-medium text-muted-foreground whitespace-nowrap">{resolveField(h)}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {pastePreview.slice(0, 5).map((row, i) => (
-                          <tr key={i} className="border-t border-border/50">
-                            {pasteHeaders.filter((h) => resolveField(h)).map((h) => (
-                              <td key={h} className="px-2.5 py-1.5 text-foreground max-w-[220px] truncate">{row[h] || <span className="text-muted/40">—</span>}</td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="px-5 py-4 border-t border-border flex items-center justify-between">
-              <p className="text-[11px] text-muted">Kolonie zostaną dodane jako Draft.</p>
-              <div className="flex items-center gap-2">
-                {importing && <span className="text-[11px] text-muted">{importProgress.done}/{importProgress.total} — tworzenie + geokodowanie + zdjęcia...</span>}
-                <button onClick={() => { setPasteModal(false); setPasteText(""); setPasteHeaders([]); setPastePreview([]); }} className="px-3 py-1.5 text-[12px] font-medium text-muted border border-border rounded-lg hover:text-foreground transition-colors">Anuluj</button>
-                <button
-                  onClick={runPasteImport}
-                  disabled={importing || pastePreview.length === 0 || !pasteHeaders.some((h) => resolveField(h) === "title")}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
-                >
-                  {importing ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
-                  {importing ? "Importowanie..." : `Importuj ${pastePreview.length} kolonii`}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {promptPreview && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[80vh] flex flex-col">
@@ -1546,78 +1120,170 @@ export default function AdminCampsPage() {
                 <Sparkles size={16} />
                 Prompt
               </h2>
-              <button onClick={() => { setPromptModal(false); setEditingPrompt(false); }} className="text-muted-foreground hover:text-foreground transition-colors">
+              <button onClick={() => { setPromptModal(false); setEditingPrompt(false); setActivePromptModalView("prompts"); }} className="text-muted-foreground hover:text-foreground transition-colors">
                 <X size={18} />
               </button>
             </div>
             <div className="flex gap-1 px-5 pt-3 border-b border-border">
-              {prompts.map((p, i) => (
-                <button
-                  key={i}
-                  onClick={() => { setActivePromptTab(i); setEditingPrompt(false); }}
-                  className={cn(
-                    "px-3 py-1.5 text-[12px] font-medium rounded-t-md transition-colors border-b-2 -mb-px",
-                    activePromptTab === i
-                      ? "border-foreground text-foreground"
-                      : "border-transparent text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-            <div className="flex-1 overflow-y-auto p-5">
-              {editingPrompt ? (
-                <textarea
-                  className="w-full h-full min-h-[300px] text-sm font-mono text-foreground border border-border rounded-lg p-3 focus:outline-none focus:ring-1 focus:ring-primary/30 resize-none"
-                  value={editingContent}
-                  onChange={(e) => setEditingContent(e.target.value)}
-                />
-              ) : (
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap font-mono leading-relaxed">
-                  {prompts[activePromptTab]?.content}
-                </p>
-              )}
-            </div>
-            <div className="flex justify-between gap-2 px-5 py-4 border-t border-border">
               <button
-                onClick={() => {
-                  if (editingPrompt) {
-                    setEditingPrompt(false);
-                  } else {
-                    setEditingContent(prompts[activePromptTab]?.content ?? "");
-                    setEditingPrompt(true);
-                  }
-                }}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-muted border border-border rounded-lg hover:border-[#CCC] transition-colors"
+                onClick={() => { setActivePromptModalView("prompts"); setEditingPrompt(false); }}
+                className={cn(
+                  "px-3 py-1.5 text-[12px] font-medium rounded-t-md transition-colors border-b-2 -mb-px",
+                  activePromptModalView === "prompts"
+                    ? "border-foreground text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                )}
               >
-                <Pencil size={12} />
-                {editingPrompt ? "Anuluj" : "Edytuj"}
+                Prompty
               </button>
-              <div className="flex gap-2">
-                {editingPrompt ? (
+              <button
+                onClick={() => { setActivePromptModalView("urls"); setEditingPrompt(false); }}
+                className={cn(
+                  "px-3 py-1.5 text-[12px] font-medium rounded-t-md transition-colors border-b-2 -mb-px",
+                  activePromptModalView === "urls"
+                    ? "border-foreground text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Lista URL
+              </button>
+            </div>
+
+            {activePromptModalView === "prompts" ? (
+              <>
+                <div className="flex gap-1 px-5 pt-3 border-b border-border">
+                  {prompts.map((p, i) => (
+                    <button
+                      key={i}
+                      onClick={() => { setActivePromptTab(i); setEditingPrompt(false); }}
+                      className={cn(
+                        "px-3 py-1.5 text-[12px] font-medium rounded-t-md transition-colors border-b-2 -mb-px",
+                        activePromptTab === i
+                          ? "border-foreground text-foreground"
+                          : "border-transparent text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex-1 overflow-y-auto p-5">
+                  {editingPrompt ? (
+                    <textarea
+                      className="w-full h-full min-h-[300px] text-sm font-mono text-foreground border border-border rounded-lg p-3 focus:outline-none focus:ring-1 focus:ring-primary/30 resize-none"
+                      value={editingContent}
+                      onChange={(e) => setEditingContent(e.target.value)}
+                    />
+                  ) : (
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap font-mono leading-relaxed">
+                      {prompts[activePromptTab]?.content}
+                    </p>
+                  )}
+                </div>
+                <div className="flex justify-between gap-2 px-5 py-4 border-t border-border">
                   <button
-                    onClick={savePrompt}
-                    disabled={savingPrompt}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-white bg-foreground rounded-lg hover:bg-stone-700 transition-colors disabled:opacity-50"
-                  >
-                    {savingPrompt ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-                    Zapisz
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => navigator.clipboard.writeText(prompts[activePromptTab]?.content ?? "")}
+                    onClick={() => {
+                      if (editingPrompt) {
+                        setEditingPrompt(false);
+                      } else {
+                        setEditingContent(prompts[activePromptTab]?.content ?? "");
+                        setEditingPrompt(true);
+                      }
+                    }}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-muted border border-border rounded-lg hover:border-[#CCC] transition-colors"
                   >
-                    <Copy size={12} />
-                    Kopiuj
+                    <Pencil size={12} />
+                    {editingPrompt ? "Anuluj" : "Edytuj"}
                   </button>
-                )}
-                <button onClick={() => { setPromptModal(false); setEditingPrompt(false); }} className="px-3 py-1.5 text-[12px] font-medium text-white bg-foreground rounded-lg hover:bg-stone-700 transition-colors">
-                  Zamknij
-                </button>
-              </div>
-            </div>
+                  <div className="flex gap-2">
+                    {editingPrompt ? (
+                      <button
+                        onClick={savePrompt}
+                        disabled={savingPrompt}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-white bg-foreground rounded-lg hover:bg-stone-700 transition-colors disabled:opacity-50"
+                      >
+                        {savingPrompt ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                        Zapisz
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => navigator.clipboard.writeText(prompts[activePromptTab]?.content ?? "")}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-muted border border-border rounded-lg hover:border-[#CCC] transition-colors"
+                      >
+                        <Copy size={12} />
+                        Kopiuj
+                      </button>
+                    )}
+                    <button onClick={() => { setPromptModal(false); setEditingPrompt(false); setActivePromptModalView("prompts"); }} className="px-3 py-1.5 text-[12px] font-medium text-white bg-foreground rounded-lg hover:bg-stone-700 transition-colors">
+                      Zamknij
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex-1 overflow-y-auto p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[12px] text-muted-foreground">Lista URL. Zaznaczone: {selectedPromptUrlCount}</p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setSelectedPromptUrls(Object.fromEntries(promptUrlRows.map((_, index) => [index, true])))}
+                        className="px-2.5 py-1 text-[11px] font-medium text-muted border border-border rounded hover:text-foreground transition-colors"
+                      >
+                        Zaznacz wszystkie
+                      </button>
+                      <button
+                        onClick={() => setSelectedPromptUrls({})}
+                        className="px-2.5 py-1 text-[11px] font-medium text-muted border border-border rounded hover:text-foreground transition-colors"
+                      >
+                        Wyczyść
+                      </button>
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-border divide-y divide-border/60">
+                    {promptUrlRows.length === 0 ? (
+                      <p className="px-3 py-3 text-[12px] text-muted">Brak URL-i do pokazania.</p>
+                    ) : (
+                      promptUrlRows.map((url, index) => (
+                        <label key={`${index}-${url}`} className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-accent/30 transition-colors">
+                          <input
+                            type="checkbox"
+                            className="rounded border-border"
+                            checked={Boolean(selectedPromptUrls[index])}
+                            onChange={(e) => setSelectedPromptUrls((prev) => ({ ...prev, [index]: e.target.checked }))}
+                          />
+                          <input
+                            type="text"
+                            className="min-w-0 flex-1 px-2 py-1 text-[11px] text-foreground rounded border border-border bg-white focus:outline-none focus:ring-1 focus:ring-primary/30"
+                            value={url}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              setPromptUrlRows((prev) => prev.map((entry, i) => (i === index ? value : entry)));
+                            }}
+                          />
+                        </label>
+                      ))
+                    )}
+                  </div>
+                </div>
+                <div className="flex justify-between gap-2 px-5 py-4 border-t border-border">
+                  <button
+                    onClick={() => {
+                      const selected = promptUrlRows.filter((url, index) => selectedPromptUrls[index] && url.trim().length > 0).join("\n");
+                      navigator.clipboard.writeText(selected);
+                    }}
+                    disabled={selectedPromptUrlCount === 0}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-muted border border-border rounded-lg hover:border-[#CCC] transition-colors disabled:opacity-50"
+                  >
+                    <Copy size={12} />
+                    Kopiuj zaznaczone
+                  </button>
+                  <button onClick={() => { setPromptModal(false); setEditingPrompt(false); setActivePromptModalView("prompts"); }} className="px-3 py-1.5 text-[12px] font-medium text-white bg-foreground rounded-lg hover:bg-stone-700 transition-colors">
+                    Zamknij
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

@@ -12,12 +12,10 @@ import { useAdminTaxonomy } from "@/lib/use-admin-taxonomy";
 import { CATEGORY_LABELS } from "@/lib/mock-data";
 import { normalizeDistrictName } from "@/lib/districts";
 import { getTaxonomyOptions, matchesTaxonomyFilter, mergeSelectedTaxonomyOptions } from "@/lib/taxonomy-filters";
-import { cn, formatDateShort, formatAgeRange, thumbUrl } from "@/lib/utils";
+import { cn, formatAgeRange, thumbUrl } from "@/lib/utils";
 import type { Event, Place, Camp, Activity, District } from "@/types/database";
 import type { ShopifyProduct } from "@/lib/shopify";
 import { ShopifyProductCard } from "@/components/ui/shopify-product-card";
-
-const DAYS_PL = ["Nd", "Pn", "Wt", "Śr", "Cz", "Pt", "So"];
 
 interface OrganizerTile {
   key: string;
@@ -46,14 +44,6 @@ function getOrganizerAgeSummary(camps: Camp[]): string {
   const min = mins.length > 0 ? Math.min(...mins) : null;
   const max = maxes.length > 0 ? Math.max(...maxes) : null;
   return formatAgeRange(min, max);
-}
-
-function getDateChipLabel(camp: Camp): string {
-  const start = new Date(camp.date_start + "T00:00:00");
-  const end = new Date(camp.date_end + "T00:00:00");
-  const startLabel = `${DAYS_PL[start.getDay()]} ${formatDateShort(camp.date_start)}`;
-  if (camp.date_start === camp.date_end) return startLabel;
-  return `${startLabel} – ${DAYS_PL[end.getDay()]} ${formatDateShort(camp.date_end)}`;
 }
 
 const AGE_GROUPS = [
@@ -800,15 +790,18 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
                   {visibleOrganizers.map((organizer) => (
                     <article
                       key={organizer.key}
-                      className="rounded-xl border border-border bg-[#daeaf7] shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5 transition-all duration-200 overflow-hidden"
+                      className="rounded-xl border border-border bg-white shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5 transition-all duration-200 overflow-hidden"
                     >
-                      <Link href={`/kolonie/${organizer.leadCamp.slug}`} className="group flex overflow-hidden h-[152px]">
-                        <div className="w-[148px] shrink-0 relative self-stretch bg-accent">
+                      <Link
+                        href={`/kolonie/${organizer.leadCamp.slug}`}
+                        className="group flex h-[152px] overflow-hidden sm:h-auto sm:flex-col"
+                      >
+                        <div className="relative w-[148px] shrink-0 self-stretch overflow-hidden bg-accent sm:w-full sm:aspect-[4/3]">
                           {organizer.leadCamp.image_url ? (
                             <ImageWithFallback
                               src={thumbUrl(organizer.leadCamp.image_thumb, organizer.leadCamp.image_url) || organizer.leadCamp.image_url}
                               alt={organizer.name}
-                              className="h-full w-full object-contain bg-accent/30 transition-transform duration-300 group-hover:scale-[1.04]"
+                              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]"
                               loading="lazy"
                             />
                           ) : (
@@ -818,7 +811,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
                             {getSessionLabel(organizer.camps.length)}
                           </span>
                         </div>
-                        <div className="flex-1 min-w-0 p-3.5 flex flex-col gap-1.5">
+                        <div className="flex min-w-0 flex-1 flex-col gap-1.5 p-3.5 sm:gap-2 sm:p-4">
                           <h3 className="font-heading font-bold text-[13px] text-foreground leading-snug group-hover:text-[#e60100] transition-colors duration-150 line-clamp-2">
                             {organizer.name}
                           </h3>
@@ -839,18 +832,6 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
                           </div>
                         </div>
                       </Link>
-                      <div className="border-t border-border/70 bg-accent/40 px-3 py-2.5">
-                        <div className="flex flex-wrap gap-1.5">
-                          {organizer.camps.map((camp) => (
-                            <span
-                              key={camp.id}
-                              className="inline-flex items-center rounded-full border border-border/80 bg-white px-2 py-0.5 text-[9px] font-medium text-foreground"
-                            >
-                              {getDateChipLabel(camp)}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
                     </article>
                   ))}
                 </div>

@@ -208,7 +208,7 @@ export function CalendarMapView({ events }: CalendarMapViewProps) {
                     selected
                       ? "text-primary-foreground/85"
                       : count > 0
-                        ? "text-primary/80"
+                        ? "text-danger/80"
                         : "text-muted-foreground/55"
                   )}
                 >

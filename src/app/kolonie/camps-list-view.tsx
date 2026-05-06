@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Search, SlidersHorizontal, X, MapPin, Check, Tags, Users, CalendarDays, ChevronDown } from "lucide-react";
 import { MobileActionBar } from "@/components/ui/mobile-action-bar";
 import { PageHero } from "@/components/layout/page-hero";
@@ -192,10 +192,12 @@ function shuffleArray<T>(items: T[]): T[] {
 }
 
 export function CampsListView({ camps }: CampsListViewProps) {
-  const today = getTodayStart();
+  const today = useMemo(() => getTodayStart(), []);
   const startYear = today.getFullYear();
   const startMonth = today.getMonth();
   const calendarRef = useRef<HTMLDivElement | null>(null);
+  const todayButtonRef = useRef<HTMLButtonElement | null>(null);
+  const hasAutoScrolled = useRef(false);
 
   const [search, setSearch] = useState("");
   const [activeTypes, setActiveTypes] = useState<string[]>([]);
@@ -212,6 +214,19 @@ export function CampsListView({ camps }: CampsListViewProps) {
   const [currentMonth, setCurrentMonth] = useState(() => today.getMonth());
   const [currentYear, setCurrentYear] = useState(() => today.getFullYear());
   const [expandedOrganizers, setExpandedOrganizers] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (hasAutoScrolled.current) return;
+    if (currentYear !== today.getFullYear() || currentMonth !== today.getMonth()) return;
+    if (!todayButtonRef.current) return;
+
+    todayButtonRef.current.scrollIntoView({
+      behavior: "smooth",
+      inline: "center",
+      block: "nearest",
+    });
+    hasAutoScrolled.current = true;
+  }, [currentMonth, currentYear, today]);
 
   const ageGroups = useMemo(
     () => AGE_GROUPS.filter((group) => activeAgeGroups.includes(group.key)),
@@ -1069,6 +1084,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
 
                   return (
                     <button
+                      ref={todayFlag ? todayButtonRef : null}
                       key={key}
                       onClick={() => handleCalendarDateClick(date)}
                       title={`${date.toLocaleDateString("pl-PL")}${count > 0 ? ` • ${count} kolonii` : ""}`}
@@ -1205,7 +1221,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                                   <div className="min-w-0">
                                     <Link
                                       href={`/kolonie/${organizer.leadCamp.slug}`}
-                                      className="font-semibold text-[13px] text-foreground leading-snug group-hover:text-danger transition-colors duration-200 line-clamp-2"
+                                      className="font-semibold text-[13px] text-foreground leading-snug transition-colors duration-200 line-clamp-2"
                                     >
                                       {organizer.organizerName}
                                     </Link>
@@ -1246,7 +1262,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                                             >
                                               <td className="py-1.5 pr-2 text-foreground align-top group-hover:bg-stone-100 transition-colors rounded-l">
                                                 <div className="min-w-0">
-                                                  <span className="block truncate whitespace-nowrap font-medium group-hover:text-danger transition-colors" title={camp.title}>
+                                                  <span className="block truncate whitespace-nowrap font-medium transition-colors" title={camp.title}>
                                                     {camp.title}
                                                   </span>
                                                 </div>
@@ -1257,7 +1273,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                                               <td className="px-2 py-1.5 align-top whitespace-nowrap group-hover:bg-stone-100 transition-colors rounded-r">
                                                 <span className="font-medium text-danger">
                                                   <span className="hidden sm:inline">Zobacz</span>
-                                                  <svg className="sm:hidden" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                                                  <svg className="sm:hidden ml-4" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                                                 </span>
                                               </td>
                                             </tr>

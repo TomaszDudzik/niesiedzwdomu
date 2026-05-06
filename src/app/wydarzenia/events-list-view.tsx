@@ -163,11 +163,12 @@ function getEventCategoryValue(event: Event): string | null {
 }
 
 export function EventsListView({ events }: EventsListViewProps) {
-  const today = getTodayStart();
+  const today = useMemo(() => getTodayStart(), []);
   const startYear = today.getFullYear();
   const startMonth = today.getMonth();
   const monthScrollerRef = useRef<HTMLDivElement | null>(null);
   const todayButtonRef = useRef<HTMLButtonElement | null>(null);
+  const hasAutoScrolled = useRef(false);
 
   const [search, setSearch] = useState("");
   const [activeTypes, setActiveTypes] = useState<string[]>([]);
@@ -190,15 +191,16 @@ export function EventsListView({ events }: EventsListViewProps) {
   }, []);
 
   useEffect(() => {
-    if (currentYear !== today.getFullYear() || currentMonth !== today.getMonth()) {
-      return;
-    }
+    if (hasAutoScrolled.current) return;
+    if (currentYear !== today.getFullYear() || currentMonth !== today.getMonth()) return;
+    if (!todayButtonRef.current) return;
 
-    todayButtonRef.current?.scrollIntoView({
+    todayButtonRef.current.scrollIntoView({
       behavior: "smooth",
       inline: "center",
       block: "nearest",
     });
+    hasAutoScrolled.current = true;
   }, [currentMonth, currentYear, today]);
 
   const ageGroups = useMemo(
@@ -909,7 +911,7 @@ export function EventsListView({ events }: EventsListViewProps) {
                             selected
                               ? "text-primary-foreground/85"
                               : count > 0
-                                ? "text-primary/80"
+                                ? "text-danger/80"
                                 : "text-muted-foreground/55"
                           )}
                         >
@@ -994,7 +996,7 @@ export function EventsListView({ events }: EventsListViewProps) {
                       <ListGroupHeader icon={group.icon} title={group.label} count={group.events.length} />
                       <div className="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-4 gap-4">
                         {group.events.map((event) => (
-                          <ContentCard key={event.id} item={event} variant="vertical" />
+                          <ContentCard key={event.id} item={event} variant="vertical" mobileTitleTop />
                         ))}
                       </div>
                     </section>

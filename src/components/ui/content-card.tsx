@@ -8,6 +8,7 @@ interface ContentCardProps {
   item: DiscoveryItem;
   variant?: "horizontal" | "vertical";
   showImageTag?: boolean;
+  mobileTitleTop?: boolean;
 }
 
 const TYPE_BADGE_COLOR: Record<string, string> = {
@@ -45,7 +46,7 @@ function getTag(item: DiscoveryItem): string {
     || item.content_type;
 }
 
-export function ContentCard({ item, variant = "horizontal", showImageTag = false }: ContentCardProps) {
+export function ContentCard({ item, variant = "horizontal", showImageTag = false, mobileTitleTop = false }: ContentCardProps) {
   const isEvent = item.content_type === "event";
   const href = getItemHref(item);
   const tag = getTag(item);
@@ -53,6 +54,66 @@ export function ContentCard({ item, variant = "horizontal", showImageTag = false
 
   /* ── Vertical card (product-style) ── */
   if (variant === "vertical") {
+    if (mobileTitleTop) {
+      return (
+        <Link
+          href={href}
+          className="group flex h-[152px] rounded-xl border border-border bg-card overflow-hidden shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5 transition-all duration-200 sm:h-auto sm:flex-col sm:rounded-2xl sm:hover:-translate-y-1.5"
+        >
+          {/* Image */}
+          <div className="relative w-[115px] shrink-0 self-stretch overflow-hidden bg-accent sm:w-full sm:aspect-[4/3]">
+            {item.image_url ? (
+              <img
+                src={thumbUrl(item.image_thumb, item.image_url) || item.image_url}
+                alt={item.title}
+                className="h-full w-full object-cover group-hover:scale-[1.04] transition-transform duration-300 sm:group-hover:scale-[1.06] sm:duration-400"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-2xl text-muted-foreground/25 sm:text-5xl sm:text-muted-foreground/20">
+                {getPlaceholderIcon(item)}
+              </div>
+            )}
+            {tag && (
+              <span
+                className="absolute left-2.5 top-2.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold text-white leading-none shadow-sm sm:left-3 sm:top-3 sm:py-1 sm:text-[11px]"
+                style={{ background: badgeColor }}
+              >
+                {tag}
+              </span>
+            )}
+          </div>
+
+          {/* Body */}
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5 p-2.5 pt-1.5 sm:gap-2 sm:p-4">
+            <div className="-mx-2.5 -mt-1.5 mb-1 px-2.5 py-1.5 bg-accent/50 sm:m-0 sm:bg-transparent sm:p-0">
+              <h3 className="font-heading font-bold text-[12px] leading-snug truncate sm:line-clamp-2 sm:whitespace-normal text-foreground group-hover:text-[#e60100] transition-colors duration-150 sm:text-[14px]">
+                {item.title}
+              </h3>
+            </div>
+            {item.description_short && (
+              <p className="text-[10px] text-muted-foreground leading-relaxed line-clamp-3 sm:line-clamp-2 sm:text-[12px]">
+                {item.description_short}
+              </p>
+            )}
+            <div className="mt-auto space-y-1 border-t border-border/50 pt-2">
+              {isEvent && (
+                <div className="flex items-center gap-1 text-[10px] text-muted-foreground font-medium sm:text-[11px]">
+                  <Calendar size={9} className="shrink-0 sm:size-[10px]" />
+                  <span className="truncate">{getDateText(item)}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1 text-[10px] text-muted-foreground sm:text-[11px]">
+                  <MapPin size={9} className="shrink-0 text-secondary sm:size-[10px]" />
+                  <span className="truncate">{getLocationText(item)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Link>
+      );
+    }
+
     return (
       <Link
         href={href}
