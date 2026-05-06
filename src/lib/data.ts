@@ -453,3 +453,18 @@ export async function getPublishedActivities(limit = 120): Promise<Activity[]> {
   }
   return shuffleArray((data || []).map((row) => toActivity(row, maps)));
 }
+
+export async function getPublishedActivitiesCount(): Promise<number> {
+  const db = getTaxonomyDb();
+  const { count, error } = await db
+    .from("activities")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "published");
+
+  if (error) {
+    console.error("[getPublishedActivitiesCount] query error:", error.message);
+    return 0;
+  }
+
+  return count ?? 0;
+}
