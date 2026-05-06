@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Search, SlidersHorizontal, X, MapPin, Check, Tags, Users, CalendarDays, ChevronDown } from "lucide-react";
 import { MobileActionBar } from "@/components/ui/mobile-action-bar";
 import { PageHero } from "@/components/layout/page-hero";
@@ -75,6 +75,21 @@ function getCampCategoryValue(camp: Camp): string | null {
 
 function getCampSubcategoryValue(camp: Camp): string | null {
   return camp.category_lvl_3 ?? camp.subcategory ?? null;
+}
+
+function normalizeCampTypeToken(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/ł/g, "l")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function getCampTypeLevel2Value(camp: Camp): "kolonie" | "polkolonie" | null {
+  const value = normalizeCampTypeToken(camp.type_lvl_2 ?? "");
+  if (value === "kolonie" || value === "polkolonie") return value;
+  return null;
 }
 
 function getTodayStart(): Date {
@@ -182,23 +197,17 @@ function sortCampsByNearest(camps: Camp[], today: Date): Camp[] {
   });
 }
 
-function shuffleArray<T>(items: T[]): T[] {
-  const result = [...items];
-  for (let i = result.length - 1; i > 0; i -= 1) {
-    const randomIndex = Math.floor(Math.random() * (i + 1));
-    [result[i], result[randomIndex]] = [result[randomIndex], result[i]];
-  }
-  return result;
-}
-
 export function CampsListView({ camps }: CampsListViewProps) {
-  const today = getTodayStart();
+  const today = useMemo(() => getTodayStart(), []);
   const startYear = today.getFullYear();
   const startMonth = today.getMonth();
   const calendarRef = useRef<HTMLDivElement | null>(null);
+  const todayButtonRef = useRef<HTMLButtonElement | null>(null);
+  const hasAutoScrolled = useRef(false);
 
   const [search, setSearch] = useState("");
   const [activeTypes, setActiveTypes] = useState<string[]>([]);
+  const [activeCampMainTypes, setActiveCampMainTypes] = useState<Array<"kolonie" | "polkolonie">>([]);
   const [activeCategories, setActiveCategories] = useState<string[]>([]);
   const [activeSubcategories, setActiveSubcategories] = useState<string[]>([]);
   const [activeDistricts, setActiveDistricts] = useState<District[]>([]);
@@ -212,6 +221,19 @@ export function CampsListView({ camps }: CampsListViewProps) {
   const [currentMonth, setCurrentMonth] = useState(() => today.getMonth());
   const [currentYear, setCurrentYear] = useState(() => today.getFullYear());
   const [expandedOrganizers, setExpandedOrganizers] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (hasAutoScrolled.current) return;
+    if (currentYear !== today.getFullYear() || currentMonth !== today.getMonth()) return;
+    if (!todayButtonRef.current) return;
+
+    todayButtonRef.current.scrollIntoView({
+      behavior: "smooth",
+      inline: "center",
+      block: "nearest",
+    });
+    hasAutoScrolled.current = true;
+  }, [currentMonth, currentYear, today]);
 
   const ageGroups = useMemo(
     () => AGE_GROUPS.filter((group) => activeAgeGroups.includes(group.key)),
@@ -264,8 +286,12 @@ export function CampsListView({ camps }: CampsListViewProps) {
     return true;
   }
 
-  function matchesCampFilters(camp: Camp, excluded: Array<"type" | "category" | "subcategory" | "district" | "age" | "date"> = []) {
+  function matchesCampFilters(camp: Camp, excluded: Array<"mainType" | "type" | "category" | "subcategory" | "district" | "age" | "date"> = []) {
     if (!matchesSearch(camp)) {
+      return false;
+    }
+    const campTypeLevel2 = getCampTypeLevel2Value(camp);
+    if (!excluded.includes("mainType") && activeCampMainTypes.length > 0 && (!campTypeLevel2 || !activeCampMainTypes.includes(campTypeLevel2))) {
       return false;
     }
     if (!excluded.includes("type") && !matchesTaxonomyFilter(getCampTypeValue(camp), activeTypes)) {
@@ -291,12 +317,12 @@ export function CampsListView({ camps }: CampsListViewProps) {
 
   const filteredCamps = useMemo(
     () => camps.filter((camp) => matchesCampFilters(camp)),
-    [camps, search, activeTypes, activeCategories, activeSubcategories, activeDistricts, ageGroups, rangeFrom, rangeTo, singleDate]
+    [camps, search, activeCampMainTypes, activeTypes, activeCategories, activeSubcategories, activeDistricts, ageGroups, rangeFrom, rangeTo, singleDate]
   );
 
   const typeOptionsSource = useMemo(
     () => camps.filter((camp) => matchesCampFilters(camp, ["type"])),
-    [camps, search, activeCategories, activeSubcategories, activeDistricts, ageGroups, rangeFrom, rangeTo, singleDate]
+    [camps, search, activeCampMainTypes, activeCategories, activeSubcategories, activeDistricts, ageGroups, rangeFrom, rangeTo, singleDate]
   );
 
   const typeOptions = useMemo(
@@ -314,7 +340,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
       getTaxonomyOptions(camps.filter((camp) => matchesCampFilters(camp, ["category"])), getCampCategoryValue),
       activeCategories,
     ),
-    [camps, search, activeTypes, activeSubcategories, activeDistricts, ageGroups, rangeFrom, rangeTo, singleDate, activeCategories]
+    [camps, search, activeCampMainTypes, activeTypes, activeSubcategories, activeDistricts, ageGroups, rangeFrom, rangeTo, singleDate, activeCategories]
   );
 
   const categoryOptionsByValue = useMemo(
@@ -327,7 +353,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
       getTaxonomyOptions(camps.filter((camp) => matchesCampFilters(camp, ["subcategory"])), getCampSubcategoryValue),
       activeSubcategories,
     ),
-    [camps, search, activeTypes, activeCategories, activeDistricts, ageGroups, rangeFrom, rangeTo, singleDate, activeSubcategories]
+    [camps, search, activeCampMainTypes, activeTypes, activeCategories, activeDistricts, ageGroups, rangeFrom, rangeTo, singleDate, activeSubcategories]
   );
 
   const subcategoryOptionsByValue = useMemo(
@@ -362,7 +388,15 @@ export function CampsListView({ camps }: CampsListViewProps) {
       counts.set(key, getCampsForDate(dateOptionCamps, date).length);
     }
     return counts;
-  }, [camps, search, activeTypes, activeCategories, activeSubcategories, activeDistricts, ageGroups, monthDays]);
+  }, [camps, search, activeCampMainTypes, activeTypes, activeCategories, activeSubcategories, activeDistricts, ageGroups, monthDays]);
+
+  const campMainTypeCounts = useMemo(() => {
+    const source = camps.filter((camp) => matchesCampFilters(camp, ["mainType"]));
+    return {
+      kolonie: source.filter((camp) => getCampTypeLevel2Value(camp) === "kolonie").length,
+      polkolonie: source.filter((camp) => getCampTypeLevel2Value(camp) === "polkolonie").length,
+    };
+  }, [camps, search, activeTypes, activeCategories, activeSubcategories, activeDistricts, ageGroups, rangeFrom, rangeTo, singleDate]);
 
   const grouped = useMemo(() => {
     const groupedByType = new Map<string, Camp[]>();
@@ -410,7 +444,11 @@ export function CampsListView({ camps }: CampsListViewProps) {
           }
         });
 
-      const organizers = shuffleArray(Array.from(organizerMap.values()));
+      const organizers = Array.from(organizerMap.values()).sort((a, b) => {
+        const byName = a.organizerName.localeCompare(b.organizerName, "pl");
+        if (byName !== 0) return byName;
+        return a.organizerKey.localeCompare(b.organizerKey, "pl");
+      });
 
       const typeOption = typeOptionsByValue.get(type);
 
@@ -430,14 +468,14 @@ export function CampsListView({ camps }: CampsListViewProps) {
         (camp) => camp.age_max,
         AGE_GROUPS,
       ),
-      [camps, search, activeTypes, activeCategories, activeSubcategories, activeDistricts, rangeFrom, rangeTo, singleDate]
+      [camps, search, activeCampMainTypes, activeTypes, activeCategories, activeSubcategories, activeDistricts, rangeFrom, rangeTo, singleDate]
     );
 
   const availableDistricts = useMemo(() => {
     const set = new Set<string>();
     camps.filter((camp) => matchesCampFilters(camp, ["district"])).forEach((camp) => set.add(camp.district));
     return DISTRICT_LIST.filter((district) => set.has(district) || activeDistricts.includes(district));
-  }, [camps, search, activeTypes, activeCategories, activeSubcategories, ageGroups, rangeFrom, rangeTo, singleDate, activeDistricts]);
+  }, [camps, search, activeCampMainTypes, activeTypes, activeCategories, activeSubcategories, ageGroups, rangeFrom, rangeTo, singleDate, activeDistricts]);
 
   const districtCounts = useMemo(() => {
     const counts = new Map<District, number>();
@@ -445,7 +483,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
       counts.set(camp.district, (counts.get(camp.district) || 0) + 1);
     });
     return counts;
-  }, [camps, search, activeTypes, activeCategories, activeSubcategories, ageGroups, rangeFrom, rangeTo, singleDate]);
+  }, [camps, search, activeCampMainTypes, activeTypes, activeCategories, activeSubcategories, ageGroups, rangeFrom, rangeTo, singleDate]);
 
   const activeFilterBadges = useMemo(() => {
     const badges: { id: string; label: string; onRemove: () => void }[] = [];
@@ -460,6 +498,14 @@ export function CampsListView({ camps }: CampsListViewProps) {
         id: `type-${type}`,
         label: `Typ: ${typeOption?.label || type}`,
         onRemove: () => setActiveTypes((prev) => prev.filter((item) => item !== type)),
+      });
+    });
+
+    activeCampMainTypes.forEach((mainType) => {
+      badges.push({
+        id: `mainType-${mainType}`,
+        label: mainType === "kolonie" ? "Rodzaj: Kolonie" : "Rodzaj: Półkolonie",
+        onRemove: () => setActiveCampMainTypes((prev) => prev.filter((item) => item !== mainType)),
       });
     });
 
@@ -524,10 +570,11 @@ export function CampsListView({ camps }: CampsListViewProps) {
     }
 
     return badges;
-  }, [search, activeTypes, activeCategories, activeSubcategories, activeAgeGroups, activeDistricts, singleDate, rangeFrom, rangeTo, typeOptionsByValue, categoryOptionsByValue, subcategoryOptionsByValue]);
+  }, [search, activeCampMainTypes, activeTypes, activeCategories, activeSubcategories, activeAgeGroups, activeDistricts, singleDate, rangeFrom, rangeTo, typeOptionsByValue, categoryOptionsByValue, subcategoryOptionsByValue]);
 
   function clearFilters() {
     setSearch("");
+    setActiveCampMainTypes([]);
     setActiveTypes([]);
     setActiveCategories([]);
     setActiveSubcategories([]);
@@ -545,6 +592,12 @@ export function CampsListView({ camps }: CampsListViewProps) {
     );
     setActiveCategories([]);
     setActiveSubcategories([]);
+  }
+
+  function toggleCampMainType(mainType: "kolonie" | "polkolonie") {
+    setActiveCampMainTypes((prev) =>
+      prev.includes(mainType) ? prev.filter((item) => item !== mainType) : [...prev, mainType]
+    );
   }
 
   function toggleCategory(category: string) {
@@ -659,6 +712,31 @@ export function CampsListView({ camps }: CampsListViewProps) {
         onToggleFilters={() => setFiltersOpen(!filtersOpen)}
         addHref="/dodaj?type=camp"
         addLabel="Dodaj kolonie"
+        bottomContent={
+          <div className="h-9 w-full inline-flex items-center gap-1 rounded-lg border border-border bg-accent/50 p-0.5">
+            <button
+              type="button"
+              onClick={() => toggleCampMainType("kolonie")}
+              className={cn(
+                "flex-1 h-full inline-flex items-center justify-center gap-1.5 rounded-md text-[10px] font-semibold transition-all duration-200",
+                activeCampMainTypes.includes("kolonie") ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Kolonie ({campMainTypeCounts.kolonie})
+            </button>
+            <div className="w-px bg-border/50 self-stretch" />
+            <button
+              type="button"
+              onClick={() => toggleCampMainType("polkolonie")}
+              className={cn(
+                "flex-1 h-full inline-flex items-center justify-center gap-1.5 rounded-md text-[10px] font-semibold transition-all duration-200",
+                activeCampMainTypes.includes("polkolonie") ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Półkolonie ({campMainTypeCounts.polkolonie})
+            </button>
+          </div>
+        }
       />
 
       {filtersOpen && (
@@ -780,31 +858,6 @@ export function CampsListView({ camps }: CampsListViewProps) {
             </div>
           </FilterSection>
 
-          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Tematyka</p>} defaultCollapsed={false}>
-            <div className="flex flex-wrap gap-1">
-              {subcategoryOptions.map((option) => {
-                const selected = activeSubcategories.includes(option.value);
-                return (
-                  <button
-                    key={option.value}
-                    onClick={() => toggleSubcategory(option.value)}
-                    className={cn(
-                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
-                      selected
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-background text-muted border-border hover:border-danger/30 hover:text-foreground"
-                    )}
-                  >
-                    <span>{option.icon}</span>
-                    <span>{option.label}</span>
-                    <span className="text-[10px] opacity-60">{option.count}</span>
-                    {selected && <Check size={11} />}
-                  </button>
-                );
-              })}
-            </div>
-          </FilterSection>
-
           <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Dzielnica</p>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
               {availableDistricts.map((district) => {
@@ -856,6 +909,33 @@ export function CampsListView({ camps }: CampsListViewProps) {
             <div className="flex items-center rounded-lg border border-border bg-white overflow-hidden">
               <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Szukaj..." className="flex-1 h-[36px] pl-3 pr-2 text-[12px] text-foreground placeholder:text-muted-foreground/50 bg-transparent focus:outline-none" />
               <div className="h-[36px] w-9 flex items-center justify-center bg-[#e60100] text-white shrink-0"><Search size={13} /></div>
+            </div>
+            <div className="flex items-center rounded-lg border border-border p-1 bg-accent/30 w-full">
+              <button
+                type="button"
+                onClick={() => toggleCampMainType("kolonie")}
+                className={cn(
+                  "inline-flex flex-1 items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-[12px] font-medium transition-all",
+                  activeCampMainTypes.includes("kolonie")
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Kolonie ({campMainTypeCounts.kolonie})
+              </button>
+              <div className="h-6 w-px bg-border/80" />
+              <button
+                type="button"
+                onClick={() => toggleCampMainType("polkolonie")}
+                className={cn(
+                  "inline-flex flex-1 items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-[12px] font-medium transition-all",
+                  activeCampMainTypes.includes("polkolonie")
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Półkolonie ({campMainTypeCounts.polkolonie})
+              </button>
             </div>
             <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Data</p>} defaultCollapsed={!filtersOpenDesktop}>
               <p className="text-[10px] text-muted-foreground mb-1">Konkretna data</p>
@@ -968,29 +1048,6 @@ export function CampsListView({ camps }: CampsListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Tematyka</p>} defaultCollapsed>
-              <div className="flex flex-col gap-0.5">
-                {subcategoryOptions.map((option) => {
-                  const selected = activeSubcategories.includes(option.value);
-                  return (
-                    <button
-                      key={option.value}
-                      onClick={() => toggleSubcategory(option.value)}
-                      className={cn(
-                        "flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
-                        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent"
-                      )}
-                    >
-                      <span>{option.icon}</span>
-                      <span className="flex-1">{option.label}</span>
-                      {selected && <Check size={10} />}
-                      <span className="text-[8px] opacity-40">{option.count}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </FilterSection>
-
             <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Dzielnica</p>} defaultCollapsed>
               <div className="flex flex-col gap-0.5">
                 {availableDistricts.map((district) => {
@@ -1069,6 +1126,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
 
                   return (
                     <button
+                      ref={todayFlag ? todayButtonRef : null}
                       key={key}
                       onClick={() => handleCalendarDateClick(date)}
                       title={`${date.toLocaleDateString("pl-PL")}${count > 0 ? ` • ${count} kolonii` : ""}`}
@@ -1161,18 +1219,33 @@ export function CampsListView({ camps }: CampsListViewProps) {
                 )}
               </div>
             ) : (
-              <div className="space-y-12">
-                {grouped.map((group) => (
-                  <section key={group.type}>
-                    <ListGroupHeader icon={group.icon} title={group.label} count={group.organizers.length} />
-                    <div className="space-y-4">
-                      {group.organizers.map((organizer) => {
+              <div className="space-y-4">
+                {(() => {
+                  const organizerMap = new Map<string, OrganizerTile>();
+                  [...filteredCamps]
+                    .sort((a, b) => new Date(a.date_start).getTime() - new Date(b.date_start).getTime())
+                    .forEach((camp) => {
+                      const organizerKey = camp.organizer_id ? `id:${camp.organizer_id}` : getOrganizerName(camp).toLowerCase();
+                      const organizerName = getOrganizerName(camp);
+                      if (!organizerName) return;
+                      const existing = organizerMap.get(organizerKey);
+                      if (!existing) {
+                        organizerMap.set(organizerKey, { organizerKey, organizerName, leadCamp: camp, camps: [camp] });
+                        return;
+                      }
+                      existing.camps.push(camp);
+                      if (new Date(camp.date_start).getTime() < new Date(existing.leadCamp.date_start).getTime()) {
+                        existing.leadCamp = camp;
+                      }
+                    });
+                  const flatOrganizers = Array.from(organizerMap.values()).sort((a, b) => a.organizerName.localeCompare(b.organizerName, "pl"));
+                  return flatOrganizers.map((organizer) => {
                       const sortedCamps = sortCampsByNearest(organizer.camps, today);
                       const expanded = !!expandedOrganizers[organizer.organizerKey];
                       const visibleCamps = expanded ? sortedCamps : sortedCamps.slice(0, 3);
                       const hiddenCount = Math.max(organizer.camps.length - visibleCamps.length, 0);
 
-                      return (
+                    return (
                         <article
                           key={organizer.organizerKey}
                           className="rounded-xl border border-border bg-card shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5 transition-all duration-200 overflow-hidden"
@@ -1193,7 +1266,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                                   />
                                 ) : (
                                   <div className="flex h-full w-full items-center justify-center text-3xl text-muted-foreground/30">
-                                    {group.icon}
+                                    🏕️
                                   </div>
                                 );
                               })()}
@@ -1205,14 +1278,14 @@ export function CampsListView({ camps }: CampsListViewProps) {
                                   <div className="min-w-0">
                                     <Link
                                       href={`/kolonie/${organizer.leadCamp.slug}`}
-                                      className="font-semibold text-[13px] text-foreground leading-snug group-hover:text-danger transition-colors duration-200 line-clamp-2"
+                                      className="font-bold text-[13px] text-foreground group-hover:text-[#e60100] leading-snug transition-colors duration-200 line-clamp-2"
                                     >
                                       {organizer.organizerName}
                                     </Link>
                                     {(() => {
                                       const desc = organizer.leadCamp.description_short;
                                       return desc ? (
-                                        <p className="mt-1 text-[11px] text-muted leading-relaxed line-clamp-2">{desc}</p>
+                                        <p className="mt-1 text-[12px] text-muted leading-relaxed line-clamp-2">{desc}</p>
                                       ) : null;
                                     })()}
                                   </div>
@@ -1244,20 +1317,20 @@ export function CampsListView({ camps }: CampsListViewProps) {
                                               className="group border-b border-border/40 last:border-0 cursor-pointer"
                                               onClick={() => window.location.href = `/kolonie/${camp.slug}`}
                                             >
-                                              <td className="py-1.5 pr-2 text-foreground align-top group-hover:bg-stone-100 transition-colors rounded-l">
+                                              <td className="py-1.5 pr-2 text-foreground align-top rounded-l">
                                                 <div className="min-w-0">
-                                                  <span className="block truncate whitespace-nowrap font-medium group-hover:text-danger transition-colors" title={camp.title}>
+                                                  <span className="block truncate whitespace-nowrap font-medium transition-colors" title={camp.title}>
                                                     {camp.title}
                                                   </span>
                                                 </div>
                                               </td>
-                                              <td className="px-2 py-1.5 text-muted align-top whitespace-nowrap group-hover:bg-stone-100 transition-colors">
+                                              <td className="px-2 py-1.5 text-muted align-top whitespace-nowrap">
                                                 {getDateChipLabel(camp)}
                                               </td>
-                                              <td className="px-2 py-1.5 align-top whitespace-nowrap group-hover:bg-stone-100 transition-colors rounded-r">
+                                              <td className="px-2 py-1.5 align-top whitespace-nowrap rounded-r">
                                                 <span className="font-medium text-danger">
                                                   <span className="hidden sm:inline">Zobacz</span>
-                                                  <svg className="sm:hidden" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                                                  <svg className="sm:hidden ml-4" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                                                 </span>
                                               </td>
                                             </tr>
@@ -1284,10 +1357,8 @@ export function CampsListView({ camps }: CampsListViewProps) {
                           </div>
                         </article>
                       );
-                      })}
-                    </div>
-                  </section>
-                ))}
+                    });
+                  })()}
               </div>
             )}
         </ListPageMainContent>

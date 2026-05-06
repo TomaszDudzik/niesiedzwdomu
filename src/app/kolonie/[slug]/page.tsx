@@ -297,7 +297,7 @@ export default async function CampDetailPage({ params }: PageProps) {
                     <span>{[s.street, s.postcode, s.city].filter(Boolean).join(", ") || "—"}</span>
                     <span>{formatPriceRange(s.price_from, s.price_to, s.is_free)}</span>
                 </div>
-                <Link href={`/kolonie/${s.slug}`} className="text-[12px] text-primary hover:underline self-start">
+                <Link href={`/kolonie/${s.slug}`} className="text-[12px] text-danger hover:underline self-start">
                   Szczegóły →
                 </Link>
               </div>
@@ -309,6 +309,7 @@ export default async function CampDetailPage({ params }: PageProps) {
             <table className="w-full text-[13px]">
               <thead>
                 <tr className="border-b border-border bg-accent/40">
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-muted uppercase tracking-wider">Tytuł turnusu</th>
                   <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-muted uppercase tracking-wider">Termin</th>
                   <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-muted uppercase tracking-wider">Czas trwania</th>
                   <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-muted uppercase tracking-wider">Miejsce</th>
@@ -320,6 +321,9 @@ export default async function CampDetailPage({ params }: PageProps) {
               <tbody>
                 {sessions.map((s) => (
                   <tr key={s.id} className="border-b border-border/60 last:border-0 hover:bg-accent/30 transition-colors">
+                    <td className="px-4 py-3 font-medium text-foreground min-w-[240px]">
+                      <span className="line-clamp-1">{s.title || camp.title}</span>
+                    </td>
                     <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">
                       {formatDate(s.date_start)}{s.date_end && s.date_end !== s.date_start ? ` – ${formatDate(s.date_end)}` : ""}
                     </td>
@@ -338,7 +342,7 @@ export default async function CampDetailPage({ params }: PageProps) {
                     <td className="px-4 py-3">
                       <Link
                         href={`/kolonie/${s.slug}`}
-                        className="text-[12px] text-primary hover:underline whitespace-nowrap"
+                        className="text-[12px] text-danger hover:underline whitespace-nowrap"
                       >
                         Szczegóły →
                       </Link>

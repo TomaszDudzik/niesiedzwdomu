@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from "react";
 import {
   Trash2, Pencil, Loader2, RefreshCw,
-  ExternalLink, Save, X, Upload, XCircle, MapPin, Plus, ClipboardPaste, ChevronDown, ChevronRight, Star,
+  ExternalLink, Save, X, Upload, XCircle, MapPin, Plus, ClipboardPaste, ChevronDown, ChevronRight, Star, Copy, Sparkles,
 } from "lucide-react";
 import { PLACE_TYPE_LABELS, PLACE_TYPE_ICONS, DISTRICT_LIST } from "@/lib/mock-data";
 import { normalizeDistrictName } from "@/lib/districts";
@@ -15,6 +15,7 @@ import { TaxonomyFields } from "@/components/admin/taxonomy-fields";
 import { ensureOrganizerId } from "@/lib/admin-organizers";
 import { resolveCategoryLevel1Name, resolveCategoryLevel2Name, resolveCategoryLevel3Name, resolveTypeLevel1Id, resolveTypeLevel2Id } from "@/lib/admin-taxonomy";
 import { useAdminTaxonomy } from "@/lib/use-admin-taxonomy";
+import { PROMPTS } from "@/lib/prompts";
 
 const MiniMapLazy = lazy(() => import("./mini-map").then((m) => ({ default: m.MiniMap })));
 type PlaceListFilter = "all" | "published" | "draft";
@@ -88,6 +89,15 @@ export default function AdminPlacesPage() {
   const [statusFilter, setStatusFilter] = useState<PlaceListFilter>("all");
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [organizers, setOrganizers] = useState<Organizer[]>([]);
+  const [promptModal, setPromptModal] = useState(false);
+  const [activePromptModalView, setActivePromptModalView] = useState<"prompts" | "urls">("prompts");
+  const [activePromptTab, setActivePromptTab] = useState(0);
+  const [prompts, setPrompts] = useState(PROMPTS);
+  const [editingPrompt, setEditingPrompt] = useState(false);
+  const [editingContent, setEditingContent] = useState("");
+  const [savingPrompt, setSavingPrompt] = useState(false);
+  const [promptUrlRows, setPromptUrlRows] = useState<string[]>([]);
+  const [promptUrlStatuses, setPromptUrlStatuses] = useState<Record<number, "in-progress" | "completed">>({});
 
   const isCategoryExpanded = (type: string) => !collapsedCategories[type];
   const toggleCategory = (type: string) => {
@@ -376,6 +386,21 @@ export default function AdminPlacesPage() {
   const visibleTypeKeys = useMemo(() => displayedTypeKeys, [displayedTypeKeys]);
   const hasExpandedCategories = useMemo(() => visibleTypeKeys.some((type) => !collapsedCategories[type]), [visibleTypeKeys, collapsedCategories]);
 
+  const promptSeedUrls = useMemo(() => {
+    const urls = new Set<string>();
+    for (const place of places) {
+      if (place.source_url && place.source_url.trim().length > 0) urls.add(place.source_url.trim());
+      const maybeFacebook = (place as unknown as Record<string, unknown>).facebook_url;
+      if (typeof maybeFacebook === "string" && maybeFacebook.trim().length > 0) urls.add(maybeFacebook.trim());
+    }
+    return Array.from(urls).sort((a, b) => a.localeCompare(b, "pl"));
+  }, [places]);
+
+  const completedPromptUrlCount = useMemo(
+    () => promptUrlRows.filter((_, index) => promptUrlStatuses[index] === "completed").length,
+    [promptUrlRows, promptUrlStatuses]
+  );
+
   const statusOrder: Record<Place["status"], number> = {
     draft: 0,
     published: 1,
@@ -660,6 +685,47 @@ export default function AdminPlacesPage() {
     setPlaces((prev) => prev.map((p) => p.id === place.id ? { ...p, is_featured: nextFeatured } : p));
   };
 
+  const openPromptModal = async () => {
+    setActivePromptModalView("prompts");
+    setEditingPrompt(false);
+    try {
+      const saved = localStorage.getItem("admin_prompt_urls_miejsca");
+      if (saved) {
+        const parsed = JSON.parse(saved) as string[] | { rows?: string[]; statuses?: Record<number, "in-progress" | "completed"> };
+        if (Array.isArray(parsed)) {
+          setPromptUrlRows(parsed);
+          setPromptUrlStatuses({});
+        } else {
+          setPromptUrlRows(Array.isArray(parsed.rows) ? parsed.rows : promptSeedUrls);
+          setPromptUrlStatuses(parsed.statuses && typeof parsed.statuses === "object" ? parsed.statuses : {});
+        }
+      } else {
+        setPromptUrlRows(promptSeedUrls);
+        setPromptUrlStatuses({});
+      }
+    } catch {
+      setPromptUrlRows(promptSeedUrls);
+      setPromptUrlStatuses({});
+    }
+    setPromptModal(true);
+    try {
+      const res = await fetch("/api/admin/prompts");
+      const data = await res.json();
+      setPrompts(data);
+    } catch { /* use static fallback */ }
+  };
+
+  const savePrompt = async () => {
+    setSavingPrompt(true);
+    const updated = prompts.map((p, i) => i === activePromptTab ? { ...p, content: editingContent } : p);
+    try {
+      await fetch("/api/admin/prompts", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updated) });
+      setPrompts(updated);
+      setEditingPrompt(false);
+    } catch { /* ignore */ }
+    setSavingPrompt(false);
+  };
+
   const inputClass = "w-full px-2 py-1.5 rounded-md border border-border text-[12px] bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30";
   const labelClass = "block text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1";
 
@@ -668,6 +734,10 @@ export default function AdminPlacesPage() {
       <div className="flex items-center justify-between mb-2">
         <h1 className="text-2xl font-bold text-foreground">Miejsca</h1>
         <div className="flex items-center gap-2">
+          <button onClick={openPromptModal} className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-muted border border-border rounded-xl hover:border-[#CCC] transition-colors">
+            <Sparkles size={14} />
+            Prompt
+          </button>
           <button onClick={() => setPasteModal(true)} className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-muted border border-border rounded-xl hover:border-[#CCC] transition-colors">
             <ClipboardPaste size={14} />
             Wklej dane
@@ -1038,6 +1108,261 @@ export default function AdminPlacesPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {promptModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col mx-4">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+                <Sparkles size={16} />
+                Prompt
+              </h2>
+              <button onClick={() => { setPromptModal(false); setEditingPrompt(false); setActivePromptModalView("prompts"); }} className="text-muted-foreground hover:text-foreground transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="flex gap-1 px-5 pt-3 border-b border-border">
+              <button
+                onClick={() => { setActivePromptModalView("prompts"); setEditingPrompt(false); }}
+                className={cn(
+                  "px-3 py-1.5 text-[12px] font-medium rounded-t-md transition-colors border-b-2 -mb-px",
+                  activePromptModalView === "prompts"
+                    ? "border-foreground text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Prompty
+              </button>
+              <button
+                onClick={() => { setActivePromptModalView("urls"); setEditingPrompt(false); }}
+                className={cn(
+                  "px-3 py-1.5 text-[12px] font-medium rounded-t-md transition-colors border-b-2 -mb-px",
+                  activePromptModalView === "urls"
+                    ? "border-foreground text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Lista URL
+              </button>
+            </div>
+
+            {activePromptModalView === "prompts" ? (
+              <>
+                <div className="flex gap-1 px-5 pt-3 border-b border-border">
+                  {prompts.map((p, i) => (
+                    <button
+                      key={i}
+                      onClick={() => { setActivePromptTab(i); setEditingPrompt(false); }}
+                      className={cn(
+                        "px-3 py-1.5 text-[12px] font-medium rounded-t-md transition-colors border-b-2 -mb-px",
+                        activePromptTab === i
+                          ? "border-foreground text-foreground"
+                          : "border-transparent text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex-1 overflow-y-auto p-5">
+                  {editingPrompt ? (
+                    <textarea
+                      className="w-full h-full min-h-[300px] text-sm font-mono text-foreground border border-border rounded-lg p-3 focus:outline-none focus:ring-1 focus:ring-primary/30 resize-none"
+                      value={editingContent}
+                      onChange={(e) => setEditingContent(e.target.value)}
+                    />
+                  ) : (
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap font-mono leading-relaxed">
+                      {prompts[activePromptTab]?.content}
+                    </p>
+                  )}
+                </div>
+                <div className="flex justify-between gap-2 px-5 py-4 border-t border-border">
+                  <button
+                    onClick={() => {
+                      if (editingPrompt) {
+                        setEditingPrompt(false);
+                      } else {
+                        setEditingContent(prompts[activePromptTab]?.content ?? "");
+                        setEditingPrompt(true);
+                      }
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-muted border border-border rounded-lg hover:border-[#CCC] transition-colors"
+                  >
+                    <Pencil size={12} />
+                    {editingPrompt ? "Anuluj" : "Edytuj"}
+                  </button>
+                  <div className="flex gap-2">
+                    {editingPrompt ? (
+                      <button
+                        onClick={savePrompt}
+                        disabled={savingPrompt}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-white bg-foreground rounded-lg hover:bg-stone-700 transition-colors disabled:opacity-50"
+                      >
+                        {savingPrompt ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                        Zapisz
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => navigator.clipboard.writeText(prompts[activePromptTab]?.content ?? "")}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-muted border border-border rounded-lg hover:border-[#CCC] transition-colors"
+                      >
+                        <Copy size={12} />
+                        Kopiuj
+                      </button>
+                    )}
+                    <button onClick={() => { setPromptModal(false); setEditingPrompt(false); setActivePromptModalView("prompts"); }} className="px-3 py-1.5 text-[12px] font-medium text-white bg-foreground rounded-lg hover:bg-stone-700 transition-colors">
+                      Zamknij
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex-1 overflow-y-auto p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[12px] text-muted-foreground">
+                      URL-e. W trakcie: {promptUrlRows.length - completedPromptUrlCount}, Zrobione: {completedPromptUrlCount}
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setPromptUrlRows((prev) => [...prev, ""])}
+                        className="px-2.5 py-1 text-[11px] font-medium text-muted border border-border rounded hover:text-foreground transition-colors"
+                      >
+                        + Dodaj
+                      </button>
+                    </div>
+                  </div>
+                  {promptUrlRows.length === 0 ? (
+                    <div className="rounded-lg border border-border divide-y divide-border/60">
+                      <p className="px-3 py-3 text-[12px] text-muted">Brak URL-i do pokazania.</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="rounded-lg border border-border">
+                        <div className="px-3 py-2 border-b border-border bg-accent/20 text-[11px] font-semibold text-muted-foreground">W trakcie</div>
+                        <div className="divide-y divide-border/60">
+                          {promptUrlRows.map((url, index) => ({ url, index })).filter(({ index }) => promptUrlStatuses[index] !== "completed").map(({ url, index }) => (
+                            <div key={`in-progress-${index}-${url}`} className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-accent/30 transition-colors">
+                              <input
+                                type="text"
+                                className="min-w-0 flex-1 px-2 py-1 text-[11px] text-foreground rounded border border-border bg-white focus:outline-none focus:ring-1 focus:ring-primary/30"
+                                value={url}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  setPromptUrlRows((prev) => prev.map((entry, i) => (i === index ? value : entry)));
+                                }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setPromptUrlStatuses((prev) => ({ ...prev, [index]: "completed" }))}
+                                className="shrink-0 px-2 py-1 text-[10px] font-medium rounded border border-border text-muted hover:text-foreground transition-colors"
+                              >
+                                Oznacz jako zrobione
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPromptUrlRows((prev) => prev.filter((_, i) => i !== index));
+                                  setPromptUrlStatuses((prev) => {
+                                    const next: Record<number, "in-progress" | "completed"> = {};
+                                    Object.entries(prev).forEach(([k, v]) => {
+                                      const ki = Number(k);
+                                      if (ki !== index) next[ki > index ? ki - 1 : ki] = v;
+                                    });
+                                    return next;
+                                  });
+                                }}
+                                className="shrink-0 text-muted-foreground hover:text-red-500 transition-colors"
+                              >
+                                <X size={13} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="rounded-lg border border-border">
+                        <div className="px-3 py-2 border-b border-border bg-accent/20 text-[11px] font-semibold text-muted-foreground">Zrobione</div>
+                        <div className="divide-y divide-border/60">
+                          {promptUrlRows.map((url, index) => ({ url, index })).filter(({ index }) => promptUrlStatuses[index] === "completed").length === 0 ? (
+                            <p className="px-3 py-3 text-[12px] text-muted">Brak gotowych URL-i.</p>
+                          ) : (
+                            promptUrlRows.map((url, index) => ({ url, index })).filter(({ index }) => promptUrlStatuses[index] === "completed").map(({ url, index }) => (
+                              <div key={`completed-${index}-${url}`} className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-accent/30 transition-colors">
+                                <input
+                                  type="text"
+                                  className="min-w-0 flex-1 px-2 py-1 text-[11px] text-foreground rounded border border-border bg-white focus:outline-none focus:ring-1 focus:ring-primary/30"
+                                  value={url}
+                                  onChange={(e) => {
+                                    const value = e.target.value;
+                                    setPromptUrlRows((prev) => prev.map((entry, i) => (i === index ? value : entry)));
+                                  }}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setPromptUrlStatuses((prev) => ({ ...prev, [index]: "in-progress" }))}
+                                  className="shrink-0 px-2 py-1 text-[10px] font-medium rounded border border-border text-muted hover:text-foreground transition-colors"
+                                >
+                                  Cofnij do w trakcie
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPromptUrlRows((prev) => prev.filter((_, i) => i !== index));
+                                    setPromptUrlStatuses((prev) => {
+                                      const next: Record<number, "in-progress" | "completed"> = {};
+                                      Object.entries(prev).forEach(([k, v]) => {
+                                        const ki = Number(k);
+                                        if (ki !== index) next[ki > index ? ki - 1 : ki] = v;
+                                      });
+                                      return next;
+                                    });
+                                  }}
+                                  className="shrink-0 text-muted-foreground hover:text-red-500 transition-colors"
+                                >
+                                  <X size={13} />
+                                </button>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+                <div className="flex justify-between gap-2 px-5 py-4 border-t border-border">
+                  <button
+                    onClick={() => {
+                      const selected = promptUrlRows.filter((url, index) => promptUrlStatuses[index] === "completed" && url.trim().length > 0).join("\n");
+                      navigator.clipboard.writeText(selected);
+                    }}
+                    disabled={completedPromptUrlCount === 0}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-muted border border-border rounded-lg hover:border-[#CCC] transition-colors disabled:opacity-50"
+                  >
+                    <Copy size={12} />
+                    Kopiuj zrobione
+                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        try { localStorage.setItem("admin_prompt_urls_miejsca", JSON.stringify({ rows: promptUrlRows, statuses: promptUrlStatuses })); } catch {}
+                        alert("Zapisano " + promptUrlRows.length + " URL-i.");
+                      }}
+                      className="px-3 py-1.5 text-[12px] font-medium text-white bg-green-700 rounded-lg hover:bg-green-800 transition-colors"
+                    >
+                      Zapisz
+                    </button>
+                    <button onClick={() => { setPromptModal(false); setEditingPrompt(false); setActivePromptModalView("prompts"); }} className="px-3 py-1.5 text-[12px] font-medium text-white bg-foreground rounded-lg hover:bg-stone-700 transition-colors">
+                      Zamknij
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       )}
 

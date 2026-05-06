@@ -1,17 +1,17 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Search, LayoutGrid, MapIcon, SlidersHorizontal, X, MapPin, Check, ChevronDown } from "lucide-react";
 import { MobileActionBar } from "@/components/ui/mobile-action-bar";
 import { PageHero } from "@/components/layout/page-hero";
-import { ListGroupHeader } from "@/components/layout/list-group-header";
 import { ListPageMainContent } from "@/components/layout/list-page-main-content";
 import { DISTRICT_LIST } from "@/lib/mock-data";
-import { ContentCard } from "@/components/ui/content-card";
 import { FilterSection } from "@/components/ui/filter-section";
 import { cn } from "@/lib/utils";
 import { getAgeGroupOptions, getTaxonomyOptions, matchesTaxonomyFilter, mergeSelectedTaxonomyOptions } from "@/lib/taxonomy-filters";
 import type { Activity, District } from "@/types/database";
+import { ImageWithFallback } from "@/components/ui/image-with-fallback";
 
 const AGE_GROUPS = [
   { key: "0-4", label: "0–4 lata", icon: "👶", min: 0, max: 4 },
@@ -61,6 +61,19 @@ interface MarkerGroup {
   markerIcon?: string;
 }
 
+interface ActivityFormGroup {
+  formLabel: string;
+  activities: Activity[];
+}
+
+interface ActivityOrganizerTile {
+  organizerKey: string;
+  organizerName: string;
+  leadActivity: Activity;
+  formGroups: ActivityFormGroup[];
+  activities: Activity[];
+}
+
 interface ActivitiesListViewProps {
   activities: Activity[];
 }
@@ -77,6 +90,20 @@ function getActivitySubcategoryValue(activity: Activity): string | null {
   return activity.category_lvl_3 ?? activity.subcategory ?? null;
 }
 
+function getActivityOrganizerName(activity: Activity): string {
+  return activity.organizer_data?.organizer_name?.trim() || activity.organizer?.trim() || "Bez organizatora";
+}
+
+function getActivityFormLabel(activity: Activity): string {
+  return activity.category_lvl_2 ?? activity.category ?? activity.activity_type ?? "Inna forma";
+}
+
+function getActivityCountLabel(count: number): string {
+  if (count === 1) return "1 zajęcia";
+  if (count < 5) return `${count} zajęcia`;
+  return `${count} zajęć`;
+}
+
 export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
   const [search, setSearch] = useState("");
   const [activeTypes, setActiveTypes] = useState<string[]>([]);
@@ -84,9 +111,11 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
   const [activeSubcategories, setActiveSubcategories] = useState<string[]>([]);
   const [activeDistricts, setActiveDistricts] = useState<District[]>([]);
   const [activeAgeGroups, setActiveAgeGroups] = useState<string[]>([]);
+  const [activeActivityTypes, setActiveActivityTypes] = useState<string[]>([]);
   const [view, setView] = useState<ViewMode>("list");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filtersOpenDesktop, setFiltersOpenDesktop] = useState(false);
+  const [expandedOrganizers, setExpandedOrganizers] = useState<Record<string, boolean>>({});
   const [MapComponent, setMapComponent] = useState<React.ComponentType<{ groups: MarkerGroup[]; basePath?: string }> | null>(null);
 
   const ageGroups = useMemo(
@@ -95,7 +124,7 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
   );
 
   const hasActiveFilters =
-    !!search || activeTypes.length > 0 || activeCategories.length > 0 || activeSubcategories.length > 0 || activeDistricts.length > 0 || activeAgeGroups.length > 0;
+    !!search || activeTypes.length > 0 || activeCategories.length > 0 || activeSubcategories.length > 0 || activeDistricts.length > 0 || activeAgeGroups.length > 0 || activeActivityTypes.length > 0;
 
   useEffect(() => {
     if (view === "map" && !MapComponent) {
@@ -127,7 +156,15 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
     );
   }
 
-  function matchesActivityFilters(activity: Activity, excluded: Array<"type" | "category" | "subcategory" | "district" | "age"> = []) {
+  function matchesActivityType(activity: Activity) {
+    if (activeActivityTypes.length === 0) return true;
+    const items = activity.list_of_activities
+      ? activity.list_of_activities.split(";").map((s) => s.trim().toLowerCase()).filter(Boolean)
+      : [];
+    return activeActivityTypes.some((t) => items.includes(t.toLowerCase()));
+  }
+
+  function matchesActivityFilters(activity: Activity, excluded: Array<"type" | "category" | "subcategory" | "district" | "age" | "activityType"> = []) {
     if (!matchesSearch(activity)) {
       return false;
     }
@@ -146,13 +183,30 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
     if (!excluded.includes("age") && !matchesAgeSelection(activity)) {
       return false;
     }
+    if (!excluded.includes("activityType") && !matchesActivityType(activity)) {
+      return false;
+    }
     return true;
   }
 
   const filteredActivities = useMemo(
     () => activities.filter((activity) => matchesActivityFilters(activity)),
-    [activities, search, activeTypes, activeCategories, activeSubcategories, activeDistricts, ageGroups]
+    [activities, search, activeTypes, activeCategories, activeSubcategories, activeDistricts, ageGroups, activeActivityTypes]
   );
+
+  const activityTypeOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    activities.filter((a) => matchesActivityFilters(a, ["activityType"])).forEach((a) => {
+      if (!a.list_of_activities) return;
+      a.list_of_activities.split(";").map((s) => s.trim()).filter(Boolean).forEach((item) => {
+        counts.set(item, (counts.get(item) ?? 0) + 1);
+      });
+    });
+    const all = Array.from(counts.entries()).map(([value, count]) => ({ value, label: value, count }));
+    all.sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, "pl"));
+    activeActivityTypes.forEach((t) => { if (!counts.has(t)) all.push({ value: t, label: t, count: 0 }); });
+    return all;
+  }, [activities, search, activeTypes, activeCategories, activeSubcategories, activeDistricts, ageGroups, activeActivityTypes]);
 
   const typeOptions = useMemo(
     () => mergeSelectedTaxonomyOptions(
@@ -222,29 +276,56 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
     [activities, search, activeTypes, activeCategories, activeSubcategories, activeDistricts]
   );
 
-  const grouped = useMemo(() => {
-    const groups: { type: string; label: string; icon: string; activities: Activity[] }[] = [];
-    const seen = new Set<string>();
+  const organizers = useMemo(() => {
+    const organizerMap = new Map<string, ActivityOrganizerTile>();
 
-    for (const activity of filteredActivities) {
-      const type = getActivityTypeValue(activity);
-      const typeOption = typeOptionsByValue.get(type);
+    [...filteredActivities]
+      .sort((a, b) => a.title.localeCompare(b.title, "pl"))
+      .forEach((activity) => {
+        const organizerKey = activity.organizer_id
+          ? `id:${activity.organizer_id}`
+          : `name:${getActivityOrganizerName(activity).toLowerCase()}`;
 
-      if (!seen.has(type)) {
-        seen.add(type);
-        groups.push({
-          type,
-          label: typeOption?.label || type,
-          icon: typeOption?.icon || "✨",
-          activities: [],
-        });
-      }
+        const existing = organizerMap.get(organizerKey);
+        if (!existing) {
+          organizerMap.set(organizerKey, {
+            organizerKey,
+            organizerName: getActivityOrganizerName(activity),
+            leadActivity: activity,
+            formGroups: [],
+            activities: [activity],
+          });
+        } else {
+          existing.activities.push(activity);
+          if (activity.title.localeCompare(existing.leadActivity.title, "pl") < 0) {
+            existing.leadActivity = activity;
+          }
+        }
+      });
 
-      groups.find((group) => group.type === type)!.activities.push(activity);
-    }
+    return Array.from(organizerMap.values())
+      .map((organizer) => {
+        const formMap = new Map<string, Activity[]>();
+        organizer.activities
+          .sort((a, b) => a.title.localeCompare(b.title, "pl"))
+          .forEach((activity) => {
+            const formLabel = getActivityFormLabel(activity);
+            const list = formMap.get(formLabel) || [];
+            list.push(activity);
+            formMap.set(formLabel, list);
+          });
 
-    return groups;
-  }, [filteredActivities, typeOptionsByValue]);
+        const formGroups: ActivityFormGroup[] = Array.from(formMap.entries())
+          .map(([formLabel, acts]) => ({
+            formLabel,
+            activities: acts,
+          }))
+          .sort((a, b) => a.formLabel.localeCompare(b.formLabel, "pl"));
+
+        return { ...organizer, formGroups };
+      })
+      .sort((a, b) => a.organizerName.localeCompare(b.organizerName, "pl"));
+  }, [filteredActivities]);
 
   const mapGroups = useMemo((): MarkerGroup[] => {
     const groups: Record<string, MarkerGroup> = {};
@@ -331,6 +412,14 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
       });
     });
 
+    activeActivityTypes.forEach((t) => {
+      badges.push({
+        id: `activityType-${t}`,
+        label: `Tematyka: ${t}`,
+        onRemove: () => setActiveActivityTypes((prev) => prev.filter((item) => item !== t)),
+      });
+    });
+
     return badges;
   }, [search, activeTypes, activeCategories, activeSubcategories, activeAgeGroups, activeDistricts, typeOptionsByValue, categoryOptionsByValue, subcategoryOptionsByValue]);
 
@@ -341,6 +430,13 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
     setActiveSubcategories([]);
     setActiveDistricts([]);
     setActiveAgeGroups([]);
+    setActiveActivityTypes([]);
+  }
+
+  function toggleActivityType(t: string) {
+    setActiveActivityTypes((prev) =>
+      prev.includes(t) ? prev.filter((item) => item !== t) : [...prev, t]
+    );
   }
 
   function toggleType(type: string) {
@@ -376,6 +472,10 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
     );
   }
 
+  function toggleOrganizerActivities(organizerKey: string) {
+    setExpandedOrganizers((prev) => ({ ...prev, [organizerKey]: !prev[organizerKey] }));
+  }
+
   return (
     <div>
     <PageHero
@@ -402,23 +502,6 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
 
       {filtersOpen && (
         <div className="lg:hidden rounded-xl p-3 mb-4 space-y-2.5">
-          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Typ</p>} defaultCollapsed={false}>
-            <div className="flex flex-wrap gap-1">
-              {typeOptions.map((option) => {
-                const selected = activeTypes.includes(option.value);
-                return (
-                  <button key={option.value} onClick={() => toggleType(option.value)}
-                    className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
-                      selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
-                    <span>{option.icon}</span>
-                    <span>{option.label}</span>
-                    <span className="text-[10px] opacity-60">{option.count}</span>
-                    {selected && <Check size={11} />}
-                  </button>
-                );
-              })}
-            </div>
-          </FilterSection>
           <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Wiek dziecka</p>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
               {ageOptions.filter((group) => group.count > 0 || activeAgeGroups.includes(group.key)).map((group) => {
@@ -436,15 +519,14 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
               })}
             </div>
           </FilterSection>
-          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Kategoria</p>} defaultCollapsed={false}>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Typ</p>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
-              {categoryOptions.map((option) => {
-                const selected = activeCategories.includes(option.value);
+              {typeOptions.filter((o) => o.count > 0 || activeTypes.includes(o.value)).map((option) => {
+                const selected = activeTypes.includes(option.value);
                 return (
-                  <button key={option.value} onClick={() => toggleCategory(option.value)}
+                  <button key={option.value} onClick={() => toggleType(option.value)}
                     className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
                       selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
-                    <span>{option.icon}</span>
                     <span>{option.label}</span>
                     <span className="text-[10px] opacity-60">{option.count}</span>
                     {selected && <Check size={11} />}
@@ -455,13 +537,12 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
           </FilterSection>
           <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Tematyka</p>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
-              {subcategoryOptions.map((option) => {
-                const selected = activeSubcategories.includes(option.value);
+              {activityTypeOptions.map((option) => {
+                const selected = activeActivityTypes.includes(option.value);
                 return (
-                  <button key={option.value} onClick={() => toggleSubcategory(option.value)}
+                  <button key={option.value} onClick={() => toggleActivityType(option.value)}
                     className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
                       selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
-                    <span>{option.icon}</span>
                     <span>{option.label}</span>
                     <span className="text-[10px] opacity-60">{option.count}</span>
                     {selected && <Check size={11} />}
@@ -526,24 +607,6 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
 
             <div className="border-t border-border" />
 
-            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Typ</p>} defaultCollapsed={!filtersOpenDesktop}>
-              <div className="flex flex-col gap-0.5">
-                {typeOptions.map((option) => {
-                  const selected = activeTypes.includes(option.value);
-                  return (
-                    <button key={option.value} onClick={() => toggleType(option.value)}
-                      className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
-                        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
-                      <span>{option.icon}</span>
-                      <span className="flex-1">{option.label}</span>
-                      {selected && <Check size={10} />}
-                      <span className="text-[8px] opacity-40">{option.count}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </FilterSection>
-
             <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Wiek</p>} defaultCollapsed={!filtersOpenDesktop}>
               <div className="flex flex-col gap-0.5">
                 {ageOptions.filter((group) => group.count > 0 || activeAgeGroups.includes(group.key)).map((group) => {
@@ -562,15 +625,14 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Kategoria</p>} defaultCollapsed={!filtersOpenDesktop}>
+            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Typ</p>} defaultCollapsed={!filtersOpenDesktop}>
               <div className="flex flex-col gap-0.5">
-                {categoryOptions.map((option) => {
-                  const selected = activeCategories.includes(option.value);
+                {typeOptions.filter((o) => o.count > 0 || activeTypes.includes(o.value)).map((option) => {
+                  const selected = activeTypes.includes(option.value);
                   return (
-                    <button key={option.value} onClick={() => toggleCategory(option.value)}
+                    <button key={option.value} onClick={() => toggleType(option.value)}
                       className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
                         selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
-                      <span>{option.icon}</span>
                       <span className="flex-1">{option.label}</span>
                       {selected && <Check size={10} />}
                       <span className="text-[8px] opacity-40">{option.count}</span>
@@ -580,15 +642,14 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Tematyka</p>} defaultCollapsed>
+            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Tematyka</p>} defaultCollapsed={!filtersOpenDesktop}>
               <div className="flex flex-col gap-0.5">
-                {subcategoryOptions.map((option) => {
-                  const selected = activeSubcategories.includes(option.value);
+                {activityTypeOptions.map((option) => {
+                  const selected = activeActivityTypes.includes(option.value);
                   return (
-                    <button key={option.value} onClick={() => toggleSubcategory(option.value)}
+                    <button key={option.value} onClick={() => toggleActivityType(option.value)}
                       className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
                         selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
-                      <span>{option.icon}</span>
                       <span className="flex-1">{option.label}</span>
                       {selected && <Check size={10} />}
                       <span className="text-[8px] opacity-40">{option.count}</span>
@@ -689,17 +750,88 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
               )}
             </div>
           ) : (
-            <div className="space-y-12">
-              {grouped.map((group) => (
-                <section key={group.type}>
-                  <ListGroupHeader icon={group.icon} title={group.label} count={group.activities.length} />
-                  <div className="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {group.activities.map((activity) => (
-                      <ContentCard key={activity.id} item={activity} variant="vertical" />
-                    ))}
-                  </div>
-                </section>
-              ))}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+              {organizers.map((organizer) => {
+                const imgSrc = organizer.leadActivity.image_cover || organizer.leadActivity.image_url;
+                const address = [organizer.leadActivity.street, organizer.leadActivity.city].filter(Boolean).join(", ");
+                const listOfActivities = organizer.leadActivity.list_of_activities
+                  ? organizer.leadActivity.list_of_activities.split(";").map((s) => s.trim()).filter(Boolean)
+                  : [];
+                const visibleTags = listOfActivities.slice(0, 4);
+                const hiddenTagCount = Math.max(listOfActivities.length - visibleTags.length, 0);
+
+                return (
+                  <article
+                    key={organizer.organizerKey}
+                    className="group flex flex-col rounded-2xl border border-border bg-card shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-1 transition-all duration-200 overflow-hidden"
+                  >
+                    {/* Image */}
+                    <Link href={`/zajecia/${organizer.leadActivity.slug}`} className="relative aspect-[4/3] w-full shrink-0 bg-accent overflow-hidden">
+                      {imgSrc ? (
+                        <ImageWithFallback
+                          src={imgSrc}
+                          alt={organizer.organizerName}
+                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-5xl text-muted-foreground/20">🎯</div>
+                      )}
+                    </Link>
+
+                    {/* Body */}
+                    <div className="flex flex-col p-3.5 flex-1">
+                      {/* Content — fixed height so the divider line always falls at the same position */}
+                      <div className="flex flex-col gap-2 h-[108px] overflow-hidden">
+                        <Link href={`/zajecia/${organizer.leadActivity.slug}`} className="font-bold text-[13px] leading-snug text-foreground group-hover:text-[#e60100] transition-colors duration-150 line-clamp-2">
+                          {organizer.organizerName}
+                        </Link>
+
+                        {organizer.leadActivity.description_short && (
+                          <p className="text-[11px] text-muted leading-relaxed line-clamp-3">
+                            {organizer.leadActivity.description_short}
+                          </p>
+                        )}
+
+                        {address && (
+                          <div className="flex items-start gap-1 text-[10px] text-muted-foreground">
+                            <MapPin size={10} className="mt-0.5 shrink-0 text-muted-foreground/60" />
+                            <span className="line-clamp-1">{address}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Tags — always anchored at the bottom of the card */}
+                      <div className="pt-2.5 mt-2.5 border-t border-border/50 min-h-[28px]">
+                        <div className="flex flex-wrap gap-1.5">
+                          {visibleTags.map((item, i) => {
+                            const colors = [
+                              "bg-red-50 text-red-700 border-red-200",
+                              "bg-orange-50 text-orange-700 border-orange-200",
+                              "bg-amber-50 text-amber-700 border-amber-200",
+                              "bg-emerald-50 text-emerald-700 border-emerald-200",
+                              "bg-sky-50 text-sky-700 border-sky-200",
+                              "bg-violet-50 text-violet-700 border-violet-200",
+                              "bg-pink-50 text-pink-700 border-pink-200",
+                            ];
+                            const color = colors[i % colors.length];
+                            return (
+                              <span key={item} className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-medium leading-snug ${color}`}>
+                                {item}
+                              </span>
+                            );
+                          })}
+                          {hiddenTagCount > 0 && (
+                            <span className="inline-flex items-center rounded-md border border-border bg-accent px-2 py-0.5 text-[10px] font-medium text-muted-foreground leading-snug">
+                              +{hiddenTagCount}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           )}
         </ListPageMainContent>

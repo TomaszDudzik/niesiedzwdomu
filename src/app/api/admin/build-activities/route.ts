@@ -60,9 +60,12 @@ function buildActivityDraftPayload(raw: Record<string, unknown>) {
     source_url: firstString(raw, "source_url", "url", "link", "link_zrodlowy"),
     facebook_url: firstString(raw, "facebook_url", "facebook", "fb"),
     organizer: firstString(raw, "organizer", "organizator"),
+    type_lvl_1: firstString(raw, "type_lvl_1", "grupa"),
+    type_lvl_2: firstString(raw, "type_lvl_2", "podgrupa"),
     category_lvl_1: firstString(raw, "category_lvl_1", "main_category", "typ", "rodzaj", "type"),
     category_lvl_2: firstString(raw, "category_lvl_2", "category", "kategoria", "podtyp"),
     category_lvl_3: firstString(raw, "category_lvl_3", "subcategory", "podkategoria", "dyscyplina"),
+    list_of_activities: firstString(raw, "list_of_activities", "lista_aktywnosci"),
     image_prompt: asNullableString(raw.image_prompt),
     status: "draft",
   };

@@ -403,17 +403,53 @@ export async function getCampSessionsByOrganizer(organizer: string, excludeId: s
 
 // ── Activities ──
 
-export async function getPublishedActivities(limit = 120): Promise<Activity[]> {
-  const db = getDb();
+export async function getActivityBySlug(slug: string): Promise<Activity | null> {
+  const db = getTaxonomyDb();
   const maps = await getCategoryMaps();
-  const today = new Date().toISOString().slice(0, 10);
   const { data } = await db
     .from("activities")
-    .select("*, organizer_data:organizer_id(*)")
+    .select("*")
+    .eq("slug", slug)
     .eq("status", "published")
-    .or(`date_end.is.null,date_end.gte.${today}`)
-    .order("is_featured", { ascending: false })
-    .order("date_start", { ascending: true })
+    .single();
+  return data ? toActivity(data as Record<string, unknown>, maps) : null;
+}
+
+export async function getRelatedActivities(activity: Activity, limit = 3): Promise<Activity[]> {
+  const db = getTaxonomyDb();
+  const maps = await getCategoryMaps();
+  const conditions: string[] = [];
+  if (activity.category_lvl_2) {
+    conditions.push(`category_lvl_2.eq.${activity.category_lvl_2}`);
+  } else if (activity.category_lvl_1) {
+    conditions.push(`category_lvl_1.eq.${activity.category_lvl_1}`);
+  }
+  if (activity.district) conditions.push(`district.eq.${activity.district}`);
+  if (conditions.length === 0) conditions.push(`organizer.eq.${activity.organizer}`);
+
+  const { data } = await db
+    .from("activities")
+    .select("*")
+    .eq("status", "published")
+    .neq("id", activity.id)
+    .or(conditions.join(","))
+    .order("created_at", { ascending: false })
     .limit(limit);
+  return (data || []).map((row) => toActivity(row as Record<string, unknown>, maps));
+}
+
+export async function getPublishedActivities(limit = 120): Promise<Activity[]> {
+  const db = getTaxonomyDb();
+  const maps = await getCategoryMaps();
+  const { data, error } = await db
+    .from("activities")
+    .select("*")
+    .eq("status", "published")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) {
+    console.error("[getPublishedActivities] query error:", error.message);
+    return [];
+  }
   return shuffleArray((data || []).map((row) => toActivity(row, maps)));
 }
