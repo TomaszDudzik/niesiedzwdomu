@@ -1194,7 +1194,7 @@ export default function AdminActivitiesPage() {
 
       {promptModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col mx-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-6xl max-h-[92vh] overflow-hidden flex flex-col mx-4">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
                 <Sparkles size={16} />
@@ -1316,12 +1316,35 @@ export default function AdminActivitiesPage() {
                       </button>
                     </div>
                   </div>
+                  <div className="rounded-lg border border-border">
+                    <div className="px-3 py-2 border-b border-border bg-accent/20 text-[11px] font-semibold text-muted-foreground">Widok tekstowy (zaznacz i kopiuj Ctrl+C)</div>
+                    <div className="p-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Nieoznaczone</p>
+                        <textarea
+                          readOnly
+                          spellCheck={false}
+                          value={promptUrlRows.filter((url, index) => promptUrlStatuses[index] !== "completed" && url.trim().length > 0).join("\n")}
+                          className="w-full min-h-[180px] max-h-[280px] resize-y rounded border border-border bg-white px-2 py-1.5 text-[11px] font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Zrobione</p>
+                        <textarea
+                          readOnly
+                          spellCheck={false}
+                          value={promptUrlRows.filter((url, index) => promptUrlStatuses[index] === "completed" && url.trim().length > 0).join("\n")}
+                          className="w-full min-h-[180px] max-h-[280px] resize-y rounded border border-border bg-white px-2 py-1.5 text-[11px] font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30"
+                        />
+                      </div>
+                    </div>
+                  </div>
                   {promptUrlRows.length === 0 ? (
                     <div className="rounded-lg border border-border divide-y divide-border/60">
                       <p className="px-3 py-3 text-[12px] text-muted">Brak URL-i do pokazania.</p>
                     </div>
                   ) : (
-                    <>
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
                       <div className="rounded-lg border border-border">
                         <div className="px-3 py-2 border-b border-border bg-accent/20 text-[11px] font-semibold text-muted-foreground">W trakcie</div>
                         <div className="divide-y divide-border/60">
@@ -1411,21 +1434,11 @@ export default function AdminActivitiesPage() {
                           )}
                         </div>
                       </div>
-                    </>
+                    </div>
                   )}
                 </div>
                 <div className="flex justify-between gap-2 px-5 py-4 border-t border-border">
-                  <button
-                    onClick={() => {
-                      const selected = promptUrlRows.filter((url, index) => promptUrlStatuses[index] === "completed" && url.trim().length > 0).join("\n");
-                      navigator.clipboard.writeText(selected);
-                    }}
-                    disabled={completedPromptUrlCount === 0}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-muted border border-border rounded-lg hover:border-[#CCC] transition-colors disabled:opacity-50"
-                  >
-                    <Copy size={12} />
-                    Kopiuj zrobione
-                  </button>
+                  <p className="text-[11px] text-muted-foreground self-center">Zaznacz dowolne linie w polu tekstowym i skopiuj skrótem Ctrl+C.</p>
                   <div className="flex gap-2">
                     <button
                       onClick={() => {
