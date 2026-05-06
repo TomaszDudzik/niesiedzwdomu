@@ -27,7 +27,7 @@ import type { Activity, Organizer } from "@/types/database";
 import { ImageSection } from "@/components/admin/image-section";
 import { OrganizerCombobox } from "@/components/admin/organizer-combobox";
 import { TaxonomyFields } from "@/components/admin/taxonomy-fields";
-import { ensureOrganizerId } from "@/lib/admin-organizers";
+
 import { resolveCategoryLevel1Name, resolveCategoryLevel2Name, resolveCategoryLevel3Name, resolveTypeLevel1Id, resolveTypeLevel2Id } from "@/lib/admin-taxonomy";
 import { useAdminTaxonomy } from "@/lib/use-admin-taxonomy";
 import { PROMPTS } from "@/lib/prompts";
@@ -532,7 +532,6 @@ export default function AdminActivitiesPage() {
       price_from: activity.price_from,
       price_to: activity.price_to,
       organizer: activity.organizer,
-      organizer_id: activity.organizer_id ?? null,
       source_url: activity.source_url,
       facebook_url: activity.facebook_url || "",
       category_lvl_1: activity.category_lvl_1 ?? activity.main_category ?? null,
@@ -547,6 +546,7 @@ export default function AdminActivitiesPage() {
       lng: activity.lng ?? null,
       district: activity.district,
       note: activity.note ?? "",
+      list_of_activities: activity.list_of_activities ?? "",
       is_free: activity.is_free,
       is_featured: activity.is_featured,
     });
@@ -569,19 +569,6 @@ export default function AdminActivitiesPage() {
       clearPendingFile();
     }
 
-    const organizerName = editForm.organizer_id && !isUUID(String(editForm.organizer_id))
-      ? String(editForm.organizer_id)
-      : (editForm.organizer ? String(editForm.organizer) : null);
-    const organizerId = await ensureOrganizerId({
-      organizers,
-      organizerId: editForm.organizer_id && isUUID(String(editForm.organizer_id)) ? String(editForm.organizer_id) : null,
-      organizerName,
-      city: editForm.city ? String(editForm.city) : "Kraków",
-      onOrganizerCreated: (organizer) => {
-        setOrganizers((current) => current.some((entry) => entry.id === organizer.id) ? current : [...current, organizer]);
-      },
-    });
-
     const updates = {
       activity_id: editForm.activity_id ? String(editForm.activity_id).trim() : null,
       title: String(editForm.title || ""),
@@ -598,7 +585,7 @@ export default function AdminActivitiesPage() {
       age_max: editForm.age_max === "" || editForm.age_max === null ? null : Number(editForm.age_max),
       price_from: Boolean(editForm.is_free) ? 0 : (editForm.price_from === "" || editForm.price_from === null ? null : Number(editForm.price_from)),
       price_to: Boolean(editForm.is_free) ? 0 : (editForm.price_to === "" || editForm.price_to === null ? null : Number(editForm.price_to)),
-      organizer_id: organizerId,
+      organizer: editForm.organizer ? String(editForm.organizer) : "",
       source_url: editForm.source_url ? String(editForm.source_url) : null,
       facebook_url: editForm.facebook_url ? String(editForm.facebook_url) : null,
       category_lvl_1: editForm.category_lvl_1 ? String(editForm.category_lvl_1) : null,
@@ -611,6 +598,7 @@ export default function AdminActivitiesPage() {
       lng: editForm.lng === "" || editForm.lng === null ? null : Number(editForm.lng),
       district: editForm.district,
       note: editForm.note ? String(editForm.note) : null,
+      list_of_activities: editForm.list_of_activities ? String(editForm.list_of_activities) : null,
       ...(newImageCover ? { image_cover: newImageCover, image_set: null } : {}),
     };
 
@@ -664,7 +652,6 @@ export default function AdminActivitiesPage() {
       lat: null,
       lng: null,
       note: null,
-      organizer_id: null,
       source_url: null,
       facebook_url: null,
     };
@@ -1045,13 +1032,12 @@ export default function AdminActivitiesPage() {
                                       <label className={labelClass}>Organizator</label>
                                       <OrganizerCombobox
                                         organizers={organizers}
-                                        value={(editForm.organizer_id as string) || null}
-                                        onChange={(organizerId) => {
-                                          const organizer = organizers.find((item) => item.id === organizerId);
+                                        value={(editForm.organizer as string) || null}
+                                        onChange={(value) => {
+                                          const organizer = organizers.find((item) => item.id === value);
                                           setEditForm((current) => ({
                                             ...current,
-                                            organizer_id: organizerId,
-                                            organizer: organizer ? organizer.organizer_name : (organizerId || ""),
+                                            organizer: organizer ? organizer.organizer_name : (value || ""),
                                           }));
                                         }}
                                         inputClassName={inputClass}
@@ -1070,6 +1056,14 @@ export default function AdminActivitiesPage() {
 
                                 <div className="rounded-lg border border-border/50 p-3 mb-4 space-y-3">
                                   <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Klasyfikacja</p>
+                                  <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
+                                  </div>
+                                  <div className="grid grid-cols-1 gap-3">
+                                    <div>
+                                      <label className={labelClass}>Lista Aktywności</label>
+                                      <input className={inputClass} value={(editForm.list_of_activities as string) || ""} onChange={(e) => setEditForm((c) => ({ ...c, list_of_activities: e.target.value || null }))} placeholder="e.g. Piłka nożna;Taniec;Pływanie" />
+                                    </div>
+                                  </div>
                                   <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
                                     <TaxonomyFields
                                       typeLevel1Options={typeLevel1Options}
@@ -1111,22 +1105,6 @@ export default function AdminActivitiesPage() {
                                 <div className="rounded-lg border border-border/50 p-3 mb-4 space-y-3">
                                   <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Szczegóły zajęć</p>
                                   <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
-                                    <div>
-                                      <label className={labelClass}>Data od</label>
-                                      <input type="date" className={inputClass} value={(editForm.date_start as string) || ""} onChange={(e) => setEditForm((c) => ({ ...c, date_start: e.target.value }))} />
-                                    </div>
-                                    <div>
-                                      <label className={labelClass}>Data do</label>
-                                      <input type="date" className={inputClass} value={(editForm.date_end as string) || ""} onChange={(e) => setEditForm((c) => ({ ...c, date_end: e.target.value || null }))} />
-                                    </div>
-                                    <div>
-                                      <label className={labelClass}>Godzina od</label>
-                                      <input type="time" step={60} className={inputClass} value={(editForm.time_start as string) || ""} onChange={(e) => setEditForm((c) => ({ ...c, time_start: e.target.value || null }))} />
-                                    </div>
-                                    <div>
-                                      <label className={labelClass}>Godzina do</label>
-                                      <input type="time" step={60} className={inputClass} value={(editForm.time_end as string) || ""} onChange={(e) => setEditForm((c) => ({ ...c, time_end: e.target.value || null }))} />
-                                    </div>
                                     <div>
                                       <label className={labelClass}>Wiek od</label>
                                       <input type="number" min={0} max={18} className={inputClass} value={editForm.age_min === null ? "" : String(editForm.age_min ?? "")} onChange={(event) => setEditForm((current) => ({ ...current, age_min: event.target.value ? Number(event.target.value) : null }))} />

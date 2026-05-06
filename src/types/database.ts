@@ -231,6 +231,7 @@ export interface Activity {
   lat?: number | null;
   lng?: number | null;
   note?: string | null;
+  list_of_activities?: string | null;
   organizer: string;
   organizer_id?: string | null;
   organizer_data?: Organizer | null;

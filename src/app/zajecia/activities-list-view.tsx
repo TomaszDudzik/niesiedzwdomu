@@ -111,6 +111,7 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
   const [activeSubcategories, setActiveSubcategories] = useState<string[]>([]);
   const [activeDistricts, setActiveDistricts] = useState<District[]>([]);
   const [activeAgeGroups, setActiveAgeGroups] = useState<string[]>([]);
+  const [activeActivityTypes, setActiveActivityTypes] = useState<string[]>([]);
   const [view, setView] = useState<ViewMode>("list");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filtersOpenDesktop, setFiltersOpenDesktop] = useState(false);
@@ -123,7 +124,7 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
   );
 
   const hasActiveFilters =
-    !!search || activeTypes.length > 0 || activeCategories.length > 0 || activeSubcategories.length > 0 || activeDistricts.length > 0 || activeAgeGroups.length > 0;
+    !!search || activeTypes.length > 0 || activeCategories.length > 0 || activeSubcategories.length > 0 || activeDistricts.length > 0 || activeAgeGroups.length > 0 || activeActivityTypes.length > 0;
 
   useEffect(() => {
     if (view === "map" && !MapComponent) {
@@ -155,7 +156,15 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
     );
   }
 
-  function matchesActivityFilters(activity: Activity, excluded: Array<"type" | "category" | "subcategory" | "district" | "age"> = []) {
+  function matchesActivityType(activity: Activity) {
+    if (activeActivityTypes.length === 0) return true;
+    const items = activity.list_of_activities
+      ? activity.list_of_activities.split(";").map((s) => s.trim().toLowerCase()).filter(Boolean)
+      : [];
+    return activeActivityTypes.some((t) => items.includes(t.toLowerCase()));
+  }
+
+  function matchesActivityFilters(activity: Activity, excluded: Array<"type" | "category" | "subcategory" | "district" | "age" | "activityType"> = []) {
     if (!matchesSearch(activity)) {
       return false;
     }
@@ -174,13 +183,30 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
     if (!excluded.includes("age") && !matchesAgeSelection(activity)) {
       return false;
     }
+    if (!excluded.includes("activityType") && !matchesActivityType(activity)) {
+      return false;
+    }
     return true;
   }
 
   const filteredActivities = useMemo(
     () => activities.filter((activity) => matchesActivityFilters(activity)),
-    [activities, search, activeTypes, activeCategories, activeSubcategories, activeDistricts, ageGroups]
+    [activities, search, activeTypes, activeCategories, activeSubcategories, activeDistricts, ageGroups, activeActivityTypes]
   );
+
+  const activityTypeOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    activities.filter((a) => matchesActivityFilters(a, ["activityType"])).forEach((a) => {
+      if (!a.list_of_activities) return;
+      a.list_of_activities.split(";").map((s) => s.trim()).filter(Boolean).forEach((item) => {
+        counts.set(item, (counts.get(item) ?? 0) + 1);
+      });
+    });
+    const all = Array.from(counts.entries()).map(([value, count]) => ({ value, label: value, count }));
+    all.sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, "pl"));
+    activeActivityTypes.forEach((t) => { if (!counts.has(t)) all.push({ value: t, label: t, count: 0 }); });
+    return all;
+  }, [activities, search, activeTypes, activeCategories, activeSubcategories, activeDistricts, ageGroups, activeActivityTypes]);
 
   const typeOptions = useMemo(
     () => mergeSelectedTaxonomyOptions(
@@ -386,6 +412,14 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
       });
     });
 
+    activeActivityTypes.forEach((t) => {
+      badges.push({
+        id: `activityType-${t}`,
+        label: t,
+        onRemove: () => setActiveActivityTypes((prev) => prev.filter((item) => item !== t)),
+      });
+    });
+
     return badges;
   }, [search, activeTypes, activeCategories, activeSubcategories, activeAgeGroups, activeDistricts, typeOptionsByValue, categoryOptionsByValue, subcategoryOptionsByValue]);
 
@@ -396,6 +430,13 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
     setActiveSubcategories([]);
     setActiveDistricts([]);
     setActiveAgeGroups([]);
+    setActiveActivityTypes([]);
+  }
+
+  function toggleActivityType(t: string) {
+    setActiveActivityTypes((prev) =>
+      prev.includes(t) ? prev.filter((item) => item !== t) : [...prev, t]
+    );
   }
 
   function toggleType(type: string) {
@@ -521,6 +562,22 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
                     className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
                       selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
                     <span>{option.icon}</span>
+                    <span>{option.label}</span>
+                    <span className="text-[10px] opacity-60">{option.count}</span>
+                    {selected && <Check size={11} />}
+                  </button>
+                );
+              })}
+            </div>
+          </FilterSection>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Aktywność</p>} defaultCollapsed={false}>
+            <div className="flex flex-wrap gap-1">
+              {activityTypeOptions.map((option) => {
+                const selected = activeActivityTypes.includes(option.value);
+                return (
+                  <button key={option.value} onClick={() => toggleActivityType(option.value)}
+                    className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
+                      selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
                     <span>{option.label}</span>
                     <span className="text-[10px] opacity-60">{option.count}</span>
                     {selected && <Check size={11} />}
@@ -657,6 +714,23 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
               </div>
             </FilterSection>
 
+            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Aktywność</p>} defaultCollapsed>
+              <div className="flex flex-col gap-0.5">
+                {activityTypeOptions.map((option) => {
+                  const selected = activeActivityTypes.includes(option.value);
+                  return (
+                    <button key={option.value} onClick={() => toggleActivityType(option.value)}
+                      className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
+                        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
+                      <span className="flex-1">{option.label}</span>
+                      {selected && <Check size={10} />}
+                      <span className="text-[8px] opacity-40">{option.count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </FilterSection>
+
             <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Dzielnica</p>} defaultCollapsed>
               <div className="flex flex-col gap-0.5">
                 {availableDistricts.map((district) => {
@@ -748,116 +822,79 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
               )}
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
               {organizers.map((organizer) => {
-                      const expanded = !!expandedOrganizers[organizer.organizerKey];
-                      const visibleActivities = expanded ? organizer.activities : organizer.activities.slice(0, 3);
-                      const hiddenCount = Math.max(organizer.activities.length - visibleActivities.length, 0);
+                const imgSrc = organizer.leadActivity.image_cover || organizer.leadActivity.image_url;
+                const address = [organizer.leadActivity.street, organizer.leadActivity.city].filter(Boolean).join(", ");
+                const listOfActivities = organizer.leadActivity.list_of_activities
+                  ? organizer.leadActivity.list_of_activities.split(";").map((s) => s.trim()).filter(Boolean)
+                  : [];
 
-                      return (
-                        <article
-                          key={organizer.organizerKey}
-                          className="rounded-xl border border-border bg-card shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5 transition-all duration-200 overflow-hidden"
-                        >
-                          <div className="group flex flex-col overflow-hidden sm:min-h-[180px] sm:flex-row">
-                            <Link
-                              href={`/zajecia/${organizer.leadActivity.slug}`}
-                              className="relative aspect-video w-full shrink-0 bg-accent sm:aspect-auto sm:h-auto sm:w-[210px] sm:self-stretch"
-                            >
-                              {(() => {
-                                const imgSrc = organizer.leadActivity.image_url;
-                                return imgSrc ? (
-                                  <ImageWithFallback
-                                    src={imgSrc}
-                                    alt={organizer.organizerName}
-                                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                                    loading="lazy"
-                                  />
-                                ) : (
-                                  <div className="flex h-full w-full items-center justify-center text-3xl text-muted-foreground/30">
-                                    🎯
-                                  </div>
-                                );
-                              })()}
-                            </Link>
+                return (
+                  <article
+                    key={organizer.organizerKey}
+                    className="group flex flex-col rounded-2xl border border-border bg-card shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-1 transition-all duration-200 overflow-hidden"
+                  >
+                    {/* Image */}
+                    <Link href={`/zajecia/${organizer.leadActivity.slug}`} className="relative aspect-[4/3] w-full shrink-0 bg-accent overflow-hidden">
+                      {imgSrc ? (
+                        <ImageWithFallback
+                          src={imgSrc}
+                          alt={organizer.organizerName}
+                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-5xl text-muted-foreground/20">🎯</div>
+                      )}
+                    </Link>
 
-                            <div className="flex-1 min-w-0 p-3">
-                              <div className="flex h-full min-w-0 flex-col gap-2.5">
-                                <div className="flex items-start justify-between gap-2">
-                                  <div className="min-w-0">
-                                    <Link
-                                      href={`/zajecia/${organizer.leadActivity.slug}`}
-                                      className="font-bold text-[13px] text-foreground group-hover:text-[#e60100] leading-snug transition-colors duration-200 line-clamp-2"
-                                    >
-                                      {organizer.organizerName}
-                                    </Link>
-                                    {(() => {
-                                      const desc = organizer.leadActivity.description_short;
-                                      return desc ? (
-                                        <p className="mt-1 text-[12px] text-muted leading-relaxed line-clamp-2">{desc}</p>
-                                      ) : null;
-                                    })()}
-                                  </div>
-                                  <span className="shrink-0 rounded-full border border-border bg-background px-2 py-0.5 text-[9px] font-semibold text-muted">
-                                    {getActivityCountLabel(organizer.activities.length)}
-                                  </span>
-                                </div>
+                    {/* Body */}
+                    <div className="flex flex-col gap-2 p-3.5 flex-1">
+                      <Link href={`/zajecia/${organizer.leadActivity.slug}`} className="font-bold text-[13px] leading-snug text-foreground group-hover:text-[#e60100] transition-colors duration-150 line-clamp-2">
+                        {organizer.organizerName}
+                      </Link>
 
-                                <div className="min-w-0 rounded-lg border border-border/70 bg-background/40 px-3 py-2.5">
-                                  <div className="min-w-0">
-                                    <table className="w-full table-fixed text-[10px]">
-                                      <colgroup>
-                                        <col className="w-[86%]" />
-                                        <col className="w-[14%]" />
-                                      </colgroup>
-                                      <thead className="hidden sm:table-header-group">
-                                        <tr className="border-b border-border/70 text-muted">
-                                          <th className="py-1 pr-2 text-left font-semibold uppercase tracking-wider">Tytuł</th>
-                                          <th className="px-2 py-1 text-left font-semibold uppercase tracking-wider">Szczegóły</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {visibleActivities.map((activity) => (
-                                            <tr
-                                              key={activity.id}
-                                              className="group border-b border-border/40 last:border-0 cursor-pointer"
-                                              onClick={() => window.location.href = `/zajecia/${activity.slug}`}
-                                            >
-                                              <td className="py-1.5 pr-2 text-foreground align-top rounded-l">
-                                                <span className="block font-medium" title={activity.title}>
-                                                  {activity.title}
-                                                </span>
-                                              </td>
-                                              <td className="px-2 py-1.5 align-top whitespace-nowrap rounded-r">
-                                                <span className="font-medium text-danger">
-                                                  <span className="hidden sm:inline">Zobacz</span>
-                                                  <svg className="sm:hidden ml-4" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                                                </span>
+                      {organizer.leadActivity.description_short && (
+                        <p className="text-[11px] text-muted leading-relaxed line-clamp-3">
+                          {organizer.leadActivity.description_short}
+                        </p>
+                      )}
 
-                                              </td>
-                                            </tr>
-                                          ))}
-                                      </tbody>
-                                    </table>
-                                  </div>
+                      {address && (
+                        <div className="flex items-start gap-1 text-[10px] text-muted-foreground">
+                          <MapPin size={10} className="mt-0.5 shrink-0 text-muted-foreground/60" />
+                          <span className="line-clamp-1">{address}</span>
+                        </div>
+                      )}
 
-                                  {organizer.activities.length > 3 && (
-                                    <div className="mt-2 flex justify-end">
-                                      <button
-                                        type="button"
-                                        onClick={() => toggleOrganizerActivities(organizer.organizerKey)}
-                                        className="text-[10px] font-medium text-danger hover:opacity-80 transition-opacity"
-                                      >
-                                        {expanded ? "Pokaż mniej" : `Pokaż wszystkie (${hiddenCount + visibleActivities.length})`}
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
+                      {listOfActivities.length > 0 && (
+                        <div className="mt-auto pt-2.5 border-t border-border/50">
+                          <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/50 mb-2">Zajęcia</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {listOfActivities.map((item, i) => {
+                              const colors = [
+                                "bg-red-50 text-red-700 border-red-200",
+                                "bg-orange-50 text-orange-700 border-orange-200",
+                                "bg-amber-50 text-amber-700 border-amber-200",
+                                "bg-emerald-50 text-emerald-700 border-emerald-200",
+                                "bg-sky-50 text-sky-700 border-sky-200",
+                                "bg-violet-50 text-violet-700 border-violet-200",
+                                "bg-pink-50 text-pink-700 border-pink-200",
+                              ];
+                              const color = colors[i % colors.length];
+                              return (
+                                <span key={item} className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-medium leading-snug ${color}`}>
+                                  {item}
+                                </span>
+                              );
+                            })}
                           </div>
-                        </article>
-                      );
+                        </div>
+                      )}
+                    </div>
+                  </article>
+                );
               })}
             </div>
           )}

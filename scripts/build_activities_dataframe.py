@@ -27,6 +27,19 @@ CSV_SEP = "~"
 COLUMN_ALIASES: dict[str, str] = {
     # organizer
     "organizator": "organizer",
+    # list_of_activities
+    "lista_aktywnosci": "list_of_activities",
+    "lista aktywności": "list_of_activities",
+    "activities": "list_of_activities",
+    # type_lvl_1
+    "type_lvl_1": "type_lvl_1",
+    "typ_zajec": "type_lvl_1",
+    "typ zajęć": "type_lvl_1",
+    "grupa": "type_lvl_1",
+    # type_lvl_2
+    "type_lvl_2": "type_lvl_2",
+    "podgrupa": "type_lvl_2",
+    "podtyp_zajec": "type_lvl_2",
     # category_lvl_1
     "main_category": "category_lvl_1",
     "typ": "category_lvl_1",
@@ -121,6 +134,9 @@ PREFER_CSV_COLUMNS = {
     "category_lvl_1",
     "category_lvl_2",
     "category_lvl_3",
+    "type_lvl_1",
+    "type_lvl_2",
+    "list_of_activities",
     "image_prompt",
 }
 
@@ -149,6 +165,9 @@ ACTIVITY_COLUMNS = [
     "category_lvl_1",
     "category_lvl_2",
     "category_lvl_3",
+    "type_lvl_1",
+    "type_lvl_2",
+    "list_of_activities",
     "image_prompt",
 ]
 
