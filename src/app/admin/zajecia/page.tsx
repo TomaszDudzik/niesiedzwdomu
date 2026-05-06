@@ -51,12 +51,7 @@ const ACTIVITY_ORDER: Activity["activity_type"][] = [
 
 const PROMPT_URL_TODO_LIST = [
   "https://warsztatydladziecikrakow.com/",
-  "https://nck.krakow.pl/zajecia/zajecia-edukacja/",
-  "https://nck.krakow.pl/zajecia/plastyka/",
-  "https://nck.krakow.pl/zajecia/zajecia-teatr/",
-  "https://nck.krakow.pl/zajecia/zajecia-muzyka/",
-  "https://nck.krakow.pl/ceramika-dla-dzieci-i-mlodziezy/",
-  "https://nck.krakow.pl/akrobatyka/",
+  "https://nck.krakow.pl/",
   "https://bloniasport.pl/kids/zajecia-dla-dzieci/",
   "https://go4robot.pl/krakow/",
   "https://robocode.pl/",
@@ -801,10 +796,10 @@ export default function AdminActivitiesPage() {
     }
     setAssigningImageId(activity.id);
     try {
-      const res = await fetch("/api/admin/assign-image-by-event-id", {
+      const res = await fetch("/api/admin/assign-image-by-activity-id", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: activity.id, event_id: activityId }),
+        body: JSON.stringify({ id: activity.id, activity_id: activityId }),
       });
       const data = await res.json();
       if (!res.ok || !data.ok) {
@@ -862,33 +857,6 @@ export default function AdminActivitiesPage() {
       </div>
 
       <div className="flex items-center gap-3 mb-6">
-        <div className="inline-flex items-center rounded-lg border border-border bg-white p-0.5">
-          <button
-            type="button"
-            onClick={() => setGroupingMode("type")}
-            className={cn(
-              "rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
-              groupingMode === "type"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            Po typie
-          </button>
-          <button
-            type="button"
-            onClick={() => setGroupingMode("organizer")}
-            className={cn(
-              "rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
-              groupingMode === "organizer"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            Po organizatorze
-          </button>
-        </div>
-
         <button onClick={() => toggleStatusFilter("all")} className={cn("text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors", statusFilter === "all" ? "bg-sky-200 text-sky-800" : "bg-sky-100 text-sky-700 hover:bg-sky-200")}>
           {activities.length} zajęć
         </button>
@@ -901,9 +869,6 @@ export default function AdminActivitiesPage() {
         <button onClick={() => toggleStatusFilter("outdated")} className={cn("text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors", statusFilter === "outdated" ? "bg-amber-200 text-amber-800" : "bg-amber-100 text-amber-700 hover:bg-amber-200")}>
           {outdatedCount} outdated
         </button>
-        <button onClick={toggleAllCategories} className="ml-auto text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors bg-white border border-border text-muted hover:text-foreground hover:border-[#CCC]">
-          {hasExpandedCategories ? "Zwiń wszystkie" : "Rozwiń wszystkie"}
-        </button>
       </div>
 
       {loading ? (
@@ -911,34 +876,15 @@ export default function AdminActivitiesPage() {
           <Loader2 className="animate-spin text-muted-foreground" size={24} />
         </div>
       ) : (
-        <div className="space-y-6">
-          {groupedActivities.filter(({ category }) => !typeFilter || category === typeFilter).map(({ category, label, items }) => {
-            const expanded = !collapsedCategories[category];
-            const stats = sectionStats[category] ?? { all: 0, published: 0, draft: 0, outdated: 0 };
-            return (
-              <div key={category}>
-                <div className="w-full flex items-center gap-2 mb-2 rounded-md px-1.5 py-1 hover:bg-accent/50 transition-colors">
-                  <button type="button" onClick={() => toggleCategory(category)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
-                    {expanded ? <ChevronDown size={14} className="text-muted-foreground" /> : <ChevronRight size={14} className="text-muted-foreground" />}
-                    <span className="text-lg">{getActiveGroupIcon(category)}</span>
-                    <h2 className="text-[13px] font-semibold text-foreground">{label}</h2>
-                  </button>
-                  <div className="flex flex-wrap items-center gap-1 text-[10px]">
-                    <button type="button" onClick={() => toggleTypeStatusFilter(category, "all")} className={cn("px-1.5 py-0.5 rounded-full font-medium transition-colors", typeFilter === category && statusFilter === "all" ? "bg-sky-200 text-sky-800" : "bg-sky-100 text-sky-700 hover:bg-sky-200")}>{stats.all} all</button>
-                    <button type="button" onClick={() => toggleTypeStatusFilter(category, "published")} className={cn("px-1.5 py-0.5 rounded-full font-medium transition-colors", typeFilter === category && statusFilter === "published" ? "bg-emerald-200 text-emerald-800" : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200")}>{stats.published} published</button>
-                    <button type="button" onClick={() => toggleTypeStatusFilter(category, "draft")} className={cn("px-1.5 py-0.5 rounded-full font-medium transition-colors", stats.draft > 0 ? (typeFilter === category && statusFilter === "draft" ? "bg-rose-200 text-rose-800" : "bg-rose-100 text-rose-700 hover:bg-rose-200") : (typeFilter === category && statusFilter === "draft" ? "bg-stone-300 text-stone-700" : "bg-stone-200 text-stone-500 hover:bg-stone-300"))}>{stats.draft} draft</button>
-                    <button type="button" onClick={() => toggleTypeStatusFilter(category, "outdated")} className={cn("px-1.5 py-0.5 rounded-full font-medium transition-colors", typeFilter === category && statusFilter === "outdated" ? "bg-amber-200 text-amber-800" : "bg-amber-100 text-amber-700 hover:bg-amber-200")}>{stats.outdated} outdated</button>
-                  </div>
-                </div>
-
-                {expanded && (
-                  items.length === 0 ? (
-                    <div className="rounded-lg border border-dashed border-border/70 bg-white px-3 py-4 text-[12px] text-muted">
-                      Brak rekordów dla tego filtra.
-                    </div>
-                  ) : (
-                    <div className="space-y-1.5">
-                      {items.map((activity, index) => {
+        <div className="space-y-1.5">
+          {filteredActivities.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-border/70 bg-white px-3 py-4 text-[12px] text-muted">
+              Brak rekordów dla tego filtra.
+            </div>
+          ) : (
+            [...filteredActivities]
+              .sort((a, b) => a.title.localeCompare(b.title, "pl"))
+              .map((activity, index) => {
                         const isDraft = activity.status !== "published";
                         const isEditing = editing === activity.id;
                         return (
@@ -1210,13 +1156,8 @@ export default function AdminActivitiesPage() {
                             )}
                           </div>
                         );
-                      })}
-                    </div>
-                  )
-                )}
-              </div>
-            );
-          })}
+              })
+          )}
         </div>
       )}
 

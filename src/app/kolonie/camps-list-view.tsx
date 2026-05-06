@@ -858,31 +858,6 @@ export function CampsListView({ camps }: CampsListViewProps) {
             </div>
           </FilterSection>
 
-          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Tematyka</p>} defaultCollapsed={false}>
-            <div className="flex flex-wrap gap-1">
-              {subcategoryOptions.map((option) => {
-                const selected = activeSubcategories.includes(option.value);
-                return (
-                  <button
-                    key={option.value}
-                    onClick={() => toggleSubcategory(option.value)}
-                    className={cn(
-                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
-                      selected
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-background text-muted border-border hover:border-danger/30 hover:text-foreground"
-                    )}
-                  >
-                    <span>{option.icon}</span>
-                    <span>{option.label}</span>
-                    <span className="text-[10px] opacity-60">{option.count}</span>
-                    {selected && <Check size={11} />}
-                  </button>
-                );
-              })}
-            </div>
-          </FilterSection>
-
           <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Dzielnica</p>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
               {availableDistricts.map((district) => {
@@ -1073,29 +1048,6 @@ export function CampsListView({ camps }: CampsListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Tematyka</p>} defaultCollapsed>
-              <div className="flex flex-col gap-0.5">
-                {subcategoryOptions.map((option) => {
-                  const selected = activeSubcategories.includes(option.value);
-                  return (
-                    <button
-                      key={option.value}
-                      onClick={() => toggleSubcategory(option.value)}
-                      className={cn(
-                        "flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
-                        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent"
-                      )}
-                    >
-                      <span>{option.icon}</span>
-                      <span className="flex-1">{option.label}</span>
-                      {selected && <Check size={10} />}
-                      <span className="text-[8px] opacity-40">{option.count}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </FilterSection>
-
             <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Dzielnica</p>} defaultCollapsed>
               <div className="flex flex-col gap-0.5">
                 {availableDistricts.map((district) => {
@@ -1267,18 +1219,33 @@ export function CampsListView({ camps }: CampsListViewProps) {
                 )}
               </div>
             ) : (
-              <div className="space-y-12">
-                {grouped.map((group) => (
-                  <section key={group.type}>
-                    <ListGroupHeader icon={group.icon} title={group.label} count={group.organizers.length} />
-                    <div className="space-y-4">
-                      {group.organizers.map((organizer) => {
+              <div className="space-y-4">
+                {(() => {
+                  const organizerMap = new Map<string, OrganizerTile>();
+                  [...filteredCamps]
+                    .sort((a, b) => new Date(a.date_start).getTime() - new Date(b.date_start).getTime())
+                    .forEach((camp) => {
+                      const organizerKey = camp.organizer_id ? `id:${camp.organizer_id}` : getOrganizerName(camp).toLowerCase();
+                      const organizerName = getOrganizerName(camp);
+                      if (!organizerName) return;
+                      const existing = organizerMap.get(organizerKey);
+                      if (!existing) {
+                        organizerMap.set(organizerKey, { organizerKey, organizerName, leadCamp: camp, camps: [camp] });
+                        return;
+                      }
+                      existing.camps.push(camp);
+                      if (new Date(camp.date_start).getTime() < new Date(existing.leadCamp.date_start).getTime()) {
+                        existing.leadCamp = camp;
+                      }
+                    });
+                  const flatOrganizers = Array.from(organizerMap.values()).sort((a, b) => a.organizerName.localeCompare(b.organizerName, "pl"));
+                  return flatOrganizers.map((organizer) => {
                       const sortedCamps = sortCampsByNearest(organizer.camps, today);
                       const expanded = !!expandedOrganizers[organizer.organizerKey];
                       const visibleCamps = expanded ? sortedCamps : sortedCamps.slice(0, 3);
                       const hiddenCount = Math.max(organizer.camps.length - visibleCamps.length, 0);
 
-                      return (
+                    return (
                         <article
                           key={organizer.organizerKey}
                           className="rounded-xl border border-border bg-card shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5 transition-all duration-200 overflow-hidden"
@@ -1299,7 +1266,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
                                   />
                                 ) : (
                                   <div className="flex h-full w-full items-center justify-center text-3xl text-muted-foreground/30">
-                                    {group.icon}
+                                    🏕️
                                   </div>
                                 );
                               })()}
@@ -1390,10 +1357,8 @@ export function CampsListView({ camps }: CampsListViewProps) {
                           </div>
                         </article>
                       );
-                      })}
-                    </div>
-                  </section>
-                ))}
+                    });
+                  })()}
               </div>
             )}
         </ListPageMainContent>

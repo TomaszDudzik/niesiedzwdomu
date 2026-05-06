@@ -68,6 +68,7 @@ export const PUBLIC_SUBMISSION_TAXONOMY_FALLBACK: AdminTaxonomyResponse = {
     { id: "przyroda", name: "Przyroda", slug: "przyroda" },
     { id: "relaks", name: "Relaks", slug: "relaks" },
     { id: "sala-zabaw", name: "Sala Zabaw", slug: "sala_zabaw" },
+    { id: "rozne", name: "Różne", slug: "rozne" },
     { id: "sport", name: "Sport", slug: "sport" },
     { id: "technologia", name: "Technologia", slug: "technologia" },
   ],

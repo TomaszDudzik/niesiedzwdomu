@@ -415,7 +415,7 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
     activeActivityTypes.forEach((t) => {
       badges.push({
         id: `activityType-${t}`,
-        label: t,
+        label: `Tematyka: ${t}`,
         onRemove: () => setActiveActivityTypes((prev) => prev.filter((item) => item !== t)),
       });
     });
@@ -502,23 +502,6 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
 
       {filtersOpen && (
         <div className="lg:hidden rounded-xl p-3 mb-4 space-y-2.5">
-          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Typ</p>} defaultCollapsed={false}>
-            <div className="flex flex-wrap gap-1">
-              {typeOptions.map((option) => {
-                const selected = activeTypes.includes(option.value);
-                return (
-                  <button key={option.value} onClick={() => toggleType(option.value)}
-                    className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
-                      selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
-                    <span>{option.icon}</span>
-                    <span>{option.label}</span>
-                    <span className="text-[10px] opacity-60">{option.count}</span>
-                    {selected && <Check size={11} />}
-                  </button>
-                );
-              })}
-            </div>
-          </FilterSection>
           <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Wiek dziecka</p>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
               {ageOptions.filter((group) => group.count > 0 || activeAgeGroups.includes(group.key)).map((group) => {
@@ -536,15 +519,14 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
               })}
             </div>
           </FilterSection>
-          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Kategoria</p>} defaultCollapsed={false}>
+          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Typ</p>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
-              {categoryOptions.map((option) => {
-                const selected = activeCategories.includes(option.value);
+              {typeOptions.filter((o) => o.count > 0 || activeTypes.includes(o.value)).map((option) => {
+                const selected = activeTypes.includes(option.value);
                 return (
-                  <button key={option.value} onClick={() => toggleCategory(option.value)}
+                  <button key={option.value} onClick={() => toggleType(option.value)}
                     className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
                       selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
-                    <span>{option.icon}</span>
                     <span>{option.label}</span>
                     <span className="text-[10px] opacity-60">{option.count}</span>
                     {selected && <Check size={11} />}
@@ -554,23 +536,6 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
             </div>
           </FilterSection>
           <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Tematyka</p>} defaultCollapsed={false}>
-            <div className="flex flex-wrap gap-1">
-              {subcategoryOptions.map((option) => {
-                const selected = activeSubcategories.includes(option.value);
-                return (
-                  <button key={option.value} onClick={() => toggleSubcategory(option.value)}
-                    className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
-                      selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
-                    <span>{option.icon}</span>
-                    <span>{option.label}</span>
-                    <span className="text-[10px] opacity-60">{option.count}</span>
-                    {selected && <Check size={11} />}
-                  </button>
-                );
-              })}
-            </div>
-          </FilterSection>
-          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Aktywność</p>} defaultCollapsed={false}>
             <div className="flex flex-wrap gap-1">
               {activityTypeOptions.map((option) => {
                 const selected = activeActivityTypes.includes(option.value);
@@ -642,24 +607,6 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
 
             <div className="border-t border-border" />
 
-            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Typ</p>} defaultCollapsed={!filtersOpenDesktop}>
-              <div className="flex flex-col gap-0.5">
-                {typeOptions.map((option) => {
-                  const selected = activeTypes.includes(option.value);
-                  return (
-                    <button key={option.value} onClick={() => toggleType(option.value)}
-                      className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
-                        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
-                      <span>{option.icon}</span>
-                      <span className="flex-1">{option.label}</span>
-                      {selected && <Check size={10} />}
-                      <span className="text-[8px] opacity-40">{option.count}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </FilterSection>
-
             <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Wiek</p>} defaultCollapsed={!filtersOpenDesktop}>
               <div className="flex flex-col gap-0.5">
                 {ageOptions.filter((group) => group.count > 0 || activeAgeGroups.includes(group.key)).map((group) => {
@@ -678,15 +625,14 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Kategoria</p>} defaultCollapsed={!filtersOpenDesktop}>
+            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Typ</p>} defaultCollapsed={!filtersOpenDesktop}>
               <div className="flex flex-col gap-0.5">
-                {categoryOptions.map((option) => {
-                  const selected = activeCategories.includes(option.value);
+                {typeOptions.filter((o) => o.count > 0 || activeTypes.includes(o.value)).map((option) => {
+                  const selected = activeTypes.includes(option.value);
                   return (
-                    <button key={option.value} onClick={() => toggleCategory(option.value)}
+                    <button key={option.value} onClick={() => toggleType(option.value)}
                       className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
                         selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
-                      <span>{option.icon}</span>
                       <span className="flex-1">{option.label}</span>
                       {selected && <Check size={10} />}
                       <span className="text-[8px] opacity-40">{option.count}</span>
@@ -696,25 +642,7 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
               </div>
             </FilterSection>
 
-            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Tematyka</p>} defaultCollapsed>
-              <div className="flex flex-col gap-0.5">
-                {subcategoryOptions.map((option) => {
-                  const selected = activeSubcategories.includes(option.value);
-                  return (
-                    <button key={option.value} onClick={() => toggleSubcategory(option.value)}
-                      className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
-                        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
-                      <span>{option.icon}</span>
-                      <span className="flex-1">{option.label}</span>
-                      {selected && <Check size={10} />}
-                      <span className="text-[8px] opacity-40">{option.count}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </FilterSection>
-
-            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Aktywność</p>} defaultCollapsed>
+            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Tematyka</p>} defaultCollapsed={!filtersOpenDesktop}>
               <div className="flex flex-col gap-0.5">
                 {activityTypeOptions.map((option) => {
                   const selected = activeActivityTypes.includes(option.value);
@@ -829,6 +757,8 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
                 const listOfActivities = organizer.leadActivity.list_of_activities
                   ? organizer.leadActivity.list_of_activities.split(";").map((s) => s.trim()).filter(Boolean)
                   : [];
+                const visibleTags = listOfActivities.slice(0, 4);
+                const hiddenTagCount = Math.max(listOfActivities.length - visibleTags.length, 0);
 
                 return (
                   <article
@@ -850,48 +780,54 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
                     </Link>
 
                     {/* Body */}
-                    <div className="flex flex-col gap-2 p-3.5 flex-1">
-                      <Link href={`/zajecia/${organizer.leadActivity.slug}`} className="font-bold text-[13px] leading-snug text-foreground group-hover:text-[#e60100] transition-colors duration-150 line-clamp-2">
-                        {organizer.organizerName}
-                      </Link>
+                    <div className="flex flex-col p-3.5 flex-1">
+                      {/* Content — fixed height so the divider line always falls at the same position */}
+                      <div className="flex flex-col gap-2 h-[108px] overflow-hidden">
+                        <Link href={`/zajecia/${organizer.leadActivity.slug}`} className="font-bold text-[13px] leading-snug text-foreground group-hover:text-[#e60100] transition-colors duration-150 line-clamp-2">
+                          {organizer.organizerName}
+                        </Link>
 
-                      {organizer.leadActivity.description_short && (
-                        <p className="text-[11px] text-muted leading-relaxed line-clamp-3">
-                          {organizer.leadActivity.description_short}
-                        </p>
-                      )}
+                        {organizer.leadActivity.description_short && (
+                          <p className="text-[11px] text-muted leading-relaxed line-clamp-3">
+                            {organizer.leadActivity.description_short}
+                          </p>
+                        )}
 
-                      {address && (
-                        <div className="flex items-start gap-1 text-[10px] text-muted-foreground">
-                          <MapPin size={10} className="mt-0.5 shrink-0 text-muted-foreground/60" />
-                          <span className="line-clamp-1">{address}</span>
-                        </div>
-                      )}
-
-                      {listOfActivities.length > 0 && (
-                        <div className="mt-auto pt-2.5 border-t border-border/50">
-                          <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/50 mb-2">Zajęcia</p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {listOfActivities.map((item, i) => {
-                              const colors = [
-                                "bg-red-50 text-red-700 border-red-200",
-                                "bg-orange-50 text-orange-700 border-orange-200",
-                                "bg-amber-50 text-amber-700 border-amber-200",
-                                "bg-emerald-50 text-emerald-700 border-emerald-200",
-                                "bg-sky-50 text-sky-700 border-sky-200",
-                                "bg-violet-50 text-violet-700 border-violet-200",
-                                "bg-pink-50 text-pink-700 border-pink-200",
-                              ];
-                              const color = colors[i % colors.length];
-                              return (
-                                <span key={item} className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-medium leading-snug ${color}`}>
-                                  {item}
-                                </span>
-                              );
-                            })}
+                        {address && (
+                          <div className="flex items-start gap-1 text-[10px] text-muted-foreground">
+                            <MapPin size={10} className="mt-0.5 shrink-0 text-muted-foreground/60" />
+                            <span className="line-clamp-1">{address}</span>
                           </div>
+                        )}
+                      </div>
+
+                      {/* Tags — always anchored at the bottom of the card */}
+                      <div className="pt-2.5 mt-2.5 border-t border-border/50 min-h-[28px]">
+                        <div className="flex flex-wrap gap-1.5">
+                          {visibleTags.map((item, i) => {
+                            const colors = [
+                              "bg-red-50 text-red-700 border-red-200",
+                              "bg-orange-50 text-orange-700 border-orange-200",
+                              "bg-amber-50 text-amber-700 border-amber-200",
+                              "bg-emerald-50 text-emerald-700 border-emerald-200",
+                              "bg-sky-50 text-sky-700 border-sky-200",
+                              "bg-violet-50 text-violet-700 border-violet-200",
+                              "bg-pink-50 text-pink-700 border-pink-200",
+                            ];
+                            const color = colors[i % colors.length];
+                            return (
+                              <span key={item} className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-medium leading-snug ${color}`}>
+                                {item}
+                              </span>
+                            );
+                          })}
+                          {hiddenTagCount > 0 && (
+                            <span className="inline-flex items-center rounded-md border border-border bg-accent px-2 py-0.5 text-[10px] font-medium text-muted-foreground leading-snug">
+                              +{hiddenTagCount}
+                            </span>
+                          )}
                         </div>
-                      )}
+                      </div>
                     </div>
                   </article>
                 );
