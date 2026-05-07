@@ -87,7 +87,7 @@ export function useListFilters<T>({
 
   const categoryOptions = useMemo(
     () => mergeSelectedTaxonomyOptions(
-      getTaxonomyOptions(items.filter((i) => matchesItem(i, ["category"])), getCategory),
+      getTaxonomyOptions(items.filter((i) => matchesItem(i, ["category"])), getCategory, undefined, getType),
       activeCategories
     ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -102,7 +102,7 @@ export function useListFilters<T>({
   const subcategoryOptions = useMemo(
     () => getSubcategory
       ? mergeSelectedTaxonomyOptions(
-          getTaxonomyOptions(items.filter((i) => matchesItem(i, ["subcategory"])), getSubcategory),
+          getTaxonomyOptions(items.filter((i) => matchesItem(i, ["subcategory"])), getSubcategory, undefined, getCategory),
           activeSubcategories
         )
       : [] as TaxonomyOption[],

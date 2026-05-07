@@ -1,6 +1,0 @@
-ALTER TABLE public.camps
-  ADD COLUMN IF NOT EXISTS type_lvl_1 TEXT,
-  ADD COLUMN IF NOT EXISTS type_lvl_2 TEXT,
-  ADD COLUMN IF NOT EXISTS category_lvl_1 TEXT,
-  ADD COLUMN IF NOT EXISTS category_lvl_2 TEXT,
-  ADD COLUMN IF NOT EXISTS category_lvl_3 TEXT;

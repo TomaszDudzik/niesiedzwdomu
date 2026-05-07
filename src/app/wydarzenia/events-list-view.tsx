@@ -363,7 +363,7 @@ export function EventsListView({ events }: EventsListViewProps) {
               value={filters.search}
               onChange={(e) => filters.setSearch(e.target.value)}
               placeholder="Szukaj wydarzeń..."
-              className="w-full rounded-xl border border-amber-300 bg-amber-50/40 py-1.5 pl-7 pr-2 text-[11px] text-black placeholder:text-black/40 focus:outline-none focus:border-amber-400"
+              className="w-full rounded-xl border-[0.5px] border-amber-300 bg-amber-50/40 py-1.5 pl-7 pr-2 text-[11px] text-black placeholder:text-black/40 focus:outline-none focus:border-amber-400"
             />
           </div>
         </div>
@@ -426,24 +426,6 @@ export function EventsListView({ events }: EventsListViewProps) {
                 </div>
               </FilterSection>
 
-              <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Wiek dziecka</p>} defaultCollapsed>
-                <div className="flex flex-wrap gap-1">
-                  {filters.ageOptions.filter((g) => g.count > 0 || filters.activeAgeGroups.includes(g.key)).map((group) => {
-                    const selected = filters.activeAgeGroups.includes(group.key);
-                    return (
-                      <button key={group.key} onClick={() => filters.toggleAgeGroup(group.key)}
-                        className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
-                          selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
-                        <span>{group.icon}</span>
-                        <span>{group.label}</span>
-                        <span className="text-[10px] opacity-60">{group.count}</span>
-                        {selected && <Check size={11} />}
-                      </button>
-                    );
-                  })}
-                </div>
-              </FilterSection>
-
               <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Kategoria</p>} defaultCollapsed>
                 <div className="flex flex-wrap gap-1">
                   {filters.categoryOptions.map((option) => {
@@ -455,6 +437,24 @@ export function EventsListView({ events }: EventsListViewProps) {
                         <span>{option.icon}</span>
                         <span>{option.label}</span>
                         <span className="text-[10px] opacity-60">{option.count}</span>
+                        {selected && <Check size={11} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </FilterSection>
+
+              <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Wiek dziecka</p>} defaultCollapsed>
+                <div className="flex flex-wrap gap-1">
+                  {filters.ageOptions.filter((g) => g.count > 0 || filters.activeAgeGroups.includes(g.key)).map((group) => {
+                    const selected = filters.activeAgeGroups.includes(group.key);
+                    return (
+                      <button key={group.key} onClick={() => filters.toggleAgeGroup(group.key)}
+                        className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
+                          selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
+                        <span>{group.icon}</span>
+                        <span>{group.label}</span>
+                        <span className="text-[10px] opacity-60">{group.count}</span>
                         {selected && <Check size={11} />}
                       </button>
                     );
@@ -530,24 +530,6 @@ export function EventsListView({ events }: EventsListViewProps) {
                 </div>
               </FilterSection>
 
-              <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Wiek</p>} defaultCollapsed>
-                <div className="flex flex-col gap-0.5">
-                  {filters.ageOptions.filter((g) => g.count > 0 || filters.activeAgeGroups.includes(g.key)).map((group) => {
-                    const selected = filters.activeAgeGroups.includes(group.key);
-                    return (
-                      <button key={group.key} onClick={() => filters.toggleAgeGroup(group.key)}
-                        className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
-                          selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
-                        <span>{group.icon}</span>
-                        <span className="flex-1">{group.label}</span>
-                        <span className="text-[8px] opacity-40">{group.count}</span>
-                        {selected && <Check size={10} />}
-                      </button>
-                    );
-                  })}
-                </div>
-              </FilterSection>
-
               <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Kategoria</p>} defaultCollapsed>
                 <div className="flex flex-col gap-0.5">
                   {filters.categoryOptions.map((option) => {
@@ -560,6 +542,24 @@ export function EventsListView({ events }: EventsListViewProps) {
                         <span className="flex-1">{option.label}</span>
                         {selected && <Check size={10} />}
                         <span className="text-[8px] opacity-40">{option.count}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </FilterSection>
+
+              <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Wiek</p>} defaultCollapsed>
+                <div className="flex flex-col gap-0.5">
+                  {filters.ageOptions.filter((g) => g.count > 0 || filters.activeAgeGroups.includes(g.key)).map((group) => {
+                    const selected = filters.activeAgeGroups.includes(group.key);
+                    return (
+                      <button key={group.key} onClick={() => filters.toggleAgeGroup(group.key)}
+                        className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
+                          selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
+                        <span>{group.icon}</span>
+                        <span className="flex-1">{group.label}</span>
+                        <span className="text-[8px] opacity-40">{group.count}</span>
+                        {selected && <Check size={10} />}
                       </button>
                     );
                   })}

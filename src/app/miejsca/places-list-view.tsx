@@ -134,7 +134,7 @@ export function PlacesListView({ places }: PlacesListViewProps) {
               value={filters.search}
               onChange={(e) => filters.setSearch(e.target.value)}
               placeholder="Szukaj miejsc..."
-              className="w-full rounded-xl border border-amber-300 bg-amber-50/40 py-1.5 pl-7 pr-2 text-[11px] text-black placeholder:text-black/40 focus:outline-none focus:border-amber-400"
+              className="w-full rounded-xl border-[0.5px] border-amber-300 bg-amber-50/40 py-1.5 pl-7 pr-2 text-[11px] text-black placeholder:text-black/40 focus:outline-none focus:border-amber-400"
             />
           </div>
         </div>

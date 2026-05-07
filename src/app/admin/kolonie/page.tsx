@@ -36,6 +36,14 @@ const MiniMapLazy = lazy(() => import("../miejsca/mini-map").then((m) => ({ defa
 
 type DerivedCampStatus = Camp["status"] | "outdated";
 type CampListFilter = "all" | "published" | "draft" | "outdated";
+type PromptUrlStatus = "in-progress" | "completed";
+type UrlTrackingRow = {
+  id: string;
+  url: string;
+  typ: "miejsce" | "kolonie" | "wydarzenia" | "zajecia";
+  is_done: boolean;
+  last_checked_at: string | null;
+};
 const UNCATEGORIZED_GROUP = "__uncategorized__";
 
 function withShuffleOrder<T extends Record<string, unknown>>(items: T[]): (T & { __shuffleOrder: number })[] {
@@ -174,6 +182,7 @@ export default function AdminCampsPage() {
   const [collapsedOrganizers, setCollapsedOrganizers] = useState<Record<string, boolean>>({});
   const [statusFilter, setStatusFilter] = useState<CampListFilter>("all");
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<"alpha" | "id">("alpha");
 
   const [editing, setEditing] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Record<string, unknown>>({});
@@ -194,27 +203,10 @@ export default function AdminCampsPage() {
   const [editingPrompt, setEditingPrompt] = useState(false);
   const [editingContent, setEditingContent] = useState("");
   const [savingPrompt, setSavingPrompt] = useState(false);
-  const [promptUrlRows, setPromptUrlRows] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem("admin_prompt_urls_kolonie");
-      if (saved) {
-        const parsed = JSON.parse(saved) as string[] | { rows?: string[] };
-        if (Array.isArray(parsed)) return parsed;
-        if (parsed && Array.isArray(parsed.rows)) return parsed.rows;
-      }
-    } catch {}
-    return [...PROMPT_URL_LIST].sort((a, b) => a.localeCompare(b, "pl"));
-  });
-  const [promptUrlStatuses, setPromptUrlStatuses] = useState<Record<number, "in-progress" | "completed">>(() => {
-    try {
-      const saved = localStorage.getItem("admin_prompt_urls_kolonie");
-      if (saved) {
-        const parsed = JSON.parse(saved) as { statuses?: Record<number, "in-progress" | "completed"> };
-        if (parsed && parsed.statuses && typeof parsed.statuses === "object") return parsed.statuses;
-      }
-    } catch {}
-    return {};
-  });
+  const [promptUrlRows, setPromptUrlRows] = useState<string[]>([...PROMPT_URL_LIST].sort((a, b) => a.localeCompare(b, "pl")));
+  const [promptUrlStatuses, setPromptUrlStatuses] = useState<Record<number, PromptUrlStatus>>({});
+  const [promptUrlLastChecked, setPromptUrlLastChecked] = useState<Record<number, string | null>>({});
+  const [syncingPromptUrls, setSyncingPromptUrls] = useState(false);
   const [buildingDataframe, setBuildingDataframe] = useState(false);
   const [buildResult, setBuildResult] = useState<{ ok: boolean; message: string; failed?: number; newCamps?: { camp_id: string; title: string; image_prompt: string }[] } | null>(null);
   const [imagePromptByCampId, setImagePromptByCampId] = useState<Record<string, string>>({});
@@ -280,16 +272,13 @@ export default function AdminCampsPage() {
         .map((group) => ({
           organizer: group.organizer,
           items: group.items.sort((a, b) => {
-            const sd = STATUS_ORDER[getEffectiveStatus(a)] - STATUS_ORDER[getEffectiveStatus(b)];
-            if (sd !== 0) return sd;
-            const shuffleDiff = getShuffleOrder(a as unknown as Record<string, unknown>) - getShuffleOrder(b as unknown as Record<string, unknown>);
-            if (shuffleDiff !== 0) return shuffleDiff;
+            if (sortBy === "id") return a.id.localeCompare(b.id);
             return a.title.localeCompare(b.title, "pl");
           }),
         }));
       return { type, byOrganizer };
     });
-  }, [allGroupKeys, filteredCamps, getEffectiveStatus]);
+  }, [allGroupKeys, filteredCamps, getEffectiveStatus, sortBy]);
 
   const publishedCount = useMemo(() => camps.filter((c) => getEffectiveStatus(c) === "published").length, [camps, getEffectiveStatus]);
   const draftCount    = useMemo(() => camps.filter((c) => { const s = getEffectiveStatus(c); return s === "draft" || s === "cancelled"; }).length, [camps, getEffectiveStatus]);
@@ -593,10 +582,138 @@ export default function AdminCampsPage() {
     return externalId ? (imagePromptByCampId[externalId] ?? "") : "";
   };
 
+  const hydratePromptUrlState = useCallback((rows: UrlTrackingRow[]) => {
+    const ordered = [...rows].sort((a, b) => a.url.localeCompare(b.url, "pl", { sensitivity: "base" }));
+    const nextRows = ordered.map((row) => row.url);
+    const nextStatuses: Record<number, PromptUrlStatus> = {};
+    const nextLastChecked: Record<number, string | null> = {};
+
+    ordered.forEach((row, index) => {
+      nextStatuses[index] = row.is_done ? "completed" : "in-progress";
+      nextLastChecked[index] = row.last_checked_at;
+    });
+
+    setPromptUrlRows(nextRows);
+    setPromptUrlStatuses(nextStatuses);
+    setPromptUrlLastChecked(nextLastChecked);
+  }, []);
+
+  const loadPromptUrls = useCallback(async () => {
+    setSyncingPromptUrls(true);
+    try {
+      const res = await fetch("/api/admin/url-tracking?typ=kolonie");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Nie udało się pobrać URL-i.");
+
+      if (Array.isArray(data) && data.length > 0) {
+        hydratePromptUrlState(data as UrlTrackingRow[]);
+        return;
+      }
+
+      const seedRows = [...PROMPT_URL_LIST].map((url) => ({ url, isDone: false }));
+      const seedRes = await fetch("/api/admin/url-tracking", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ typ: "kolonie", rows: seedRows }),
+      });
+      const seedData = await seedRes.json();
+      if (!seedRes.ok) throw new Error(seedData?.error || "Nie udało się zapisać startowej listy URL-i.");
+      hydratePromptUrlState(Array.isArray(seedData) ? seedData as UrlTrackingRow[] : []);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Błąd synchronizacji listy URL.");
+    } finally {
+      setSyncingPromptUrls(false);
+    }
+  }, [hydratePromptUrlState]);
+
+  const savePromptUrls = useCallback(async () => {
+    setSyncingPromptUrls(true);
+    try {
+      const rows = promptUrlRows.map((url, index) => ({
+        url: url.trim(),
+        isDone: promptUrlStatuses[index] === "completed",
+        lastCheckedAt: promptUrlLastChecked[index] ?? null,
+      }));
+
+      const res = await fetch("/api/admin/url-tracking", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ typ: "kolonie", rows }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Nie udało się zapisać URL-i.");
+
+      hydratePromptUrlState(Array.isArray(data) ? data as UrlTrackingRow[] : []);
+      alert("Zapisano listę URL-i w bazie.");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Błąd zapisu URL-i.");
+    } finally {
+      setSyncingPromptUrls(false);
+    }
+  }, [hydratePromptUrlState, promptUrlLastChecked, promptUrlRows, promptUrlStatuses]);
+
+  const setPromptUrlStatus = useCallback(async (index: number, nextStatus: PromptUrlStatus) => {
+    const url = (promptUrlRows[index] ?? "").trim();
+
+    setPromptUrlStatuses((prev) => ({ ...prev, [index]: nextStatus }));
+    if (!url) return;
+
+    try {
+      const res = await fetch("/api/admin/url-tracking", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ typ: "kolonie", url, isDone: nextStatus === "completed" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Nie udało się zaktualizować statusu URL.");
+
+      setPromptUrlLastChecked((prev) => ({
+        ...prev,
+        [index]: typeof data?.last_checked_at === "string" ? data.last_checked_at : (prev[index] ?? null),
+      }));
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Błąd aktualizacji statusu URL.");
+    }
+  }, [promptUrlRows]);
+
+  const removePromptUrl = useCallback(async (index: number) => {
+    const url = (promptUrlRows[index] ?? "").trim();
+    if (url) {
+      try {
+        const params = new URLSearchParams({ typ: "kolonie", url });
+        const res = await fetch(`/api/admin/url-tracking?${params.toString()}`, { method: "DELETE" });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || "Nie udało się usunąć URL z bazy.");
+      } catch (error) {
+        alert(error instanceof Error ? error.message : "Błąd usuwania URL.");
+        return;
+      }
+    }
+
+    setPromptUrlRows((prev) => prev.filter((_, i) => i !== index));
+    setPromptUrlStatuses((prev) => {
+      const next: Record<number, PromptUrlStatus> = {};
+      Object.entries(prev).forEach(([k, v]) => {
+        const ki = Number(k);
+        if (ki !== index) next[ki > index ? ki - 1 : ki] = v;
+      });
+      return next;
+    });
+    setPromptUrlLastChecked((prev) => {
+      const next: Record<number, string | null> = {};
+      Object.entries(prev).forEach(([k, v]) => {
+        const ki = Number(k);
+        if (ki !== index) next[ki > index ? ki - 1 : ki] = v;
+      });
+      return next;
+    });
+  }, [promptUrlRows]);
+
   const openPromptModal = async () => {
     setActivePromptModalView("prompts");
     setEditingPrompt(false);
     setPromptModal(true);
+    void loadPromptUrls();
     try {
       const res = await fetch("/api/admin/prompts");
       const data = await res.json();
@@ -766,9 +883,13 @@ export default function AdminCampsPage() {
         <button onClick={() => toggleStatusFilter("published")} className={cn("text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors", statusFilter === "published" ? "bg-emerald-200 text-emerald-800" : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200")}>{publishedCount} published</button>
         <button onClick={() => toggleStatusFilter("draft")} className={cn("text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors", draftCount > 0 ? (statusFilter === "draft" ? "bg-rose-200 text-rose-800" : "bg-rose-100 text-rose-700 hover:bg-rose-200") : (statusFilter === "draft" ? "bg-stone-300 text-stone-700" : "bg-stone-200 text-stone-500 hover:bg-stone-300"))}>{draftCount} draft</button>
         <button onClick={() => toggleStatusFilter("outdated")} className={cn("text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors", statusFilter === "outdated" ? "bg-amber-200 text-amber-800" : "bg-amber-100 text-amber-700 hover:bg-amber-200")}>{outdatedCount} outdated</button>
-        <button onClick={toggleAllCategories} className="ml-auto text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors bg-white border border-border text-muted hover:text-foreground hover:border-[#CCC]">
-          {hasExpandedCategories ? "Zwiń wszystkie" : "Rozwiń wszystkie"}
-        </button>
+        <div className="ml-auto flex items-center gap-1">
+          <button onClick={() => setSortBy("alpha")} className={cn("text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors", sortBy === "alpha" ? "bg-stone-700 text-white" : "bg-white border border-border text-muted hover:text-foreground hover:border-[#CCC]")}>A-Z</button>
+          <button onClick={() => setSortBy("id")} className={cn("text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors", sortBy === "id" ? "bg-stone-700 text-white" : "bg-white border border-border text-muted hover:text-foreground hover:border-[#CCC]")}>#ID</button>
+          <button onClick={toggleAllCategories} className="text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors bg-white border border-border text-muted hover:text-foreground hover:border-[#CCC] ml-1">
+            {hasExpandedCategories ? "Zwiń" : "Rozwiń"}
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -1259,6 +1380,7 @@ export default function AdminCampsPage() {
                     <div className="flex gap-2">
                       <button
                         onClick={() => setPromptUrlRows((prev) => [...prev, ""])}
+                        disabled={syncingPromptUrls}
                         className="px-2.5 py-1 text-[11px] font-medium text-muted border border-border rounded hover:text-foreground transition-colors"
                       >
                         + Dodaj
@@ -1285,26 +1407,19 @@ export default function AdminCampsPage() {
                                   setPromptUrlRows((prev) => prev.map((entry, i) => (i === index ? value : entry)));
                                 }}
                               />
+                              <span className="shrink-0 text-[10px] text-muted-foreground whitespace-nowrap">
+                                Ostatnio: {promptUrlLastChecked[index] ? new Date(promptUrlLastChecked[index] as string).toLocaleString("pl-PL") : "-"}
+                              </span>
                               <button
                                 type="button"
-                                onClick={() => setPromptUrlStatuses((prev) => ({ ...prev, [index]: "completed" }))}
+                                onClick={() => { void setPromptUrlStatus(index, "completed"); }}
                                 className="shrink-0 px-2 py-1 text-[10px] font-medium rounded border border-border text-muted hover:text-foreground transition-colors"
                               >
                                 Oznacz jako zrobione
                               </button>
                               <button
                                 type="button"
-                                onClick={() => {
-                                  setPromptUrlRows((prev) => prev.filter((_, i) => i !== index));
-                                  setPromptUrlStatuses((prev) => {
-                                    const next: Record<number, "in-progress" | "completed"> = {};
-                                    Object.entries(prev).forEach(([k, v]) => {
-                                      const ki = Number(k);
-                                      if (ki !== index) next[ki > index ? ki - 1 : ki] = v;
-                                    });
-                                    return next;
-                                  });
-                                }}
+                                onClick={() => { void removePromptUrl(index); }}
                                 className="shrink-0 text-muted-foreground hover:text-red-500 transition-colors"
                               >
                                 <X size={13} />
@@ -1331,26 +1446,19 @@ export default function AdminCampsPage() {
                                     setPromptUrlRows((prev) => prev.map((entry, i) => (i === index ? value : entry)));
                                   }}
                                 />
+                                <span className="shrink-0 text-[10px] text-muted-foreground whitespace-nowrap">
+                                  Ostatnio: {promptUrlLastChecked[index] ? new Date(promptUrlLastChecked[index] as string).toLocaleString("pl-PL") : "-"}
+                                </span>
                                 <button
                                   type="button"
-                                  onClick={() => setPromptUrlStatuses((prev) => ({ ...prev, [index]: "in-progress" }))}
+                                  onClick={() => { void setPromptUrlStatus(index, "in-progress"); }}
                                   className="shrink-0 px-2 py-1 text-[10px] font-medium rounded border border-border text-muted hover:text-foreground transition-colors"
                                 >
                                   Cofnij do w trakcie
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    setPromptUrlRows((prev) => prev.filter((_, i) => i !== index));
-                                    setPromptUrlStatuses((prev) => {
-                                      const next: Record<number, "in-progress" | "completed"> = {};
-                                      Object.entries(prev).forEach(([k, v]) => {
-                                        const ki = Number(k);
-                                        if (ki !== index) next[ki > index ? ki - 1 : ki] = v;
-                                      });
-                                      return next;
-                                    });
-                                  }}
+                                  onClick={() => { void removePromptUrl(index); }}
                                   className="shrink-0 text-muted-foreground hover:text-red-500 transition-colors"
                                 >
                                   <X size={13} />
@@ -1377,13 +1485,11 @@ export default function AdminCampsPage() {
                   </button>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => {
-                        try { localStorage.setItem("admin_prompt_urls_kolonie", JSON.stringify({ rows: promptUrlRows, statuses: promptUrlStatuses })); } catch {}
-                        alert("Zapisano " + promptUrlRows.length + " URL-i.");
-                      }}
-                      className="px-3 py-1.5 text-[12px] font-medium text-white bg-green-700 rounded-lg hover:bg-green-800 transition-colors"
+                      onClick={() => { void savePromptUrls(); }}
+                      disabled={syncingPromptUrls}
+                      className="px-3 py-1.5 text-[12px] font-medium text-white bg-green-700 rounded-lg hover:bg-green-800 transition-colors disabled:opacity-50"
                     >
-                      Zapisz
+                      {syncingPromptUrls ? "Zapisywanie..." : "Zapisz"}
                     </button>
                     <button onClick={() => { setPromptModal(false); setEditingPrompt(false); setActivePromptModalView("prompts"); }} className="px-3 py-1.5 text-[12px] font-medium text-white bg-foreground rounded-lg hover:bg-stone-700 transition-colors">
                       Zamknij

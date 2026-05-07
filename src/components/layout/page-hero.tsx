@@ -31,7 +31,7 @@ export function PageHero({ title, subtitle, search, onSearch, searchPlaceholder 
 
           {onSearch && (
             <div className="hidden lg:block shrink-0 w-[340px] xl:w-[400px] mr-8">
-              <div className="relative rounded-2xl bg-gradient-to-r from-orange-300/85 via-amber-200/90 to-orange-200/85 shadow-[0_10px_28px_-8px_rgba(234,88,12,0.45)] ring-1 ring-orange-400/35 px-1.5 py-1.5">
+              <div className="relative rounded-2xl bg-gradient-to-r from-orange-300/85 via-amber-200/90 to-orange-200/85 ring-[0.5px] ring-orange-400/35 px-0.5 py-0.5">
                 <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-orange-800/90" />
                 <input
                   value={search ?? ""}

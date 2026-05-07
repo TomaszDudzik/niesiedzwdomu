@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Search, X, MapPin, Check, ChevronDown } from "lucide-react";
 import { MobileActionBar } from "@/components/ui/mobile-action-bar";
 import { PageHero } from "@/components/layout/page-hero";
+import { ListGroupHeader } from "@/components/layout/list-group-header";
 import { ListPageMainContent } from "@/components/layout/list-page-main-content";
 import { ListPageSidebar } from "@/components/layout/list-page-sidebar";
 import { FilterBadgeBar } from "@/components/ui/filter-badge-bar";
@@ -48,6 +49,13 @@ interface ActivityOrganizerTile {
   activities: Activity[];
 }
 
+interface ActivityTypeGroup {
+  type: string;
+  label: string;
+  icon: string;
+  organizers: ActivityOrganizerTile[];
+}
+
 interface ActivitiesListViewProps {
   activities: Activity[];
 }
@@ -70,12 +78,21 @@ function getActivityCountLabel(count: number): string {
   return `${count} zajęć`;
 }
 
+function hashString(value: string): number {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = ((hash << 5) - hash + value.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+}
+
 export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
   const [view, setView] = useState<ViewMode>("list");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filtersOpenDesktop, setFiltersOpenDesktop] = useState(false);
   const [expandedOrganizers, setExpandedOrganizers] = useState<Record<string, boolean>>({});
   const [activeActivityTypes, setActiveActivityTypes] = useState<string[]>([]);
+  const [shuffleSeed] = useState(() => Math.random().toString(36).slice(2));
   const [MapComponent, setMapComponent] = useState<React.ComponentType<{ groups: MarkerGroup[]; basePath?: string }> | null>(null);
 
   const filters = useListFilters({
@@ -144,54 +161,68 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
     }
   }, [view, MapComponent]);
 
-  // Organizer grouping — unique to zajecia
-  const organizers = useMemo(() => {
-    const organizerMap = new Map<string, ActivityOrganizerTile>();
+  const randomizedActivities = useMemo(() => {
+    return [...filteredActivities]
+      .map((activity) => ({ activity, score: hashString(`${shuffleSeed}:${activity.id}`) }))
+      .sort((a, b) => a.score - b.score)
+      .map((entry) => entry.activity);
+  }, [filteredActivities, shuffleSeed]);
 
-    [...filteredActivities]
-      .sort((a, b) => a.title.localeCompare(b.title, "pl"))
-      .forEach((activity) => {
-        const organizerKey = activity.organizer_id
-          ? `id:${activity.organizer_id}`
-          : `name:${getActivityOrganizerName(activity).toLowerCase()}`;
+  // Group by category_lvl_1 and then by organizer, preserving shuffled order.
+  const groupedByType = useMemo((): ActivityTypeGroup[] => {
+    const typeMap = new Map<string, { label: string; icon: string; organizers: Map<string, ActivityOrganizerTile> }>();
 
-        const existing = organizerMap.get(organizerKey);
-        if (!existing) {
-          organizerMap.set(organizerKey, {
-            organizerKey,
-            organizerName: getActivityOrganizerName(activity),
-            leadActivity: activity,
-            formGroups: [],
-            activities: [activity],
-          });
-        } else {
-          existing.activities.push(activity);
-          if (activity.title.localeCompare(existing.leadActivity.title, "pl") < 0) {
-            existing.leadActivity = activity;
-          }
-        }
-      });
+    randomizedActivities.forEach((activity) => {
+      const type = getActivityTypeValue(activity);
+      const typeOption = filters.typeOptionsByValue.get(type);
 
-    return Array.from(organizerMap.values())
-      .map((organizer) => {
+      if (!typeMap.has(type)) {
+        typeMap.set(type, {
+          label: typeOption?.label || type,
+          icon: typeOption?.icon || "🎯",
+          organizers: new Map<string, ActivityOrganizerTile>(),
+        });
+      }
+
+      const typeGroup = typeMap.get(type)!;
+      const organizerKey = activity.organizer_id
+        ? `id:${activity.organizer_id}`
+        : `name:${getActivityOrganizerName(activity).toLowerCase()}`;
+
+      const existingOrganizer = typeGroup.organizers.get(organizerKey);
+      if (!existingOrganizer) {
+        typeGroup.organizers.set(organizerKey, {
+          organizerKey,
+          organizerName: getActivityOrganizerName(activity),
+          leadActivity: activity,
+          formGroups: [],
+          activities: [activity],
+        });
+      } else {
+        existingOrganizer.activities.push(activity);
+      }
+    });
+
+    return Array.from(typeMap.entries()).map(([type, group]) => ({
+      type,
+      label: group.label,
+      icon: group.icon,
+      organizers: Array.from(group.organizers.values()).map((organizer) => {
         const formMap = new Map<string, Activity[]>();
-        organizer.activities
-          .sort((a, b) => a.title.localeCompare(b.title, "pl"))
-          .forEach((activity) => {
-            const formLabel = getActivityFormLabel(activity);
-            const list = formMap.get(formLabel) || [];
-            list.push(activity);
-            formMap.set(formLabel, list);
-          });
+        organizer.activities.forEach((activity) => {
+          const formLabel = getActivityFormLabel(activity);
+          const list = formMap.get(formLabel) || [];
+          list.push(activity);
+          formMap.set(formLabel, list);
+        });
 
         const formGroups: ActivityFormGroup[] = Array.from(formMap.entries())
-          .map(([formLabel, acts]) => ({ formLabel, activities: acts }))
-          .sort((a, b) => a.formLabel.localeCompare(b.formLabel, "pl"));
+          .map(([formLabel, acts]) => ({ formLabel, activities: acts }));
 
         return { ...organizer, formGroups };
-      })
-      .sort((a, b) => a.organizerName.localeCompare(b.organizerName, "pl"));
-  }, [filteredActivities]);
+      }),
+    }));
+  }, [randomizedActivities, filters.typeOptionsByValue]);
 
   const mapGroups = useMemo((): MarkerGroup[] => {
     const groups: Record<string, MarkerGroup> = {};
@@ -245,7 +276,7 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
               value={filters.search}
               onChange={(e) => filters.setSearch(e.target.value)}
               placeholder="Szukaj zajęć..."
-              className="w-full rounded-xl border border-amber-300 bg-amber-50/40 py-1.5 pl-7 pr-2 text-[11px] text-black placeholder:text-black/40 focus:outline-none focus:border-amber-400"
+              className="w-full rounded-xl border-[0.5px] border-amber-300 bg-amber-50/40 py-1.5 pl-7 pr-2 text-[11px] text-black placeholder:text-black/40 focus:outline-none focus:border-amber-400"
             />
           </div>
         </div>
@@ -262,6 +293,44 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
 
           {filtersOpen && (
             <div className="lg:hidden rounded-xl p-3 mb-4 space-y-2.5">
+              <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Typ</p>} defaultCollapsed={false}>
+                <div className="flex flex-wrap gap-1">
+                  {filters.typeOptions.filter((o) => o.count > 0 || filters.activeTypes.includes(o.value)).map((option) => {
+                    const selected = filters.activeTypes.includes(option.value);
+                    return (
+                      <button key={option.value} onClick={() => filters.toggleType(option.value)}
+                        className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
+                          selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
+                        <span>{option.icon}</span>
+                        <span>{option.label}</span>
+                        <span className="text-[10px] opacity-60">{option.count}</span>
+                        {selected && <Check size={11} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </FilterSection>
+
+              {filters.categoryOptions.length > 0 && (
+                <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Kategoria</p>} defaultCollapsed={false}>
+                  <div className="flex flex-wrap gap-1">
+                    {filters.categoryOptions.map((option) => {
+                      const selected = filters.activeCategories.includes(option.value);
+                      return (
+                        <button key={option.value} onClick={() => filters.toggleCategory(option.value)}
+                          className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
+                            selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
+                          <span>{option.icon}</span>
+                          <span>{option.label}</span>
+                          <span className="text-[10px] opacity-60">{option.count}</span>
+                          {selected && <Check size={11} />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </FilterSection>
+              )}
+
               <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Wiek dziecka</p>} defaultCollapsed={false}>
                 <div className="flex flex-wrap gap-1">
                   {filters.ageOptions.filter((g) => g.count > 0 || filters.activeAgeGroups.includes(g.key)).map((group) => {
@@ -272,40 +341,6 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
                           selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
                         <span>{group.icon}</span><span>{group.label}</span>
                         <span className="text-[10px] opacity-60">{group.count}</span>
-                        {selected && <Check size={11} />}
-                      </button>
-                    );
-                  })}
-                </div>
-              </FilterSection>
-
-              <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Typ</p>} defaultCollapsed={false}>
-                <div className="flex flex-wrap gap-1">
-                  {filters.typeOptions.filter((o) => o.count > 0 || filters.activeTypes.includes(o.value)).map((option) => {
-                    const selected = filters.activeTypes.includes(option.value);
-                    return (
-                      <button key={option.value} onClick={() => filters.toggleType(option.value)}
-                        className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
-                          selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
-                        <span>{option.label}</span>
-                        <span className="text-[10px] opacity-60">{option.count}</span>
-                        {selected && <Check size={11} />}
-                      </button>
-                    );
-                  })}
-                </div>
-              </FilterSection>
-
-              <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Tematyka</p>} defaultCollapsed={false}>
-                <div className="flex flex-wrap gap-1">
-                  {activityTypeOptions.map((option) => {
-                    const selected = activeActivityTypes.includes(option.value);
-                    return (
-                      <button key={option.value} onClick={() => toggleActivityType(option.value)}
-                        className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
-                          selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-primary/30 hover:text-foreground")}>
-                        <span>{option.label}</span>
-                        <span className="text-[10px] opacity-60">{option.count}</span>
                         {selected && <Check size={11} />}
                       </button>
                     );
@@ -356,6 +391,44 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
               onClearFilters={clearAll}
               topSlot={<ViewModeToggle view={view} onSetView={setView} />}
             >
+              <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Typ</p>} defaultCollapsed={!filtersOpenDesktop}>
+                <div className="flex flex-col gap-0.5">
+                  {filters.typeOptions.filter((o) => o.count > 0 || filters.activeTypes.includes(o.value)).map((option) => {
+                    const selected = filters.activeTypes.includes(option.value);
+                    return (
+                      <button key={option.value} onClick={() => filters.toggleType(option.value)}
+                        className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
+                          selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
+                        <span>{option.icon}</span>
+                        <span className="flex-1">{option.label}</span>
+                        {selected && <Check size={10} />}
+                        <span className="text-[8px] opacity-40">{option.count}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </FilterSection>
+
+              {filters.categoryOptions.length > 0 && (
+                <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Kategoria</p>} defaultCollapsed={!filtersOpenDesktop}>
+                  <div className="flex flex-col gap-0.5">
+                    {filters.categoryOptions.map((option) => {
+                      const selected = filters.activeCategories.includes(option.value);
+                      return (
+                        <button key={option.value} onClick={() => filters.toggleCategory(option.value)}
+                          className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
+                            selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
+                          <span>{option.icon}</span>
+                          <span className="flex-1">{option.label}</span>
+                          {selected && <Check size={10} />}
+                          <span className="text-[8px] opacity-40">{option.count}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </FilterSection>
+              )}
+
               <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Wiek</p>} defaultCollapsed={!filtersOpenDesktop}>
                 <div className="flex flex-col gap-0.5">
                   {filters.ageOptions.filter((g) => g.count > 0 || filters.activeAgeGroups.includes(g.key)).map((group) => {
@@ -368,40 +441,6 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
                         <span className="flex-1">{group.label}</span>
                         <span className="text-[8px] opacity-40">{group.count}</span>
                         {selected && <Check size={10} />}
-                      </button>
-                    );
-                  })}
-                </div>
-              </FilterSection>
-
-              <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Typ</p>} defaultCollapsed={!filtersOpenDesktop}>
-                <div className="flex flex-col gap-0.5">
-                  {filters.typeOptions.filter((o) => o.count > 0 || filters.activeTypes.includes(o.value)).map((option) => {
-                    const selected = filters.activeTypes.includes(option.value);
-                    return (
-                      <button key={option.value} onClick={() => filters.toggleType(option.value)}
-                        className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
-                          selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
-                        <span className="flex-1">{option.label}</span>
-                        {selected && <Check size={10} />}
-                        <span className="text-[8px] opacity-40">{option.count}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </FilterSection>
-
-              <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Tematyka</p>} defaultCollapsed={!filtersOpenDesktop}>
-                <div className="flex flex-col gap-0.5">
-                  {activityTypeOptions.map((option) => {
-                    const selected = activeActivityTypes.includes(option.value);
-                    return (
-                      <button key={option.value} onClick={() => toggleActivityType(option.value)}
-                        className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
-                          selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
-                        <span className="flex-1">{option.label}</span>
-                        {selected && <Check size={10} />}
-                        <span className="text-[8px] opacity-40">{option.count}</span>
                       </button>
                     );
                   })}
@@ -455,95 +494,102 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
                   )}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {organizers.map((organizer) => {
-                    const imgSrc = organizer.leadActivity.image_cover || organizer.leadActivity.image_url;
-                    const address = [organizer.leadActivity.street, organizer.leadActivity.city].filter(Boolean).join(", ");
-                    const listOfActivities = organizer.leadActivity.list_of_activities
-                      ? organizer.leadActivity.list_of_activities.split(";").map((s) => s.trim()).filter(Boolean)
-                      : [];
-                    const MAX_VISIBLE_TAGS = 4;
-                    const visibleTags = listOfActivities.slice(0, MAX_VISIBLE_TAGS);
-                    const hiddenTagCount = Math.max(listOfActivities.length - visibleTags.length, 0);
+                <div className="space-y-12">
+                  {groupedByType.map((group) => (
+                    <section key={group.type}>
+                      <ListGroupHeader icon={group.icon} title={group.label} count={group.organizers.length} />
+                      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                        {group.organizers.map((organizer) => {
+                          const imgSrc = organizer.leadActivity.image_cover || organizer.leadActivity.image_url;
+                          const address = [organizer.leadActivity.street, organizer.leadActivity.city].filter(Boolean).join(", ");
+                          const listOfActivities = organizer.leadActivity.list_of_activities
+                            ? organizer.leadActivity.list_of_activities.split(";").map((s) => s.trim()).filter(Boolean)
+                            : [];
+                          const MAX_VISIBLE_TAGS = 4;
+                          const visibleTags = listOfActivities.slice(0, MAX_VISIBLE_TAGS);
+                          const hiddenTagCount = Math.max(listOfActivities.length - visibleTags.length, 0);
 
-                    const tagColors = [
-                      "bg-red-50 text-red-700 border-red-200",
-                      "bg-orange-50 text-orange-700 border-orange-200",
-                      "bg-amber-50 text-amber-700 border-amber-200",
-                      "bg-emerald-50 text-emerald-700 border-emerald-200",
-                      "bg-sky-50 text-sky-700 border-sky-200",
-                      "bg-violet-50 text-violet-700 border-violet-200",
-                      "bg-pink-50 text-pink-700 border-pink-200",
-                    ];
+                          const tagColors = [
+                            "bg-red-50 text-red-700 border-red-200",
+                            "bg-orange-50 text-orange-700 border-orange-200",
+                            "bg-amber-50 text-amber-700 border-amber-200",
+                            "bg-emerald-50 text-emerald-700 border-emerald-200",
+                            "bg-sky-50 text-sky-700 border-sky-200",
+                            "bg-violet-50 text-violet-700 border-violet-200",
+                            "bg-pink-50 text-pink-700 border-pink-200",
+                          ];
 
-                    return (
-                      <Link
-                        key={organizer.organizerKey}
-                        href={`/zajecia/${organizer.leadActivity.slug}`}
-                        className="group flex flex-col rounded-2xl border border-border bg-card shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-1 transition-all duration-200 overflow-hidden"
-                      >
-                        {/* Image */}
-                        <div className="relative w-full shrink-0 bg-accent overflow-hidden" style={{ paddingBottom: "90%" }}>
-                          {imgSrc ? (
-                            <ImageWithFallback
-                              src={imgSrc}
-                              alt={organizer.organizerName}
-                              className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-[1.04]"
-                              loading="lazy"
-                            />
-                          ) : (
-                            <div className="absolute inset-0 flex h-full w-full items-center justify-center text-5xl text-muted-foreground/20">🎯</div>
-                          )}
-                        </div>
+                          return (
+                            <Link
+                              key={`${group.type}-${organizer.organizerKey}`}
+                              href={`/zajecia/${organizer.leadActivity.slug}`}
+                              className="group flex flex-col rounded-2xl border border-border bg-card shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-1 transition-all duration-200 overflow-hidden"
+                            >
+                              {/* Image */}
+                              <div className="relative w-full shrink-0 bg-accent overflow-hidden" style={{ paddingBottom: "90%" }}>
+                                {imgSrc ? (
+                                  <ImageWithFallback
+                                    src={imgSrc}
+                                    alt={organizer.organizerName}
+                                    className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-[1.04]"
+                                    loading="lazy"
+                                  />
+                                ) : (
+                                  <div className="absolute inset-0 flex h-full w-full items-center justify-center text-5xl text-muted-foreground/20">🎯</div>
+                                )}
+                              </div>
 
-                        <div className="flex flex-col p-3.5 gap-0">
-                          {/* 1. Title */}
-                          <p className="font-bold text-[13px] leading-snug text-foreground group-hover:text-[#e60100] transition-colors duration-150 line-clamp-2 mb-2">
-                            {organizer.organizerName}
-                          </p>
+                              <div className="flex flex-col p-3.5 gap-0">
+                                {/* 1. Title */}
+                                <p className="font-bold text-[13px] leading-snug text-foreground group-hover:text-[#e60100] transition-colors duration-150 line-clamp-2 mb-2">
+                                  {organizer.organizerName}
+                                </p>
 
-                          {/* 2. Subtitle */}
-                          {organizer.leadActivity.description_short && (
-                            <p className="text-[11px] text-muted leading-relaxed line-clamp-3 mb-3">
-                              {organizer.leadActivity.description_short}
-                            </p>
-                          )}
+                                {/* 2. Subtitle */}
+                                {organizer.leadActivity.description_short && (
+                                  <p className="text-[11px] text-muted leading-relaxed line-clamp-3 mb-3">
+                                    {organizer.leadActivity.description_short}
+                                  </p>
+                                )}
 
-                          {/* 3. Separator */}
-                          <hr className="border-border/50 mb-2.5" />
+                                {/* 3. Separator */}
+                                <hr className="border-border/50 mb-2.5" />
 
-                          {/* 4. Address */}
-                          {address && (
-                            <div className="flex items-start gap-1 text-[10px] text-muted-foreground mb-2.5">
-                              <MapPin size={10} className="mt-0.5 shrink-0 text-muted-foreground/60" />
-                              <span className="line-clamp-1">{address}</span>
-                            </div>
-                          )}
+                                {/* 4. Address */}
+                                {address && (
+                                  <div className="flex items-start gap-1 text-[10px] text-muted-foreground mb-2.5">
+                                    <MapPin size={10} className="mt-0.5 shrink-0 text-muted-foreground/60" />
+                                    <span className="line-clamp-1">{address}</span>
+                                  </div>
+                                )}
 
-                          {/* 5. Separator */}
-                          {listOfActivities.length > 0 && (
-                            <hr className="border-border/50 mb-2.5" />
-                          )}
+                                {/* 5. Separator */}
+                                {listOfActivities.length > 0 && (
+                                  <hr className="border-border/50 mb-2.5" />
+                                )}
 
-                          {/* 6. List of activities – max 4 tags then count */}
-                          {listOfActivities.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5">
-                              {visibleTags.map((item, i) => (
-                                <span key={item} className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-medium leading-snug ${tagColors[i % tagColors.length]}`}>
-                                  {item}
-                                </span>
-                              ))}
-                              {hiddenTagCount > 0 && (
-                                <span className="inline-flex items-center rounded-md border border-border bg-accent px-2 py-0.5 text-[10px] font-medium text-muted-foreground leading-snug">
-                                  +{hiddenTagCount}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </Link>
-                    );
-                  })}
+                                {/* 6. List of activities – max 4 tags then count */}
+                                {listOfActivities.length > 0 && (
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {visibleTags.map((item, i) => (
+                                      <span key={item} className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-medium leading-snug ${tagColors[i % tagColors.length]}`}>
+                                        {item}
+                                      </span>
+                                    ))}
+                                    {hiddenTagCount > 0 && (
+                                      <span className="inline-flex items-center rounded-md border border-border bg-accent px-2 py-0.5 text-[10px] font-medium text-muted-foreground leading-snug">
+                                        +{hiddenTagCount}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  ))}
                 </div>
               )}
             </ListPageMainContent>

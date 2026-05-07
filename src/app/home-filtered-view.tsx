@@ -459,20 +459,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
   const sidebarContent = (
     <div className="p-2.5 space-y-2.5">
 
-      {/* Search */}
-      <div className="space-y-1">
-        <p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Szukaj</p>
-        <div className="relative">
-          <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Szukaj..."
-            className="w-full rounded-lg border border-border bg-background py-1 pl-6 pr-2 text-[10px] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-          />
-        </div>
-      </div>
+
 
       {typeLevel2Options.length > 0 && (
         <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Grupa</p>}>
@@ -554,23 +541,18 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
               </p>
             </div>
 
-            {/* Add CTA — desktop right of heading */}
-            {false && (
-            <a
-              href="/dodaj"
-              className="group relative hidden xl:flex shrink-0 self-center overflow-hidden rounded-2xl border border-sky-300/70 bg-[linear-gradient(180deg,rgba(214,238,252,0.98),rgba(200,230,250,0.98))] px-4 py-3 shadow-[0_14px_34px_-30px_rgba(14,116,144,0.35)] transition-colors duration-200 hover:border-sky-400/70 items-center gap-3 w-[583px] mr-8"
-            >
-              <div className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-cyan-700" />
-              <div className="min-w-0 flex-1 pl-2">
-                <p className="text-[13px] font-semibold text-slate-900">Prowadzisz miejsce, zajęcia lub wydarzenie?</p>
-                <p className="mt-0.5 text-[11px] text-slate-600">Dodaj swoje miejsce, wydarzenie, zajęcia lub kolonie i bądź widoczny dla rodzin.</p>
+            {/* Search — desktop right of heading */}
+            <div className="hidden lg:block shrink-0 w-[340px] xl:w-[400px] mr-8">
+              <div className="relative rounded-2xl bg-gradient-to-r from-orange-300/85 via-amber-200/90 to-orange-200/85 ring-[0.5px] ring-orange-400/35 px-0.5 py-0.5">
+                <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-orange-800/90" />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Szukaj..."
+                  className="w-full rounded-xl bg-white/95 py-2.5 pl-9 pr-3 text-[13px] font-semibold text-orange-950 placeholder:text-black/40 focus:outline-none focus:ring-[1px] focus:ring-orange-500/45"
+                />
               </div>
-              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-cyan-700/20 bg-white/85 px-3 py-1.5 text-[11px] font-semibold text-cyan-800 transition-all duration-200 group-hover:bg-cyan-700 group-hover:text-white">
-                Dodaj wpis
-                <ArrowRight size={13} className="transition-transform duration-200 group-hover:translate-x-0.5" />
-              </span>
-            </a>
-            )}
+            </div>
           </div>
         </div>
       </section>
@@ -588,7 +570,7 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Szukaj..."
-              className="w-full rounded-xl border border-amber-300 bg-amber-50/40 py-1.5 pl-7 pr-2 text-[11px] text-black placeholder:text-black/40 focus:outline-none focus:border-amber-400"
+              className="w-full rounded-xl border-[0.5px] border-amber-300 bg-amber-50/40 py-1.5 pl-7 pr-2 text-[11px] text-black placeholder:text-black/40 focus:outline-none focus:border-amber-400"
             />
           </div>
         </div>
