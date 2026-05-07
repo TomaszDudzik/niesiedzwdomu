@@ -827,7 +827,7 @@ export function ActivitiesListView({ activities }: ActivitiesListViewProps) {
 
                       {/* Tags — always anchored at the bottom of the card */}
                       <div className="pt-2.5 mt-2.5 border-t border-border/50 min-h-[28px]">
-                        <div className="flex flex-wrap gap-1.5">
+                        <div className="flex max-h-[40px] flex-wrap content-start gap-1.5 overflow-hidden">
                           {visibleTags.map((item, i) => {
                             const colors = [
                               "bg-red-50 text-red-700 border-red-200",

@@ -128,8 +128,8 @@ def _main() -> int:
     cover_bytes = chosen_cover.read_bytes()
     thumb_bytes = chosen_thumb.read_bytes()
 
-    cover_path = f"{storage_dir}/{cover_name}" if storage_dir else cover_name
-    thumb_path = f"{storage_dir}/{thumb_name}" if storage_dir else thumb_name
+    cover_path = f"dzieci/kolonie/{storage_dir}/{cover_name}" if storage_dir else f"dzieci/kolonie/{cover_name}"
+    thumb_path = f"dzieci/kolonie/{storage_dir}/{thumb_name}" if storage_dir else f"dzieci/kolonie/{thumb_name}"
 
     client.storage.from_(BUCKET).upload(
         cover_path,
