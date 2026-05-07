@@ -2,16 +2,19 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Search, SlidersHorizontal, X, MapPin, Check, Tags, Users, CalendarDays, ChevronDown } from "lucide-react";
+import { Search, X, Check, ChevronDown } from "lucide-react";
 import { MobileActionBar } from "@/components/ui/mobile-action-bar";
 import { PageHero } from "@/components/layout/page-hero";
-import { ListGroupHeader } from "@/components/layout/list-group-header";
 import { ListPageMainContent } from "@/components/layout/list-page-main-content";
-import { DISTRICT_LIST } from "@/lib/mock-data";
+import { ListPageSidebar } from "@/components/layout/list-page-sidebar";
+import { FilterBadgeBar } from "@/components/ui/filter-badge-bar";
 import { FilterSection } from "@/components/ui/filter-section";
-import { cn, formatDateShort, toLocalDateKey, thumbUrl } from "@/lib/utils";
+import { TopSearchBar } from "@/components/ui/top-search-bar";
 import { ImageWithFallback } from "@/components/ui/image-with-fallback";
-import { getAgeGroupOptions, getTaxonomyOptions, matchesTaxonomyFilter, mergeSelectedTaxonomyOptions } from "@/lib/taxonomy-filters";
+import { useListFilters } from "@/hooks/use-list-filters";
+import { DISTRICT_ICONS } from "@/lib/district-constants";
+import { cn, formatDateShort, toLocalDateKey, thumbUrl } from "@/lib/utils";
+import type { FilterBadge } from "@/components/ui/filter-badge-bar";
 import type { Camp, District } from "@/types/database";
 
 const AGE_GROUPS = [
@@ -27,21 +30,6 @@ const MONTHS_PL = [
 ];
 const DAYS_PL = ["Nd", "Pn", "Wt", "Śr", "Cz", "Pt", "So"];
 
-const DISTRICT_ICONS: Partial<Record<District, string>> = {
-  "Stare Miasto": "🏰",
-  "Kazimierz": "🕍",
-  "Podgórze": "🌉",
-  "Nowa Huta": "🏭",
-  "Krowodrza": "🌿",
-  "Bronowice": "🌾",
-  "Zwierzyniec": "🦬",
-  "Dębniki": "🌊",
-  "Prądnik Czerwony": "🌳",
-  "Prądnik Biały": "🍃",
-  "Czyżyny": "✈️",
-  "Bieżanów-Prokocim": "🚋",
-};
-
 interface DateRange {
   start: Date;
   end: Date;
@@ -52,13 +40,6 @@ interface OrganizerTile {
   organizerName: string;
   leadCamp: Camp;
   camps: Camp[];
-}
-
-interface CampMainCategoryGroup {
-  type: string;
-  label: string;
-  icon: string;
-  organizers: OrganizerTile[];
 }
 
 interface CampsListViewProps {
@@ -78,12 +59,7 @@ function getCampSubcategoryValue(camp: Camp): string | null {
 }
 
 function normalizeCampTypeToken(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/ł/g, "l")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
+  return value.trim().toLowerCase().replace(/ł/g, "l").normalize("NFD").replace(/[̀-ͯ]/g, "");
 }
 
 function getCampTypeLevel2Value(camp: Camp): "kolonie" | "polkolonie" | null {
@@ -149,7 +125,6 @@ function campIntersectsRange(camp: Camp, range: DateRange): boolean {
   const campEndRaw = parseDateOnly(camp.date_end) || campStart;
   if (!campStart || !campEndRaw) return false;
   const campEnd = toEndOfDay(campEndRaw);
-
   return campStart <= range.end && campEnd >= range.start;
 }
 
@@ -171,14 +146,9 @@ function getSessionLabel(count: number): string {
 function getDateChipLabel(camp: Camp): string {
   const start = parseDateOnly(camp.date_start);
   const end = parseDateOnly(camp.date_end);
-
   if (!start) return camp.date_start;
-
   const startLabel = `${DAYS_PL[start.getDay()]} ${formatDateShort(start)}`;
-  if (!end || isSameDay(start, end)) {
-    return startLabel;
-  }
-
+  if (!end || isSameDay(start, end)) return startLabel;
   return `${startLabel} - ${DAYS_PL[end.getDay()]} ${formatDateShort(end)}`;
 }
 
@@ -188,11 +158,7 @@ function sortCampsByNearest(camps: Camp[], today: Date): Camp[] {
     const bEnd = parseDateOnly(b.date_end) || parseDateOnly(b.date_start);
     const aIsUpcoming = !!aEnd && toEndOfDay(aEnd) >= today;
     const bIsUpcoming = !!bEnd && toEndOfDay(bEnd) >= today;
-
-    if (aIsUpcoming !== bIsUpcoming) {
-      return aIsUpcoming ? -1 : 1;
-    }
-
+    if (aIsUpcoming !== bIsUpcoming) return aIsUpcoming ? -1 : 1;
     return new Date(a.date_start).getTime() - new Date(b.date_start).getTime();
   });
 }
@@ -205,13 +171,7 @@ export function CampsListView({ camps }: CampsListViewProps) {
   const todayButtonRef = useRef<HTMLButtonElement | null>(null);
   const hasAutoScrolled = useRef(false);
 
-  const [search, setSearch] = useState("");
-  const [activeTypes, setActiveTypes] = useState<string[]>([]);
   const [activeCampMainTypes, setActiveCampMainTypes] = useState<Array<"kolonie" | "polkolonie">>([]);
-  const [activeCategories, setActiveCategories] = useState<string[]>([]);
-  const [activeSubcategories, setActiveSubcategories] = useState<string[]>([]);
-  const [activeDistricts, setActiveDistricts] = useState<District[]>([]);
-  const [activeAgeGroups, setActiveAgeGroups] = useState<string[]>([]);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filtersOpenDesktop, setFiltersOpenDesktop] = useState(false);
   const [singleDate, setSingleDate] = useState("");
@@ -222,144 +182,63 @@ export function CampsListView({ camps }: CampsListViewProps) {
   const [currentYear, setCurrentYear] = useState(() => today.getFullYear());
   const [expandedOrganizers, setExpandedOrganizers] = useState<Record<string, boolean>>({});
 
+  const filters = useListFilters({
+    items: camps,
+    ageGroups: AGE_GROUPS,
+    getType:        getCampTypeValue,
+    getCategory:    getCampCategoryValue,
+    getSubcategory: getCampSubcategoryValue,
+    getDistrict:    (c) => c.district,
+    getAgeMin:      (c) => c.age_min,
+    getAgeMax:      (c) => c.age_max,
+    getSearchText:  (c) => [c.title, c.description_short, c.street, c.postcode, c.city, c.note, c.organizer].join(" "),
+  });
+
   useEffect(() => {
     if (hasAutoScrolled.current) return;
     if (currentYear !== today.getFullYear() || currentMonth !== today.getMonth()) return;
     if (!todayButtonRef.current) return;
-
-    todayButtonRef.current.scrollIntoView({
-      behavior: "smooth",
-      inline: "center",
-      block: "nearest",
-    });
+    todayButtonRef.current.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
     hasAutoScrolled.current = true;
   }, [currentMonth, currentYear, today]);
 
-  const ageGroups = useMemo(
-    () => AGE_GROUPS.filter((group) => activeAgeGroups.includes(group.key)),
-    [activeAgeGroups]
-  );
-
-  const hasDateFilters = !!singleDate || !!rangeFrom || !!rangeTo;
-  const hasActiveFilters =
-    !!search || activeTypes.length > 0 || activeCategories.length > 0 || activeSubcategories.length > 0 || activeDistricts.length > 0 || activeAgeGroups.length > 0 || hasDateFilters;
-
-  function matchesSearch(camp: Camp) {
-    if (!search) {
-      return true;
-    }
-
-    const query = search.toLowerCase();
-    return [camp.title, camp.description_short, camp.street, camp.postcode, camp.city, camp.note, camp.organizer]
-      .join(" ")
-      .toLowerCase()
-      .includes(query);
-  }
-
-  function matchesAgeSelection(camp: Camp, selectedGroups = ageGroups) {
-    if (selectedGroups.length === 0) {
-      return true;
-    }
-
-    return selectedGroups.some(
-      (group) =>
-        (camp.age_min === null || camp.age_min <= group.max) &&
-        (camp.age_max === null || camp.age_max >= group.min)
-    );
-  }
-
-  function matchesDateSelection(camp: Camp) {
+  function matchesDateSelection(camp: Camp): boolean {
     const fromDate = parseDateOnly(rangeFrom);
     const toDate = parseDateOnly(rangeTo);
-
     if (fromDate || toDate) {
       const start = fromDate ? toStartOfDay(fromDate) : new Date(1970, 0, 1);
       const end = toDate ? toEndOfDay(toDate) : new Date(2100, 0, 1);
       return campIntersectsRange(camp, { start, end });
     }
-
     const exactDate = parseDateOnly(singleDate);
     if (exactDate) {
       return campIntersectsRange(camp, { start: toStartOfDay(exactDate), end: toEndOfDay(exactDate) });
     }
-
     return true;
   }
 
-  function matchesCampFilters(camp: Camp, excluded: Array<"mainType" | "type" | "category" | "subcategory" | "district" | "age" | "date"> = []) {
-    if (!matchesSearch(camp)) {
-      return false;
-    }
-    const campTypeLevel2 = getCampTypeLevel2Value(camp);
-    if (!excluded.includes("mainType") && activeCampMainTypes.length > 0 && (!campTypeLevel2 || !activeCampMainTypes.includes(campTypeLevel2))) {
-      return false;
-    }
-    if (!excluded.includes("type") && !matchesTaxonomyFilter(getCampTypeValue(camp), activeTypes)) {
-      return false;
-    }
-    if (!excluded.includes("category") && !matchesTaxonomyFilter(getCampCategoryValue(camp), activeCategories)) {
-      return false;
-    }
-    if (!excluded.includes("subcategory") && !matchesTaxonomyFilter(getCampSubcategoryValue(camp), activeSubcategories)) {
-      return false;
-    }
-    if (!excluded.includes("district") && activeDistricts.length > 0 && !activeDistricts.includes(camp.district)) {
-      return false;
-    }
-    if (!excluded.includes("age") && !matchesAgeSelection(camp)) {
-      return false;
-    }
-    if (!excluded.includes("date") && !matchesDateSelection(camp)) {
-      return false;
-    }
-    return true;
-  }
+  const hasDateFilters = !!singleDate || !!rangeFrom || !!rangeTo;
+  const hasActiveFilters = filters.hasActiveFilters || activeCampMainTypes.length > 0 || hasDateFilters;
 
-  const filteredCamps = useMemo(
-    () => camps.filter((camp) => matchesCampFilters(camp)),
-    [camps, search, activeCampMainTypes, activeTypes, activeCategories, activeSubcategories, activeDistricts, ageGroups, rangeFrom, rangeTo, singleDate]
-  );
+  const filteredCamps = useMemo(() => {
+    let result = filters.filteredItems;
+    if (activeCampMainTypes.length > 0) {
+      result = result.filter((c) => {
+        const t = getCampTypeLevel2Value(c);
+        return t !== null && activeCampMainTypes.includes(t);
+      });
+    }
+    if (hasDateFilters) {
+      result = result.filter((c) => matchesDateSelection(c));
+    }
+    return result;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.filteredItems, activeCampMainTypes, singleDate, rangeFrom, rangeTo]);
 
-  const typeOptionsSource = useMemo(
-    () => camps.filter((camp) => matchesCampFilters(camp, ["type"])),
-    [camps, search, activeCampMainTypes, activeCategories, activeSubcategories, activeDistricts, ageGroups, rangeFrom, rangeTo, singleDate]
-  );
-
-  const typeOptions = useMemo(
-    () => mergeSelectedTaxonomyOptions(getTaxonomyOptions(typeOptionsSource, getCampTypeValue), activeTypes),
-    [typeOptionsSource, activeTypes]
-  );
-
-  const typeOptionsByValue = useMemo(
-    () => new Map(typeOptions.map((option) => [option.value, option])),
-    [typeOptions]
-  );
-
-  const categoryOptions = useMemo(
-    () => mergeSelectedTaxonomyOptions(
-      getTaxonomyOptions(camps.filter((camp) => matchesCampFilters(camp, ["category"])), getCampCategoryValue),
-      activeCategories,
-    ),
-    [camps, search, activeCampMainTypes, activeTypes, activeSubcategories, activeDistricts, ageGroups, rangeFrom, rangeTo, singleDate, activeCategories]
-  );
-
-  const categoryOptionsByValue = useMemo(
-    () => new Map(categoryOptions.map((option) => [option.value, option])),
-    [categoryOptions]
-  );
-
-  const subcategoryOptions = useMemo(
-    () => mergeSelectedTaxonomyOptions(
-      getTaxonomyOptions(camps.filter((camp) => matchesCampFilters(camp, ["subcategory"])), getCampSubcategoryValue),
-      activeSubcategories,
-    ),
-    [camps, search, activeCampMainTypes, activeTypes, activeCategories, activeDistricts, ageGroups, rangeFrom, rangeTo, singleDate, activeSubcategories]
-  );
-
-  const subcategoryOptionsByValue = useMemo(
-    () => new Map(subcategoryOptions.map((option) => [option.value, option])),
-    [subcategoryOptions]
-  );
+  const campMainTypeCounts = useMemo(() => ({
+    kolonie: filters.filteredItems.filter((c) => getCampTypeLevel2Value(c) === "kolonie").length,
+    polkolonie: filters.filteredItems.filter((c) => getCampTypeLevel2Value(c) === "polkolonie").length,
+  }), [filters.filteredItems]);
 
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
   const monthDays = useMemo(
@@ -370,259 +249,56 @@ export function CampsListView({ camps }: CampsListViewProps) {
   const monthOptions = useMemo(
     () => Array.from({ length: 12 }, (_, offset) => {
       const d = new Date(startYear, startMonth + offset, 1);
-      return {
-        month: d.getMonth(),
-        year: d.getFullYear(),
-        label: MONTHS_PL[d.getMonth()].slice(0, 3),
-        key: `${d.getFullYear()}-${d.getMonth()}`,
-      };
+      return { month: d.getMonth(), year: d.getFullYear(), label: MONTHS_PL[d.getMonth()].slice(0, 3), key: `${d.getFullYear()}-${d.getMonth()}` };
     }),
     [startYear, startMonth]
   );
 
   const campCountMap = useMemo(() => {
-    const dateOptionCamps = camps.filter((camp) => matchesCampFilters(camp, ["date"]));
+    const source = activeCampMainTypes.length > 0
+      ? filters.filteredItems.filter((c) => { const t = getCampTypeLevel2Value(c); return t !== null && activeCampMainTypes.includes(t); })
+      : filters.filteredItems;
     const counts = new Map<string, number>();
     for (const date of monthDays) {
-      const key = toLocalDateKey(date);
-      counts.set(key, getCampsForDate(dateOptionCamps, date).length);
+      counts.set(toLocalDateKey(date), getCampsForDate(source, date).length);
     }
     return counts;
-  }, [camps, search, activeCampMainTypes, activeTypes, activeCategories, activeSubcategories, activeDistricts, ageGroups, monthDays]);
+  }, [filters.filteredItems, activeCampMainTypes, monthDays]);
 
-  const campMainTypeCounts = useMemo(() => {
-    const source = camps.filter((camp) => matchesCampFilters(camp, ["mainType"]));
-    return {
-      kolonie: source.filter((camp) => getCampTypeLevel2Value(camp) === "kolonie").length,
-      polkolonie: source.filter((camp) => getCampTypeLevel2Value(camp) === "polkolonie").length,
-    };
-  }, [camps, search, activeTypes, activeCategories, activeSubcategories, activeDistricts, ageGroups, rangeFrom, rangeTo, singleDate]);
-
-  const grouped = useMemo(() => {
-    const groupedByType = new Map<string, Camp[]>();
-
-    for (const camp of filteredCamps) {
-      const campType = getCampTypeValue(camp);
-      const current = groupedByType.get(campType) || [];
-      current.push(camp);
-      groupedByType.set(campType, current);
-    }
-
-    return Array.from(groupedByType.entries()).map(([type, typeCamps]) => {
-      const organizerMap = new Map<string, OrganizerTile>();
-
-      [...typeCamps]
-        .sort((a, b) => new Date(a.date_start).getTime() - new Date(b.date_start).getTime())
-        .forEach((camp) => {
-          // If camp has organizer_data, use its id as key so all sessions with same
-          // organizer_id are grouped together regardless of organizer text field.
-          const organizerKey = camp.organizer_id
-            ? `id:${camp.organizer_id}`
-            : getOrganizerName(camp).toLowerCase();
-          const organizerName = getOrganizerName(camp);
-          if (!organizerName) {
-            return;
-          }
-          const existing = organizerMap.get(organizerKey);
-
-          if (!existing) {
-            organizerMap.set(organizerKey, {
-              organizerKey,
-              organizerName,
-              leadCamp: camp,
-              camps: [camp],
-            });
-            return;
-          }
-
-          existing.camps.push(camp);
-
-          const leadCampDate = new Date(existing.leadCamp.date_start).getTime();
-          const currentDate = new Date(camp.date_start).getTime();
-          if (currentDate < leadCampDate) {
-            existing.leadCamp = camp;
-          }
-        });
-
-      const organizers = Array.from(organizerMap.values()).sort((a, b) => {
-        const byName = a.organizerName.localeCompare(b.organizerName, "pl");
-        if (byName !== 0) return byName;
-        return a.organizerKey.localeCompare(b.organizerKey, "pl");
-      });
-
-      const typeOption = typeOptionsByValue.get(type);
-
-      return {
-        type,
-        label: typeOption?.label || type,
-        icon: typeOption?.icon || "🏕️",
-        organizers,
-      } satisfies CampMainCategoryGroup;
-    });
-  }, [filteredCamps, typeOptionsByValue]);
-
-  const ageOptions = useMemo(
-      () => getAgeGroupOptions(
-        camps.filter((camp) => matchesCampFilters(camp, ["age"])),
-        (camp) => camp.age_min,
-        (camp) => camp.age_max,
-        AGE_GROUPS,
-      ),
-      [camps, search, activeCampMainTypes, activeTypes, activeCategories, activeSubcategories, activeDistricts, rangeFrom, rangeTo, singleDate]
-    );
-
-  const availableDistricts = useMemo(() => {
-    const set = new Set<string>();
-    camps.filter((camp) => matchesCampFilters(camp, ["district"])).forEach((camp) => set.add(camp.district));
-    return DISTRICT_LIST.filter((district) => set.has(district) || activeDistricts.includes(district));
-  }, [camps, search, activeCampMainTypes, activeTypes, activeCategories, activeSubcategories, ageGroups, rangeFrom, rangeTo, singleDate, activeDistricts]);
-
-  const districtCounts = useMemo(() => {
-    const counts = new Map<District, number>();
-    camps.filter((camp) => matchesCampFilters(camp, ["district"])).forEach((camp) => {
-      counts.set(camp.district, (counts.get(camp.district) || 0) + 1);
-    });
-    return counts;
-  }, [camps, search, activeCampMainTypes, activeTypes, activeCategories, activeSubcategories, ageGroups, rangeFrom, rangeTo, singleDate]);
-
-  const activeFilterBadges = useMemo(() => {
-    const badges: { id: string; label: string; onRemove: () => void }[] = [];
-
-    if (search.trim()) {
-      badges.push({ id: "search", label: `Szukaj: ${search.trim()}`, onRemove: () => setSearch("") });
-    }
-
-    activeTypes.forEach((type) => {
-      const typeOption = typeOptionsByValue.get(type);
-      badges.push({
-        id: `type-${type}`,
-        label: `Typ: ${typeOption?.label || type}`,
-        onRemove: () => setActiveTypes((prev) => prev.filter((item) => item !== type)),
-      });
-    });
-
-    activeCampMainTypes.forEach((mainType) => {
-      badges.push({
-        id: `mainType-${mainType}`,
-        label: mainType === "kolonie" ? "Rodzaj: Kolonie" : "Rodzaj: Półkolonie",
-        onRemove: () => setActiveCampMainTypes((prev) => prev.filter((item) => item !== mainType)),
-      });
-    });
-
-    activeCategories.forEach((category) => {
-      const categoryOption = categoryOptionsByValue.get(category);
-      badges.push({
-        id: `category-${category}`,
-        label: `Kategoria: ${categoryOption?.label || category}`,
-        onRemove: () => setActiveCategories((prev) => prev.filter((item) => item !== category)),
-      });
-    });
-
-    activeSubcategories.forEach((subcategory) => {
-      const subcategoryOption = subcategoryOptionsByValue.get(subcategory);
-      badges.push({
-        id: `subcategory-${subcategory}`,
-        label: `Tematyka: ${subcategoryOption?.label || subcategory}`,
-        onRemove: () => setActiveSubcategories((prev) => prev.filter((item) => item !== subcategory)),
-      });
-    });
-
-    activeAgeGroups.forEach((ageKey) => {
-      const ageGroup = AGE_GROUPS.find((group) => group.key === ageKey);
-      if (ageGroup) {
-        badges.push({
-          id: `age-${ageKey}`,
-          label: `Wiek: ${ageGroup.label}`,
-          onRemove: () => setActiveAgeGroups((prev) => prev.filter((item) => item !== ageKey)),
-        });
-      }
-    });
-
-    activeDistricts.forEach((district) => {
-      badges.push({
-        id: `district-${district}`,
-        label: `Dzielnica: ${district}`,
-        onRemove: () => setActiveDistricts((prev) => prev.filter((item) => item !== district)),
-      });
-    });
-
+  const campExtraBadges = useMemo((): FilterBadge[] => {
+    const badges: FilterBadge[] = [];
+    activeCampMainTypes.forEach((mainType) => badges.push({
+      id: `mainType-${mainType}`,
+      label: mainType === "kolonie" ? "Rodzaj: Kolonie" : "Rodzaj: Półkolonie",
+      onRemove: () => setActiveCampMainTypes((p) => p.filter((x) => x !== mainType)),
+    }));
     if (singleDate) {
-      const date = parseDateOnly(singleDate);
-      badges.push({
-        id: "singleDate",
-        label: `Data: ${date ? date.toLocaleDateString("pl-PL") : singleDate}`,
-        onRemove: () => {
-          setSingleDate("");
-          setSelectedDate(null);
-        },
-      });
+      const d = parseDateOnly(singleDate);
+      badges.push({ id: "singleDate", label: `Data: ${d ? d.toLocaleDateString("pl-PL") : singleDate}`, onRemove: () => { setSingleDate(""); setSelectedDate(null); } });
     } else if (rangeFrom || rangeTo) {
       const fromLabel = rangeFrom ? (parseDateOnly(rangeFrom)?.toLocaleDateString("pl-PL") || rangeFrom) : "od początku";
       const toLabel = rangeTo ? (parseDateOnly(rangeTo)?.toLocaleDateString("pl-PL") || rangeTo) : "bez końca";
-      badges.push({
-        id: "range",
-        label: `Zakres: ${fromLabel} - ${toLabel}`,
-        onRemove: () => {
-          setRangeFrom("");
-          setRangeTo("");
-        },
-      });
+      badges.push({ id: "range", label: `Zakres: ${fromLabel} - ${toLabel}`, onRemove: () => { setRangeFrom(""); setRangeTo(""); } });
     }
-
     return badges;
-  }, [search, activeCampMainTypes, activeTypes, activeCategories, activeSubcategories, activeAgeGroups, activeDistricts, singleDate, rangeFrom, rangeTo, typeOptionsByValue, categoryOptionsByValue, subcategoryOptionsByValue]);
+  }, [activeCampMainTypes, singleDate, rangeFrom, rangeTo]);
 
-  function clearFilters() {
-    setSearch("");
+  const allBadges = useMemo(
+    () => [...filters.filterBadges, ...campExtraBadges],
+    [filters.filterBadges, campExtraBadges]
+  );
+
+  function clearAll() {
+    filters.clearFilters();
     setActiveCampMainTypes([]);
-    setActiveTypes([]);
-    setActiveCategories([]);
-    setActiveSubcategories([]);
-    setActiveDistricts([]);
-    setActiveAgeGroups([]);
     setSingleDate("");
     setRangeFrom("");
     setRangeTo("");
     setSelectedDate(null);
   }
 
-  function toggleType(type: string) {
-    setActiveTypes((prev) =>
-      prev.includes(type) ? prev.filter((item) => item !== type) : [...prev, type]
-    );
-    setActiveCategories([]);
-    setActiveSubcategories([]);
-  }
-
   function toggleCampMainType(mainType: "kolonie" | "polkolonie") {
-    setActiveCampMainTypes((prev) =>
-      prev.includes(mainType) ? prev.filter((item) => item !== mainType) : [...prev, mainType]
-    );
-  }
-
-  function toggleCategory(category: string) {
-    setActiveCategories((prev) =>
-      prev.includes(category) ? prev.filter((item) => item !== category) : [...prev, category]
-    );
-    setActiveSubcategories([]);
-  }
-
-  function toggleSubcategory(subcategory: string) {
-    setActiveSubcategories((prev) =>
-      prev.includes(subcategory) ? prev.filter((item) => item !== subcategory) : [...prev, subcategory]
-    );
-  }
-
-  function toggleAgeGroup(ageKey: string) {
-    setActiveAgeGroups((prev) =>
-      prev.includes(ageKey) ? prev.filter((item) => item !== ageKey) : [...prev, ageKey]
-    );
-  }
-
-  function toggleDistrict(district: District) {
-    setActiveDistricts((prev) =>
-      prev.includes(district) ? prev.filter((item) => item !== district) : [...prev, district]
-    );
+    setActiveCampMainTypes((p) => p.includes(mainType) ? p.filter((x) => x !== mainType) : [...p, mainType]);
   }
 
   function updateDisplayedMonth(year: number, month: number) {
@@ -637,25 +313,20 @@ export function CampsListView({ camps }: CampsListViewProps) {
 
   function handleCalendarDateClick(date: Date) {
     if (rangeFrom || rangeTo) {
-      setRangeFrom("");
-      setRangeTo("");
+      setRangeFrom(""); setRangeTo("");
       setSingleDate(toDateInputValue(date));
       setSelectedDate(date);
       return;
     }
-
     if (!selectedDate) {
       setSingleDate(toDateInputValue(date));
       setSelectedDate(date);
       return;
     }
-
     if (isSameDay(selectedDate, date)) {
-      setSingleDate("");
-      setSelectedDate(null);
+      setSingleDate(""); setSelectedDate(null);
       return;
     }
-
     const start = selectedDate < date ? selectedDate : date;
     const end = selectedDate < date ? date : selectedDate;
     setSingleDate("");
@@ -672,21 +343,16 @@ export function CampsListView({ camps }: CampsListViewProps) {
     const start = parseDateOnly(camp.date_start);
     const end = parseDateOnly(camp.date_end);
     if (!start) return;
-
     updateDisplayedMonth(start.getFullYear(), start.getMonth());
-
     if (!end || isSameDay(start, end)) {
-      setRangeFrom("");
-      setRangeTo("");
+      setRangeFrom(""); setRangeTo("");
       setSingleDate(toDateInputValue(start));
       setSelectedDate(start);
     } else {
-      setSingleDate("");
-      setSelectedDate(null);
+      setSingleDate(""); setSelectedDate(null);
       setRangeFrom(toDateInputValue(start));
       setRangeTo(toDateInputValue(end));
     }
-
     focusCalendar();
   }
 
@@ -694,620 +360,394 @@ export function CampsListView({ camps }: CampsListViewProps) {
     setExpandedOrganizers((prev) => ({ ...prev, [organizerKey]: !prev[organizerKey] }));
   }
 
+  const campMainTypeToggle = (
+    <div className="flex items-center gap-1 rounded-lg border border-border p-0.5 bg-accent/50 w-full">
+      <button type="button" onClick={() => toggleCampMainType("kolonie")}
+        className={cn("flex-1 inline-flex items-center justify-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all duration-200",
+          activeCampMainTypes.includes("kolonie") ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+        Kolonie ({campMainTypeCounts.kolonie})
+      </button>
+      <button type="button" onClick={() => toggleCampMainType("polkolonie")}
+        className={cn("flex-1 inline-flex items-center justify-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all duration-200",
+          activeCampMainTypes.includes("polkolonie") ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+        Półkolonie ({campMainTypeCounts.polkolonie})
+      </button>
+    </div>
+  );
+
   return (
     <div>
-    <PageHero
-      title="Niezapomniane Kolonie"
-      subtitle="Sprawdzeni organizatorzy kolonii i półkolonii — letnie i zimowe wyjazdy w Krakowie i okolicach"
-      addHref="/dodaj?type=camp"
-      addTitle="Prowadzisz kolonie lub półkolonie?"
-      addDescription="Pokaż ofertę rodzinom szukającym sprawdzonych wyjazdów w Krakowie."
-      addLabel="Dodaj ofertę"
-    />
-    <div className="container-page pt-0 pb-10">
-      <div className="rounded-[28px] bg-white px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
-      <MobileActionBar
-        filtersOpen={filtersOpen}
-        hasActiveFilters={hasActiveFilters}
-        onToggleFilters={() => setFiltersOpen(!filtersOpen)}
+      <PageHero
+        title="Niezapomniane Kolonie"
+        subtitle="Sprawdzeni organizatorzy kolonii i półkolonii — letnie i zimowe wyjazdy w Krakowie i okolicach"
+        search={filters.search}
+        onSearch={filters.setSearch}
+        searchPlaceholder="Szukaj kolonii..."
         addHref="/dodaj?type=camp"
-        addLabel="Dodaj kolonie"
-        bottomContent={
-          <div className="h-9 w-full inline-flex items-center gap-1 rounded-lg border border-border bg-accent/50 p-0.5">
-            <button
-              type="button"
-              onClick={() => toggleCampMainType("kolonie")}
-              className={cn(
-                "flex-1 h-full inline-flex items-center justify-center gap-1.5 rounded-md text-[10px] font-semibold transition-all duration-200",
-                activeCampMainTypes.includes("kolonie") ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              Kolonie ({campMainTypeCounts.kolonie})
-            </button>
-            <div className="w-px bg-border/50 self-stretch" />
-            <button
-              type="button"
-              onClick={() => toggleCampMainType("polkolonie")}
-              className={cn(
-                "flex-1 h-full inline-flex items-center justify-center gap-1.5 rounded-md text-[10px] font-semibold transition-all duration-200",
-                activeCampMainTypes.includes("polkolonie") ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              Półkolonie ({campMainTypeCounts.polkolonie})
-            </button>
-          </div>
-        }
+        addTitle="Prowadzisz kolonie lub półkolonie?"
+        addDescription="Pokaż ofertę rodzinom szukającym sprawdzonych wyjazdów w Krakowie."
+        addLabel="Dodaj ofertę"
       />
-
-      {filtersOpen && (
-        <div className="lg:hidden rounded-xl p-3 mb-4 space-y-2.5">
-          <div className="space-y-1">
-            <p className="text-[11px] font-medium text-muted-foreground">Szukaj</p>
-            <div className="relative">
-              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Szukaj kolonii..."
-                className="w-full rounded-lg border border-border bg-background py-1.5 pl-7 pr-2 text-[11px] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-            </div>
-          </div>
-
-          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Data</p>} defaultCollapsed={false}>
-            <p className="text-[10px] text-muted-foreground mb-1">Konkretna data</p>
-            <input
-              type="date"
-              onClick={(e) => openDatePicker(e.currentTarget)}
-              value={singleDate}
-              onChange={(e) => {
-                setSingleDate(e.target.value);
-                setRangeFrom("");
-                setRangeTo("");
-                setSelectedDate(parseDateOnly(e.target.value));
-              }}
-              className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-background text-[11px] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-            />
-
-            <p className="text-[10px] text-muted-foreground mt-2 mb-1">Zakres dat (od-do)</p>
-            <div className="grid grid-cols-2 gap-1.5">
-              <input
-                type="date"
-                onClick={(e) => openDatePicker(e.currentTarget)}
-                value={rangeFrom}
-                onChange={(e) => {
-                  setRangeFrom(e.target.value);
-                  setSingleDate("");
-                  setSelectedDate(null);
-                }}
-                className="px-2 py-1.5 rounded-lg border border-border bg-background text-[11px] text-foreground"
-              />
-              <input
-                type="date"
-                onClick={(e) => openDatePicker(e.currentTarget)}
-                value={rangeTo}
-                onChange={(e) => {
-                  setRangeTo(e.target.value);
-                  setSingleDate("");
-                  setSelectedDate(null);
-                }}
-                className="px-2 py-1.5 rounded-lg border border-border bg-background text-[11px] text-foreground"
-              />
-            </div>
-          </FilterSection>
-
-          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Typ</p>} defaultCollapsed={false}>
-            <div className="flex flex-wrap gap-1">
-              {typeOptions.map((option) => {
-                const selected = activeTypes.includes(option.value);
-                return (
-                  <button
-                    key={option.value}
-                    onClick={() => toggleType(option.value)}
-                    className={cn(
-                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
-                      selected
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-background text-muted border-border hover:border-danger/30 hover:text-foreground"
-                    )}
-                  >
-                    <span>{option.icon}</span>
-                    <span>{option.label}</span>
-                    <span className="text-[10px] opacity-60">{option.count}</span>
-                    {selected && <Check size={11} />}
-                  </button>
-                );
-              })}
-            </div>
-          </FilterSection>
-
-          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Wiek dziecka</p>} defaultCollapsed={false}>
-            <div className="flex flex-wrap gap-1">
-              {ageOptions.filter((group) => group.count > 0 || activeAgeGroups.includes(group.key)).map((group) => {
-                const selected = activeAgeGroups.includes(group.key);
-                return (
-                  <button
-                    key={group.key}
-                    onClick={() => toggleAgeGroup(group.key)}
-                    className={cn(
-                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
-                      selected
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-background text-muted border-border hover:border-danger/30 hover:text-foreground"
-                    )}
-                  >
-                    <span>{group.icon}</span>
-                    <span>{group.label}</span>
-                    <span className="text-[10px] opacity-60">{group.count}</span>
-                    {selected && <Check size={11} />}
-                  </button>
-                );
-              })}
-            </div>
-          </FilterSection>
-
-          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Kategoria</p>} defaultCollapsed={false}>
-            <div className="flex flex-wrap gap-1">
-              {categoryOptions.map((option) => {
-                const selected = activeCategories.includes(option.value);
-                return (
-                  <button
-                    key={option.value}
-                    onClick={() => toggleCategory(option.value)}
-                    className={cn(
-                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
-                      selected
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-background text-muted border-border hover:border-danger/30 hover:text-foreground"
-                    )}
-                  >
-                    <span>{option.icon}</span>
-                    <span>{option.label}</span>
-                    <span className="text-[10px] opacity-60">{option.count}</span>
-                    {selected && <Check size={11} />}
-                  </button>
-                );
-              })}
-            </div>
-          </FilterSection>
-
-          <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Dzielnica</p>} defaultCollapsed={false}>
-            <div className="flex flex-wrap gap-1">
-              {availableDistricts.map((district) => {
-                const selected = activeDistricts.includes(district);
-                const count = districtCounts.get(district) || 0;
-                const icon = DISTRICT_ICONS[district] || "📍";
-                return (
-                  <button
-                    key={district}
-                    onClick={() => toggleDistrict(district)}
-                    className={cn(
-                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
-                      selected
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-background text-muted border-border hover:border-danger/30 hover:text-foreground"
-                    )}
-                  >
-                    <span>{icon}</span>
-                    <span>{district}</span>
-                    <span className="text-[10px] opacity-60">{count}</span>
-                    {selected && <Check size={11} />}
-                  </button>
-                );
-              })}
-            </div>
-          </FilterSection>
-
-          <div className="flex items-center gap-2 border-t border-border/70 pt-2">
-            {hasActiveFilters && (
-              <button onClick={clearFilters} className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors">
-                <X size={11} /> Wyczyść filtry
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => setFiltersOpen(false)}
-              className="ml-auto inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-[11px] font-medium text-foreground hover:bg-accent/60 transition-colors"
-            >
-              Schowaj filtry
-              <ChevronDown size={11} className="rotate-180" />
-            </button>
+      <div className="container-page pt-0 pb-10">
+        <div className="lg:hidden mb-3 px-1">
+          <div className="relative">
+            <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-amber-500" />
+            <input value={filters.search} onChange={(e) => filters.setSearch(e.target.value)} placeholder="Szukaj kolonii..."
+              className="w-full rounded-xl border border-amber-300 bg-amber-50/40 py-1.5 pl-7 pr-2 text-[11px] text-black placeholder:text-black/40 focus:outline-none focus:border-amber-400" />
           </div>
         </div>
-      )}
-
-      <div className="lg:flex lg:gap-6 lg:items-start -mt-5">
-        <aside className="hidden lg:block w-[240px] xl:w-[260px] shrink-0 rounded-2xl overflow-hidden -mt-[10px]">
-          <div className="p-2.5 space-y-2.5">
-            <div className="space-y-1">
-              <p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Szukaj</p>
-              <div className="relative">
-                <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Szukaj..."
-                  className="w-full rounded-lg border border-border bg-background py-1 pl-6 pr-2 text-[10px] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
+        <div className="rounded-[28px] bg-white px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+          <MobileActionBar
+            filtersOpen={filtersOpen}
+            hasActiveFilters={hasActiveFilters}
+            onToggleFilters={() => setFiltersOpen(!filtersOpen)}
+            addHref="/dodaj?type=camp"
+            addLabel="Dodaj kolonie"
+            bottomContent={
+              <div className="h-9 w-full inline-flex items-center gap-1 rounded-lg border border-border bg-accent/50 p-0.5">
+                <button type="button" onClick={() => toggleCampMainType("kolonie")}
+                  className={cn("flex-1 h-full inline-flex items-center justify-center gap-1.5 rounded-md text-[10px] font-semibold transition-all duration-200",
+                    activeCampMainTypes.includes("kolonie") ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}>
+                  Kolonie ({campMainTypeCounts.kolonie})
+                </button>
+                <div className="w-px bg-border/50 self-stretch" />
+                <button type="button" onClick={() => toggleCampMainType("polkolonie")}
+                  className={cn("flex-1 h-full inline-flex items-center justify-center gap-1.5 rounded-md text-[10px] font-semibold transition-all duration-200",
+                    activeCampMainTypes.includes("polkolonie") ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}>
+                  Półkolonie ({campMainTypeCounts.polkolonie})
+                </button>
               </div>
-            </div>
-            <div className="flex items-center gap-1 rounded-lg border border-border p-0.5 bg-accent/50 w-full">
-              <button
-                type="button"
-                onClick={() => toggleCampMainType("kolonie")}
-                className={cn(
-                  "flex-1 inline-flex items-center justify-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all duration-200",
-                  activeCampMainTypes.includes("kolonie")
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                Kolonie ({campMainTypeCounts.kolonie})
-              </button>
-              <button
-                type="button"
-                onClick={() => toggleCampMainType("polkolonie")}
-                className={cn(
-                  "flex-1 inline-flex items-center justify-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all duration-200",
-                  activeCampMainTypes.includes("polkolonie")
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                Półkolonie ({campMainTypeCounts.polkolonie})
-              </button>
-            </div>
-            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Data</p>} defaultCollapsed={!filtersOpenDesktop}>
-              <p className="text-[10px] text-muted-foreground mb-1">Konkretna data</p>
-              <input
-                type="date"
-                onClick={(e) => openDatePicker(e.currentTarget)}
-                value={singleDate}
-                onChange={(e) => {
-                  setSingleDate(e.target.value);
-                  setRangeFrom("");
-                  setRangeTo("");
-                  setSelectedDate(parseDateOnly(e.target.value));
-                }}
-                className="w-full px-2 py-1 rounded-lg border border-border bg-background text-[10px] text-foreground"
-              />
+            }
+          />
 
-              <p className="text-[10px] text-muted-foreground mt-2 mb-1">Zakres dat (od-do)</p>
-              <div className="grid grid-cols-2 gap-1.5">
-                <input
-                  type="date"
-                  onClick={(e) => openDatePicker(e.currentTarget)}
-                  value={rangeFrom}
-                  onChange={(e) => {
-                    setRangeFrom(e.target.value);
-                    setSingleDate("");
-                    setSelectedDate(null);
-                  }}
-                  className="px-1.5 py-1 rounded-lg border border-border bg-background text-[9px] text-foreground"
-                />
-                <input
-                  type="date"
-                  onClick={(e) => openDatePicker(e.currentTarget)}
-                  value={rangeTo}
-                  onChange={(e) => {
-                    setRangeTo(e.target.value);
-                    setSingleDate("");
-                    setSelectedDate(null);
-                  }}
-                  className="px-1.5 py-1 rounded-lg border border-border bg-background text-[9px] text-foreground"
-                />
-              </div>
-            </FilterSection>
+          {filtersOpen && (
+            <div className="lg:hidden rounded-xl p-3 mb-4 space-y-2.5">
+              <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Data</p>} defaultCollapsed={false}>
+                <p className="text-[10px] text-muted-foreground mb-1">Konkretna data</p>
+                <input type="date" onClick={(e) => openDatePicker(e.currentTarget)} value={singleDate}
+                  onChange={(e) => { setSingleDate(e.target.value); setRangeFrom(""); setRangeTo(""); setSelectedDate(parseDateOnly(e.target.value)); }}
+                  className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-background text-[11px] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                <p className="text-[10px] text-muted-foreground mt-2 mb-1">Zakres dat (od-do)</p>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <input type="date" onClick={(e) => openDatePicker(e.currentTarget)} value={rangeFrom}
+                    onChange={(e) => { setRangeFrom(e.target.value); setSingleDate(""); setSelectedDate(null); }}
+                    className="px-2 py-1.5 rounded-lg border border-border bg-background text-[11px] text-foreground" />
+                  <input type="date" onClick={(e) => openDatePicker(e.currentTarget)} value={rangeTo}
+                    onChange={(e) => { setRangeTo(e.target.value); setSingleDate(""); setSelectedDate(null); }}
+                    className="px-2 py-1.5 rounded-lg border border-border bg-background text-[11px] text-foreground" />
+                </div>
+              </FilterSection>
 
-            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Typ</p>} defaultCollapsed={!filtersOpenDesktop}>
-              <div className="flex flex-col gap-0.5">
-                {typeOptions.map((option) => {
-                  const selected = activeTypes.includes(option.value);
-                  return (
-                    <button
-                      key={option.value}
-                      onClick={() => toggleType(option.value)}
-                      className={cn(
-                        "flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
-                        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent"
-                      )}
-                    >
-                      <span>{option.icon}</span>
-                      <span className="flex-1">{option.label}</span>
-                      {selected && <Check size={10} />}
-                      <span className="text-[8px] opacity-40">{option.count}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </FilterSection>
-
-            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Wiek</p>} defaultCollapsed={!filtersOpenDesktop}>
-              <div className="flex flex-col gap-0.5">
-                {ageOptions.filter((group) => group.count > 0 || activeAgeGroups.includes(group.key)).map((group) => {
-                  const selected = activeAgeGroups.includes(group.key);
-                  return (
-                    <button
-                      key={group.key}
-                      onClick={() => toggleAgeGroup(group.key)}
-                      className={cn(
-                        "flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
-                        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent"
-                      )}
-                    >
-                      <span>{group.icon}</span>
-                      <span className="flex-1">{group.label}</span>
-                      <span className="text-[8px] opacity-40">{group.count}</span>
-                      {selected && <Check size={10} />}
-                    </button>
-                  );
-                })}
-              </div>
-            </FilterSection>
-
-            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Kategoria</p>} defaultCollapsed>
-              <div className="flex flex-col gap-0.5">
-                {categoryOptions.map((option) => {
-                  const selected = activeCategories.includes(option.value);
-                  return (
-                    <button
-                      key={option.value}
-                      onClick={() => toggleCategory(option.value)}
-                      className={cn(
-                        "flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
-                        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent"
-                      )}
-                    >
-                      <span>{option.icon}</span>
-                      <span className="flex-1">{option.label}</span>
-                      {selected && <Check size={10} />}
-                      <span className="text-[8px] opacity-40">{option.count}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </FilterSection>
-
-            <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Dzielnica</p>} defaultCollapsed>
-              <div className="flex flex-col gap-0.5">
-                {availableDistricts.map((district) => {
-                  const selected = activeDistricts.includes(district);
-                  const count = districtCounts.get(district) || 0;
-                  const icon = DISTRICT_ICONS[district] || "📍";
-                  return (
-                    <button
-                      key={district}
-                      onClick={() => toggleDistrict(district)}
-                      className={cn(
-                        "flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
-                        selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent"
-                      )}
-                    >
-                      <span>{icon}</span>
-                      <span className="flex-1">{district}</span>
-                      {selected && <Check size={10} />}
-                      <span className="text-[8px] opacity-40">{count}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </FilterSection>
-
-            {hasActiveFilters && (
-              <button
-                onClick={clearFilters}
-                className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors pt-2 border-t border-border w-full"
-              >
-                <X size={10} /> Wyczyść filtry
-              </button>
-            )}
-          </div>
-        </aside>
-
-        <ListPageMainContent
-          topContent={(
-            <>
-            <div ref={calendarRef} className="rounded-xl border border-border bg-white overflow-hidden scroll-mt-24">
-              <div className="px-3 pt-2 pb-1 border-b border-border/50">
-                <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: "none" }}>
-                  {monthOptions.map((opt) => {
-                    const isActive = opt.month === currentMonth && opt.year === currentYear;
+              <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Typ</p>} defaultCollapsed={false}>
+                <div className="flex flex-wrap gap-1">
+                  {filters.typeOptions.map((option) => {
+                    const selected = filters.activeTypes.includes(option.value);
                     return (
-                      <button
-                        key={opt.key}
-                        onClick={() => updateDisplayedMonth(opt.year, opt.month)}
-                        className={cn(
-                          "shrink-0 rounded-full px-3 py-1 text-[11px] font-medium transition-colors",
-                          isActive ? "bg-primary text-primary-foreground" : "bg-accent text-foreground hover:bg-accent/70"
-                        )}
-                        title={`${MONTHS_PL[opt.month]} ${opt.year}`}
-                      >
-                        {opt.label}
+                      <button key={option.value} onClick={() => filters.toggleType(option.value)}
+                        className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
+                          selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-danger/30 hover:text-foreground")}>
+                        <span>{option.icon}</span><span>{option.label}</span>
+                        <span className="text-[10px] opacity-60">{option.count}</span>
+                        {selected && <Check size={11} />}
                       </button>
                     );
                   })}
                 </div>
-              </div>
+              </FilterSection>
 
-              <div className="flex lg:grid lg:grid-flow-col lg:auto-cols-fr overflow-x-auto lg:overflow-visible scrollbar-hide py-2 px-2 gap-1.5 lg:gap-0.5" style={{ scrollbarWidth: "none" }}>
-                {monthDays.map((date) => {
-                  const key = toLocalDateKey(date);
-                  const selected = selectedDate ? isSameDay(date, selectedDate) : false;
-                  const rangeStart = parseDateOnly(rangeFrom);
-                  const rangeEnd = parseDateOnly(rangeTo);
-                  const inRange = !!(rangeStart && rangeEnd && date >= rangeStart && date <= rangeEnd);
-                  const rangeEdge = !!(
-                    rangeStart && rangeEnd && (isSameDay(date, rangeStart) || isSameDay(date, rangeEnd))
-                  );
-                  const todayFlag = isToday(date);
-                  const weekend = isWeekend(date);
-                  const count = campCountMap.get(key) || 0;
-                  const isPast = date < today;
-
-                  return (
-                    <button
-                      ref={todayFlag ? todayButtonRef : null}
-                      key={key}
-                      onClick={() => handleCalendarDateClick(date)}
-                      title={`${date.toLocaleDateString("pl-PL")}${count > 0 ? ` • ${count} kolonii` : ""}`}
-                      className={cn(
-                        "flex flex-col items-center justify-center min-w-[54px] lg:min-w-0 px-2 lg:px-0.5 py-2 lg:py-1 rounded-lg lg:rounded-md transition-all relative shrink-0 lg:shrink",
-                        selected || rangeEdge
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : inRange
-                            ? "bg-primary/15 text-foreground ring-1 ring-primary/20"
-                            : todayFlag
-                              ? "bg-accent/80 text-foreground ring-1 ring-primary/30"
-                              : isPast
-                                ? "text-muted-foreground/40 hover:bg-accent/40"
-                                : weekend
-                                  ? "text-foreground hover:bg-accent/60 bg-accent/20"
-                                  : "text-foreground hover:bg-accent/50"
-                      )}
-                    >
-                      <span className={cn("text-[9px] lg:text-[8px] font-medium uppercase leading-none", selected ? "text-white/70" : "text-muted-foreground")}>
-                        {DAYS_PL[date.getDay()]}
-                      </span>
-                      <span className={cn("text-[12px] lg:text-[11px] font-semibold leading-tight mt-0.5", selected && "text-white")}>
-                        {date.getDate()}
-                      </span>
-                      <span
-                        className={cn(
-                          "mt-0.5 text-[9px] lg:text-[8px] leading-none font-semibold",
-                          selected
-                            ? "text-primary-foreground/85"
-                            : count > 0
-                              ? "text-danger/80"
-                              : "text-muted-foreground/55"
-                        )}
-                      >
-                        {count > 99 ? "99+" : count}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {activeFilterBadges.length > 0 && (
-              <div className="rounded-xl border border-border bg-card px-2.5 py-2">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <p className="shrink-0 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Filtry:</p>
-                  {activeFilterBadges.map((badge) => (
-                    <span
-                      key={badge.id}
-                      className="inline-flex max-w-full items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[10px] font-medium text-primary-foreground"
-                    >
-                      <span className="min-w-0 whitespace-normal break-words">{badge.label}</span>
-                      <button
-                        type="button"
-                        onClick={badge.onRemove}
-                        className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-muted-foreground hover:bg-border/70 hover:text-foreground transition-colors"
-                        aria-label={`Usuń filtr ${badge.label}`}
-                        title={`Usuń: ${badge.label}`}
-                      >
-                        <X size={9} />
+              <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Wiek dziecka</p>} defaultCollapsed={false}>
+                <div className="flex flex-wrap gap-1">
+                  {filters.ageOptions.filter((g) => g.count > 0 || filters.activeAgeGroups.includes(g.key)).map((group) => {
+                    const selected = filters.activeAgeGroups.includes(group.key);
+                    return (
+                      <button key={group.key} onClick={() => filters.toggleAgeGroup(group.key)}
+                        className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
+                          selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-danger/30 hover:text-foreground")}>
+                        <span>{group.icon}</span><span>{group.label}</span>
+                        <span className="text-[10px] opacity-60">{group.count}</span>
+                        {selected && <Check size={11} />}
                       </button>
-                    </span>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={clearFilters}
-                    className="inline-flex max-w-full items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                  >
-                    <X size={9} />
-                    Wyczyść
-                  </button>
+                    );
+                  })}
                 </div>
-              </div>
-            )}
-            </>
-          )}
-        >
+              </FilterSection>
 
-          {filteredCamps.length === 0 ? (
-              <div className="text-center py-16">
-                <Search size={32} className="mx-auto text-muted-foreground/20 mb-3" />
-                <p className="text-[14px] text-muted mb-3">Brak kolonii pasujących do filtrów.</p>
+              <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Kategoria</p>} defaultCollapsed={false}>
+                <div className="flex flex-wrap gap-1">
+                  {filters.categoryOptions.map((option) => {
+                    const selected = filters.activeCategories.includes(option.value);
+                    return (
+                      <button key={option.value} onClick={() => filters.toggleCategory(option.value)}
+                        className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
+                          selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-danger/30 hover:text-foreground")}>
+                        <span>{option.icon}</span><span>{option.label}</span>
+                        <span className="text-[10px] opacity-60">{option.count}</span>
+                        {selected && <Check size={11} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </FilterSection>
+
+              <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Dzielnica</p>} defaultCollapsed={false}>
+                <div className="flex flex-wrap gap-1">
+                  {filters.availableDistricts.map((district) => {
+                    const selected = filters.activeDistricts.includes(district);
+                    const count = filters.districtCounts.get(district) || 0;
+                    const icon = DISTRICT_ICONS[district] || "📍";
+                    return (
+                      <button key={district} onClick={() => filters.toggleDistrict(district)}
+                        className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium border transition-all duration-200",
+                          selected ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted border-border hover:border-danger/30 hover:text-foreground")}>
+                        <span>{icon}</span><span>{district}</span>
+                        <span className="text-[10px] opacity-60">{count}</span>
+                        {selected && <Check size={11} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </FilterSection>
+
+              <div className="flex items-center gap-2 border-t border-border/70 pt-2">
                 {hasActiveFilters && (
-                  <button
-                    onClick={clearFilters}
-                    className="text-[12px] font-medium text-danger hover:opacity-80 transition-opacity"
-                  >
-                    Wyczyść filtry
+                  <button onClick={clearAll} className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors">
+                    <X size={11} /> Wyczyść filtry
                   </button>
                 )}
+                <button type="button" onClick={() => setFiltersOpen(false)}
+                  className="ml-auto inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-[11px] font-medium text-foreground hover:bg-accent/60 transition-colors">
+                  Schowaj filtry <ChevronDown size={11} className="rotate-180" />
+                </button>
               </div>
-            ) : (
-              <div className="space-y-4">
-                {(() => {
-                  const organizerMap = new Map<string, OrganizerTile>();
-                  [...filteredCamps]
-                    .sort((a, b) => new Date(a.date_start).getTime() - new Date(b.date_start).getTime())
-                    .forEach((camp) => {
-                      const organizerKey = camp.organizer_id ? `id:${camp.organizer_id}` : getOrganizerName(camp).toLowerCase();
-                      const organizerName = getOrganizerName(camp);
-                      if (!organizerName) return;
-                      const existing = organizerMap.get(organizerKey);
-                      if (!existing) {
-                        organizerMap.set(organizerKey, { organizerKey, organizerName, leadCamp: camp, camps: [camp] });
-                        return;
-                      }
-                      existing.camps.push(camp);
-                      if (new Date(camp.date_start).getTime() < new Date(existing.leadCamp.date_start).getTime()) {
-                        existing.leadCamp = camp;
-                      }
-                    });
-                  const flatOrganizers = Array.from(organizerMap.values()).sort((a, b) => a.organizerName.localeCompare(b.organizerName, "pl"));
-                  return flatOrganizers.map((organizer) => {
+            </div>
+          )}
+
+          <div className="lg:flex lg:gap-6 lg:items-start">
+            <ListPageSidebar
+              search={filters.search}
+              onSearchChange={filters.setSearch}
+              searchPlaceholder="Szukaj kolonii..."
+              showSearch={false}
+              hasActiveFilters={hasActiveFilters}
+              onClearFilters={clearAll}
+              topSlot={campMainTypeToggle}
+            >
+              <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Data</p>} defaultCollapsed={!filtersOpenDesktop}>
+                <p className="text-[10px] text-muted-foreground mb-1">Konkretna data</p>
+                <input type="date" onClick={(e) => openDatePicker(e.currentTarget)} value={singleDate}
+                  onChange={(e) => { setSingleDate(e.target.value); setRangeFrom(""); setRangeTo(""); setSelectedDate(parseDateOnly(e.target.value)); }}
+                  className="w-full px-2 py-1 rounded-lg border border-border bg-background text-[10px] text-foreground" />
+                <p className="text-[10px] text-muted-foreground mt-2 mb-1">Zakres dat (od-do)</p>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <input type="date" onClick={(e) => openDatePicker(e.currentTarget)} value={rangeFrom}
+                    onChange={(e) => { setRangeFrom(e.target.value); setSingleDate(""); setSelectedDate(null); }}
+                    className="px-1.5 py-1 rounded-lg border border-border bg-background text-[9px] text-foreground" />
+                  <input type="date" onClick={(e) => openDatePicker(e.currentTarget)} value={rangeTo}
+                    onChange={(e) => { setRangeTo(e.target.value); setSingleDate(""); setSelectedDate(null); }}
+                    className="px-1.5 py-1 rounded-lg border border-border bg-background text-[9px] text-foreground" />
+                </div>
+              </FilterSection>
+
+              <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Typ</p>} defaultCollapsed={!filtersOpenDesktop}>
+                <div className="flex flex-col gap-0.5">
+                  {filters.typeOptions.map((option) => {
+                    const selected = filters.activeTypes.includes(option.value);
+                    return (
+                      <button key={option.value} onClick={() => filters.toggleType(option.value)}
+                        className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
+                          selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
+                        <span>{option.icon}</span><span className="flex-1">{option.label}</span>
+                        {selected && <Check size={10} />}
+                        <span className="text-[8px] opacity-40">{option.count}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </FilterSection>
+
+              <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Wiek</p>} defaultCollapsed={!filtersOpenDesktop}>
+                <div className="flex flex-col gap-0.5">
+                  {filters.ageOptions.filter((g) => g.count > 0 || filters.activeAgeGroups.includes(g.key)).map((group) => {
+                    const selected = filters.activeAgeGroups.includes(group.key);
+                    return (
+                      <button key={group.key} onClick={() => filters.toggleAgeGroup(group.key)}
+                        className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
+                          selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
+                        <span>{group.icon}</span><span className="flex-1">{group.label}</span>
+                        <span className="text-[8px] opacity-40">{group.count}</span>
+                        {selected && <Check size={10} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </FilterSection>
+
+              <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Kategoria</p>} defaultCollapsed>
+                <div className="flex flex-col gap-0.5">
+                  {filters.categoryOptions.map((option) => {
+                    const selected = filters.activeCategories.includes(option.value);
+                    return (
+                      <button key={option.value} onClick={() => filters.toggleCategory(option.value)}
+                        className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
+                          selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
+                        <span>{option.icon}</span><span className="flex-1">{option.label}</span>
+                        {selected && <Check size={10} />}
+                        <span className="text-[8px] opacity-40">{option.count}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </FilterSection>
+
+              <FilterSection title={<p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Dzielnica</p>} defaultCollapsed>
+                <div className="flex flex-col gap-0.5">
+                  {filters.availableDistricts.map((district) => {
+                    const selected = filters.activeDistricts.includes(district);
+                    const count = filters.districtCounts.get(district) || 0;
+                    const icon = DISTRICT_ICONS[district] || "📍";
+                    return (
+                      <button key={district} onClick={() => filters.toggleDistrict(district)}
+                        className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium text-left transition-all duration-200",
+                          selected ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent")}>
+                        <span>{icon}</span><span className="flex-1">{district}</span>
+                        {selected && <Check size={10} />}
+                        <span className="text-[8px] opacity-40">{count}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </FilterSection>
+            </ListPageSidebar>
+
+            <ListPageMainContent
+              topContent={(
+                <>
+                  <div ref={calendarRef} className="rounded-xl border border-border bg-white overflow-hidden scroll-mt-24">
+                    <div className="px-3 pt-2 pb-1 border-b border-border/50">
+                      <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: "none" }}>
+                        {monthOptions.map((opt) => {
+                          const isActive = opt.month === currentMonth && opt.year === currentYear;
+                          return (
+                            <button key={opt.key} onClick={() => updateDisplayedMonth(opt.year, opt.month)}
+                              className={cn("shrink-0 rounded-full px-3 py-1 text-[11px] font-medium transition-colors",
+                                isActive ? "bg-primary text-primary-foreground" : "bg-accent text-foreground hover:bg-accent/70")}
+                              title={`${MONTHS_PL[opt.month]} ${opt.year}`}>
+                              {opt.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div className="flex lg:grid lg:grid-flow-col lg:auto-cols-fr overflow-x-auto lg:overflow-visible scrollbar-hide py-2 px-2 gap-1.5 lg:gap-0.5" style={{ scrollbarWidth: "none" }}>
+                      {monthDays.map((date) => {
+                        const key = toLocalDateKey(date);
+                        const selected = selectedDate ? isSameDay(date, selectedDate) : false;
+                        const rangeStart = parseDateOnly(rangeFrom);
+                        const rangeEnd = parseDateOnly(rangeTo);
+                        const inRange = !!(rangeStart && rangeEnd && date >= rangeStart && date <= rangeEnd);
+                        const rangeEdge = !!(rangeStart && rangeEnd && (isSameDay(date, rangeStart) || isSameDay(date, rangeEnd)));
+                        const todayFlag = isToday(date);
+                        const weekend = isWeekend(date);
+                        const count = campCountMap.get(key) || 0;
+                        const isPast = date < today;
+                        return (
+                          <button ref={todayFlag ? todayButtonRef : null} key={key}
+                            onClick={() => handleCalendarDateClick(date)}
+                            title={`${date.toLocaleDateString("pl-PL")}${count > 0 ? ` • ${count} kolonii` : ""}`}
+                            className={cn(
+                              "flex flex-col items-center justify-center min-w-[54px] lg:min-w-0 px-2 lg:px-0.5 py-2 lg:py-1 rounded-lg lg:rounded-md transition-all relative shrink-0 lg:shrink",
+                              selected || rangeEdge ? "bg-primary text-primary-foreground shadow-sm"
+                                : inRange ? "bg-primary/15 text-foreground ring-1 ring-primary/20"
+                                : todayFlag ? "bg-accent/80 text-foreground ring-1 ring-primary/30"
+                                : isPast ? "text-muted-foreground/40 hover:bg-accent/40"
+                                : weekend ? "text-foreground hover:bg-accent/60 bg-accent/20"
+                                : "text-foreground hover:bg-accent/50"
+                            )}>
+                            <span className={cn("text-[9px] lg:text-[8px] font-medium uppercase leading-none", selected ? "text-white/70" : "text-muted-foreground")}>
+                              {DAYS_PL[date.getDay()]}
+                            </span>
+                            <span className={cn("text-[12px] lg:text-[11px] font-semibold leading-tight mt-0.5", selected && "text-white")}>
+                              {date.getDate()}
+                            </span>
+                            <span className={cn("mt-0.5 text-[9px] lg:text-[8px] leading-none font-semibold",
+                              selected ? "text-primary-foreground/85" : count > 0 ? "text-danger/80" : "text-muted-foreground/55")}>
+                              {count > 99 ? "99+" : count}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {allBadges.length > 0 && <FilterBadgeBar badges={allBadges} onClearAll={clearAll} />}
+                </>
+              )}
+            >
+              {filteredCamps.length === 0 ? (
+                <div className="text-center py-16">
+                  <Search size={32} className="mx-auto text-muted-foreground/20 mb-3" />
+                  <p className="text-[14px] text-muted mb-3">Brak kolonii pasujących do filtrów.</p>
+                  {hasActiveFilters && (
+                    <button onClick={clearAll} className="text-[12px] font-medium text-danger hover:opacity-80 transition-opacity">
+                      Wyczyść filtry
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {(() => {
+                    const organizerMap = new Map<string, OrganizerTile>();
+                    [...filteredCamps]
+                      .sort((a, b) => new Date(a.date_start).getTime() - new Date(b.date_start).getTime())
+                      .forEach((camp) => {
+                        const organizerKey = camp.organizer_id ? `id:${camp.organizer_id}` : getOrganizerName(camp).toLowerCase();
+                        const organizerName = getOrganizerName(camp);
+                        if (!organizerName) return;
+                        const existing = organizerMap.get(organizerKey);
+                        if (!existing) {
+                          organizerMap.set(organizerKey, { organizerKey, organizerName, leadCamp: camp, camps: [camp] });
+                          return;
+                        }
+                        existing.camps.push(camp);
+                        if (new Date(camp.date_start).getTime() < new Date(existing.leadCamp.date_start).getTime()) {
+                          existing.leadCamp = camp;
+                        }
+                      });
+                    const flatOrganizers = Array.from(organizerMap.values()).sort((a, b) => a.organizerName.localeCompare(b.organizerName, "pl"));
+                    return flatOrganizers.map((organizer) => {
                       const sortedCamps = sortCampsByNearest(organizer.camps, today);
                       const expanded = !!expandedOrganizers[organizer.organizerKey];
                       const visibleCamps = expanded ? sortedCamps : sortedCamps.slice(0, 3);
-                      const hiddenCount = Math.max(organizer.camps.length - visibleCamps.length, 0);
 
-                    return (
-                        <article
-                          key={organizer.organizerKey}
-                          className="rounded-xl border border-border bg-card shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5 transition-all duration-200 overflow-hidden"
-                        >
+                      return (
+                        <article key={organizer.organizerKey}
+                          className="rounded-xl border border-border bg-card shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] hover:-translate-y-0.5 transition-all duration-200 overflow-hidden">
                           <div className="group flex flex-col overflow-hidden sm:min-h-[180px] sm:flex-row">
-                            <Link
-                              href={`/kolonie/${organizer.leadCamp.slug}`}
-                              className="relative aspect-video w-full shrink-0 bg-accent sm:aspect-auto sm:h-auto sm:w-[210px] sm:self-stretch"
-                            >
-                              {(() => {
-                                const imgSrc = organizer.leadCamp.image_url;
-                                return imgSrc ? (
-                                  <ImageWithFallback
-                                    src={thumbUrl(organizer.leadCamp.image_thumb, imgSrc) || imgSrc}
-                                    alt={organizer.organizerName}
-                                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                                    loading="lazy"
-                                  />
-                                ) : (
-                                  <div className="flex h-full w-full items-center justify-center text-3xl text-muted-foreground/30">
-                                    🏕️
-                                  </div>
-                                );
-                              })()}
+                            <Link href={`/kolonie/${organizer.leadCamp.slug}`}
+                              className="relative aspect-video w-full shrink-0 bg-accent sm:aspect-auto sm:h-auto sm:w-[210px] sm:self-stretch">
+                              {organizer.leadCamp.image_url ? (
+                                <ImageWithFallback
+                                  src={thumbUrl(organizer.leadCamp.image_thumb, organizer.leadCamp.image_url) || organizer.leadCamp.image_url}
+                                  alt={organizer.organizerName}
+                                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center text-3xl text-muted-foreground/30">🏕️</div>
+                              )}
                             </Link>
 
                             <div className="flex-1 min-w-0 p-3">
                               <div className="flex h-full min-w-0 flex-col gap-2.5">
                                 <div className="flex items-start justify-between gap-2">
                                   <div className="min-w-0">
-                                    <Link
-                                      href={`/kolonie/${organizer.leadCamp.slug}`}
-                                      className="font-bold text-[13px] text-foreground group-hover:text-[#e60100] leading-snug transition-colors duration-200 line-clamp-2"
-                                    >
+                                    <Link href={`/kolonie/${organizer.leadCamp.slug}`}
+                                      className="font-bold text-[13px] text-foreground group-hover:text-[#e60100] leading-snug transition-colors duration-200 line-clamp-2">
                                       {organizer.organizerName}
                                     </Link>
-                                    {(() => {
-                                      const desc = organizer.leadCamp.description_short;
-                                      return desc ? (
-                                        <p className="mt-1 text-[12px] text-muted leading-relaxed line-clamp-2">{desc}</p>
-                                      ) : null;
-                                    })()}
+                                    {organizer.leadCamp.description_short && (
+                                      <p className="mt-1 text-[12px] text-muted leading-relaxed line-clamp-2">{organizer.leadCamp.description_short}</p>
+                                    )}
                                   </div>
                                   <span className="shrink-0 rounded-full border border-border bg-background px-2 py-0.5 text-[9px] font-semibold text-muted">
                                     {getSessionLabel(organizer.camps.length)}
@@ -1315,58 +755,42 @@ export function CampsListView({ camps }: CampsListViewProps) {
                                 </div>
 
                                 <div className="min-w-0 rounded-lg border border-border/70 bg-background/40 px-3 py-2.5">
-                                  <div className="min-w-0">
-                                    <table className="w-full table-fixed text-[10px]">
-                                      <colgroup>
-                                        <col className="w-[56%]" />
-                                        <col className="w-[30%]" />
-                                        <col className="w-[14%]" />
-                                      </colgroup>
-                                      <thead className="hidden sm:table-header-group">
-                                        <tr className="border-b border-border/70 text-muted">
-                                          <th className="py-1 pr-2 text-left font-semibold uppercase tracking-wider">Turnus</th>
-                                          <th className="px-2 py-1 text-left font-semibold uppercase tracking-wider">Termin</th>
-                                          <th className="px-2 py-1 text-left font-semibold uppercase tracking-wider">Szczegóły</th>
+                                  <table className="w-full table-fixed text-[10px]">
+                                    <colgroup>
+                                      <col className="w-[56%]" />
+                                      <col className="w-[30%]" />
+                                      <col className="w-[14%]" />
+                                    </colgroup>
+                                    <thead className="hidden sm:table-header-group">
+                                      <tr className="border-b border-border/70 text-muted">
+                                        <th className="py-1 pr-2 text-left font-semibold uppercase tracking-wider">Turnus</th>
+                                        <th className="px-2 py-1 text-left font-semibold uppercase tracking-wider">Termin</th>
+                                        <th className="px-2 py-1 text-left font-semibold uppercase tracking-wider">Szczegóły</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {visibleCamps.map((camp) => (
+                                        <tr key={camp.id}
+                                          className="group border-b border-border/40 last:border-0 cursor-pointer"
+                                          onClick={() => window.location.href = `/kolonie/${camp.slug}`}>
+                                          <td className="py-1.5 pr-2 text-foreground align-top rounded-l">
+                                            <span className="block truncate whitespace-nowrap font-medium transition-colors" title={camp.title}>{camp.title}</span>
+                                          </td>
+                                          <td className="px-2 py-1.5 text-muted align-top whitespace-nowrap">{getDateChipLabel(camp)}</td>
+                                          <td className="px-2 py-1.5 align-top whitespace-nowrap rounded-r">
+                                            <span className="font-medium text-danger">
+                                              <span className="hidden sm:inline">Zobacz</span>
+                                              <svg className="sm:hidden ml-4" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                                            </span>
+                                          </td>
                                         </tr>
-                                      </thead>
-                                      <tbody>
-                                        {visibleCamps.map((camp) => {
-                                          return (
-                                            <tr
-                                              key={camp.id}
-                                              className="group border-b border-border/40 last:border-0 cursor-pointer"
-                                              onClick={() => window.location.href = `/kolonie/${camp.slug}`}
-                                            >
-                                              <td className="py-1.5 pr-2 text-foreground align-top rounded-l">
-                                                <div className="min-w-0">
-                                                  <span className="block truncate whitespace-nowrap font-medium transition-colors" title={camp.title}>
-                                                    {camp.title}
-                                                  </span>
-                                                </div>
-                                              </td>
-                                              <td className="px-2 py-1.5 text-muted align-top whitespace-nowrap">
-                                                {getDateChipLabel(camp)}
-                                              </td>
-                                              <td className="px-2 py-1.5 align-top whitespace-nowrap rounded-r">
-                                                <span className="font-medium text-danger">
-                                                  <span className="hidden sm:inline">Zobacz</span>
-                                                  <svg className="sm:hidden ml-4" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                                                </span>
-                                              </td>
-                                            </tr>
-                                          );
-                                        })}
-                                      </tbody>
-                                    </table>
-                                  </div>
-
+                                      ))}
+                                    </tbody>
+                                  </table>
                                   {organizer.camps.length > 3 && (
                                     <div className="mt-2 flex justify-end">
-                                      <button
-                                        type="button"
-                                        onClick={() => toggleOrganizerSessions(organizer.organizerKey)}
-                                        className="text-[10px] font-medium text-danger hover:opacity-80 transition-opacity"
-                                      >
+                                      <button type="button" onClick={() => toggleOrganizerSessions(organizer.organizerKey)}
+                                        className="text-[10px] font-medium text-danger hover:opacity-80 transition-opacity">
                                         {expanded ? "Pokaż mniej" : `Pokaż wszystkie (${organizer.camps.length})`}
                                       </button>
                                     </div>
@@ -1379,12 +803,12 @@ export function CampsListView({ camps }: CampsListViewProps) {
                       );
                     });
                   })()}
-              </div>
-            )}
-        </ListPageMainContent>
+                </div>
+              )}
+            </ListPageMainContent>
+          </div>
+        </div>
       </div>
-      </div>
-    </div>
     </div>
   );
 }

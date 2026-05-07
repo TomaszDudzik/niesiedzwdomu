@@ -460,16 +460,17 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
     <div className="p-2.5 space-y-2.5">
 
       {/* Search */}
-      <div className="flex items-center rounded-lg border border-border bg-white overflow-hidden">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Szukaj..."
-          className="flex-1 h-[36px] pl-3 pr-2 text-[12px] text-foreground placeholder:text-muted-foreground/50 bg-transparent focus:outline-none"
-        />
-        <div className="h-[36px] w-9 flex items-center justify-center bg-[#e60100] text-white shrink-0">
-          <Search size={13} />
+      <div className="space-y-1">
+        <p className="text-[11px] font-semibold text-foreground uppercase tracking-wider">Szukaj</p>
+        <div className="relative">
+          <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Szukaj..."
+            className="w-full rounded-lg border border-border bg-background py-1 pl-6 pr-2 text-[10px] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+          />
         </div>
       </div>
 
@@ -579,6 +580,18 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
           Main content area
       ────────────────────────────────────────── */}
       <div className="container-page pt-0 pb-8">
+        <div className="lg:hidden mb-3 px-1">
+          <div className="relative">
+            <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-amber-500" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Szukaj..."
+              className="w-full rounded-xl border border-amber-300 bg-amber-50/40 py-1.5 pl-7 pr-2 text-[11px] text-black placeholder:text-black/40 focus:outline-none focus:border-amber-400"
+            />
+          </div>
+        </div>
         <div className="rounded-[28px] bg-white px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
 
         <MobileActionBar
@@ -592,21 +605,6 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
         {/* Mobile filters panel */}
         {mobileFiltersOpen && (
           <div className="lg:hidden rounded-xl p-3 mb-4 space-y-2.5">
-            {/* Search */}
-            <div className="flex items-center rounded-lg border border-border bg-white overflow-hidden">
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Szukaj..."
-                className="flex-1 h-8 pl-3 pr-2 text-[12px] text-foreground placeholder:text-muted-foreground/50 bg-transparent focus:outline-none"
-              />
-              <div className="h-8 w-8 flex items-center justify-center bg-[#e60100] text-white shrink-0">
-                <Search size={13} />
-              </div>
-            </div>
-
-            {typeLevel2Options.length > 0 && (
               <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Grupa</p>} defaultCollapsed={false}>
                 <div className="flex flex-wrap gap-1">
                   {typeLevel2Options.map((option) => {
@@ -624,7 +622,6 @@ export function HomeFilteredView({ events, places, camps, activities, initialTax
                   })}
                 </div>
               </FilterSection>
-            )}
             {typeOptions.length > 0 && (
               <FilterSection title={<p className="text-[11px] font-medium text-muted-foreground">Typ</p>} defaultCollapsed={false}>
                 <div className="flex flex-wrap gap-1">

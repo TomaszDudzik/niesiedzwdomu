@@ -1,23 +1,24 @@
 "use client";
 
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Search } from "lucide-react";
 
 interface PageHeroProps {
   title: string;
   subtitle: string;
   search?: string;
   onSearch?: (value: string) => void;
+  searchPlaceholder?: string;
   addHref?: string;
   addTitle?: string;
   addDescription?: string;
   addLabel?: string;
 }
 
-export function PageHero({ title, subtitle, addHref, addTitle, addDescription, addLabel }: PageHeroProps) {
+export function PageHero({ title, subtitle, search, onSearch, searchPlaceholder = "Szukaj...", addHref, addTitle, addDescription, addLabel }: PageHeroProps) {
   return (
     <section className="relative overflow-hidden">
       <div className="container-page relative pt-4 pb-2 md:pt-5 md:pb-3">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
           <div className="flex-1 min-w-0">
             <h1
               className="font-heading font-black leading-[1.05] tracking-[-0.03em] text-black lg:whitespace-nowrap"
@@ -27,6 +28,20 @@ export function PageHero({ title, subtitle, addHref, addTitle, addDescription, a
             </h1>
             <p className="mt-2 text-[15px] text-muted-foreground">{subtitle}</p>
           </div>
+
+          {onSearch && (
+            <div className="hidden lg:block shrink-0 w-[340px] xl:w-[400px] mr-8">
+              <div className="relative rounded-2xl bg-gradient-to-r from-orange-300/85 via-amber-200/90 to-orange-200/85 shadow-[0_10px_28px_-8px_rgba(234,88,12,0.45)] ring-1 ring-orange-400/35 px-1.5 py-1.5">
+                <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-orange-800/90" />
+                <input
+                  value={search ?? ""}
+                  onChange={(e) => onSearch(e.target.value)}
+                  placeholder={searchPlaceholder}
+                  className="w-full rounded-xl bg-white/95 py-2.5 pl-9 pr-3 text-[13px] font-semibold text-orange-950 placeholder:text-black/40 focus:outline-none focus:ring-2 focus:ring-orange-500/45"
+                />
+              </div>
+            </div>
+          )}
 
           {false && addHref && (
             <a

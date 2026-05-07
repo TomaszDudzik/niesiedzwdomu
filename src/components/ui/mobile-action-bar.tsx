@@ -35,7 +35,7 @@ export function MobileActionBar({
         <button
           onClick={onToggleFilters}
           className={cn(
-            "flex-1 h-10 inline-flex items-center justify-center gap-1.5 rounded-xl border px-4 text-[12px] font-semibold transition-all duration-200",
+            "flex-1 h-8 inline-flex items-center justify-center gap-1.5 rounded-xl border px-4 text-[11px] font-semibold transition-all duration-200",
             filtersOpen || hasActiveFilters
               ? "border-primary bg-primary text-primary-foreground"
               : "border-border bg-background text-muted-foreground hover:text-foreground"
@@ -61,11 +61,11 @@ export function MobileActionBar({
       )}
 
       {hasViewToggle && (
-          <div className="mt-2 h-9 w-full inline-flex items-center gap-1 rounded-lg border border-border bg-accent/50 p-0.5">
+          <div className="mt-2 h-8 w-full inline-flex items-center gap-1 rounded-lg border border-border bg-accent/50 p-0.5">
             <button
               onClick={() => onSetView!("list")}
               className={cn(
-                "flex-1 h-full inline-flex items-center justify-center gap-1 rounded-md text-[10px] font-semibold transition-all duration-200",
+                "flex-1 h-full inline-flex items-center justify-center gap-1 rounded-md text-[11px] font-semibold transition-all duration-200",
                 view === "list"
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:text-foreground"
@@ -77,7 +77,7 @@ export function MobileActionBar({
             <button
               onClick={() => onSetView!("map")}
               className={cn(
-                "flex-1 h-full inline-flex items-center justify-center gap-1 rounded-md text-[10px] font-semibold transition-all duration-200",
+                "flex-1 h-full inline-flex items-center justify-center gap-1 rounded-md text-[11px] font-semibold transition-all duration-200",
                 view === "map"
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:text-foreground"
