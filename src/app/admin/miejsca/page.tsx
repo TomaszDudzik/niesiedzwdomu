@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from "react";
 import {
   Trash2, Pencil, Loader2, RefreshCw,
-  ExternalLink, Save, X, Upload, XCircle, MapPin, Plus, ClipboardPaste, ChevronDown, ChevronRight, Star, Copy, Sparkles,
+  ExternalLink, Save, X, Upload, XCircle, MapPin, Plus, ClipboardPaste, ChevronDown, ChevronRight, Star, Copy, Sparkles, Play, ImagePlus,
 } from "lucide-react";
 import { PLACE_TYPE_LABELS, PLACE_TYPE_ICONS, DISTRICT_LIST } from "@/lib/mock-data";
 import { normalizeDistrictName } from "@/lib/districts";
@@ -98,6 +98,11 @@ export default function AdminPlacesPage() {
   const [savingPrompt, setSavingPrompt] = useState(false);
   const [promptUrlRows, setPromptUrlRows] = useState<string[]>([]);
   const [promptUrlStatuses, setPromptUrlStatuses] = useState<Record<number, "in-progress" | "completed">>({});
+  const [buildingPlaces, setBuildingPlaces] = useState(false);
+  const [buildResult, setBuildResult] = useState<{ ok: boolean; message: string; failed?: number; newPlaces?: { place_id: string; title: string }[] } | null>(null);
+  const [assigningImageId, setAssigningImageId] = useState<string | null>(null);
+  const [promptPreview, setPromptPreview] = useState<{ title: string; placeId: string; prompt: string } | null>(null);
+  const [imagePromptByPlaceId, setImagePromptByPlaceId] = useState<Record<string, string>>({});
 
   const isCategoryExpanded = (type: string) => !collapsedCategories[type];
   const toggleCategory = (type: string) => {
@@ -401,6 +406,22 @@ export default function AdminPlacesPage() {
     [promptUrlRows, promptUrlStatuses]
   );
 
+  const inProgressPromptUrlEntries = useMemo(
+    () => promptUrlRows
+      .map((url, index) => ({ url, index }))
+      .filter(({ index }) => promptUrlStatuses[index] !== "completed")
+      .sort((a, b) => a.url.localeCompare(b.url, "pl", { sensitivity: "base" })),
+    [promptUrlRows, promptUrlStatuses]
+  );
+
+  const completedPromptUrlEntries = useMemo(
+    () => promptUrlRows
+      .map((url, index) => ({ url, index }))
+      .filter(({ index }) => promptUrlStatuses[index] === "completed")
+      .sort((a, b) => a.url.localeCompare(b.url, "pl", { sensitivity: "base" })),
+    [promptUrlRows, promptUrlStatuses]
+  );
+
   const statusOrder: Record<Place["status"], number> = {
     draft: 0,
     published: 1,
@@ -470,6 +491,7 @@ export default function AdminPlacesPage() {
     setPendingPreview(null);
     // Split address into street and city (format: "street, city" or just "street")
     setEditForm({
+      place_id: (place as unknown as Record<string, unknown>).place_id ?? "",
       title: place.title,
       description_short: place.description_short,
       description_long: place.description_long,
@@ -536,6 +558,7 @@ export default function AdminPlacesPage() {
     });
 
     const dbPayload: Record<string, unknown> = {
+      place_id: editForm.place_id ? String(editForm.place_id).trim() : null,
       title: editForm.title,
       description_short: editForm.description_short,
       description_long: editForm.description_long,
@@ -726,6 +749,69 @@ export default function AdminPlacesPage() {
     setSavingPrompt(false);
   };
 
+  const getPlaceImagePrompt = (place: Place) => {
+    const raw = (place as unknown as Record<string, unknown>).image_prompt;
+    if (typeof raw === "string" && raw.trim().length > 0) return raw.trim();
+    const externalId = (place as unknown as Record<string, unknown>).place_id;
+    const pid = typeof externalId === "string" && externalId.trim().length > 0 ? externalId.trim() : "";
+    return pid ? (imagePromptByPlaceId[pid] ?? "") : "";
+  };
+
+  const buildPlacesDataframe = async () => {
+    setBuildingPlaces(true);
+    setBuildResult(null);
+    try {
+      const res = await fetch("/api/admin/build-places", { method: "POST" });
+      const data = await res.json();
+      setBuildResult({ ok: data.ok, message: data.ok ? data.output : data.error, failed: data.failed ?? 0, newPlaces: data.newPlaces ?? [] });
+      if (data.ok && Array.isArray(data.newPlaces)) {
+        const promptMap: Record<string, string> = {};
+        for (const row of data.newPlaces) {
+          if (row && typeof row.place_id === "string" && typeof row.image_prompt === "string") {
+            promptMap[row.place_id] = row.image_prompt;
+          }
+        }
+        if (Object.keys(promptMap).length > 0) {
+          setImagePromptByPlaceId((prev) => ({ ...prev, ...promptMap }));
+        }
+        await fetchPlaces();
+      }
+    } catch (err) {
+      setBuildResult({ ok: false, message: String(err) });
+    } finally {
+      setBuildingPlaces(false);
+    }
+  };
+
+  const assignImageForPlace = async (place: Place) => {
+    const placeId = (place as unknown as Record<string, unknown>).place_id;
+    const placeIdStr = typeof placeId === "string" && placeId.trim().length > 0 ? placeId.trim() : "";
+    if (!placeIdStr) {
+      alert("Brak place_id. Najpierw ustaw identyfikator miejsca.");
+      return;
+    }
+    setAssigningImageId(place.id);
+    try {
+      const res = await fetch("/api/admin/assign-image-by-place-id", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: place.id, place_id: placeIdStr }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        alert(`Błąd: ${data.error || "Nie udało się przypisać obrazu"}`);
+        return;
+      }
+      setPlaces((prev) => prev.map((p) =>
+        p.id === place.id ? { ...p, image_url: data.image_url, image_cover: data.image_cover, image_thumb: data.image_thumb } : p,
+      ));
+    } catch (error) {
+      alert(`Błąd: ${error instanceof Error ? error.message : "Nie udało się przypisać obrazu"}`);
+    } finally {
+      setAssigningImageId(null);
+    }
+  };
+
   const inputClass = "w-full px-2 py-1.5 rounded-md border border-border text-[12px] bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30";
   const labelClass = "block text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1";
 
@@ -738,9 +824,13 @@ export default function AdminPlacesPage() {
             <Sparkles size={14} />
             Prompt
           </button>
-          <button onClick={() => setPasteModal(true)} className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-muted border border-border rounded-xl hover:border-[#CCC] transition-colors">
-            <ClipboardPaste size={14} />
-            Wklej dane
+          <button
+            onClick={buildPlacesDataframe}
+            disabled={buildingPlaces}
+            className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-muted border border-border rounded-xl hover:border-[#CCC] transition-colors disabled:opacity-50"
+          >
+            {buildingPlaces ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
+            Upload data
           </button>
           <button onClick={createPlace} className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium text-white bg-foreground rounded-xl hover:bg-stone-700 transition-colors">
             <Plus size={14} />
@@ -822,14 +912,11 @@ export default function AdminPlacesPage() {
                     {index + 1}
                   </span>
 
-                  {/* Type icon */}
-                  <span className="shrink-0 text-lg">{getPlaceCategoryIcon(getPlaceMainCategory(place))}</span>
-
                   {/* Image thumbnail */}
                   {thumbUrl(place.image_thumb, place.image_url) ? (
-                    <img src={thumbUrl(place.image_thumb, place.image_url) || ""} alt="" className="w-8 h-8 rounded object-cover shrink-0" />
+                    <img src={thumbUrl(place.image_thumb, place.image_url) || ""} alt="" className="w-16 h-16 rounded object-cover shrink-0" />
                   ) : (
-                    <span className="w-8 h-8 rounded bg-stone-100 shrink-0 flex items-center justify-center text-[10px] text-stone-400">—</span>
+                    <span className="w-16 h-16 rounded bg-stone-100 shrink-0 flex items-center justify-center text-[10px] text-stone-400">—</span>
                   )}
 
                   {/* Title + meta */}
@@ -844,12 +931,36 @@ export default function AdminPlacesPage() {
                       )}
                       {place.lat && <><span className="opacity-40">·</span><span>📍</span></>}
                     </div>
+                    {(place as unknown as Record<string, unknown>).place_id && (
+                      <p className="text-[10px] text-muted-foreground font-mono mt-0.5 truncate">PLACE ID: {String((place as unknown as Record<string, unknown>).place_id)}</p>
+                    )}
                   </div>
 
                   {/* Actions */}
                   {!isEditing && (
                     <button onClick={() => startEditing(place)} className="p-1 rounded hover:bg-accent text-muted transition-colors" title="Edytuj">
                       <Pencil size={13} />
+                    </button>
+                  )}
+
+                  {!isEditing && (
+                    <button
+                      onClick={() => {
+                        const prompt = getPlaceImagePrompt(place);
+                        if (!prompt) { alert("Brak image promptu dla tego miejsca."); return; }
+                        const pid = (place as unknown as Record<string, unknown>).place_id;
+                        setPromptPreview({ placeId: typeof pid === "string" ? pid : "(brak place_id)", title: place.title, prompt });
+                      }}
+                      className="p-1 rounded hover:bg-accent text-muted transition-colors"
+                      title="Pokaż image prompt"
+                    >
+                      <Sparkles size={13} />
+                    </button>
+                  )}
+
+                  {!isEditing && (
+                    <button onClick={() => assignImageForPlace(place)} className="p-1 rounded hover:bg-accent text-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Przypisz obraz" disabled={assigningImageId === place.id}>
+                      {assigningImageId === place.id ? <Loader2 size={13} className="animate-spin" /> : <ImagePlus size={13} />}
                     </button>
                   )}
 
@@ -913,6 +1024,10 @@ export default function AdminPlacesPage() {
                           <input className={inputClass} value={(editForm.title as string) || ""} onChange={(e) => updateField("title", e.target.value)} />
                         </div>
                         <div className="md:col-span-3">
+                          <label className={labelClass}>PLACE ID</label>
+                          <input className={`${inputClass} font-mono`} value={(editForm.place_id as string) || ""} onChange={(e) => updateField("place_id", e.target.value)} placeholder="PLACE-000001" />
+                        </div>
+                        <div className="md:col-span-6">
                           <label className={labelClass}>Organizator</label>
                           <OrganizerCombobox
                             organizers={organizers}
@@ -1362,6 +1477,81 @@ export default function AdminPlacesPage() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {promptPreview && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[80vh] flex flex-col">
+            <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+              <h2 className="font-semibold text-[13px] text-foreground flex items-center gap-2">
+                <Sparkles size={14} />
+                Image prompt
+              </h2>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => navigator.clipboard.writeText(promptPreview.prompt)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-muted border border-border rounded-lg hover:border-[#CCC] transition-colors"
+                >
+                  <Copy size={12} />
+                  Kopiuj prompt
+                </button>
+                <button onClick={() => setPromptPreview(null)} className="text-muted-foreground hover:text-foreground transition-colors ml-1">
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+            <div className="p-5 space-y-2 overflow-y-auto flex-1">
+              <p className="text-[12px] text-muted-foreground">PLACE ID: {promptPreview.placeId} — {promptPreview.title}</p>
+              <pre className="text-xs text-foreground whitespace-pre-wrap font-mono leading-relaxed bg-stone-50 rounded-lg p-3 border border-border">
+                {promptPreview.prompt}
+              </pre>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {buildResult !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col mx-4">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <h2 className={`text-base font-semibold flex items-center gap-2 ${buildResult.ok ? "text-green-700" : "text-red-600"}`}>
+                <Play size={16} />
+                Upload data – {buildResult.ok ? "sukces" : "błąd"}
+              </h2>
+              <button onClick={() => setBuildResult(null)} className="text-muted-foreground hover:text-foreground transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5 space-y-3">
+              {!buildResult.ok ? (
+                <pre className="text-xs text-foreground whitespace-pre-wrap font-mono leading-relaxed bg-stone-50 rounded-lg p-3 border border-border">
+                  {buildResult.message || "(brak wyjścia)"}
+                </pre>
+              ) : (
+                <div className="rounded-lg border border-border bg-stone-50 p-4 space-y-2">
+                  <p className="text-sm font-medium text-foreground">
+                    {buildResult.newPlaces?.length
+                      ? `Przetworzono ${buildResult.newPlaces.length} miejsc.`
+                      : "Brak nowych miejsc do przetworzenia."}
+                  </p>
+                  {buildResult.failed ? (
+                    <p className="text-xs text-red-600">Błąd przy {buildResult.failed} rekordzie/ach (sprawdź logi serwera).</p>
+                  ) : null}
+                  {buildResult.message ? (
+                    <pre className="text-xs text-foreground whitespace-pre-wrap font-mono leading-relaxed">
+                      {buildResult.message}
+                    </pre>
+                  ) : null}
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end items-center px-5 py-4 border-t border-border">
+              <button onClick={() => setBuildResult(null)} className="px-3 py-1.5 text-[12px] font-medium text-white bg-foreground rounded-lg hover:bg-stone-700 transition-colors">
+                Zamknij
+              </button>
+            </div>
           </div>
         </div>
       )}

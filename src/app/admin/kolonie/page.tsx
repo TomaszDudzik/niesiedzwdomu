@@ -38,6 +38,15 @@ type DerivedCampStatus = Camp["status"] | "outdated";
 type CampListFilter = "all" | "published" | "draft" | "outdated";
 const UNCATEGORIZED_GROUP = "__uncategorized__";
 
+function withShuffleOrder<T extends Record<string, unknown>>(items: T[]): (T & { __shuffleOrder: number })[] {
+  return items.map((item) => ({ ...item, __shuffleOrder: Math.random() }));
+}
+
+function getShuffleOrder(item: Record<string, unknown>): number {
+  const value = item.__shuffleOrder;
+  return typeof value === "number" ? value : Number.MAX_SAFE_INTEGER;
+}
+
 const STATUS_ORDER: Record<DerivedCampStatus, number> = {
   draft: 0, published: 1, outdated: 2, cancelled: 3, deleted: 4,
 };
@@ -216,7 +225,7 @@ export default function AdminCampsPage() {
     setLoading(true);
     const res = await fetch("/api/admin/camps");
     const data = await res.json();
-    if (Array.isArray(data)) setCamps(data.map((c: Record<string, unknown>) => mapCampRow(c)));
+    if (Array.isArray(data)) setCamps(withShuffleOrder(data.map((c: Record<string, unknown>) => mapCampRow(c) as Camp & Record<string, unknown>)));
     setLoading(false);
   }, []);
 
@@ -272,7 +281,10 @@ export default function AdminCampsPage() {
           organizer: group.organizer,
           items: group.items.sort((a, b) => {
             const sd = STATUS_ORDER[getEffectiveStatus(a)] - STATUS_ORDER[getEffectiveStatus(b)];
-            return sd !== 0 ? sd : a.title.localeCompare(b.title, "pl");
+            if (sd !== 0) return sd;
+            const shuffleDiff = getShuffleOrder(a as unknown as Record<string, unknown>) - getShuffleOrder(b as unknown as Record<string, unknown>);
+            if (shuffleDiff !== 0) return shuffleDiff;
+            return a.title.localeCompare(b.title, "pl");
           }),
         }));
       return { type, byOrganizer };
@@ -817,12 +829,10 @@ export default function AdminCampsPage() {
                           <div key={camp.id} className={cn("rounded-lg border border-border/70", isDraft ? "bg-stone-100 opacity-70" : "bg-white")}>
                             <div className="flex items-center gap-2.5 px-3 py-2.5">
                               <span className="shrink-0 w-6 text-center text-[11px] font-mono text-muted-foreground">{index + 1}</span>
-                              <span className="shrink-0 text-lg">{getCampGroupIcon(getCampGroupKey(camp))}</span>
-
                               {thumbUrl(camp.image_thumb, camp.image_url) ? (
-                                <img src={thumbUrl(camp.image_thumb, camp.image_url) || ""} alt="" className="w-8 h-8 rounded object-cover shrink-0" />
+                                <img src={thumbUrl(camp.image_thumb, camp.image_url) || ""} alt="" className="w-16 h-16 rounded object-cover shrink-0" />
                               ) : (
-                                <span className="w-8 h-8 rounded bg-stone-100 shrink-0 flex items-center justify-center text-[10px] text-stone-400">—</span>
+                                <span className="w-16 h-16 rounded bg-stone-100 shrink-0 flex items-center justify-center text-[10px] text-stone-400">—</span>
                               )}
 
                               <div className="flex-1 min-w-0">

@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """
-Assign a randomly chosen image to one event by event_id.
+Assign a randomly chosen image to one place by place_id.
 
 Flow:
-- find ALL source images whose filename starts with event_id under PHOTOS_DIR
+- find ALL source images whose filename starts with place_id under PHOTOS_DIR
 - convert each to a cover-*.webp / thumb-*.webp pair (skipped if already done)
 - pick one pair randomly
 - upload that pair to Supabase Storage
-- update target row in public.events
+- update target row in public.places
 
 Usage:
-  python scripts/assign_event_image.py --id <event_row_id> --event-id EVENT-000123
+  python scripts/assign_place_image.py --id <place_row_id> --place-id PLACE-000123
 """
 
 import argparse
@@ -29,9 +29,11 @@ from supabase import create_client
 SCRIPT_DIR = Path(__file__).resolve().parent
 NEXTJS_ROOT = SCRIPT_DIR.parent
 
-PHOTOS_DIR = Path(r"C:\Users\dudzi\OneDrive\NieSiedzWDomu\photos\dzieci\wydarzenia")
+PHOTOS_DIR = Path(r"C:\Users\dudzi\OneDrive\NieSiedzWDomu\photos\dzieci\miejsca")
 BUCKET = "event-library"
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".tiff", ".avif"}
+COVER_MAX_BYTES = 290_000
+THUMB_MAX_BYTES = 140_000
 
 
 def _load_env() -> None:
@@ -43,14 +45,11 @@ def _load_env() -> None:
 
 def _is_generated(name: str) -> bool:
     lowered = name.lower()
-    return bool(
-        re.search(r"-(cover|thumb)(?:-\d+)?\.webp$", lowered)
-    )
+    return bool(re.search(r"-(cover|thumb)(?:-\d+)?\.webp$", lowered))
 
 
-def _find_source_images(event_id: str) -> list[Path]:
-    """Return all non-generated images whose stem starts with event_id."""
-    needle = event_id.strip().lower()
+def _find_source_images(place_id: str) -> list[Path]:
+    needle = place_id.strip().lower()
     candidates: list[Path] = []
 
     for p in PHOTOS_DIR.rglob("*"):
@@ -67,37 +66,58 @@ def _find_source_images(event_id: str) -> list[Path]:
     return candidates
 
 
-def _resize_to_webp(src: Path, width: int, quality: int) -> bytes:
+def _resize_to_webp(src: Path, width: int, quality: int, max_bytes: int | None = None) -> bytes:
     with Image.open(src) as img:
-        if img.width > width:
-            ratio = width / img.width
-            img = img.resize((width, int(img.height * ratio)), Image.LANCZOS)
+        base = img.convert("RGB")
+        current_width = min(base.width, width)
+        current_quality = quality
 
-        buf = io.BytesIO()
-        img.convert("RGB").save(buf, format="WEBP", quality=quality)
-        return buf.getvalue()
+        while True:
+            working = base
+            if working.width > current_width:
+                ratio = current_width / working.width
+                working = working.resize((current_width, int(working.height * ratio)), Image.LANCZOS)
+
+            buf = io.BytesIO()
+            working.save(buf, format="WEBP", quality=current_quality)
+            data = buf.getvalue()
+
+            if max_bytes is None or len(data) <= max_bytes:
+                return data
+
+            if current_quality > 50:
+                current_quality = max(50, current_quality - 6)
+                continue
+
+            if current_width > 900:
+                current_width = max(900, current_width - 120)
+                current_quality = quality
+                continue
+
+            return data
 
 
 def _ensure_webp_pair(source: Path) -> tuple[Path, Path]:
-    """Generate cover + thumb webp files from source if they don't exist yet.
-    Returns (cover_path, thumb_path).
-    """
     stem = source.stem
     cover_local = source.parent / f"{stem}-cover.webp"
     thumb_local = source.parent / f"{stem}-thumb.webp"
 
-    if not cover_local.exists():
-        cover_local.write_bytes(_resize_to_webp(source, width=1400, quality=78))
-    if not thumb_local.exists():
-        thumb_local.write_bytes(_resize_to_webp(source, width=480, quality=70))
+    if (not cover_local.exists()) or cover_local.stat().st_size > COVER_MAX_BYTES:
+        cover_local.write_bytes(
+            _resize_to_webp(source, width=1400, quality=78, max_bytes=COVER_MAX_BYTES)
+        )
+    if (not thumb_local.exists()) or thumb_local.stat().st_size > THUMB_MAX_BYTES:
+        thumb_local.write_bytes(
+            _resize_to_webp(source, width=480, quality=70, max_bytes=THUMB_MAX_BYTES)
+        )
 
     return cover_local, thumb_local
 
 
 def _main() -> int:
-    parser = argparse.ArgumentParser(description="Assign image to event by event_id")
-    parser.add_argument("--id", required=True, help="UUID row id in events table")
-    parser.add_argument("--event-id", required=True, help="Human event id like EVENT-000123")
+    parser = argparse.ArgumentParser(description="Assign image to place by place_id")
+    parser.add_argument("--id", required=True, help="UUID row id in places table")
+    parser.add_argument("--place-id", required=True, help="Human place id like PLACE-000123")
     args = parser.parse_args()
 
     _load_env()
@@ -109,20 +129,18 @@ def _main() -> int:
         print(json.dumps({"ok": False, "error": "Missing Supabase env"}), file=sys.stderr)
         return 1
 
-    sources = _find_source_images(args.event_id)
+    sources = _find_source_images(args.place_id)
     if not sources:
-        print(json.dumps({"ok": False, "error": f"No source images found for {args.event_id}"}), file=sys.stderr)
+        print(json.dumps({"ok": False, "error": f"No source images found for {args.place_id}"}), file=sys.stderr)
         return 1
 
     client = create_client(supabase_url, supabase_key)
 
-    # Convert every source image to cover/thumb webp (no-op if already done).
     pairs: list[tuple[Path, Path]] = []
     for src in sources:
         cover_local, thumb_local = _ensure_webp_pair(src)
         pairs.append((cover_local, thumb_local))
 
-    # Pick one pair randomly.
     chosen_cover, chosen_thumb = random.choice(pairs)
 
     storage_dir = chosen_cover.parent.relative_to(PHOTOS_DIR).as_posix()
@@ -136,8 +154,8 @@ def _main() -> int:
     cover_bytes = chosen_cover.read_bytes()
     thumb_bytes = chosen_thumb.read_bytes()
 
-    cover_path = f"dzieci/wydarzenia/{storage_dir}/{cover_name}" if storage_dir else f"dzieci/wydarzenia/{cover_name}"
-    thumb_path = f"dzieci/wydarzenia/{storage_dir}/{thumb_name}" if storage_dir else f"dzieci/wydarzenia/{thumb_name}"
+    cover_path = f"dzieci/miejsca/{storage_dir}/{cover_name}" if storage_dir else f"dzieci/miejsca/{cover_name}"
+    thumb_path = f"dzieci/miejsca/{storage_dir}/{thumb_name}" if storage_dir else f"dzieci/miejsca/{thumb_name}"
 
     client.storage.from_(BUCKET).upload(
         cover_path,
@@ -159,17 +177,16 @@ def _main() -> int:
         "image_set": set_id,
         "status": "draft",
     }
-    response = client.table("events").update(update).eq("id", args.id).execute()
+    response = client.table("places").update(update).eq("id", args.id).execute()
 
     if response is None:
-        print(json.dumps({"ok": False, "error": "Failed to update event"}), file=sys.stderr)
+        print(json.dumps({"ok": False, "error": "Failed to update place"}), file=sys.stderr)
         return 1
-
 
     print(json.dumps({
         "ok": True,
         "id": args.id,
-        "event_id": args.event_id,
+        "place_id": args.place_id,
         "image_cover": cover_url,
         "image_thumb": thumb_url,
         "image_set": set_id,

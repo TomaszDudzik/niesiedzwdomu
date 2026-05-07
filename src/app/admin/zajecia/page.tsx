@@ -38,6 +38,15 @@ type ActivityGroupingMode = "type" | "organizer";
 const UNCATEGORIZED_GROUP = "__uncategorized__";
 const UNASSIGNED_ORGANIZER_GROUP = "__unassigned_organizer__";
 
+function withShuffleOrder<T extends Record<string, unknown>>(items: T[]): (T & { __shuffleOrder: number })[] {
+  return items.map((item) => ({ ...item, __shuffleOrder: Math.random() }));
+}
+
+function getShuffleOrder(item: Record<string, unknown>): number {
+  const value = item.__shuffleOrder;
+  return typeof value === "number" ? value : Number.MAX_SAFE_INTEGER;
+}
+
 const ACTIVITY_ORDER: Activity["activity_type"][] = [
   "sportowe",
   "artystyczne",
@@ -240,7 +249,7 @@ export default function AdminActivitiesPage() {
     const response = await fetch("/api/admin/activities");
     const data = await response.json();
     if (Array.isArray(data)) {
-      setActivities(data.map((row: Record<string, unknown>) => mapActivityRow(row)));
+      setActivities(withShuffleOrder(data.map((row: Record<string, unknown>) => mapActivityRow(row) as Activity & Record<string, unknown>)));
     }
     setLoading(false);
   }, [mapActivityRow]);
@@ -891,7 +900,11 @@ export default function AdminActivitiesPage() {
             </div>
           ) : (
             [...filteredActivities]
-              .sort((a, b) => a.title.localeCompare(b.title, "pl"))
+              .sort((a, b) => {
+                const shuffleDiff = getShuffleOrder(a as unknown as Record<string, unknown>) - getShuffleOrder(b as unknown as Record<string, unknown>);
+                if (shuffleDiff !== 0) return shuffleDiff;
+                return a.title.localeCompare(b.title, "pl");
+              })
               .map((activity, index) => {
                         const isDraft = activity.status !== "published";
                         const isEditing = editing === activity.id;
@@ -899,11 +912,10 @@ export default function AdminActivitiesPage() {
                           <div key={activity.id} className={cn("rounded-lg border border-border/70", isDraft ? "bg-stone-100 opacity-70" : "bg-white")}>
                             <div className="flex items-center gap-2.5 px-3 py-2.5">
                               <span className="shrink-0 w-6 text-center text-[11px] font-mono text-muted-foreground">{index + 1}</span>
-                              <span className="shrink-0 text-lg">{ACTIVITY_TYPE_ICONS[activity.activity_type]}</span>
                               {thumbUrl(activity.image_thumb, activity.image_url) ? (
-                                <img src={thumbUrl(activity.image_thumb, activity.image_url) || ""} alt="" className="w-8 h-8 rounded object-cover shrink-0" />
+                                <img src={thumbUrl(activity.image_thumb, activity.image_url) || ""} alt="" className="w-16 h-16 rounded object-cover shrink-0" />
                               ) : (
-                                <span className="w-8 h-8 rounded bg-stone-100 shrink-0 flex items-center justify-center text-[10px] text-stone-400">—</span>
+                                <span className="w-16 h-16 rounded bg-stone-100 shrink-0 flex items-center justify-center text-[10px] text-stone-400">—</span>
                               )}
                               <div className="flex-1 min-w-0">
                                 <p className="text-[13px] font-medium text-foreground truncate">{activity.title}</p>
