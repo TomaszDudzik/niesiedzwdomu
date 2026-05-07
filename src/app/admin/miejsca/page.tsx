@@ -931,9 +931,7 @@ export default function AdminPlacesPage() {
                       )}
                       {place.lat && <><span className="opacity-40">·</span><span>📍</span></>}
                     </div>
-                    {(place as unknown as Record<string, unknown>).place_id && (
-                      <p className="text-[10px] text-muted-foreground font-mono mt-0.5 truncate">PLACE ID: {String((place as unknown as Record<string, unknown>).place_id)}</p>
-                    )}
+                    {(() => { const pid = (place as unknown as Record<string, unknown>).place_id; return pid ? <p className="text-[10px] text-muted-foreground font-mono mt-0.5 truncate">PLACE ID: {String(pid)}</p> : null; })()}
                   </div>
 
                   {/* Actions */}
