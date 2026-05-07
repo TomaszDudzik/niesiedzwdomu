@@ -27,8 +27,10 @@ export function getTaxonomyIcon(value: string): string {
   if (normalized.includes("sport") || normalized.includes("ruch") || normalized.includes("pilka") || normalized.includes("ninja")) return "⚽";
   if (normalized.includes("plyw")) return "🏊";
   if (normalized.includes("rolk")) return "🛼";
-  if (normalized.includes("sztuk") || normalized.includes("tworczos") || normalized.includes("tworcz") || normalized.includes("kreat")) return "🎨";
+  if (normalized.includes("walki") || normalized.includes("judo") || normalized.includes("karate") || normalized.includes("bokser") || normalized.includes("grappl")) return "🥋";
+  if (normalized.includes("plastyk") || normalized.includes("rekodziel") || normalized.includes("ceramik") || normalized.includes("sztuk") || normalized.includes("tworczos") || normalized.includes("tworcz") || normalized.includes("kreat")) return "🎨";
   if (normalized.includes("muzyk") || normalized.includes("scena")) return "🎵";
+  if (normalized.includes("multidyscyplin") || normalized.includes("wielotemat") || normalized.includes("ogolnorozwoj")) return "🎯";
   if (normalized.includes("taniec") || normalized.includes("tanec")) return "💃";
   if (normalized.includes("jezyk")) return "🗣️";
   if (normalized.includes("sensory")) return "🧩";
